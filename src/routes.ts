@@ -10,10 +10,10 @@ export default [
   index("pages/home.tsx"),
 
   // main layout
-  layout("./layouts/main/index.tsx", [
-    //
-    route("test", "./pages/test.tsx"),
-  ]),
+  // layout("./layouts/main/index.tsx", [
+  //   //
+  //   route("test", "./pages/test.tsx"),
+  // ]),
 
   //
 ] satisfies RouteConfig;

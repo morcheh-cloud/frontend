@@ -11,7 +11,7 @@ export function meta({}: MetaArgs) {
 export default function Home() {
   return (
     <>
-      <Stack>hi chekra</Stack>
+      <Stack bg={"teal.400"}>hi chekra</Stack>
     </>
   );
 }
