@@ -10,6 +10,7 @@ import {
 
 import "./global.css";
 import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
+import ThemeProvider from "@/providers/theme";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -37,11 +38,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
-        <ChakraProvider value={defaultSystem}>
-          {/* <ThemeProvider attribute="class" disableTransitionOnChange> */}
-          {children}
-          {/* </ThemeProvider> */}
-        </ChakraProvider>
+        <ThemeProvider>{children}</ThemeProvider>
         <ScrollRestoration />
         <Scripts />
       </body>
