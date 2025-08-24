@@ -10,7 +10,7 @@ import type { FunctionComponent } from "react";
 import { LuPlus } from "react-icons/lu";
 import Caption from "@/components/base/Caption";
 import PageContainer from "@/components/base/PageContainer";
-import PlayBookCard from "@/pages/ansible/PlayBookCard";
+import PlayBookCard from "@/pages/ansible/components/PlayBookCard";
 
 interface AnsiblePageProps {}
 

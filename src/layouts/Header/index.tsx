@@ -11,6 +11,7 @@ const Header: FunctionComponent<HeaderProps> = () => {
 	return (
 		<>
 			<HStack
+				bgColor={"white"}
 				borderBottom={"1px solid"}
 				borderColor={"gray.200"}
 				p={1}

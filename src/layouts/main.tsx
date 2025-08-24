@@ -1,7 +1,7 @@
 import { Box, Stack } from "@chakra-ui/react";
 import type { FunctionComponent } from "react";
 import { useId } from "react";
-import { type MetaArgs, Outlet } from "react-router";
+import { Outlet } from "react-router";
 import Header from "@/layouts/Header";
 import Navbar from "@/layouts/Navbar";
 
@@ -41,7 +41,7 @@ const MainLayout: FunctionComponent<MainLayoutProps> = () => {
 
 export default MainLayout;
 
-export function meta({ params }: MetaArgs) {
+export function meta() {
 	return [
 		{ title: "StackOps" },
 		{ content: "Welcome to React Router!", name: "description" },

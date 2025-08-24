@@ -2,6 +2,7 @@
 	"dependencies": {
 		"@chakra-ui/cli": "^3.25.0",
 		"@chakra-ui/react": "^3.25.0",
+		"@monaco-editor/react": "^4.7.0",
 		"@react-router/fs-routes": "^7.8.2",
 		"@react-router/node": "^7.8.2",
 		"@react-router/serve": "^7.8.2",
@@ -9,6 +10,8 @@
 		"framer-motion": "^12.23.12",
 		"isbot": "^5.1.30",
 		"lucide-react": "^0.541.0",
+		"monaco-yaml": "^5.4.0",
+		"next-themes": "^0.4.6",
 		"react": "^19.1.1",
 		"react-dom": "^19.1.1",
 		"react-icons": "^5.5.0",
@@ -47,7 +50,7 @@
 		"ci": "pnpm build && pnpm test --run && pnpm typecheck",
 		"dev": "react-router dev --host",
 		"gen:icon": "yarn svgr --out-dir src/icons/ public/svg --typescript",
-		"lint": "pnpm exec biome format --write .",
+		"lint": "pnpm exec biome check --write",
 		"start": "react-router-serve ./build/client/index.js",
 		"test": "vitest",
 		"typecheck": "react-router typegen && tsc"

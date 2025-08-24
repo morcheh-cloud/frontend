@@ -20,6 +20,9 @@ const PlayBookCard: FunctionComponent<PlayBookCardProps> = () => {
 	return (
 		<>
 			<Stack
+				_hover={{
+					borderColor: "black",
+				}}
 				border={"1px solid"}
 				borderColor={"gray.200"}
 				borderRadius={8}

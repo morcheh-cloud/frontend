@@ -1,0 +1,45 @@
+import { defineGlobalStyles } from "@chakra-ui/react";
+
+export const globalCss = defineGlobalStyles({
+	"*": {
+		"--backdrop-blur": "var(--chakra-empty,/*!*/ /*!*/)",
+		"--backdrop-brightness": "var(--chakra-empty,/*!*/ /*!*/)",
+		"--backdrop-contrast": "var(--chakra-empty,/*!*/ /*!*/)",
+		"--backdrop-grayscale": "var(--chakra-empty,/*!*/ /*!*/)",
+		"--backdrop-hue-rotate": "var(--chakra-empty,/*!*/ /*!*/)",
+		"--backdrop-invert": "var(--chakra-empty,/*!*/ /*!*/)",
+		"--backdrop-opacity": "var(--chakra-empty,/*!*/ /*!*/)",
+		"--backdrop-saturate": "var(--chakra-empty,/*!*/ /*!*/)",
+		"--backdrop-sepia": "var(--chakra-empty,/*!*/ /*!*/)",
+		"--brightness": "var(--chakra-empty,/*!*/ /*!*/)",
+		"--contrast": "var(--chakra-empty,/*!*/ /*!*/)",
+		"--drop-shadow": "var(--chakra-empty,/*!*/ /*!*/)",
+		"--global-color-border": "colors.border",
+		"--global-font-body": "fonts.body",
+		"--global-font-mono": "fonts.mono",
+		"--grayscale": "var(--chakra-empty,/*!*/ /*!*/)",
+		"--hue-rotate": "var(--chakra-empty,/*!*/ /*!*/)",
+		"--invert": "var(--chakra-empty,/*!*/ /*!*/)",
+		"--ring-color": "rgba(66, 153, 225, 0.6)",
+		"--ring-inset": "var(--chakra-empty,/*!*/ /*!*/)",
+		"--ring-offset-color": "#fff",
+		"--ring-offset-shadow": "0 0 #0000",
+		"--ring-offset-width": "0px",
+		"--ring-shadow": "0 0 #0000",
+		"--saturate": "var(--chakra-empty,/*!*/ /*!*/)",
+		"--sepia": "var(--chakra-empty,/*!*/ /*!*/)",
+		fontFeatureSettings: '"cv11"',
+	},
+	"*::placeholder, *[data-placeholder]": {
+		color: "fg.muted/80",
+	},
+	"*::selection": {
+		bg: "colorPalette.emphasized/80",
+	},
+	html: {
+		bg: "bg",
+		color: "fg",
+		colorPalette: "gray",
+		lineHeight: "1.5",
+	},
+});
