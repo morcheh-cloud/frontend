@@ -1,53 +1,45 @@
-import React from "react";
-import {
-  isRouteErrorResponse,
-  Links,
-  Meta,
-  Outlet,
-  Scripts,
-  ScrollRestoration,
-} from "react-router";
+import type React from "react";
+import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 
 import "./global.css";
-import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
 import ThemeProvider from "@/providers/theme";
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en">
-      <head>
-        {/*  */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin=""
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap"
-          rel="stylesheet"
-        />
+	return (
+		<html lang="en">
+			<head>
+				{/*  */}
+				<link href="https://fonts.googleapis.com" rel="preconnect" />
+				<link
+					crossOrigin=""
+					href="https://fonts.gstatic.com"
+					rel="preconnect"
+				/>
+				<link
+					href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap"
+					rel="stylesheet"
+				/>
 
-        {/*  */}
-        <meta charSet="utf-8" />
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1, maximum-scale=1"
-        />
-        <Meta />
-        <Links />
-      </head>
-      <body>
-        <ThemeProvider>{children}</ThemeProvider>
-        <ScrollRestoration />
-        <Scripts />
-      </body>
-    </html>
-  );
+				{/*  */}
+				<meta charSet="utf-8" />
+				<meta
+					content="width=device-width, initial-scale=1, maximum-scale=1"
+					name="viewport"
+				/>
+				<Meta />
+				<Links />
+			</head>
+			<body>
+				<ThemeProvider>{children}</ThemeProvider>
+				<ScrollRestoration />
+				<Scripts />
+			</body>
+		</html>
+	);
 }
 
 export default function App() {
-  return <Outlet />;
+	return <Outlet />;
 }
 
 // export function ErrorBoundary() {

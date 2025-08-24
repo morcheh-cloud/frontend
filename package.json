@@ -1,42 +1,38 @@
 {
-	"name": "stackops",
-	"private": true,
-	"type": "module",
-	"scripts": {
-		"build": "react-router build",
-		"ci": "pnpm build && pnpm test --run && pnpm typecheck",
-		"dev": "react-router dev --host",
-		"start": "react-router-serve ./build/client/index.js",
-		"test": "vitest",
-		"typecheck": "react-router typegen && tsc"
-	},
 	"dependencies": {
-		"@chakra-ui/cli": "^3.24.2",
-		"@chakra-ui/react": "^3.24.2",
+		"@chakra-ui/cli": "^3.25.0",
+		"@chakra-ui/react": "^3.25.0",
+		"@react-router/fs-routes": "^7.8.2",
+		"@react-router/node": "^7.8.2",
+		"@react-router/serve": "^7.8.2",
 		"add": "^2.0.6",
-		"isbot": "^5.1.29",
+		"framer-motion": "^12.23.12",
+		"isbot": "^5.1.30",
+		"lucide-react": "^0.541.0",
 		"react": "^19.1.1",
 		"react-dom": "^19.1.1",
 		"react-icons": "^5.5.0",
-		"react-router": "^7.8.0",
-		"@react-router/node": "^7.8.0",
-		"@react-router/serve": "^7.8.0",
+		"react-router": "^7.8.2",
 		"snippet": "^0.1.0"
 	},
 	"devDependencies": {
-		"@react-router/dev": "^7.8.0",
-		"@types/node": "^24.2.1",
-		"@types/react": "^19.1.10",
+		"@biomejs/biome": "2.2.0",
+		"@react-router/dev": "^7.8.2",
+		"@svgr/cli": "^8.1.0",
+		"@types/node": "^24.3.0",
+		"@types/react": "^19.1.11",
 		"@types/react-dom": "^19.1.7",
 		"jsdom": "^26.1.0",
 		"postcss": "^8.5.6",
 		"postcss-simple-vars": "^7.0.1",
+		"svgr": "^2.0.0",
 		"typescript": "^5.9.2",
-		"vite": "^7.1.2",
+		"vite": "^7.1.3",
 		"vite-plugin-devtools-json": "^1.0.0",
 		"vite-tsconfig-paths": "^5.1.4",
 		"vitest": "^3.2.4"
 	},
+	"name": "stackops",
 	"pnpm": {
 		"ignoredBuiltDependencies": [
 			"@tailwindcss/oxide"
@@ -44,5 +40,17 @@
 		"onlyBuiltDependencies": [
 			"@tailwindcss/oxide"
 		]
-	}
+	},
+	"private": true,
+	"scripts": {
+		"build": "react-router build",
+		"ci": "pnpm build && pnpm test --run && pnpm typecheck",
+		"dev": "react-router dev --host",
+		"gen:icon": "yarn svgr --out-dir src/icons/ public/svg --typescript",
+		"lint": "pnpm exec biome format --write .",
+		"start": "react-router-serve ./build/client/index.js",
+		"test": "vitest",
+		"typecheck": "react-router typegen && tsc"
+	},
+	"type": "module"
 }
