@@ -7,8 +7,8 @@ import {
 	defineTextStyles,
 	// ⬇️ add this only if you prefer the helper function form
 	// defineRecipe,
-} from "@chakra-ui/react";
-import type { FunctionComponent, ReactNode } from "react";
+} from "@chakra-ui/react"
+import type { FunctionComponent, ReactNode } from "react"
 
 export const textStyles = defineTextStyles({
 	body: {
@@ -23,7 +23,7 @@ export const textStyles = defineTextStyles({
 			textTransform: "None",
 		},
 	},
-});
+})
 
 const config = defineConfig({
 	theme: {
@@ -35,16 +35,16 @@ const config = defineConfig({
 			colors: {},
 		},
 	},
-});
+})
 
-const system = createSystem(defaultConfig, config);
+const system = createSystem(defaultConfig, config)
 
 interface ThemeProps {
-	children: ReactNode;
+	children: ReactNode
 }
 
 const ThemeProvider: FunctionComponent<ThemeProps> = ({ children }) => {
-	return <ChakraProvider value={system}>{children}</ChakraProvider>;
-};
+	return <ChakraProvider value={system}>{children}</ChakraProvider>
+}
 
-export default ThemeProvider;
+export default ThemeProvider

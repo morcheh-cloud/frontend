@@ -3,7 +3,7 @@ import {
 	layout,
 	type RouteConfig,
 	route,
-} from "@react-router/dev/routes";
+} from "@react-router/dev/routes"
 
 export default [
 	layout("./layouts/main.tsx", [
@@ -15,4 +15,4 @@ export default [
 	]),
 
 	//
-] satisfies RouteConfig;
+] satisfies RouteConfig

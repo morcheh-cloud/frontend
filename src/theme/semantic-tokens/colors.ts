@@ -1,4 +1,4 @@
-import { defineSemanticTokens } from "@chakra-ui/react";
+import { defineSemanticTokens } from "@chakra-ui/react"
 
 export const colors = defineSemanticTokens.colors({
 	bg: {
@@ -609,4 +609,4 @@ export const colors = defineSemanticTokens.colors({
 			},
 		},
 	},
-});
+})

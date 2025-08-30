@@ -1,4 +1,4 @@
-import { defineTextStyles } from "@chakra-ui/react";
+import { defineTextStyles } from "@chakra-ui/react"
 
 export const textStyles = defineTextStyles({
 	"2xl": {
@@ -87,4 +87,4 @@ export const textStyles = defineTextStyles({
 			lineHeight: "1rem",
 		},
 	},
-});
+})

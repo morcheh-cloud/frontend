@@ -1,4 +1,4 @@
-import { Stack } from "@chakra-ui/react";
+import { Stack } from "@chakra-ui/react"
 
 export default function Home() {
 	return (
@@ -7,5 +7,5 @@ export default function Home() {
 				aliasdasds
 			</Stack>
 		</>
-	);
+	)
 }

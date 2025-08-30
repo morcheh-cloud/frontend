@@ -1,4 +1,4 @@
-import { defineSlotRecipe } from "@chakra-ui/react";
+import { defineSlotRecipe } from "@chakra-ui/react"
 
 export const fileUploadSlotRecipe = defineSlotRecipe({
 	base: {
@@ -119,4 +119,4 @@ export const fileUploadSlotRecipe = defineSlotRecipe({
 		"dropzoneContent",
 		"fileText",
 	],
-});
+})

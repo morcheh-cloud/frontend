@@ -1,9 +1,9 @@
-import "@testing-library/jest-dom/vitest";
-import { vi } from "vitest";
+import "@testing-library/jest-dom/vitest"
+import { vi } from "vitest"
 
-const { getComputedStyle } = window;
-window.getComputedStyle = (elt) => getComputedStyle(elt);
-window.HTMLElement.prototype.scrollIntoView = () => {};
+const { getComputedStyle } = window
+window.getComputedStyle = (elt) => getComputedStyle(elt)
+window.HTMLElement.prototype.scrollIntoView = () => {}
 
 Object.defineProperty(window, "matchMedia", {
 	value: vi.fn().mockImplementation((query) => ({
@@ -17,7 +17,7 @@ Object.defineProperty(window, "matchMedia", {
 		removeListener: vi.fn(),
 	})),
 	writable: true,
-});
+})
 
 class ResizeObserver {
 	observe() {}
@@ -25,4 +25,4 @@ class ResizeObserver {
 	disconnect() {}
 }
 
-window.ResizeObserver = ResizeObserver;
+window.ResizeObserver = ResizeObserver

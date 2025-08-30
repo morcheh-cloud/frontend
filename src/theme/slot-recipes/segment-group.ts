@@ -1,4 +1,4 @@
-import { defineSlotRecipe } from "@chakra-ui/react";
+import { defineSlotRecipe } from "@chakra-ui/react"
 
 export const segmentGroupSlotRecipe = defineSlotRecipe({
 	base: {
@@ -118,4 +118,4 @@ export const segmentGroupSlotRecipe = defineSlotRecipe({
 			},
 		},
 	},
-});
+})

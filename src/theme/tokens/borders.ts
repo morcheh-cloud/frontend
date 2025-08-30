@@ -1,4 +1,4 @@
-import { defineTokens } from "@chakra-ui/react";
+import { defineTokens } from "@chakra-ui/react"
 
 export const borders = defineTokens.borders({
 	lg: {
@@ -16,4 +16,4 @@ export const borders = defineTokens.borders({
 	xs: {
 		value: "0.5px solid",
 	},
-});
+})

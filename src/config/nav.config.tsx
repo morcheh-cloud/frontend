@@ -1,7 +1,9 @@
 import {
+	BookOpen,
 	BookText,
 	Boxes,
 	BrickWallFire,
+	ChartPie,
 	ClockFading,
 	Code,
 	DatabaseBackup,
@@ -9,14 +11,18 @@ import {
 	FolderSync,
 	LayoutGrid,
 	Lightbulb,
+	ListTodo,
 	LogIn,
 	Mail,
+	Network,
+	Route,
+	Settings,
 	ShieldCheck,
 	SquareActivity,
 	Store,
 	UserLock,
-} from "lucide-react";
-import type React from "react";
+} from "lucide-react"
+import type React from "react"
 import {
 	LuBox,
 	LuCloudUpload,
@@ -29,36 +35,33 @@ import {
 	LuSettings,
 	LuTvMinimalPlay,
 	LuWaypoints,
-} from "react-icons/lu";
-import { TbCloudComputing, TbSmartHome } from "react-icons/tb";
-import SvgAnsible from "@/icons/Ansible";
+} from "react-icons/lu"
+import { TbCloudComputing, TbSmartHome } from "react-icons/tb"
+import SvgAnsible from "@/icons/Ansible"
 
 interface INavItemBase {
-	id: string;
-	title: string;
+	id: string
+	title: string
 }
 
 interface INavItemDivider extends INavItemBase {
-	type: "divider";
+	type: "divider"
 }
 
 interface INavButtonBase extends INavItemBase {
-	type: "item" | "group";
-	url?: string;
-	disabled?: boolean;
-	icon: React.ElementType;
+	type: "item" | "group"
+	mode?: "submenu" | "list"
+	url?: string
+	disabled?: boolean
+	icon: React.ElementType
+	children?: NavItemType[]
 	badge?: {
-		content: string | number;
-		colorPalette?: string;
-	};
+		content: string | number
+		colorPalette?: string
+	}
 }
 
-interface INavItemGroup extends INavButtonBase {
-	type: "group";
-	children: INavButtonBase[];
-}
-
-export type NavItemType = INavItemDivider | INavButtonBase | INavItemGroup;
+export type NavItemType = INavItemDivider | INavButtonBase
 
 export const navItems: NavItemType[] = [
 	// --- Workspace / Quick Access
@@ -75,7 +78,6 @@ export const navItems: NavItemType[] = [
 		title: "Discover",
 		type: "item",
 	},
-
 	// --- Network
 	{
 		children: [
@@ -86,13 +88,6 @@ export const navItems: NavItemType[] = [
 				type: "item",
 			},
 			{ icon: Earth, id: "dns", title: "DNS", type: "item" },
-			{
-				disabled: true,
-				icon: LuWaypoints,
-				id: "map",
-				title: "Map",
-				type: "item",
-			},
 			{
 				icon: SquareActivity,
 				id: "monitoring",
@@ -106,7 +101,6 @@ export const navItems: NavItemType[] = [
 		title: "Network",
 		type: "group",
 	},
-
 	// --- Access
 	{
 		children: [
@@ -120,18 +114,91 @@ export const navItems: NavItemType[] = [
 		title: "Access",
 		type: "group",
 	},
-
 	// --- Infrastructure
 	{
 		children: [
 			{
+				children: [
+					{
+						icon: ChartPie,
+						id: "ansible-overview",
+						title: "Overview",
+						type: "item",
+					},
+					{
+						icon: BookOpen,
+						id: "playbooks",
+						title: "playbooks",
+						type: "item",
+						url: "/ansible/playbooks",
+					},
+					{
+						icon: Route,
+						id: "ansible-actions",
+						title: "Actions",
+						type: "item",
+					},
+					{
+						icon: ListTodo,
+						id: "jobs",
+						title: "Jobs",
+						type: "item",
+						url: "/ansible/jobs",
+					},
+					{
+						icon: ClockFading,
+						id: "tasks",
+						title: "Tasks",
+						type: "item",
+						url: "/ansible/tasks",
+					},
+					{
+						icon: Settings,
+						id: "ansible-setting",
+						title: "Settings",
+						type: "item",
+						url: "/ansible/settings",
+					},
+				],
 				icon: SvgAnsible,
 				id: "ansible",
+				mode: "list",
 				title: "Ansible",
-				type: "item",
-				url: "/ansible",
+				type: "group",
 			},
-			{ icon: LuServer, id: "server", title: "Server", type: "item" },
+			{
+				children: [
+					{
+						icon: ChartPie,
+						id: "overview",
+						title: "Overview",
+						type: "item",
+					},
+					{
+						icon: LuServer,
+						id: "server-list",
+						title: "Servers",
+						type: "item",
+					},
+					{
+						icon: LuWaypoints,
+						id: "map",
+						title: "Graph",
+						type: "item",
+					},
+					{
+						icon: Network,
+						id: "server-network",
+						title: "Network",
+						type: "item",
+					},
+				],
+				icon: LuServer,
+				id: "servers",
+				mode: "list",
+				title: "Servers",
+				type: "group",
+			},
 			{ icon: LuBox, id: "containers", title: "Containers", type: "item" },
 			{ icon: Boxes, id: "registry", title: "Registry", type: "item" },
 			{ icon: LuCloudUpload, id: "storage", title: "Storage", type: "item" },
@@ -210,4 +277,4 @@ export const navItems: NavItemType[] = [
 		title: "Settings",
 		type: "group",
 	},
-];
+]

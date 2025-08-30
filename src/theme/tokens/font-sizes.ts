@@ -1,4 +1,4 @@
-import { defineTokens } from "@chakra-ui/react";
+import { defineTokens } from "@chakra-ui/react"
 
 export const fontSizes = defineTokens.fontSizes({
 	"2xl": {
@@ -43,4 +43,4 @@ export const fontSizes = defineTokens.fontSizes({
 	xs: {
 		value: "0.75rem",
 	},
-});
+})

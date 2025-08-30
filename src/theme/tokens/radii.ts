@@ -1,4 +1,4 @@
-import { defineTokens } from "@chakra-ui/react";
+import { defineTokens } from "@chakra-ui/react"
 
 export const radii = defineTokens.radii({
 	"2xl": {
@@ -34,4 +34,4 @@ export const radii = defineTokens.radii({
 	xs: {
 		value: "0.125rem",
 	},
-});
+})

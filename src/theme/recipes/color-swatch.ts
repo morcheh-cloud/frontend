@@ -1,4 +1,4 @@
-import { defineRecipe } from "@chakra-ui/react";
+import { defineRecipe } from "@chakra-ui/react"
 
 export const colorSwatchRecipe = defineRecipe({
 	base: {
@@ -61,4 +61,4 @@ export const colorSwatchRecipe = defineRecipe({
 			},
 		},
 	},
-});
+})

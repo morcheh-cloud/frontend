@@ -1,4 +1,4 @@
-import { defineSlotRecipe } from "@chakra-ui/react";
+import { defineSlotRecipe } from "@chakra-ui/react"
 
 export const blockquoteSlotRecipe = defineSlotRecipe({
 	base: {
@@ -74,4 +74,4 @@ export const blockquoteSlotRecipe = defineSlotRecipe({
 			},
 		},
 	},
-});
+})

@@ -252,4 +252,4 @@ export const keyframes = {
 			transform: "rotate(360deg)",
 		},
 	},
-};
+}

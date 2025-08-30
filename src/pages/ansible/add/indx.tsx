@@ -3,44 +3,34 @@ import {
 	Button,
 	Field,
 	GridItem,
-	Heading,
-	HStack,
 	Input,
 	SimpleGrid,
 	Stack,
 	Tabs,
 	Textarea,
-} from "@chakra-ui/react";
-import { type FunctionComponent, useState } from "react";
-import {
-	LuCode,
-	LuFolder,
-	LuGitPullRequestArrow,
-	LuSave,
-} from "react-icons/lu";
-import PageContainer from "@/components/base/PageContainer";
-import PlaybookEditor from "@/pages/ansible/add/PlaybookEditor";
+} from "@chakra-ui/react"
+import { type FunctionComponent, useState } from "react"
+import { LuCode, LuFolder, LuGitPullRequestArrow, LuSave } from "react-icons/lu"
+import PageContainer from "@/components/base/PageContainer"
+import PageHeader from "@/components/base/PageHeader"
+import PlaybookEditor from "@/pages/ansible/add/PlaybookEditor"
 
-type Tab = "file" | "editor" | "git";
+type Tab = "file" | "editor" | "git"
 
 interface AddPlaybookProps {}
 
 const AddPlaybook: FunctionComponent<AddPlaybookProps> = () => {
-	const [tab, setTab] = useState<Tab>("editor");
+	const [tab, setTab] = useState<Tab>("editor")
 
 	return (
 		<>
 			<PageContainer>
-				<HStack>
-					<HStack mr={"auto"}>
-						<Heading size={"2xl"}>Add new playbook</Heading>
-					</HStack>
-
+				<PageHeader title="Add new playbook">
 					<Button size={"sm"}>
 						<LuSave />
 						Save
 					</Button>
-				</HStack>
+				</PageHeader>
 
 				<Tabs.Root
 					defaultValue="editor"
@@ -55,19 +45,25 @@ const AddPlaybook: FunctionComponent<AddPlaybookProps> = () => {
 							Editor
 						</Tabs.Trigger>
 
-						<Tabs.Trigger disabled value="file">
+						<Tabs.Trigger value="file">
 							<LuFolder />
 							Upload
 						</Tabs.Trigger>
 
-						<Tabs.Trigger disabled value="git">
+						<Tabs.Trigger value="git">
 							<LuGitPullRequestArrow />
 							Git
 						</Tabs.Trigger>
 					</Tabs.List>
 				</Tabs.Root>
 
-				<SimpleGrid columns={12} my={4} width={"100%"}>
+				<SimpleGrid
+					borderLeft={"1px solid #e4e4e4"}
+					columns={12}
+					gap={0}
+					h={"100%"}
+					py={4}
+				>
 					<GridItem colSpan={8}>
 						{tab === "editor" && (
 							<>
@@ -75,7 +71,7 @@ const AddPlaybook: FunctionComponent<AddPlaybookProps> = () => {
 									bg={"gray.100"}
 									h={"70dvh"}
 									overflow={"hidden"}
-									rounded={"lg"}
+									// rounded={"lg"}
 								>
 									<PlaybookEditor />
 								</Box>
@@ -110,7 +106,7 @@ const AddPlaybook: FunctionComponent<AddPlaybookProps> = () => {
 				</SimpleGrid>
 			</PageContainer>
 		</>
-	);
-};
+	)
+}
 
-export default AddPlaybook;
+export default AddPlaybook

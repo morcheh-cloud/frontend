@@ -1,6 +1,6 @@
-import { Avatar, Flex, IconButton, Stack, Text } from "@chakra-ui/react";
-import type { FunctionComponent } from "react";
-import { CgArrowsExchangeV } from "react-icons/cg";
+import { Avatar, Flex, IconButton, Stack, Text } from "@chakra-ui/react"
+import type { FunctionComponent } from "react"
+import { CgArrowsExchangeV } from "react-icons/cg"
 
 interface NavbarHeaderProps {}
 
@@ -27,7 +27,7 @@ const NavbarHeader: FunctionComponent<NavbarHeaderProps> = () => {
 				</IconButton>
 			</Flex>
 		</>
-	);
-};
+	)
+}
 
-export default NavbarHeader;
+export default NavbarHeader

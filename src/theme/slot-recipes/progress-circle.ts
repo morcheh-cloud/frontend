@@ -1,4 +1,4 @@
-import { defineSlotRecipe } from "@chakra-ui/react";
+import { defineSlotRecipe } from "@chakra-ui/react"
 
 export const progressCircleSlotRecipe = defineSlotRecipe({
 	base: {
@@ -98,4 +98,4 @@ export const progressCircleSlotRecipe = defineSlotRecipe({
 			},
 		},
 	},
-});
+})

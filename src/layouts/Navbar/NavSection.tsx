@@ -1,11 +1,11 @@
-import { HStack, Separator, Text } from "@chakra-ui/react";
-import { type FunctionComponent, memo } from "react";
-import type { NavItemType } from "@/config/navigation";
+import { HStack, Separator, Text } from "@chakra-ui/react"
+import { type FunctionComponent, memo } from "react"
+import type { NavItemType } from "@/config/nav.config"
 
-type NavSectionItem = Extract<NavItemType, { type: "divider" }>;
+type NavSectionItem = Extract<NavItemType, { type: "divider" }>
 
 interface NavSectionProps {
-	data: NavSectionItem;
+	data: NavSectionItem
 }
 
 const NavSection: FunctionComponent<NavSectionProps> = ({ data }) => {
@@ -18,7 +18,7 @@ const NavSection: FunctionComponent<NavSectionProps> = ({ data }) => {
 				<Separator w={"100%"} />
 			</HStack>
 		</>
-	);
-};
+	)
+}
 
-export default memo(NavSection);
+export default memo(NavSection)

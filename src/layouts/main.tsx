@@ -1,17 +1,17 @@
-import { Box, Stack } from "@chakra-ui/react";
-import type { FunctionComponent } from "react";
-import { useId } from "react";
-import { Outlet } from "react-router";
-import Header from "@/layouts/Header";
-import Navbar from "@/layouts/Navbar";
+import { Box, Stack } from "@chakra-ui/react"
+import type { FunctionComponent } from "react"
+import { useId } from "react"
+import { Outlet } from "react-router"
+import Header from "@/layouts/Header"
+import Navbar from "@/layouts/Navbar"
 
-const SIDEBAR_WIDTH = 270;
-const HEADER_HEIGHT = 40;
+const SIDEBAR_WIDTH = 270
+const HEADER_HEIGHT = 40
 
 interface MainLayoutProps {}
 
 const MainLayout: FunctionComponent<MainLayoutProps> = () => {
-	const mainLayoutId = useId();
+	const mainLayoutId = useId()
 	return (
 		<>
 			<Box h={"100%"} id={mainLayoutId}>
@@ -36,14 +36,14 @@ const MainLayout: FunctionComponent<MainLayoutProps> = () => {
 				</Stack>
 			</Box>
 		</>
-	);
-};
+	)
+}
 
-export default MainLayout;
+export default MainLayout
 
 export function meta() {
 	return [
 		{ title: "StackOps" },
 		{ content: "Welcome to React Router!", name: "description" },
-	];
+	]
 }

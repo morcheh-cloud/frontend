@@ -1,4 +1,4 @@
-import { defineTokens } from "@chakra-ui/react";
+import { defineTokens } from "@chakra-ui/react"
 
 export const blurs = defineTokens.blurs({
 	"2xl": {
@@ -25,4 +25,4 @@ export const blurs = defineTokens.blurs({
 	xl: {
 		value: "16px",
 	},
-});
+})

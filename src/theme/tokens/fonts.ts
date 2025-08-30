@@ -1,4 +1,4 @@
-import { defineTokens } from "@chakra-ui/react";
+import { defineTokens } from "@chakra-ui/react"
 
 export const fonts = defineTokens.fonts({
 	body: {
@@ -13,4 +13,4 @@ export const fonts = defineTokens.fonts({
 		value:
 			'SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace',
 	},
-});
+})

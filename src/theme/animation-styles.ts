@@ -1,4 +1,4 @@
-import { defineAnimationStyles } from "@chakra-ui/react";
+import { defineAnimationStyles } from "@chakra-ui/react"
 
 export const animationStyles = defineAnimationStyles({
 	"scale-fade-in": {
@@ -47,4 +47,4 @@ export const animationStyles = defineAnimationStyles({
 			transformOrigin: "var(--transform-origin)",
 		},
 	},
-});
+})

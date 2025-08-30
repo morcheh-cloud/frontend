@@ -1,10 +1,10 @@
-import { Text, type TextProps } from "@chakra-ui/react";
-import type { FunctionComponent } from "react";
+import { Text, type TextProps } from "@chakra-ui/react"
+import type { FunctionComponent } from "react"
 
 interface CaptionProps extends TextProps {}
 
 const Caption: FunctionComponent<CaptionProps> = (props) => {
-	const { children, ...rest } = props;
+	const { children, ...rest } = props
 
 	return (
 		<>
@@ -12,7 +12,7 @@ const Caption: FunctionComponent<CaptionProps> = (props) => {
 				{children}
 			</Text>
 		</>
-	);
-};
+	)
+}
 
-export default Caption;
+export default Caption

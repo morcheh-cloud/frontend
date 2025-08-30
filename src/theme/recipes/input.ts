@@ -1,4 +1,4 @@
-import { defineRecipe } from "@chakra-ui/react";
+import { defineRecipe } from "@chakra-ui/react"
 
 export const inputRecipe = defineRecipe({
 	base: {
@@ -96,4 +96,4 @@ export const inputRecipe = defineRecipe({
 			},
 		},
 	},
-});
+})

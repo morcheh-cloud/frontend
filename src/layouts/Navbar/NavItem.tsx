@@ -1,18 +1,23 @@
-import { Badge, Button, Text } from "@chakra-ui/react";
-import type { FunctionComponent } from "react";
-import { useLocation, useNavigate } from "react-router";
-import type { NavItemType } from "@/config/navigation";
+import { Badge, Button, Text } from "@chakra-ui/react"
+import type { FunctionComponent } from "react"
+import { useLocation, useNavigate } from "react-router"
+import type { NavItemType } from "@/config/nav.config"
 
 interface NavItemProps {
-	data: Extract<NavItemType, { type: "item" | "group" }>;
+	data: NavItemType
+	onClick?: (data: NavItemType) => void
 }
 
-const NavItem: FunctionComponent<NavItemProps> = ({ data }) => {
-	const Icon = data.icon;
-	const navigate = useNavigate();
-	const location = useLocation();
+const NavItem: FunctionComponent<NavItemProps> = ({ data, onClick }) => {
+	const navigate = useNavigate()
+	const location = useLocation()
 
-	const isActive = !!data.url && location.pathname === data.url;
+	if (data.type === "divider") {
+		return
+	}
+
+	const Icon = data.icon
+	const isActive = !!data.url && location.pathname === data.url
 
 	return (
 		<>
@@ -26,8 +31,10 @@ const NavItem: FunctionComponent<NavItemProps> = ({ data }) => {
 					if (data.url) {
 						navigate({
 							pathname: data.url,
-						});
+						})
 					}
+
+					onClick?.(data)
 				}}
 				variant={isActive ? "solid" : "ghost"}
 			>
@@ -46,7 +53,7 @@ const NavItem: FunctionComponent<NavItemProps> = ({ data }) => {
 				)}
 			</Button>
 		</>
-	);
-};
+	)
+}
 
-export default NavItem;
+export default NavItem

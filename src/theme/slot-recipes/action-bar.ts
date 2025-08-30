@@ -1,4 +1,4 @@
-import { defineSlotRecipe } from "@chakra-ui/react";
+import { defineSlotRecipe } from "@chakra-ui/react"
 
 export const actionBarSlotRecipe = defineSlotRecipe({
 	base: {
@@ -57,4 +57,4 @@ export const actionBarSlotRecipe = defineSlotRecipe({
 		"selectionTrigger",
 		"closeTrigger",
 	],
-});
+})

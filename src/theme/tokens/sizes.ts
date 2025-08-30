@@ -1,4 +1,4 @@
-import { defineTokens } from "@chakra-ui/react";
+import { defineTokens } from "@chakra-ui/react"
 
 export const sizes = defineTokens.sizes({
 	"0.5": {
@@ -259,4 +259,4 @@ export const sizes = defineTokens.sizes({
 	xs: {
 		value: "20rem",
 	},
-});
+})

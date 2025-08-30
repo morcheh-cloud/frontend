@@ -1,4 +1,4 @@
-import { defineRecipe } from "@chakra-ui/react";
+import { defineRecipe } from "@chakra-ui/react"
 
 export const skipNavLinkRecipe = defineRecipe({
 	base: {
@@ -28,4 +28,4 @@ export const skipNavLinkRecipe = defineRecipe({
 		width: "1px",
 	},
 	className: "chakra-skip-nav",
-});
+})

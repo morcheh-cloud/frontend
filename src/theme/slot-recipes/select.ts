@@ -1,4 +1,4 @@
-import { defineSlotRecipe } from "@chakra-ui/react";
+import { defineSlotRecipe } from "@chakra-ui/react"
 
 export const selectSlotRecipe = defineSlotRecipe({
 	base: {
@@ -302,4 +302,4 @@ export const selectSlotRecipe = defineSlotRecipe({
 			},
 		},
 	},
-});
+})

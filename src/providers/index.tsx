@@ -1,8 +1,8 @@
-import type { FunctionComponent, ReactNode } from "react";
-import ThemeProvider from "@/providers/theme";
+import type { FunctionComponent, ReactNode } from "react"
+import ThemeProvider from "@/providers/theme"
 
 interface ProviderProps {
-	children: ReactNode;
+	children: ReactNode
 }
 
 const Provider: FunctionComponent<ProviderProps> = ({ children }) => {
@@ -10,7 +10,7 @@ const Provider: FunctionComponent<ProviderProps> = ({ children }) => {
 		<>
 			<ThemeProvider>{children}</ThemeProvider>
 		</>
-	);
-};
+	)
+}
 
-export default Provider;
+export default Provider

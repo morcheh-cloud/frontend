@@ -1,4 +1,4 @@
-import { defineLayerStyles } from "@chakra-ui/react";
+import { defineLayerStyles } from "@chakra-ui/react"
 
 export const layerStyles = defineLayerStyles({
 	disabled: {
@@ -106,4 +106,4 @@ export const layerStyles = defineLayerStyles({
 			color: "colorPalette.fg",
 		},
 	},
-});
+})

@@ -1,10 +1,11 @@
-import { HStack, IconButton } from "@chakra-ui/react";
-import { Bell, Bot, LayoutGrid, Search, Terminal } from "lucide-react";
-import type { FunctionComponent } from "react";
-import { Tooltip } from "@/components/base/Tooltip";
+import { Box, HStack, IconButton } from "@chakra-ui/react"
+import { Bell, Bot, LayoutGrid, Search, Terminal } from "lucide-react"
+import type { FunctionComponent } from "react"
+import Back from "@/components/base/Back"
+import { Tooltip } from "@/components/base/Tooltip"
 
 interface HeaderProps {
-	height: string | number;
+	height: string | number
 }
 
 const Header: FunctionComponent<HeaderProps> = () => {
@@ -21,6 +22,10 @@ const Header: FunctionComponent<HeaderProps> = () => {
 				w={"100%"}
 				zIndex={1}
 			>
+				<Back />
+
+				<Box mr={"auto"} />
+
 				<Tooltip content="Menu">
 					<IconButton variant={"ghost"}>
 						<LayoutGrid />
@@ -52,7 +57,7 @@ const Header: FunctionComponent<HeaderProps> = () => {
 				</Tooltip>
 			</HStack>
 		</>
-	);
-};
+	)
+}
 
-export default Header;
+export default Header

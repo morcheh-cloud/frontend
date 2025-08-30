@@ -4,19 +4,24 @@ import {
 	Stack,
 	Text,
 	useDisclosure,
-} from "@chakra-ui/react";
-import { ChevronUp } from "lucide-react";
-import { type FunctionComponent, memo } from "react";
-import type { NavItemType } from "@/config/navigation";
-import NavItem from "@/layouts/Navbar/NavItem";
+} from "@chakra-ui/react"
+import { ChevronUp } from "lucide-react"
+import { type FunctionComponent, memo } from "react"
+import type { NavItemType } from "@/config/nav.config"
+import NavItem from "@/layouts/Navbar/NavItem"
 
 interface NavGroupProps {
-	data: Extract<NavItemType, { type: "group" }>;
+	data: NavItemType
+	onChangeList?: (list: NavItemType[], title: string) => void
 }
 
-const NavGroup: FunctionComponent<NavGroupProps> = ({ data }) => {
-	const Icon = data.icon;
-	const { onToggle, open } = useDisclosure();
+const NavGroup: FunctionComponent<NavGroupProps> = ({ data, onChangeList }) => {
+	const { onToggle, open } = useDisclosure()
+	if (data.type === "divider") {
+		return
+	}
+
+	const Icon = data.icon
 
 	return (
 		<>
@@ -52,14 +57,27 @@ const NavGroup: FunctionComponent<NavGroupProps> = ({ data }) => {
 
 				<Collapsible.Content>
 					<Stack gap={0} pl={2}>
-						{data.children.map((item) => {
-							return <NavItem data={item} key={item.id} />;
+						{data?.children?.map((item) => {
+							return (
+								<NavItem
+									data={item}
+									key={item.id}
+									onClick={() => {
+										if (
+											item.type === "group" &&
+											item.mode === "list" &&
+											item.children?.length
+										)
+											onChangeList?.(item.children, item.title)
+									}}
+								/>
+							)
 						})}
 					</Stack>
 				</Collapsible.Content>
 			</Collapsible.Root>
 		</>
-	);
-};
+	)
+}
 
-export default memo(NavGroup);
+export default memo(NavGroup)

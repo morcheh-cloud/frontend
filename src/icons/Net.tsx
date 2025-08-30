@@ -1,4 +1,4 @@
-import type { SVGProps } from "react";
+import type { SVGProps } from "react"
 
 const SvgNet = (props: SVGProps<SVGSVGElement>) => (
 	<svg
@@ -21,5 +21,5 @@ const SvgNet = (props: SVGProps<SVGSVGElement>) => (
 			fill="#4C4C4C"
 		/>
 	</svg>
-);
-export default SvgNet;
+)
+export default SvgNet

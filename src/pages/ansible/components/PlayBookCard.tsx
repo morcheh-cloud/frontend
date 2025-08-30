@@ -9,10 +9,10 @@ import {
 	Image,
 	Stack,
 	Text,
-} from "@chakra-ui/react";
-import { Clock, Play, ShieldCheck } from "lucide-react";
-import type { FunctionComponent } from "react";
-import Caption from "@/components/base/Caption";
+} from "@chakra-ui/react"
+import { Clock, Play, ShieldCheck } from "lucide-react"
+import type { FunctionComponent } from "react"
+import Caption from "@/components/base/Caption"
 
 interface PlayBookCardProps {}
 
@@ -72,7 +72,7 @@ const PlayBookCard: FunctionComponent<PlayBookCardProps> = () => {
 				</Group>
 			</Stack>
 		</>
-	);
-};
+	)
+}
 
-export default PlayBookCard;
+export default PlayBookCard

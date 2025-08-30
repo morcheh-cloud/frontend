@@ -1,8 +1,8 @@
-import type React from "react";
-import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
+import type React from "react"
+import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router"
 
-import "./global.css";
-import ThemeProvider from "@/providers/theme";
+import "./global.css"
+import ThemeProvider from "@/providers/theme"
 
 export function Layout({ children }: { children: React.ReactNode }) {
 	return (
@@ -35,11 +35,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 				<Scripts />
 			</body>
 		</html>
-	);
+	)
 }
 
 export default function App() {
-	return <Outlet />;
+	return <Outlet />
 }
 
 // export function ErrorBoundary() {

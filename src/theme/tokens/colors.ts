@@ -1,4 +1,4 @@
-import { defineTokens } from "@chakra-ui/react";
+import { defineTokens } from "@chakra-ui/react"
 
 export const colors = defineTokens.colors({
 	black: {
@@ -433,4 +433,4 @@ export const colors = defineTokens.colors({
 			value: "#281304",
 		},
 	},
-});
+})
