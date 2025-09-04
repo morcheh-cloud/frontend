@@ -77,6 +77,12 @@ export interface ServerModel {
   protocol?: "ssh" | "rdp" | "sftp" | "vnc";
 }
 
+export interface UserModel {
+  email?: string;
+  fullName?: string;
+  id?: number;
+}
+
 import type {
   AxiosInstance,
   AxiosRequestConfig,
@@ -313,6 +319,29 @@ export class Api<
         body: data,
         secure: true,
         type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags AUTH
+     * @name WhoAmI
+     * @request GET:/v1/auth/me
+     * @secure
+     */
+    whoAmI: (
+      query?: {
+        workspaceId?: number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<UserModel, any>({
+        path: `/v1/auth/me`,
+        method: "GET",
+        query: query,
+        secure: true,
         format: "json",
         ...params,
       }),

@@ -8,7 +8,7 @@ import {
 import { ChevronUp } from "lucide-react"
 import { type FunctionComponent, memo } from "react"
 import type { NavItemType } from "@/config/nav.config"
-import NavItem from "@/layouts/Navbar/NavItem"
+import NavItem from "@/layouts/main/Navbar/NavItem"
 
 interface NavGroupProps {
 	data: NavItemType

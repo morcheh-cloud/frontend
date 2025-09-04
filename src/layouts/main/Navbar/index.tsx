@@ -2,10 +2,10 @@ import { Badge, HStack, IconButton, Stack } from "@chakra-ui/react"
 import { ArrowLeft } from "lucide-react"
 import { type FunctionComponent, useState } from "react"
 import { type NavItemType, navItems } from "@/config/nav.config"
-import NavbarHeader from "@/layouts/Navbar/NavbarHeader"
-import NavGroup from "@/layouts/Navbar/NavGroup"
-import NavItem from "@/layouts/Navbar/NavItem"
-import NavSection from "@/layouts/Navbar/NavSection"
+import NavbarHeader from "@/layouts/main/Navbar/NavbarHeader"
+import NavGroup from "@/layouts/main/Navbar/NavGroup"
+import NavItem from "@/layouts/main/Navbar/NavItem"
+import NavSection from "@/layouts/main/Navbar/NavSection"
 
 interface RenderMenuProps {
 	items: NavItemType[]

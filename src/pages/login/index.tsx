@@ -13,13 +13,14 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation } from "@tanstack/react-query"
 import { LogIn, LucideLock, LucideMail } from "lucide-react"
-import type { FunctionComponent } from "react"
+import { type FunctionComponent, useState } from "react"
 import { Controller, useForm } from "react-hook-form"
-import { NavLink } from "react-router"
+import { NavLink, useNavigate } from "react-router"
 import type { ZodType } from "zod"
 import { z } from "zod"
 import { Checkbox } from "@/components/snippet/checkbox"
 import { PasswordInput } from "@/components/snippet/password-input"
+import useAuth from "@/hooks/useAuth"
 import { Client } from "@/lib/client"
 import type { LoginPayload } from "@/lib/services"
 
@@ -36,12 +37,20 @@ const loginSchema: ZodType<LoginPayload> = z
 	.strict()
 
 const LoginPage: FunctionComponent<LoginPageProps> = () => {
+	const { login } = useAuth()
+	const navigate = useNavigate()
+	const [saveInCookie, setSaveInCookie] = useState(false)
+
 	const loginHandler = useMutation({
 		mutationFn: ({ email, password }: LoginPayload) => {
 			return Client.auth.login({
 				email,
 				password,
 			})
+		},
+		onSuccess: async (res) => {
+			await login(res.data.access_token, saveInCookie)
+			navigate("/home")
 		},
 	})
 
@@ -117,7 +126,12 @@ const LoginPage: FunctionComponent<LoginPageProps> = () => {
 							/>
 
 							<HStack mt={2} justify={"space-between"}>
-								<Checkbox>Remember me</Checkbox>
+								<Checkbox
+									checked={saveInCookie}
+									onCheckedChange={(e) => setSaveInCookie(!!e.checked)}
+								>
+									Remember me
+								</Checkbox>
 								<Link fontSize={14} variant={"underline"}>
 									Forger your password
 								</Link>

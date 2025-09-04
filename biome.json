@@ -14,10 +14,7 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"includes": [
-			"**",
-			"!**/services.ts"
-		]
+		"includes": ["**", "!**/services.ts"]
 	},
 	"formatter": {
 		"enabled": true,
