@@ -12,6 +12,7 @@ interface MainLayoutProps {}
 
 const MainLayout: FunctionComponent<MainLayoutProps> = () => {
 	const mainLayoutId = useId()
+
 	return (
 		<>
 			<Box h={"100%"} id={mainLayoutId}>

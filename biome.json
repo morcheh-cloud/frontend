@@ -5,7 +5,7 @@
 			"source": {
 				"organizeImports": "on",
 				"recommended": true,
-				"useSortedAttributes": "on",
+				"useSortedAttributes": "off",
 				"useSortedKeys": "on",
 				"useSortedProperties": "on"
 			}
@@ -13,7 +13,11 @@
 		"enabled": true
 	},
 	"files": {
-		"ignoreUnknown": false
+		"ignoreUnknown": false,
+		"includes": [
+			"**",
+			"!**/services.ts"
+		]
 	},
 	"formatter": {
 		"enabled": true,

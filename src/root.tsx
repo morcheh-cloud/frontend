@@ -2,35 +2,25 @@ import type React from "react"
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router"
 
 import "./global.css"
-import ThemeProvider from "@/providers/theme"
+import { Toaster } from "@/components/snippet/toaster"
+import HtmlHeader from "@/HtmlHeader"
+import AppProviders from "@/providers"
 
 export function Layout({ children }: { children: React.ReactNode }) {
 	return (
-		<html lang="en">
+		<html dir="ltr" lang="en">
 			<head>
-				{/*  */}
-				<link href="https://fonts.googleapis.com" rel="preconnect" />
-				<link
-					crossOrigin=""
-					href="https://fonts.gstatic.com"
-					rel="preconnect"
-				/>
-				<link
-					href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap"
-					rel="stylesheet"
-				/>
-
-				{/*  */}
-				<meta charSet="utf-8" />
-				<meta
-					content="width=device-width, initial-scale=1, maximum-scale=1"
-					name="viewport"
-				/>
+				<HtmlHeader />
 				<Meta />
 				<Links />
 			</head>
+
 			<body>
-				<ThemeProvider>{children}</ThemeProvider>
+				<AppProviders>
+					{/* content */}
+					{children}
+					<Toaster />
+				</AppProviders>
 				<ScrollRestoration />
 				<Scripts />
 			</body>

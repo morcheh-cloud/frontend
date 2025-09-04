@@ -1,16 +1,19 @@
 import type { FunctionComponent, ReactNode } from "react"
+import ReactQueryProvider from "@/providers/reactQuery"
 import ThemeProvider from "@/providers/theme"
 
 interface ProviderProps {
 	children: ReactNode
 }
 
-const Provider: FunctionComponent<ProviderProps> = ({ children }) => {
+const AppProviders: FunctionComponent<ProviderProps> = ({ children }) => {
 	return (
 		<>
-			<ThemeProvider>{children}</ThemeProvider>
+			<ThemeProvider>
+				<ReactQueryProvider>{children}</ReactQueryProvider>
+			</ThemeProvider>
 		</>
 	)
 }
 
-export default Provider
+export default AppProviders
