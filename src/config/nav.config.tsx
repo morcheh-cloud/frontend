@@ -70,13 +70,14 @@ export const navItems: NavItemType[] = [
 		id: "home",
 		title: "Home",
 		type: "item",
-		url: "/",
+		url: "/home",
 	},
 	{
 		icon: Lightbulb,
 		id: "discover",
 		title: "Discover",
 		type: "item",
+		url: "/ansible",
 	},
 	// --- Network
 	{

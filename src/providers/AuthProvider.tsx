@@ -90,7 +90,7 @@ const AuthProvider: FunctionComponent<AuthProviderProps> = ({ children }) => {
 	}, [logout, navigate])
 
 	const value: AuthContextType = {
-		authenticated: !!user?.id || authState === "error",
+		authenticated: !!user?.id || authState === "error" || authState === "done",
 		login,
 		logout,
 		user,

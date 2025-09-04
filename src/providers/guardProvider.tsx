@@ -1,5 +1,8 @@
 import type { FunctionComponent, ReactNode } from "react"
+import { lazy } from "react"
 import useAuth from "@/hooks/useAuth"
+
+const LazyAccessDenied = lazy(() => import("@/layouts/AccessDenied"))
 
 interface GuardProviderProps {
 	children: ReactNode
@@ -11,7 +14,7 @@ const GuardProvider: FunctionComponent<GuardProviderProps> = ({ children }) => {
 	const isAllowed = !!user?.id && authenticated
 
 	if (!isAllowed) {
-		return <>access denied</>
+		return <LazyAccessDenied />
 	}
 
 	return <>{children}</>

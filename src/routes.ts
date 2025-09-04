@@ -7,7 +7,7 @@ import {
 
 export default [
 	// root
-	// route("/", "./pages/root.tsx"),
+	index("pages/index.tsx"),
 
 	// public
 	route("/login", "./pages/login/index.tsx"),
@@ -15,10 +15,10 @@ export default [
 
 	layout("./layouts/main/index.tsx", [
 		// home page
-		index("pages/home.tsx"),
+		route("/home", "./pages/home/index.tsx"),
 
 		// ansible
 		route("/ansible", "./pages/ansible/index.tsx"),
-		route("/ansible/123", "./pages/ansible/add/indx.tsx"),
+		route("/ansible/:id", "./pages/ansible/add/index.tsx"),
 	]),
 ] satisfies RouteConfig
