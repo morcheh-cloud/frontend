@@ -20,5 +20,6 @@ export default [
 		// ansible
 		route("/ansible", "./pages/ansible/index.tsx"),
 		route("/ansible/:id", "./pages/ansible/add/index.tsx"),
+		route("/ansible/job/:id", "./pages/ansible/job/index.tsx"),
 	]),
 ] satisfies RouteConfig

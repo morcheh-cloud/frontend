@@ -7,7 +7,6 @@ import Header from "@/layouts/main/Header"
 import Navbar from "@/layouts/main/Navbar"
 
 const SIDEBAR_WIDTH = 270
-const HEADER_HEIGHT = 40
 
 interface MainLayoutProps {}
 
@@ -21,11 +20,12 @@ const MainLayout: FunctionComponent<MainLayoutProps> = () => {
 					<Navbar sidebarWidth={SIDEBAR_WIDTH} />
 
 					<Stack
+						gap={0}
 						height={"100%"}
 						id={`${mainLayoutId}-container`}
 						ml={{ base: 0, md: `${SIDEBAR_WIDTH}px` }}
 					>
-						<Header height={`${HEADER_HEIGHT}px`} />
+						<Header />
 
 						<Box
 							display={"flex"}
