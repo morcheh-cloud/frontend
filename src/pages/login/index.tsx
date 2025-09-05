@@ -16,7 +16,6 @@ import { LogIn, LucideLock, LucideMail } from "lucide-react"
 import { type FunctionComponent, useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { NavLink, useNavigate } from "react-router"
-import type { ZodType } from "zod"
 import { z } from "zod"
 import { Checkbox } from "@/components/snippet/checkbox"
 import { PasswordInput } from "@/components/snippet/password-input"
@@ -25,16 +24,6 @@ import { Client } from "@/lib/client"
 import type { LoginPayload } from "@/lib/services"
 
 interface LoginPageProps {}
-
-const loginSchema: ZodType<LoginPayload> = z
-	.object({
-		email: z.email("Enter a valid email address"),
-		password: z
-			.string()
-			.min(6, "Password must be at least 8 characters")
-			.max(32, "Password must be at most 32 characters"),
-	})
-	.strict()
 
 const LoginPage: FunctionComponent<LoginPageProps> = () => {
 	const { login } = useAuth()
@@ -54,8 +43,16 @@ const LoginPage: FunctionComponent<LoginPageProps> = () => {
 		},
 	})
 
-	const { control, handleSubmit } = useForm<LoginPayload>({
-		resolver: zodResolver(loginSchema as any),
+	const { control, handleSubmit } = useForm({
+		resolver: zodResolver(
+			z.object({
+				email: z.email("Enter a valid email address"),
+				password: z
+					.string()
+					.min(6, "Password must be at least 8 characters")
+					.max(32, "Password must be at most 32 characters"),
+			}),
+		),
 	})
 
 	return (

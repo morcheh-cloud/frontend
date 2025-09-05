@@ -1,14 +1,21 @@
 html,
 body {
-	height: 100%;
-	font-weight: 400;
+  height: 100%;
+  font-weight: 400;
 }
 
 * {
-	-ms-overflow-style: none; /* IE and Edge */
-	scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
 }
 
 *::-webkit-scrollbar {
-	display: none; /* Chrome, Safari, Edge */
+  display: none; /* Chrome, Safari, Edge */
+}
+
+/* fix code block style */
+.job pre > code > span::before {
+  width: fit-content;
+  min-width: 30px;
+  text-align: left;
 }
