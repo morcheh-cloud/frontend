@@ -1,5 +1,6 @@
 import { Heading, HStack, Stack, type StackProps } from "@chakra-ui/react"
 import type { FunctionComponent, ReactNode } from "react"
+import Caption from "@/components/base/Caption"
 
 interface PageHeaderProps extends StackProps {
 	title: string
@@ -17,12 +18,10 @@ const PageHeader: FunctionComponent<PageHeaderProps> = ({
 		<>
 			<HStack {...rest}>
 				<Stack mr={"auto"}>
-					<HStack gap={0}>
-						{/* <IconButton opacity={0.5} variant={"plain"}>
-							<ArrowLeft />
-						</IconButton> */}
-						<Heading size={"2xl"}>Add new playbook</Heading>
-					</HStack>
+					<Stack gap={1} mr="auto">
+						<Heading size={"3xl"}>{title}</Heading>
+						<Caption>{description}</Caption>
+					</Stack>
 				</Stack>
 
 				{children}

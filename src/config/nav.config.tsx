@@ -174,18 +174,21 @@ export const navItems: NavItemType[] = [
 						id: "overview",
 						title: "Overview",
 						type: "item",
+						url: "/servers",
 					},
 					{
 						icon: LuServer,
 						id: "server-list",
 						title: "Servers",
 						type: "item",
+						url: "/servers/list",
 					},
 					{
 						icon: LuWaypoints,
 						id: "map",
 						title: "Graph",
 						type: "item",
+						url: "/servers/graph",
 					},
 					{
 						icon: Network,
