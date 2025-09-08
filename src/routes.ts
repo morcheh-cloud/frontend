@@ -26,5 +26,9 @@ export default [
 		route("/servers", "./pages/servers/overview/index.tsx"),
 		route("/servers/list", "./pages/servers/list/index.tsx"),
 		route("/servers/graph", "./pages/servers/graph/index.tsx"),
+
+
+		// accounts
+		route('/accounts','./pages/accounts/index.tsx')
 	]),
 ] satisfies RouteConfig
