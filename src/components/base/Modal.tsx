@@ -1,6 +1,7 @@
 import {
   CloseButton,
   Dialog,
+  type DialogBodyProps,
   type DialogRootProps,
   Portal,
 } from "@chakra-ui/react";
@@ -12,7 +13,7 @@ interface ModalRootProps extends DialogRootProps {
   onClose?: () => void;
 }
 
-interface ModalContentProps {
+interface ModalContentProps extends DialogBodyProps {
   title?: string;
   children: ReactNode;
 }
@@ -34,7 +35,7 @@ const ModalRoot = ({ children, open, onClose, ...rest }: ModalRootProps) => {
   );
 };
 
-const ModalContent = ({ title, children }: ModalContentProps) => {
+const ModalContent = ({ title, children, ...rest }: ModalContentProps) => {
   return (
     <Portal>
       <Dialog.Backdrop />
@@ -44,7 +45,7 @@ const ModalContent = ({ title, children }: ModalContentProps) => {
           <Dialog.Header>
             {title && <Dialog.Title>{title}</Dialog.Title>}
           </Dialog.Header>
-          <Dialog.Body>{children}</Dialog.Body>
+          <Dialog.Body {...rest}>{children}</Dialog.Body>
 
           {/*  */}
           <Dialog.CloseTrigger asChild>

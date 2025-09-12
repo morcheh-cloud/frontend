@@ -40,7 +40,8 @@
 					"fix": "safe",
 					"level": "error",
 					"options": {}
-				}
+				},
+				"useUniqueElementIds": "off"
 			},
 			"recommended": true,
 			"suspicious": {
