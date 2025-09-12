@@ -35,7 +35,7 @@ export interface LoginPayload {
 
 export interface PlaybookModel {
   content?: Code;
-  id?: number;
+  id?: string;
   schema?: null;
   type?: "official" | "community" | "custom";
 }
@@ -69,7 +69,8 @@ export interface ServerMetadata {
 export interface ServerModel {
   address?: string;
   description?: string;
-  id?: number;
+  id?: string;
+  keepAlive?: boolean;
   metadata?: ServerMetadata;
   name?: string;
   os?: "linux" | "windows" | "macos";
@@ -80,7 +81,7 @@ export interface ServerModel {
 export interface UserModel {
   email?: string;
   fullName?: string;
-  id?: number;
+  id?: string;
 }
 
 import type {

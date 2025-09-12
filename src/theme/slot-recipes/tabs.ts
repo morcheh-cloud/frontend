@@ -218,7 +218,7 @@ export const tabsSlotRecipe = defineSlotRecipe({
 				trigger: {
 					_horizontal: {
 						_selected: {
-							borderBottomColor: "transparent",
+							borderBottomColor: "transparent !important",
 							borderColor: "border",
 						},
 						borderTopRadius: "var(--tabs-trigger-radius)",

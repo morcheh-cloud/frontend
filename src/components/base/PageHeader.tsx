@@ -19,7 +19,7 @@ const PageHeader: FunctionComponent<PageHeaderProps> = ({
 			<HStack {...rest}>
 				<Stack mr={"auto"}>
 					<Stack gap={1} mr="auto">
-						<Heading size={"3xl"}>{title}</Heading>
+						<Heading size={"xl"}>{title}</Heading>
 						<Caption>{description}</Caption>
 					</Stack>
 				</Stack>

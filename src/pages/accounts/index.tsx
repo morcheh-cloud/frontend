@@ -21,7 +21,7 @@ interface AccountPageProps {}
 const AccountPage: FunctionComponent<AccountPageProps> = () => {
   return (
     <>
-      <SaveSecreteModal />
+      {/* <SaveSecreteModal /> */}
 
       <Box h={"100%"}>
         <SecretHeader />

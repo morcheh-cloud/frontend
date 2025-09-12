@@ -7,6 +7,7 @@ import {
 } from "@chakra-ui/react"
 import { ChevronUp } from "lucide-react"
 import { type FunctionComponent, memo } from "react"
+import { useNavigate } from "react-router"
 import type { NavItemType } from "@/config/nav.config"
 import NavItem from "@/layouts/main/Navbar/NavItem"
 
@@ -16,6 +17,7 @@ interface NavGroupProps {
 }
 
 const NavGroup: FunctionComponent<NavGroupProps> = ({ data, onChangeList }) => {
+	const navigate = useNavigate()
 	const { onToggle, open } = useDisclosure()
 	if (data.type === "divider") {
 		return
@@ -67,8 +69,15 @@ const NavGroup: FunctionComponent<NavGroupProps> = ({ data, onChangeList }) => {
 											item.type === "group" &&
 											item.mode === "list" &&
 											item.children?.length
-										)
+										) {
 											onChangeList?.(item.children, item.title)
+										}
+
+										if (data.url) {
+											navigate({
+												pathname: data.url,
+											})
+										}
 									}}
 								/>
 							)

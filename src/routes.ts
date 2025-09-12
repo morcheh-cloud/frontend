@@ -23,12 +23,12 @@ export default [
 		route("/ansible/job/:id", "./pages/ansible/job/index.tsx"),
 
 		// servers
-		route("/servers", "./pages/servers/overview/index.tsx"),
-		route("/servers/list", "./pages/servers/list/index.tsx"),
+		route("/servers/overview", "./pages/servers/overview/index.tsx"),
+		route("/servers", "./pages/servers/list/index.tsx"),
 		route("/servers/graph", "./pages/servers/graph/index.tsx"),
-
+		route("/servers/:id", "./pages/servers/[id]/index.tsx"),
 
 		// accounts
-		route('/accounts','./pages/accounts/index.tsx')
+		route("/accounts", "./pages/accounts/index.tsx"),
 	]),
 ] satisfies RouteConfig
