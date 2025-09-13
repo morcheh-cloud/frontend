@@ -21,6 +21,7 @@ import {
 	SquareActivity,
 	Store,
 	UserLock,
+	Users,
 } from "lucide-react"
 import type React from "react"
 import {
@@ -78,6 +79,13 @@ export const navItems: NavItemType[] = [
 		title: "Discover",
 		type: "item",
 		url: "/ansible",
+	},
+	{
+		icon: Users,
+		id: "members",
+		title: "Members",
+		type: "item",
+		url: "/members",
 	},
 	// --- Network
 	{
@@ -262,25 +270,16 @@ export const navItems: NavItemType[] = [
 		type: "group",
 	},
 
-	// --- Documentation
 	{
-		children: [
-			{ icon: BookText, id: "docs", title: "Documentation", type: "item" },
-		],
 		icon: BookText,
-		id: "docs_group",
+		id: "docs",
 		title: "Documentation",
-		type: "group",
+		type: "item",
 	},
-
-	// --- Settings
 	{
-		children: [
-			{ icon: LuSettings, id: "settings", title: "Settings", type: "item" },
-		],
 		icon: LuSettings,
-		id: "settings_group",
+		id: "settings",
 		title: "Settings",
-		type: "group",
+		type: "item",
 	},
 ]

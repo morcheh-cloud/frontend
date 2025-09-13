@@ -1,10 +1,12 @@
 import { Box, Stack } from "@chakra-ui/react"
 import type { FunctionComponent } from "react"
-import { useId } from "react"
+import { lazy, useId } from "react"
 import { Outlet } from "react-router"
 import LayoutWrapper from "@/layouts/LayoutWrapper"
 import Header from "@/layouts/main/Header"
 import Navbar from "@/layouts/main/Navbar"
+
+const ShellManager = lazy(() => import("@/views/ShellManager"))
 
 const SIDEBAR_WIDTH = 270
 
@@ -15,6 +17,8 @@ const MainLayout: FunctionComponent<MainLayoutProps> = () => {
 
 	return (
 		<>
+			<ShellManager />
+
 			<LayoutWrapper>
 				<Box h={"100%"} id={mainLayoutId}>
 					<Navbar sidebarWidth={SIDEBAR_WIDTH} />
