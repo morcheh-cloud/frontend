@@ -1,103 +1,114 @@
 import {
-  type FunctionComponent,
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
-import { useNavigate } from "react-router";
-import AuthContext, { type AuthContextType } from "@/context/AuthContext";
-import useLocalStorage from "@/hooks/useLocalStorage";
-import { ClientApi } from "@/lib/client";
-import { GetJwtToken, RemoveJwtToken, SaveJwtToken } from "@/lib/cookie";
-import type { UserModel } from "@/lib/services";
+	type FunctionComponent,
+	type ReactNode,
+	useCallback,
+	useEffect,
+	useState,
+} from "react"
+import { useNavigate } from "react-router"
+import AuthContext, { type AuthContextType } from "@/context/AuthContext"
+import useLocalStorage from "@/hooks/useLocalStorage"
+import { ClientApi } from "@/lib/client"
+import { GetJwtToken, RemoveJwtToken, SaveJwtToken } from "@/lib/cookie"
+import type { UserModel } from "@/lib/services"
 
 interface AuthProviderProps {
-  children: ReactNode;
+	children: ReactNode
 }
 
-type AuthProviderState = "loading" | "done" | "error" | "start";
+export type AuthProviderState = "done" | "error" | "loading"
 
 const AuthProvider: FunctionComponent<AuthProviderProps> = ({ children }) => {
-  const navigate = useNavigate();
+	const navigate = useNavigate()
 
-  const [user, setUser] = useLocalStorage<UserModel | undefined>(
-    "user",
-    undefined
-  );
-  const [authState, setAuthState] = useState<AuthProviderState>("start");
-  const [workspaceId, setWorkspaceId] = useLocalStorage<number | undefined>(
-    "workspaceId",
-    undefined
-  );
+	const [user, setUser] = useLocalStorage<UserModel | undefined>(
+		"user",
+		undefined,
+	)
 
-  const login = async (jwt: string, saveInCookie = false) => {
-    SaveJwtToken(jwt, saveInCookie);
-    ClientApi.instance.defaults.headers.common.Authorization = `Bearer ${jwt}`;
-    const res = await ClientApi.auth.whoAmI();
-    if (res.data?.id) {
-      setUser(res.data);
-    }
-  };
+	const [authState, setAuthState] = useState<AuthProviderState>("loading")
+	const [workspaceId, setWorkspaceId] = useLocalStorage<string | undefined>(
+		"workspaceId",
+		undefined,
+	)
 
-  const logout = useCallback(() => {
-    RemoveJwtToken();
-    setUser(undefined);
-    setWorkspaceId(undefined);
-    ClientApi.instance.defaults.headers.common.Authorization = "";
-  }, [setUser, setWorkspaceId]);
+	const login = async (jwt: string, saveInCookie = false) => {
+		SaveJwtToken(jwt, saveInCookie)
+		ClientApi.instance.defaults.headers.common.Authorization = `Bearer ${jwt}`
+		const res = await ClientApi.auth.whoAmI()
+		if (res.data?.id) {
+			setUser(res.data)
+			if (res?.data?.workspaces?.length && !workspaceId) {
+				const firstWorkspace = res.data.workspaces[0]
+				setWorkspaceId(firstWorkspace.id)
+			}
+		}
+	}
 
-  useEffect(() => {
-    const jwt = GetJwtToken();
+	const logout = useCallback(() => {
+		RemoveJwtToken()
+		setUser(undefined)
+		setWorkspaceId(undefined)
+		ClientApi.instance.defaults.headers.common.Authorization = ""
+	}, [setUser, setWorkspaceId])
 
-    if (!jwt) {
-      setAuthState("done");
-      logout();
-      return;
-    }
+	useEffect(() => {
+		const jwt = GetJwtToken()
 
-    ClientApi.instance.defaults.headers.common.Authorization = `Bearer ${jwt}`;
-    setAuthState("loading");
-    ClientApi.auth
-      .whoAmI()
-      .then((res) => {
-        setUser(res.data);
-      })
-      .catch(() => {
-        setAuthState("error");
-      })
-      .finally(() => {
-        setAuthState("done");
-      });
-  }, [setUser, logout]);
+		if (!jwt) {
+			setAuthState("done")
+			logout()
+			return
+		}
 
-  useEffect(() => {
-    if (!workspaceId) return;
-    ClientApi.instance.defaults.headers.common.workspaceId =
-      workspaceId.toString();
-  }, [workspaceId]);
+		ClientApi.instance.defaults.headers.common.Authorization = `Bearer ${jwt}`
 
-  useEffect(() => {
-    ClientApi.instance.interceptors.response.use(
-      (response) => response,
-      (error) => {
-        if (error.response && error.response.status === 401) {
-          logout();
-          navigate("/login");
-        }
-        return Promise.reject(error);
-      }
-    );
-  }, [logout, navigate]);
+		ClientApi.auth
+			.whoAmI()
+			.then((res) => {
+				setUser(res.data)
+				if (res?.data?.workspaces?.length && !workspaceId) {
+					const firstWorkspace = res.data.workspaces[0]
+					setWorkspaceId(firstWorkspace.id)
+				}
+			})
+			.catch(() => {
+				setAuthState("error")
+			})
+			.finally(() => {
+				setAuthState("done")
+				console.log("here")
+			})
+	}, [setUser, logout, setWorkspaceId, workspaceId])
 
-  const value: AuthContextType = {
-    authenticated: !!user?.id || authState === "error" || authState === "done",
-    login,
-    logout,
-    user,
-  };
+	useEffect(() => {
+		if (!workspaceId) return
+		ClientApi.instance.defaults.headers.common.workspaceId = workspaceId
+	}, [workspaceId])
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
+	useEffect(() => {
+		ClientApi.instance.interceptors.response.use(
+			(response) => response,
+			(error) => {
+				if (error.response && error.response.status === 401) {
+					logout()
+					navigate("/login")
+				}
+				return Promise.reject(error)
+			},
+		)
+	}, [logout, navigate])
 
-export default AuthProvider;
+	const value: AuthContextType = {
+		authenticated: !!user?.id || authState === "error" || authState === "done",
+		authState,
+		login,
+		logout,
+		user,
+		workspaceId,
+	}
+
+	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+export default AuthProvider

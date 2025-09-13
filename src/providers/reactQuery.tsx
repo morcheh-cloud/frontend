@@ -1,5 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import type { AxiosError } from "axios"
 import type { FunctionComponent, ReactNode } from "react"
+import useAuth from "@/hooks/useAuth"
 import { toaster } from "@/lib/toaster"
 
 interface ReactQueryProviderProps {
@@ -9,19 +11,23 @@ interface ReactQueryProviderProps {
 const ReactQueryProvider: FunctionComponent<ReactQueryProviderProps> = ({
 	children,
 }) => {
+	const { user, workspaceId } = useAuth()
+	const enabled = !!user?.id && !!workspaceId
+
 	const queryClient = new QueryClient({
 		defaultOptions: {
 			mutations: {
-				onError: (err) => {
-					const message = (err as any)?.response?.data?.message
-					console.log("🚀 ~ ReactQueryProvider ~ err:", err)
+				onError: (err: unknown) => {
+					const axiosError = err as AxiosError<{ message: string }>
+					const message = axiosError?.response?.data?.message
 					toaster.error({
-						title: message || err.message,
+						title: message || (err as Error).message,
 						type: "error",
 					})
 				},
 			},
 			queries: {
+				enabled,
 				refetchOnWindowFocus: false,
 			},
 		},
@@ -29,10 +35,7 @@ const ReactQueryProvider: FunctionComponent<ReactQueryProviderProps> = ({
 
 	return (
 		<>
-			<QueryClientProvider client={queryClient}>
-				{children}
-				{/* <ReactQueryDevtools initialIsOpen={false} /> */}
-			</QueryClientProvider>
+			<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 		</>
 	)
 }

@@ -15,7 +15,9 @@ export interface Code {
 }
 
 export interface CreateWorkSpacePayload {
+  descriptions?: string;
   name: string;
+  timezone: string;
 }
 
 export interface JWTPayload {
@@ -82,6 +84,19 @@ export interface UserModel {
   email?: string;
   fullName?: string;
   id?: string;
+  workspaces?: WorkSpaceModel[];
+}
+
+export interface WorkSpaceConfig {
+  color?: string;
+}
+
+export interface WorkSpaceModel {
+  config?: WorkSpaceConfig;
+  descriptions?: string;
+  id?: string;
+  name?: string;
+  timezone?: string;
 }
 
 import type {

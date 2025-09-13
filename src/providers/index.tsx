@@ -1,4 +1,5 @@
 import type { FunctionComponent, ReactNode } from "react"
+import AppProvider from "@/providers/AppProvider"
 import AuthProvider from "@/providers/AuthProvider"
 import ReactQueryProvider from "@/providers/reactQuery"
 import ThemeProvider from "@/providers/theme"
@@ -12,7 +13,9 @@ const AppProviders: FunctionComponent<ProviderProps> = ({ children }) => {
 		<>
 			<ThemeProvider>
 				<AuthProvider>
-					<ReactQueryProvider>{children}</ReactQueryProvider>
+					<ReactQueryProvider>
+						<AppProvider>{children}</AppProvider>
+					</ReactQueryProvider>
 				</AuthProvider>
 			</ThemeProvider>
 		</>
