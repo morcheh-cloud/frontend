@@ -1,31 +1,41 @@
-import { Avatar, Flex, IconButton, Stack, Text } from "@chakra-ui/react"
+import {
+	Avatar,
+	Box,
+	Heading,
+	HStack,
+	Separator,
+	Stack,
+} from "@chakra-ui/react"
 import type { FunctionComponent } from "react"
-import { CgArrowsExchangeV } from "react-icons/cg"
+import Caption from "@/components/base/Caption"
+import SelectWorkspace from "@/layouts/main/Navbar/SelectWorkspace"
 
 interface NavbarHeaderProps {}
 
 const NavbarHeader: FunctionComponent<NavbarHeaderProps> = () => {
 	return (
 		<>
-			<Flex gap={2} mb={2} p={4}>
-				<Avatar.Root shape={"rounded"}>
-					<Avatar.Image alt="Avatar" src="https://bit.ly/broken-link" />
-					<Avatar.Fallback>AB</Avatar.Fallback>
-				</Avatar.Root>
+			<Box mb={4}>
+				<HStack gap={2} mb={2} p={2} px={3}>
+					<Avatar.Root rounded={"lg"}>
+						<Avatar.Fallback name="ali" />
+						<Avatar.Image />
+					</Avatar.Root>
 
-				<Stack gap={0}>
-					<Text fontSize={14} fontWeight={600}>
-						Ahanonline
-					</Text>
-					<Text fontSize={11} fontStyle={"italic"}>
-						ID: 1451245
-					</Text>
-				</Stack>
+					<Stack gap={0}>
+						<Heading fontWeight={500}>Morcheh</Heading>
+						<Caption mt={-1} fontSize={12}>
+							admin
+						</Caption>
+					</Stack>
+				</HStack>
 
-				<IconButton ml={"auto"} size={"xs"} variant={"ghost"}>
-					<CgArrowsExchangeV />
-				</IconButton>
-			</Flex>
+				<Separator my={2} />
+
+				<SelectWorkspace />
+
+				<Separator m={2} mb={0} />
+			</Box>
 		</>
 	)
 }

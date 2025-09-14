@@ -1,8 +1,8 @@
 import { useContext } from "react"
 import AuthContext from "@/context/AuthContext"
 
-const useUser = () => {
-	return useContext(AuthContext).user
+const useWorkspace = () => {
+	return useContext(AuthContext).workspace
 }
 
-export default useUser
+export default useWorkspace

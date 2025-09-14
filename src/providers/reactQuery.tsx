@@ -28,6 +28,10 @@ const ReactQueryProvider: FunctionComponent<ReactQueryProviderProps> = ({
 			},
 			queries: {
 				enabled,
+				queryKeyHashFn: (queryKey) => {
+					const finalKey = [`workspaceId:${workspaceId || "none"}`, ...queryKey]
+					return JSON.stringify(finalKey)
+				},
 				refetchOnWindowFocus: false,
 			},
 		},

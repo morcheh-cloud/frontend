@@ -32,6 +32,8 @@ const AuthProvider: FunctionComponent<AuthProviderProps> = ({ children }) => {
 		undefined,
 	)
 
+	const workspace = user?.workspaces?.find((w) => w.id === workspaceId)
+
 	const login = async (jwt: string, saveInCookie = false) => {
 		SaveJwtToken(jwt, saveInCookie)
 		ClientApi.instance.defaults.headers.common.Authorization = `Bearer ${jwt}`
@@ -102,9 +104,13 @@ const AuthProvider: FunctionComponent<AuthProviderProps> = ({ children }) => {
 	const value: AuthContextType = {
 		authenticated: !!user?.id || authState === "error" || authState === "done",
 		authState,
+		changeWorkspace: (id: string) => {
+			setWorkspaceId(id)
+		},
 		login,
 		logout,
 		user,
+		workspace,
 		workspaceId,
 	}
 
