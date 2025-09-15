@@ -20,10 +20,13 @@ import {
 } from "lucide-react";
 import type { FunctionComponent } from "react";
 import Caption from "@/components/base/Caption";
+import type { ServerModel } from "@/lib/services";
 
-interface ServerCardProps {}
+interface ServerCardProps {
+  data: ServerModel;
+}
 
-const ServerCard: FunctionComponent<ServerCardProps> = () => {
+const ServerCard: FunctionComponent<ServerCardProps> = ({ data }) => {
   return (
     <>
       <Stack
@@ -40,9 +43,9 @@ const ServerCard: FunctionComponent<ServerCardProps> = () => {
         <HStack alignItems={"start"} pl={4} pr={2}>
           <Stack gap={1}>
             <Heading size={"md"} fontWeight={500} lineClamp={1}>
-              Production
+              {data.name}
             </Heading>
-            <Caption fontSize={13}>192.168.1.1</Caption>
+            <Caption fontSize={13}>{data.address}</Caption>
           </Stack>
 
           <IconButton

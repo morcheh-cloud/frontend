@@ -25,6 +25,8 @@ interface AddServerModalProps {
 	open: boolean
 	onClose: () => void
 	onSuccess?: () => Promise<void> | void
+	directoryId?: string
+	directoryName?: string
 }
 
 const protocols = createListCollection({
@@ -47,6 +49,8 @@ const SaveServerSchema: ZodType<SaveServerPayload> = object({
 const AddServerModal: FunctionComponent<AddServerModalProps> = ({
 	onClose,
 	open,
+	directoryId,
+	directoryName,
 	onSuccess,
 }) => {
 	const { handleSubmit, control, reset } = useForm<SaveServerPayload>({
@@ -63,22 +67,20 @@ const AddServerModal: FunctionComponent<AddServerModalProps> = ({
 	})
 
 	const clear = () => {
-		if (submitHandler.isPending) {
-			return
-		}
-
 		onClose()
 		reset()
 	}
 
 	const submitHandler = useMutation({
 		mutationFn: (data: SaveServerPayload) => {
-			console.log("🚀 ~ AddServerModal ~ data:", data, "ali")
-			return ClientApi.server.create(data)
+			return ClientApi.server.create({
+				...data,
+				directoryId,
+			})
 		},
 		onSuccess: async () => {
-			await onSuccess?.()
 			clear()
+			await onSuccess?.()
 		},
 	})
 
@@ -200,12 +202,7 @@ const AddServerModal: FunctionComponent<AddServerModalProps> = ({
 								render={({ field, fieldState: { invalid, error } }) => (
 									<Field.Root {...field} invalid={invalid}>
 										<Field.Label>Description</Field.Label>
-										<Textarea
-											autoresize
-											minH={100}
-											maxH={200}
-											placeholder="any note here"
-										/>
+										<Textarea autoresize minH={100} maxH={200} placeholder="any note here" />
 										<Field.ErrorText>{error?.message}</Field.ErrorText>
 									</Field.Root>
 								)}
@@ -215,7 +212,7 @@ const AddServerModal: FunctionComponent<AddServerModalProps> = ({
 
 					<Box mt={4}>
 						<Highlight
-							query={["root"]}
+							query={[directoryName || "root"]}
 							styles={{
 								bgColor: "orange.subtle",
 								borderRadius: 4,
@@ -224,16 +221,12 @@ const AddServerModal: FunctionComponent<AddServerModalProps> = ({
 								px: 2,
 							}}
 						>
-							you are adding as new server to root directory
+							{`you are adding as new server to ${directoryName} directory`}
 						</Highlight>
 					</Box>
 
 					<Modal.Actions>
-						<Button
-							disabled={submitHandler.isPending}
-							onClick={clear}
-							variant={"surface"}
-						>
+						<Button disabled={submitHandler.isPending} onClick={clear} variant={"surface"}>
 							cancel
 						</Button>
 

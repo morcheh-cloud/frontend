@@ -1,40 +1,40 @@
-import { Breadcrumb, type SystemStyleObject } from "@chakra-ui/react"
+import { Breadcrumb as ChakraBreadcrumb, type SystemStyleObject } from "@chakra-ui/react"
 import * as React from "react"
 
-export interface BreadcrumbRootProps extends Breadcrumb.RootProps {
+export interface BreadcrumbProps extends ChakraBreadcrumb.RootProps {
 	separator?: React.ReactNode
 	separatorGap?: SystemStyleObject["gap"]
+	items: Array<{ title?: React.ReactNode; url?: string; id?: string; icon?: React.ReactNode }>
+	onItemClick?: (item: { title?: React.ReactNode; url?: string; id?: string }, index: number) => void
 }
 
-export const BreadcrumbRoot = React.forwardRef<
-	HTMLDivElement,
-	BreadcrumbRootProps
->(function BreadcrumbRoot(props, ref) {
-	const { separator, separatorGap, children, ...rest } = props
-
-	const validChildren = React.Children.toArray(children).filter(
-		React.isValidElement,
-	)
+export const Breadcrumb = React.forwardRef<HTMLDivElement, BreadcrumbProps>(function BreadcrumbRoot(props, ref) {
+	const { separator, separatorGap, items, onItemClick, ...rest } = props
 
 	return (
-		<Breadcrumb.Root ref={ref} {...rest}>
-			<Breadcrumb.List gap={separatorGap}>
-				{validChildren.map((child, index) => {
-					const last = index === validChildren.length - 1
+		<ChakraBreadcrumb.Root ref={ref} {...rest}>
+			<ChakraBreadcrumb.List gap={separatorGap}>
+				{items.map((item, index) => {
+					const last = index === items.length - 1
+					const Icon = item.icon
 					return (
 						<React.Fragment key={index}>
-							<Breadcrumb.Item>{child}</Breadcrumb.Item>
-							{!last && (
-								<Breadcrumb.Separator>{separator}</Breadcrumb.Separator>
-							)}
+							<ChakraBreadcrumb.Item cursor={"pointer"}>
+								<ChakraBreadcrumb.Link
+									onClick={() => {
+										onItemClick?.(item, index)
+									}}
+								>
+									{Icon}
+									{item?.title}
+								</ChakraBreadcrumb.Link>
+							</ChakraBreadcrumb.Item>
+
+							{!last && separator ? separator : !last && <ChakraBreadcrumb.Separator />}
 						</React.Fragment>
 					)
 				})}
-			</Breadcrumb.List>
-		</Breadcrumb.Root>
+			</ChakraBreadcrumb.List>
+		</ChakraBreadcrumb.Root>
 	)
 })
-
-export const BreadcrumbLink = Breadcrumb.Link
-export const BreadcrumbCurrentLink = Breadcrumb.CurrentLink
-export const BreadcrumbEllipsis = Breadcrumb.Ellipsis

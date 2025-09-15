@@ -20,6 +20,28 @@ export interface CreateWorkSpacePayload {
   timezone: string;
 }
 
+export interface DeleteWorkSpacePayload {
+  id: string;
+}
+
+export interface DirectoryModel {
+  children?: DirectoryModel[];
+  icon?: string;
+  id?: string;
+  isDeletable?: boolean;
+  isEditable?: boolean;
+  isHidden?: boolean;
+  isLocked?: boolean;
+  name?: string;
+  type?:
+    | "server"
+    | "playbook"
+    | "ansible_module"
+    | "secrete"
+    | "database"
+    | "document";
+}
+
 export interface JWTPayload {
   email: string;
   id: number;
@@ -56,12 +78,31 @@ export interface RegisterPayload {
 export interface SaveServerPayload {
   address?: string;
   description?: string;
-  directoryId?: number;
+  directoryId?: string;
   name?: string;
   password?: string;
   port?: number;
   protocol?: "ssh" | "rdp" | "sftp" | "vnc";
   username?: string;
+}
+
+export interface ServerDirectoryModel {
+  children?: DirectoryModel[];
+  icon?: string;
+  id?: string;
+  isDeletable?: boolean;
+  isEditable?: boolean;
+  isHidden?: boolean;
+  isLocked?: boolean;
+  name?: string;
+  servers?: ServerModel[];
+  type?:
+    | "server"
+    | "playbook"
+    | "ansible_module"
+    | "secrete"
+    | "database"
+    | "document";
 }
 
 export interface ServerMetadata {
@@ -78,6 +119,11 @@ export interface ServerModel {
   os?: "linux" | "windows" | "macos";
   port?: number;
   protocol?: "ssh" | "rdp" | "sftp" | "vnc";
+}
+
+export interface SuccessModel {
+  message?: string;
+  success?: boolean;
 }
 
 export interface UserModel {
@@ -295,17 +341,10 @@ export class Api<
      * @request POST:/v1/auth/login
      * @secure
      */
-    login: (
-      data: LoginPayload,
-      query?: {
-        workspaceId?: number;
-      },
-      params: RequestParams = {},
-    ) =>
+    login: (data: LoginPayload, params: RequestParams = {}) =>
       this.request<LoginModel, any>({
         path: `/v1/auth/login`,
         method: "POST",
-        query: query,
         body: data,
         secure: true,
         type: ContentType.Json,
@@ -321,17 +360,10 @@ export class Api<
      * @request POST:/v1/auth/register
      * @secure
      */
-    register: (
-      data: RegisterPayload,
-      query?: {
-        workspaceId?: number;
-      },
-      params: RequestParams = {},
-    ) =>
+    register: (data: RegisterPayload, params: RequestParams = {}) =>
       this.request<RegisterModel, any>({
         path: `/v1/auth/register`,
         method: "POST",
-        query: query,
         body: data,
         secure: true,
         type: ContentType.Json,
@@ -347,16 +379,10 @@ export class Api<
      * @request GET:/v1/auth/me
      * @secure
      */
-    whoAmI: (
-      query?: {
-        workspaceId?: number;
-      },
-      params: RequestParams = {},
-    ) =>
+    whoAmI: (params: RequestParams = {}) =>
       this.request<UserModel, any>({
         path: `/v1/auth/me`,
         method: "GET",
-        query: query,
         secure: true,
         format: "json",
         ...params,
@@ -371,20 +397,30 @@ export class Api<
      * @request POST:/v1/server/create
      * @secure
      */
-    create: (
-      data: SaveServerPayload,
-      query?: {
-        workspaceId?: number;
-      },
-      params: RequestParams = {},
-    ) =>
+    create: (data: SaveServerPayload, params: RequestParams = {}) =>
       this.request<ServerModel, any>({
         path: `/v1/server/create`,
         method: "POST",
-        query: query,
         body: data,
         secure: true,
         type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags SERVER
+     * @name Tree
+     * @request GET:/v1/server/tree
+     * @secure
+     */
+    tree: (params: RequestParams = {}) =>
+      this.request<ServerDirectoryModel, any>({
+        path: `/v1/server/tree`,
+        method: "GET",
+        secure: true,
         format: "json",
         ...params,
       }),
@@ -414,16 +450,10 @@ export class Api<
      * @request GET:/v1/playbooks
      * @secure
      */
-    find: (
-      query?: {
-        workspaceId?: number;
-      },
-      params: RequestParams = {},
-    ) =>
+    find: (params: RequestParams = {}) =>
       this.request<PlaybookModel, any>({
         path: `/v1/playbooks`,
         method: "GET",
-        query: query,
         secure: true,
         format: "json",
         ...params,
@@ -435,23 +465,35 @@ export class Api<
      *
      * @tags WORKSPACE
      * @name Create
-     * @request POST:/v1/workspace/create
+     * @request POST:/v1/workspace
      * @secure
      */
-    create: (
-      data: CreateWorkSpacePayload,
-      query?: {
-        workspaceId?: number;
-      },
-      params: RequestParams = {},
-    ) =>
+    create: (data: CreateWorkSpacePayload, params: RequestParams = {}) =>
       this.request<void, any>({
-        path: `/v1/workspace/create`,
+        path: `/v1/workspace`,
         method: "POST",
-        query: query,
         body: data,
         secure: true,
         type: ContentType.Json,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags WORKSPACE
+     * @name Delete
+     * @request DELETE:/v1/workspace
+     * @secure
+     */
+    delete: (data: DeleteWorkSpacePayload, params: RequestParams = {}) =>
+      this.request<SuccessModel, any>({
+        path: `/v1/workspace`,
+        method: "DELETE",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
         ...params,
       }),
   };
