@@ -75,10 +75,22 @@ export interface RegisterPayload {
   password: string;
 }
 
+export interface SaveDirectoryPayload {
+  name: string;
+  parentId: string;
+  type:
+    | "server"
+    | "playbook"
+    | "ansible_module"
+    | "secrete"
+    | "database"
+    | "document";
+}
+
 export interface SaveServerPayload {
   address?: string;
   description?: string;
-  directoryId?: string;
+  directoryId: string;
   name?: string;
   password?: string;
   port?: number;
@@ -87,7 +99,7 @@ export interface SaveServerPayload {
 }
 
 export interface ServerDirectoryModel {
-  children?: DirectoryModel[];
+  children?: ServerDirectoryModel[];
   icon?: string;
   id?: string;
   isDeletable?: boolean;
@@ -105,6 +117,16 @@ export interface ServerDirectoryModel {
     | "document";
 }
 
+export interface ServerInfo {
+  architecture?: string;
+  cpu?: number;
+  distribution?: string;
+  kernel?: string;
+  memory?: string;
+  storage?: number;
+  uptime?: string;
+}
+
 export interface ServerMetadata {
   icon?: string;
 }
@@ -113,6 +135,7 @@ export interface ServerModel {
   address?: string;
   description?: string;
   id?: string;
+  info?: ServerInfo;
   keepAlive?: boolean;
   metadata?: ServerMetadata;
   name?: string;
@@ -490,6 +513,26 @@ export class Api<
       this.request<SuccessModel, any>({
         path: `/v1/workspace`,
         method: "DELETE",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  directory = {
+    /**
+     * No description
+     *
+     * @tags DIRECTORY
+     * @name Create
+     * @request POST:/v1/directory
+     * @secure
+     */
+    create: (data: SaveDirectoryPayload, params: RequestParams = {}) =>
+      this.request<DirectoryModel, any>({
+        path: `/v1/directory`,
+        method: "POST",
         body: data,
         secure: true,
         type: ContentType.Json,

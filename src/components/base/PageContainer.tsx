@@ -17,6 +17,7 @@ const PageContainer: FunctionComponent<PageContainerProps> = (props) => {
 				mx={"auto"}
 				p={4}
 				w={"100%"}
+				pos={"relative"}
 				{...rest}
 			>
 				{children}

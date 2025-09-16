@@ -1,4 +1,4 @@
-import { CloseButton, HStack, IconButton, SimpleGrid, Stack, Text } from "@chakra-ui/react"
+import { Box, CloseButton, HStack, IconButton, SimpleGrid, Spinner, Stack, Text } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { BugPlay, Download, EllipsisVertical, FolderInput, FolderPlus, Home, Plus, Trash, UserPlus } from "lucide-react"
 import { useQueryState } from "nuqs"
@@ -14,6 +14,7 @@ import type { ServerDirectoryModel } from "@/lib/services"
 import { FindDirectoryById, FindDirectoryPathById } from "@/lib/tree"
 import ServerCard from "@/pages/servers/list/ServerCard"
 
+const AddDirectoryModal = lazy(() => import("@/components/AddDirectoryModal"))
 const AddServerModal = lazy(() => import("@/pages/servers/list/AddServerModal"))
 
 interface ServerListPageProps {}
@@ -23,6 +24,7 @@ const ServerListPage: FunctionComponent<ServerListPageProps> = () => {
 	const [dirId, setDirId] = useQueryState("dir", { history: "push" })
 	const [currentDirectory, setCurrentDirectory] = useState<ServerDirectoryModel>()
 	const [selectedServers, setSelectedServers] = useState<string[]>([])
+	const [addDirectoryModalIsOpen, setAddDirectoryModalIsOpen] = useState(false)
 
 	const { data, refetch } = useQuery({
 		queryFn: async () => {
@@ -60,13 +62,39 @@ const ServerListPage: FunctionComponent<ServerListPageProps> = () => {
 				}}
 			/>
 
+			<AddDirectoryModal
+				open={addDirectoryModalIsOpen}
+				onClose={() => {
+					setAddDirectoryModalIsOpen(false)
+				}}
+				type="server"
+				onSuccess={() => {
+					refetch()
+				}}
+				parentDirectoryId={dirId!}
+				parentDirectoryName={currentDirectory?.name || "root"}
+			/>
+
 			<PageContainer>
+				<Box
+					zIndex={10}
+					justifyContent={"center"}
+					alignItems={"center"}
+					display={"none"}
+					bgColor={"white"}
+					pos={"absolute"}
+					w="100%"
+					h={"100%"}
+				>
+					<Spinner size={"xl"} css={{ "--spinner-track-color": "colors.gray.200" }} />
+				</Box>
+
 				<PageHeader title="Servers" description="Manage your servers">
 					<IconButton variant={"ghost"}>
 						<BugPlay />
 					</IconButton>
 
-					<IconButton variant={"ghost"}>
+					<IconButton onClick={() => setAddDirectoryModalIsOpen(true)} variant={"ghost"}>
 						<FolderPlus />
 					</IconButton>
 
