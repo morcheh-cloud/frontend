@@ -13,16 +13,17 @@ import {
 	Text,
 } from "@chakra-ui/react"
 import { Cpu, EllipsisVertical, HardDrive, MemoryStick, PcCase, Terminal } from "lucide-react"
-import type { FunctionComponent } from "react"
+import { type FunctionComponent, memo } from "react"
 import { LuBugPlay, LuLockKeyhole, LuPencil, LuTerminal, LuTrash } from "react-icons/lu"
 import Caption from "@/components/base/Caption"
 import type { ServerModel } from "@/lib/services"
 
 interface ServerCardProps {
 	data: ServerModel
+	onDelete?: (data: ServerModel) => void
 }
 
-const ServerCard: FunctionComponent<ServerCardProps> = ({ data }) => {
+const ServerCard: FunctionComponent<ServerCardProps> = ({ data, onDelete }) => {
 	return (
 		<>
 			<Menu.Root>
@@ -31,6 +32,7 @@ const ServerCard: FunctionComponent<ServerCardProps> = ({ data }) => {
 						_hover={{
 							borderColor: "black",
 						}}
+						w={"100%"}
 						border={"1px solid"}
 						borderColor={"gray.200"}
 						borderRadius={8}
@@ -39,7 +41,7 @@ const ServerCard: FunctionComponent<ServerCardProps> = ({ data }) => {
 						py={4}
 					>
 						<HStack alignItems={"start"} pl={4} pr={2}>
-							<Stack gap={1}>
+							<Stack alignItems={"start"} gap={1}>
 								<Heading size={"md"} fontWeight={500} lineClamp={1}>
 									{data.name}
 								</Heading>
@@ -119,7 +121,14 @@ const ServerCard: FunctionComponent<ServerCardProps> = ({ data }) => {
 								<LuBugPlay />
 								Debug
 							</Menu.Item>
-							<Menu.Item value="delete" color={"fg.error"} bgColor={"bg.error"}>
+							<Menu.Item
+								value="delete"
+								color={"fg.error"}
+								_hover={{ bg: "bg.error" }}
+								onClick={() => {
+									onDelete?.(data)
+								}}
+							>
 								<LuTrash />
 								Delete
 							</Menu.Item>
@@ -131,4 +140,4 @@ const ServerCard: FunctionComponent<ServerCardProps> = ({ data }) => {
 	)
 }
 
-export default ServerCard
+export default memo(ServerCard)

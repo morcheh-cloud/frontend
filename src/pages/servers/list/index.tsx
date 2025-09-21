@@ -1,16 +1,17 @@
 import { Box, CloseButton, HStack, IconButton, SimpleGrid, Spinner, Stack, Text } from "@chakra-ui/react"
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import { BugPlay, Download, EllipsisVertical, FolderInput, FolderPlus, Home, Plus, Trash, UserPlus } from "lucide-react"
 import { useQueryState } from "nuqs"
-import { type FunctionComponent, lazy, useEffect, useState } from "react"
+import { type FunctionComponent, lazy, useCallback, useEffect, useState } from "react"
 import PageContainer from "@/components/base/PageContainer"
 import PageHeader from "@/components/base/PageHeader"
-import Folder from "@/components/Folder"
+import DeleteModal from "@/components/DeleteModal"
+import Directory from "@/components/Directory"
 import SearchInput from "@/components/SearchInput"
 import { Breadcrumb } from "@/components/snippet/breadcrumb"
 import { Tooltip } from "@/components/snippet/tooltip"
 import { ClientApi } from "@/lib/client"
-import type { ServerDirectoryModel } from "@/lib/services"
+import type { ServerDirectoryModel, ServerModel } from "@/lib/services"
 import { FindDirectoryById, FindDirectoryPathById } from "@/lib/tree"
 import ServerCard from "@/pages/servers/list/ServerCard"
 
@@ -25,6 +26,8 @@ const ServerListPage: FunctionComponent<ServerListPageProps> = () => {
 	const [currentDirectory, setCurrentDirectory] = useState<ServerDirectoryModel>()
 	const [selectedServers, setSelectedServers] = useState<string[]>([])
 	const [addDirectoryModalIsOpen, setAddDirectoryModalIsOpen] = useState(false)
+	const [deleteModalIsOpen, setDeleteModalIsOpen] = useState(false)
+	const [selectedServer, setSelectedServer] = useState<ServerModel>()
 
 	const { data, refetch } = useQuery({
 		queryFn: async () => {
@@ -36,10 +39,19 @@ const ServerListPage: FunctionComponent<ServerListPageProps> = () => {
 		queryKey: ["servers", "tree"],
 	})
 
+	const reset = useCallback(() => {
+		setSelectedServers([])
+		setSelectedServer(undefined)
+		setDeleteModalIsOpen(false)
+		setAddDirectoryModalIsOpen(false)
+		setOpen(false)
+	}, [])
+
 	useEffect(() => {
 		const dir = FindDirectoryById(data?.data, dirId)
 		setCurrentDirectory(dir || undefined)
-	}, [data?.data, dirId])
+		reset()
+	}, [data?.data, dirId, reset])
 
 	const paths = FindDirectoryPathById(data?.data, dirId)
 	const breadcrumbItems = paths?.map((dir) => ({
@@ -48,8 +60,25 @@ const ServerListPage: FunctionComponent<ServerListPageProps> = () => {
 		title: dir.name === "root" ? "Home" : dir.name,
 	}))
 
+	const deleteServerHandler = useMutation({
+		mutationFn: () => {
+			return ClientApi.server.delete(selectedServer?.id as string)
+		},
+		onSuccess: async () => {
+			await refetch()
+			setDeleteModalIsOpen(false)
+		},
+	})
+
 	return (
 		<>
+			<DeleteModal
+				open={deleteModalIsOpen}
+				onClose={() => setDeleteModalIsOpen(false)}
+				onSubmit={() => deleteServerHandler.mutate()}
+				loading={deleteServerHandler.isPending}
+			/>
+
 			<AddServerModal
 				open={open}
 				directoryId={dirId || undefined}
@@ -107,7 +136,7 @@ const ServerListPage: FunctionComponent<ServerListPageProps> = () => {
 					<Breadcrumb
 						items={breadcrumbItems}
 						onItemClick={(item) => {
-							setDirId(item.id || null)
+							setDirId(item.id || null, { history: "push" })
 						}}
 					/>
 
@@ -153,19 +182,22 @@ const ServerListPage: FunctionComponent<ServerListPageProps> = () => {
 							const isSelected = selectedServers.includes(dir.id as string)
 
 							return (
-								<Folder
+								<Directory
 									key={dir.id}
 									name={dir.name}
 									onDoubleClick={() => {
 										setDirId(dir.id || null)
 									}}
 									isSelected={isSelected}
-									onClick={() => {
-										const isSelected = selectedServers.includes(dir.id as string)
-										if (isSelected) {
-											setSelectedServers((prev) => prev.filter((id) => id !== dir.id))
-										} else {
-											setSelectedServers((prev) => [...prev, dir.id as string])
+									onClick={(e) => {
+										const isCtrlPressed = e.ctrlKey || e.metaKey
+
+										if (isCtrlPressed) {
+											if (isSelected) {
+												setSelectedServers((prev) => prev.filter((id) => id !== dir.id))
+											} else {
+												setSelectedServers((prev) => [...prev, dir.id as string])
+											}
 										}
 									}}
 								/>
@@ -175,7 +207,16 @@ const ServerListPage: FunctionComponent<ServerListPageProps> = () => {
 
 					<SimpleGrid columns={4} gap={4}>
 						{currentDirectory?.servers?.map((server) => {
-							return <ServerCard key={server.id} data={server} />
+							return (
+								<ServerCard
+									key={server.id}
+									data={server}
+									onDelete={(data) => {
+										setDeleteModalIsOpen(true)
+										setSelectedServer(data)
+									}}
+								/>
+							)
 						})}
 					</SimpleGrid>
 				</Stack>

@@ -14,6 +14,9 @@ importers:
       '@chakra-ui/react':
         specifier: ^3.26.0
         version: 3.26.0(@emotion/react@11.14.0(@types/react@19.1.12)(react@19.1.1))(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+      '@chakra-ui/react-use-outside-click':
+        specifier: ^2.2.0
+        version: 2.2.0(react@19.1.1)
       '@hookform/resolvers':
         specifier: ^5.2.0
         version: 5.2.1(react-hook-form@7.62.0(react@19.1.1))
@@ -371,6 +374,16 @@ packages:
     hasBin: true
     peerDependencies:
       '@chakra-ui/react': '>=3.0.0-next.0'
+
+  '@chakra-ui/react-use-callback-ref@2.1.0':
+    resolution: {integrity: sha512-efnJrBtGDa4YaxDzDE90EnKD3Vkh5a1t3w7PhnRQmsphLy3g2UieasoKTlT2Hn118TwDjIv5ZjHJW6HbzXA9wQ==, tarball: https://registry.npmjs.org/@chakra-ui/react-use-callback-ref/-/react-use-callback-ref-2.1.0.tgz}
+    peerDependencies:
+      react: '>=18'
+
+  '@chakra-ui/react-use-outside-click@2.2.0':
+    resolution: {integrity: sha512-PNX+s/JEaMneijbgAM4iFL+f3m1ga9+6QK0E5Yh4s8KZJQ/bLwZzdhMz8J/+mL+XEXQ5J0N8ivZN28B82N1kNw==, tarball: https://registry.npmjs.org/@chakra-ui/react-use-outside-click/-/react-use-outside-click-2.2.0.tgz}
+    peerDependencies:
+      react: '>=18'
 
   '@chakra-ui/react@3.26.0':
     resolution: {integrity: sha512-VuhFMLklzrjTWIst1B+uQggxOn9+GxVd+0LHLtsQKA+JtKUDqNfKymeWlb1/pKrmqH184+gwZJRjTtr6/+0cIQ==, tarball: https://registry.npmjs.org/@chakra-ui/react/-/react-3.26.0.tgz}
@@ -3947,6 +3960,15 @@ snapshots:
       zod: 3.25.76
     transitivePeerDependencies:
       - supports-color
+
+  '@chakra-ui/react-use-callback-ref@2.1.0(react@19.1.1)':
+    dependencies:
+      react: 19.1.1
+
+  '@chakra-ui/react-use-outside-click@2.2.0(react@19.1.1)':
+    dependencies:
+      '@chakra-ui/react-use-callback-ref': 2.1.0(react@19.1.1)
+      react: 19.1.1
 
   '@chakra-ui/react@3.26.0(@emotion/react@11.14.0(@types/react@19.1.12)(react@19.1.1))(react-dom@19.1.1(react@19.1.1))(react@19.1.1)':
     dependencies:

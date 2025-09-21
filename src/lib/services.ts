@@ -435,6 +435,23 @@ export class Api<
      * No description
      *
      * @tags SERVER
+     * @name Delete
+     * @request DELETE:/v1/server/{id}
+     * @secure
+     */
+    delete: (id: string, params: RequestParams = {}) =>
+      this.request<SuccessModel, any>({
+        path: `/v1/server/${id}`,
+        method: "DELETE",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags SERVER
      * @name Tree
      * @request GET:/v1/server/tree
      * @secure
