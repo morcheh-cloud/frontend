@@ -11,7 +11,7 @@
 		"@tanstack/react-query": "^5.87.1",
 		"@xyflow/react": "^12.8.4",
 		"add": "^2.0.6",
-		"axios": "^1.11.0",
+		"axios": "^1.12.0",
 		"framer-motion": "^12.23.12",
 		"isbot": "^5.1.30",
 		"js-cookie": "^3.0.5",
