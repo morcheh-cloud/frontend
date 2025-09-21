@@ -44,7 +44,7 @@
 		"swagger-typescript-api": "^13.2.9",
 		"ts-node": "^10.9.2",
 		"typescript": "^5.9.2",
-		"vite": "^7.1.4",
+		"vite": "^7.1.5",
 		"vite-plugin-compression2": "^2.2.1",
 		"vite-plugin-devtools-json": "^1.0.0",
 		"vite-tsconfig-paths": "^5.1.4",
