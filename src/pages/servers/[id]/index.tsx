@@ -1,4 +1,4 @@
-import { Box, IconButton, Tabs } from "@chakra-ui/react"
+import { IconButton, Stack, Tabs, Text } from "@chakra-ui/react"
 import {
 	BrickWallFire,
 	ChartPie,
@@ -15,33 +15,36 @@ import {
 	Trash,
 	Wrench,
 } from "lucide-react"
-import type { FunctionComponent } from "react"
+import { type FunctionComponent, lazy, type ReactNode } from "react"
 import PageContainer from "@/components/base/PageContainer"
 import PageHeader from "@/components/base/PageHeader"
 
-type TabType =
-	| "overview"
-	| "setting"
-	| "firewall"
-	| "network"
-	| "event"
-	| "log"
-	| "terminal"
-	| "config"
-	| "files"
+const SFTP = lazy(() => import("@/pages/servers/[id]/SFTP"))
+
+type TabType = "overview" | "setting" | "firewall" | "network" | "event" | "log" | "terminal" | "config" | "files"
+
+interface ITab {
+	value: TabType
+	title: string
+	component?: ReactNode
+	icon?: ReactNode
+}
+
+const tabs: ITab[] = [
+	{
+		icon: <ChartPie />,
+		title: "Overview",
+		value: "overview",
+	},
+]
 
 interface ServerDetailsProps {}
 
 const ServerDetails: FunctionComponent<ServerDetailsProps> = () => {
 	return (
 		<>
-			<PageContainer>
-				<PageHeader
-					title="Production Cb-1 w-2"
-					borderBottom={1}
-					borderStyle={"solid"}
-					borderColor={"gray.200"}
-				>
+			<PageContainer maxW={"none"}>
+				<PageHeader title="Production Cb-1 w-2" borderColor={"gray.200"}>
 					<IconButton variant={"ghost"}>
 						<Trash />
 					</IconButton>
@@ -55,14 +58,24 @@ const ServerDetails: FunctionComponent<ServerDetailsProps> = () => {
 					</IconButton>
 				</PageHeader>
 
-				<Box mt={8} h="100%">
-					<Tabs.Root h={"100%"} defaultValue={"overview"} variant={"outline"}>
-						{/*  */}
-						<Tabs.List>
-							<Tabs.Trigger value="overview">
-								<ChartPie />
-								overview
-							</Tabs.Trigger>
+				<Stack mt={2} h="100%">
+					<Tabs.Root
+						gap={2}
+						display={"flex"}
+						flexDir={"column"}
+						h={"100%"}
+						defaultValue={"overview"}
+						variant={"subtle"}
+					>
+						<Tabs.List rounded={"sm"}>
+							{tabs.map((item) => {
+								return (
+									<Tabs.Trigger key={item.value} value={item.value}>
+										{item.icon}
+										{item.title}
+									</Tabs.Trigger>
+								)
+							})}
 
 							<Tabs.Trigger value="setting">
 								<MonitorCog />
@@ -94,7 +107,7 @@ const ServerDetails: FunctionComponent<ServerDetailsProps> = () => {
 								Config
 							</Tabs.Trigger>
 
-							<Tabs.Trigger value="sftb">
+							<Tabs.Trigger value="sftp">
 								<Folder />
 								SFTP
 							</Tabs.Trigger>
@@ -115,17 +128,17 @@ const ServerDetails: FunctionComponent<ServerDetailsProps> = () => {
 							</Tabs.Trigger>
 						</Tabs.List>
 
-						<Box
-							borderLeft={1}
-							borderStyle={"solid"}
-							borderColor={"gray.200"}
-							h={"100%"}
-							px={4}
-						>
-							<Tabs.Content value="setting">ali</Tabs.Content>
-						</Box>
+						<Stack h={"full"} border={"1px solid"} borderColor={"gray.200"} rounded={"sm"}>
+							<Tabs.Content h={"full"} value="overview">
+								<Text>ali</Text>
+							</Tabs.Content>
+
+							<Tabs.Content p={0} h={"full"} value="sftp">
+								<SFTP />
+							</Tabs.Content>
+						</Stack>
 					</Tabs.Root>
-				</Box>
+				</Stack>
 			</PageContainer>
 		</>
 	)

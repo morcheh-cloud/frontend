@@ -36,11 +36,7 @@ const RenderMenu: FunctionComponent<RenderMenuProps> = ({
 					data={item}
 					key={item.id}
 					onClick={() => {
-						if (
-							item.type === "group" &&
-							item.mode === "list" &&
-							item.children?.length
-						) {
+						if (item.type === "group" && item.mode === "list" && item.children?.length) {
 							setList?.(item.children)
 							setListTitle?.(item.title)
 						}
@@ -105,25 +101,14 @@ const Navbar: FunctionComponent<NavbarProps> = ({ sidebarWidth }) => {
 				<Stack gap={0} h={"100%"} pos={"relative"}>
 					{!!list.length && (
 						<>
-							<Stack
-								bg={"white"}
-								gap={0}
-								h={"100%"}
-								pos={"absolute"}
-								w={"100%"}
-								zIndex={2}
-							>
+							<Stack bg={"white"} gap={0} h={"100%"} pos={"absolute"} w={"100%"} zIndex={2}>
 								<RenderMenu items={list} />
 							</Stack>
 						</>
 					)}
 
 					<Stack gap={0} h={"100%"} zIndex={1}>
-						<RenderMenu
-							items={menu}
-							onChangeList={setList}
-							onChangeListTitle={setListTitle}
-						/>
+						<RenderMenu items={menu} onChangeList={setList} onChangeListTitle={setListTitle} />
 					</Stack>
 				</Stack>
 			</Stack>
