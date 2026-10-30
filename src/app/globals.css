@@ -1,26 +1,146 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@custom-variant dark (&:is(.dark *));
+
+/* Design tokens from DESIGN.md. Spacing is NOT redefined: Tailwind's default
+   4px step already matches the DESIGN.md base unit (p-4 = 16px, p-6 = 24px). */
+@theme {
+  /* Brand palette */
+  --color-ink: #181717;
+  --color-bone: #eeebea;
+  --color-paper: #ffffff;
+  --color-graphite: #2e2d2d;
+  --color-charcoal: #575555;
+  --color-ash: #706e6d;
+  --color-linen: #f7f5f4;
+  --color-mist: #d5d3d2;
+  --color-signal-red: #d04841;
+  --color-network-blue: #5a82de;
+  --color-network-blue-deep: #324994;
+
+  /* Type scale */
+  --text-caption: 12px;
+  --text-caption--line-height: 1.5;
+  --text-caption--letter-spacing: 0.6px;
+  --text-body-sm: 14px;
+  --text-body-sm--line-height: 1.43;
+  --text-body-sm--letter-spacing: -0.3px;
+  --text-body: 16px;
+  --text-body--line-height: 1.5;
+  --text-body--letter-spacing: -0.3px;
+  --text-subheading: 20px;
+  --text-subheading--line-height: 1.5;
+  --text-subheading--letter-spacing: -0.4px;
+  --text-heading: 32px;
+  --text-heading--line-height: 1.2;
+  --text-heading--letter-spacing: -0.64px;
+  --text-heading-lg: 48px;
+  --text-heading-lg--line-height: 1.2;
+  --text-heading-lg--letter-spacing: -0.96px;
+  --text-display: 64px;
+  --text-display--line-height: 1.2;
+  --text-display--letter-spacing: -1.92px;
+
+  --tracking-label: 0.05em;
+
+  /* Elevation */
+  --shadow-sm: 0px 4px 8px 0px rgba(24, 23, 23, 0.02);
+  --shadow-md: 0px 4px 16px 0px rgba(24, 23, 23, 0.16);
+
+  --container-page: 1200px;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
+  --font-heading: var(--font-inter);
+  --font-label: var(--font-space-grotesk);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  /* DESIGN.md radii: buttons 8px, cards/nav/images 16px, hero cards 32px */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: var(--radius);
+  --radius-xl: 16px;
+  --radius-2xl: 16px;
+  --radius-3xl: 32px;
+  --radius-4xl: 32px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Light theme only — DESIGN.md defines no dark mode. */
+:root {
+  --background: #eeebea;
+  --foreground: #181717;
+  --card: #ffffff;
+  --card-foreground: #181717;
+  --popover: #ffffff;
+  --popover-foreground: #181717;
+  --primary: #181717;
+  --primary-foreground: #ffffff;
+  --secondary: #f7f5f4;
+  --secondary-foreground: #181717;
+  --muted: #f7f5f4;
+  --muted-foreground: #575555;
+  --accent: #f7f5f4;
+  --accent-foreground: #181717;
+  --destructive: #d04841;
+  --border: #d5d3d2;
+  --input: #d5d3d2;
+  --ring: #706e6d;
+  --chart-1: #d04841;
+  --chart-2: #181717;
+  --chart-3: #575555;
+  --chart-4: #706e6d;
+  --chart-5: #d5d3d2;
+  --radius: 8px;
+  --sidebar: #f7f5f4;
+  --sidebar-foreground: #181717;
+  --sidebar-primary: #181717;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eeebea;
+  --sidebar-accent-foreground: #181717;
+  --sidebar-border: #d5d3d2;
+  --sidebar-ring: #706e6d;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    @apply bg-background text-body text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
 }
