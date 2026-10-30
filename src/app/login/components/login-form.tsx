@@ -1,8 +1,14 @@
 "use client"
 
-import { useState, type KeyboardEvent, type SubmitEvent } from "react"
 import { useMutation } from "@tanstack/react-query"
 import { CircleAlert, Eye, EyeOff, LoaderCircle } from "lucide-react"
+import {
+  type KeyboardEvent,
+  type SubmitEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -30,6 +36,16 @@ export function LoginForm() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [showPassword, setShowPassword] = useState(false)
   const [capsLock, setCapsLock] = useState(false)
+  const usernameRef = useRef<HTMLInputElement>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
+
+  // Focus the first field with a mouse/trackpad only; on phones an instant
+  // keyboard would cover the screen before the user has seen it.
+  useEffect(() => {
+    if (window.matchMedia("(pointer: fine)").matches) {
+      usernameRef.current?.focus()
+    }
+  }, [])
 
   const mutation = useMutation({
     mutationFn: login,
@@ -75,10 +91,18 @@ export function LoginForm() {
           autoComplete="username"
           autoCapitalize="none"
           spellCheck={false}
-          autoFocus
+          enterKeyHint="next"
           required
+          ref={usernameRef}
           value={username}
           onChange={(event) => setUsername(event.target.value)}
+          onKeyDown={(event) => {
+            // Keyboard "Next" moves on to the password, like a native form.
+            if (event.key === "Enter" && !password) {
+              event.preventDefault()
+              passwordRef.current?.focus()
+            }
+          }}
           aria-invalid={fieldErrors.username ? true : undefined}
           aria-describedby={fieldErrors.username ? "username-error" : undefined}
         />
@@ -97,7 +121,9 @@ export function LoginForm() {
             name="password"
             type={showPassword ? "text" : "password"}
             autoComplete="current-password"
+            enterKeyHint="go"
             required
+            ref={passwordRef}
             className="pe-11"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
@@ -106,7 +132,10 @@ export function LoginForm() {
             onBlur={() => setCapsLock(false)}
             aria-invalid={fieldErrors.password ? true : undefined}
             aria-describedby={
-              [fieldErrors.password && "password-error", capsLock && "caps-lock"]
+              [
+                fieldErrors.password && "password-error",
+                capsLock && "caps-lock",
+              ]
                 .filter(Boolean)
                 .join(" ") || undefined
             }
@@ -115,7 +144,7 @@ export function LoginForm() {
             type="button"
             variant="ghost"
             size="icon"
-            className="absolute end-0 top-0 rounded-s-none text-muted-foreground"
+            className="absolute inset-y-0 end-0 h-full w-11 rounded-s-none text-muted-foreground md:w-10"
             onClick={() => setShowPassword((shown) => !shown)}
             aria-label={showPassword ? "Hide password" : "Show password"}
             aria-pressed={showPassword}

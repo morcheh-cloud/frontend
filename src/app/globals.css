@@ -142,5 +142,13 @@
   }
   html {
     @apply font-sans;
+    /* Native feel on touch devices: no grey tap flash, no font inflation. */
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  body {
+    /* No rubber-band bounce or pull-to-refresh on the app shell. */
+    overscroll-behavior-y: none;
   }
 }
