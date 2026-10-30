@@ -24,7 +24,7 @@ export function Logo({ className }: { className?: string }) {
         className,
       )}
     >
-      <LogoMark />
+      <LogoMark className="text-brand" />
       Morcheh
     </span>
   )

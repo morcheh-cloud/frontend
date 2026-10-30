@@ -1,0 +1,113 @@
+import {
+  Activity,
+  Bell,
+  Boxes,
+  House,
+  KeyRound,
+  type LucideIcon,
+  Server,
+  Settings,
+} from "lucide-react"
+
+export type NavLink = { href: string; label: string }
+export type NavItem = NavLink & { icon: LucideIcon; children?: NavLink[] }
+export type NavGroup = { label?: string; items: NavItem[] }
+
+// The panel's seven sections. A section with children expands in the sidebar;
+// its first child is the section's own page. Only /home has a page so far.
+export const homeItem: NavItem = { href: "/home", label: "Home", icon: House }
+export const serversItem: NavItem = {
+  href: "/servers",
+  label: "Servers",
+  icon: Server,
+  children: [
+    { href: "/servers", label: "Overview" },
+    { href: "/servers/groups", label: "Groups" },
+  ],
+}
+export const servicesItem: NavItem = {
+  href: "/services",
+  label: "Services",
+  icon: Boxes,
+  children: [
+    { href: "/services", label: "Overview" },
+    { href: "/services/checks", label: "Health checks" },
+  ],
+}
+export const monitoringItem: NavItem = {
+  href: "/monitoring",
+  label: "Monitoring",
+  icon: Activity,
+  children: [
+    { href: "/monitoring", label: "Overview" },
+    { href: "/monitoring/metrics", label: "Metrics" },
+    { href: "/monitoring/uptime", label: "Uptime" },
+    { href: "/monitoring/logs", label: "Logs" },
+  ],
+}
+export const alertsItem: NavItem = {
+  href: "/alerts",
+  label: "Alerts",
+  icon: Bell,
+  children: [
+    { href: "/alerts", label: "Overview" },
+    { href: "/alerts/rules", label: "Rules" },
+    { href: "/alerts/channels", label: "Channels" },
+  ],
+}
+export const keysItem: NavItem = {
+  href: "/keys",
+  label: "SSH Keys",
+  icon: KeyRound,
+}
+export const settingsItem: NavItem = {
+  href: "/settings",
+  label: "Settings",
+  icon: Settings,
+  children: [
+    { href: "/settings", label: "General" },
+    { href: "/settings/members", label: "Members" },
+    { href: "/settings/workspaces", label: "Workspaces" },
+  ],
+}
+
+// Sidebar order. Settings sits apart, pinned to the bottom.
+export const navGroups: NavGroup[] = [
+  { label: "Platform", items: [homeItem] },
+  { label: "Infrastructure", items: [serversItem, servicesItem, keysItem] },
+  { label: "Observability", items: [monitoringItem, alertsItem] },
+]
+
+const allItems = [...navGroups.flatMap((g) => g.items), settingsItem]
+
+export function isActive(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`)
+}
+
+// The child that owns the current page: the longest matching href, so
+// /servers/groups selects "Groups" and not the "Overview" at /servers.
+export function currentChild(pathname: string, children: NavLink[]) {
+  let current: string | undefined
+  for (const child of children) {
+    if (
+      isActive(pathname, child.href) &&
+      child.href.length > (current?.length ?? 0)
+    ) {
+      current = child.href
+    }
+  }
+  return current
+}
+
+// Where the page sits in the nav: its section, then the sub-page when it is
+// not the section's own page.
+export function breadcrumbFor(pathname: string): NavLink[] {
+  const section = allItems.find((item) => isActive(pathname, item.href))
+  if (!section) return []
+
+  const child = section.children?.find(
+    (c) => c.href === currentChild(pathname, section.children ?? []),
+  )
+  if (!child || child.href === section.href) return [section]
+  return [section, child]
+}

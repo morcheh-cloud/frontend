@@ -4,21 +4,17 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Design tokens from DESIGN.md. Spacing is NOT redefined: Tailwind's default
+/* Design tokens (type, spacing, radii from DESIGN.md; colors are our own). Spacing is NOT redefined: Tailwind's default
    4px step already matches the DESIGN.md base unit (p-4 = 16px, p-6 = 24px). */
 @theme {
-  /* Brand palette */
-  --color-ink: #181717;
-  --color-bone: #eeebea;
-  --color-paper: #ffffff;
-  --color-graphite: #2e2d2d;
-  --color-charcoal: #575555;
-  --color-ash: #706e6d;
-  --color-linen: #f7f5f4;
-  --color-mist: #d5d3d2;
-  --color-signal-red: #d04841;
-  --color-network-blue: #5a82de;
-  --color-network-blue-deep: #324994;
+  /* Palette: cool neutrals + one accent (indigo). Chosen by the user over
+     DESIGN.md's warm Bone/Signal Red palette. */
+  --color-subtle: #f9f9fb;
+  --color-ash: #8b8d98;
+  --color-mist: #d9d9e0;
+  --color-brand: #3e63dd;
+  --color-brand-soft: #edf2fe;
+  --color-brand-strong: #3a5bc7;
 
   /* Type scale */
   --text-caption: 12px;
@@ -46,8 +42,8 @@
   --tracking-label: 0.05em;
 
   /* Elevation */
-  --shadow-sm: 0px 4px 8px 0px rgba(24, 23, 23, 0.02);
-  --shadow-md: 0px 4px 16px 0px rgba(24, 23, 23, 0.16);
+  --shadow-sm: 0px 1px 2px 0px rgba(28, 32, 36, 0.05);
+  --shadow-md: 0px 4px 12px 0px rgba(28, 32, 36, 0.1);
 
   --container-page: 1200px;
 }
@@ -97,40 +93,40 @@
   --radius-4xl: 32px;
 }
 
-/* Light theme only — DESIGN.md defines no dark mode. */
+/* Light theme only — no dark mode until asked. */
 :root {
-  --background: #eeebea;
-  --foreground: #181717;
+  --background: #ffffff;
+  --foreground: #1c2024;
   --card: #ffffff;
-  --card-foreground: #181717;
+  --card-foreground: #1c2024;
   --popover: #ffffff;
-  --popover-foreground: #181717;
-  --primary: #181717;
+  --popover-foreground: #1c2024;
+  --primary: #3e63dd;
   --primary-foreground: #ffffff;
-  --secondary: #f7f5f4;
-  --secondary-foreground: #181717;
-  --muted: #f7f5f4;
-  --muted-foreground: #575555;
-  --accent: #f7f5f4;
-  --accent-foreground: #181717;
-  --destructive: #d04841;
-  --border: #d5d3d2;
-  --input: #d5d3d2;
-  --ring: #706e6d;
-  --chart-1: #d04841;
-  --chart-2: #181717;
-  --chart-3: #575555;
-  --chart-4: #706e6d;
-  --chart-5: #d5d3d2;
+  --secondary: #f0f0f3;
+  --secondary-foreground: #1c2024;
+  --muted: #f0f0f3;
+  --muted-foreground: #60646c;
+  --accent: #f0f0f3;
+  --accent-foreground: #1c2024;
+  --destructive: #e5484d;
+  --border: #e8e8ec;
+  --input: #d9d9e0;
+  --ring: #8da4ef;
+  --chart-1: #3e63dd;
+  --chart-2: #1c2024;
+  --chart-3: #60646c;
+  --chart-4: #8b8d98;
+  --chart-5: #d9d9e0;
   --radius: 8px;
-  --sidebar: #f7f5f4;
-  --sidebar-foreground: #181717;
-  --sidebar-primary: #181717;
+  --sidebar: #fafafa;
+  --sidebar-foreground: #1c2024;
+  --sidebar-primary: #3e63dd;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #eeebea;
-  --sidebar-accent-foreground: #181717;
-  --sidebar-border: #d5d3d2;
-  --sidebar-ring: #706e6d;
+  --sidebar-accent: #f0f0f3;
+  --sidebar-accent-foreground: #1c2024;
+  --sidebar-border: #e8e8ec;
+  --sidebar-ring: #8da4ef;
 }
 
 @layer base {

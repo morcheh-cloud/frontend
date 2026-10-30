@@ -16,7 +16,7 @@ export default function LoginPage() {
         <div className="flex w-full flex-1 flex-col gap-10 sm:max-w-sm sm:flex-none sm:gap-8">
           <Logo />
 
-          <div className="sm:rounded-2xl sm:bg-card sm:p-8 sm:shadow-sm">
+          <div className="sm:rounded-2xl sm:border sm:border-border sm:bg-card sm:p-8 sm:shadow-sm">
             <h1 className="mb-8 text-heading font-light sm:mb-6">Sign in</h1>
             <LoginForm />
           </div>
@@ -28,7 +28,7 @@ export default function LoginPage() {
       </section>
 
       {/* Reserved: the user will design this half later. */}
-      <div className="m-4 hidden rounded-3xl bg-card shadow-sm lg:block" />
+      <div className="m-4 hidden rounded-3xl bg-linear-to-br from-brand-soft via-subtle to-subtle lg:block" />
     </main>
   )
 }

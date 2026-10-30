@@ -26,7 +26,7 @@ export const metadata: Metadata = {
 // env(safe-area-inset-*)) and let the keyboard shrink the layout. Zoom stays
 // enabled for accessibility; inputs are 16px on mobile so iOS won't auto-zoom.
 export const viewport: Viewport = {
-  themeColor: "#eeebea",
+  themeColor: "#ffffff",
   viewportFit: "cover",
   interactiveWidget: "resizes-content",
 }

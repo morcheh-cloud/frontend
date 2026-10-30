@@ -26,7 +26,9 @@ pnpm dlx shadcn@latest add <name>  # add a shadcn component
 
 - Morcheh ("ant"): SSH-based server management + monitoring for small/medium orgs — servers and the services on them in one place.
 - Backend lives in `../backend` (Go, see its CLAUDE.md); dev server on `:8080`, Swagger UI at `/docs`, OpenAPI spec at `/openapi.json` (use it to type/generate API calls).
-- Auth is username + password only. `login()` in `src/app/login/api.ts` POSTs to `/auth/login` — endpoint is a guess until the backend implements auth; on success nothing happens yet (TODO: go to dashboard). `/` redirects to `/login` until there is a dashboard.
+- Auth is username + password only. `login()` in `src/app/login/api.ts` POSTs to `/auth/login` — endpoint is a guess until the backend implements auth; on success nothing happens yet (TODO: go to `/home`). `/` redirects to `/home`.
+- Admin panel shell: route group `src/app/(panel)/`, its `layout.tsx` wraps every panel page. Desktop (md+) follows shadcn's **`sidebar-07`** block, sizes and style as shipped (user's choice): `SidebarProvider` + `AppSidebar` (`collapsible="icon"`, workspace switcher in the header, no logo; grouped sections with collapsible sub-items; Settings at the bottom; Account in the footer) + `SidebarInset` holding `PanelHeader` (`h-12`: sidebar toggle + breadcrumb from `nav.ts`) and the page. Built on `src/components/ui/sidebar.tsx` primitives; the block's demo files were deleted. Collapsed state is kept in localStorage (`sidebar_state`; we replaced shadcn's cookie, no SSR). Phone: no sidebar; full-screen page + bottom `TabBar` (4 tabs + "More" bottom sheet, which also switches workspace). Shell pieces live in `src/components/panel/`; the 7 sections and their `children` sub-pages are in `nav.ts`. Only `/home` has a page so far; new sections go in `src/app/(panel)/<route>/`, each starting with a compact `<PageHeader>` (title, description, actions).
+- Workspaces: the user has several. `WorkspaceProvider` / `useWorkspace()` in `src/components/panel/workspace.tsx` hold the selected one (localStorage `morcheh.workspace`). The list is placeholder data until the backend serves it.
 - `/login` is a 50/50 split: login box only on the start half; the other half is an empty panel the user will design later. Keep the login side minimal (user rejected extra content there).
 - Brand mark: `Logo` / `LogoMark` in `src/components/logo.tsx` (three ant body segments).
 
@@ -44,43 +46,37 @@ pnpm dlx shadcn@latest add <name>  # add a shadcn component
 
 - On phones the panel must look and behave like a native mobile app, with all mobile-app best practices (full-screen views, no web-style cards floating on canvas, bottom sheets over centred dialogs, ≥44px touch targets, safe-area insets, sensible keyboard hints, Back closes layers via `useOpen`, no hover-only affordances).
 - If one responsive component can't give the best UX on both, write **separate desktop and mobile components** instead of compromising.
-- Already in place: `viewport` in root layout (`viewportFit: cover`, `interactiveWidget: resizes-content`, theme color Bone), no tap highlight / overscroll bounce in `globals.css`, inputs `h-11` (44px) below `md`. Pad edge-touching views with `env(safe-area-inset-*)`. Don't autofocus inputs on touch devices (gate on `(pointer: fine)`).
+- Already in place: `viewport` in root layout (`viewportFit: cover`, `interactiveWidget: resizes-content`, theme color white), no tap highlight / overscroll bounce in `globals.css`, inputs `h-11` (44px) below `md`. Pad edge-touching views with `env(safe-area-inset-*)`. Don't autofocus inputs on touch devices (gate on `(pointer: fine)`).
 
 ## Stack notes
 
 - shadcn style is `base-nova`: components are built on **Base UI** (`@base-ui/react`), not Radix. Check a component's props against Base UI before using Radix-style APIs (e.g. `asChild`).
-- `cn` is exported from `@/lib/utils` (it re-exports the `cn` package). Import it from `@/lib/utils` in app code.
+- `cn` is exported from `@/lib/utils`: the `cn` package configured with our type scale (`text-caption`, `text-body-sm`…). Always import it from there, including in `src/components/ui/` — the bare `cn` package treats those sizes as colors and drops them next to `text-ash` etc.
 - `components.json` has `"rtl": true`, so shadcn emits logical classes (`ms-*`, `ps-*`, `start-*`). Keep using logical classes in our own code too. The UI itself is **English, LTR** (`lang="en"`).
 - Path alias: `@/*` → `src/*`.
 - Lint/format is **Biome only** (`biome.json`); no ESLint or Prettier. Style: 2 spaces, double quotes, no semicolons, Tailwind classes auto-sorted. Suppress with `// biome-ignore <rule>: <reason>`. `src/lib/services.ts` (generated) and `public/` are excluded; Markdown isn't formatted.
 
-## Design system — `DESIGN.md` is the source of truth
+## Design system
 
-**Every UI change must follow [DESIGN.md](DESIGN.md).** Read it before building or restyling any page or component. Do not introduce colors, fonts, radii or shadows that are not in it.
+**Colors are our own (user decision, 2026-10-31); everything else follows [DESIGN.md](DESIGN.md).** The user rejected DESIGN.md's warm Bone/Signal Red palette and its "inset island" look; ignore every color in DESIGN.md (Bone, Linen, Ink, Signal Red, Network Blue…) and its "stay on Bone canvas" rules. Type, spacing, radii and component shapes from DESIGN.md still apply. Read it before building or restyling UI. Don't introduce fonts, radii or shadows that aren't in it, or colors that aren't below.
 
-The tokens are already wired into [src/app/globals.css](src/app/globals.css). Use the Tailwind classes below. Never hard-code hex values in components.
+Tokens live in [src/app/globals.css](src/app/globals.css). Use the Tailwind classes below. Never hard-code hex values in components.
 
-### Resolved conflicts in DESIGN.md
+### Palette: cool neutrals + one accent (indigo)
 
-DESIGN.md contradicts itself in places. These decisions win:
-
-- **Primary CTA is Ink, not red.** `bg-primary` (#181717) + white text, 8px radius (`rounded-lg`), shadow-sm → shadow-md on hover. Ignore the "Agent Prompt Guide" line that says red pill.
-- **Signal Red fills a surface only in the Feature Highlight Card** (and as `destructive`). Elsewhere it is a thin accent: active nav indicator, emphasis stroke. At most one red element per row.
-
-### Token → class map
-
-| DESIGN.md | Class | Use |
+| Token | Class | Use |
 |---|---|---|
-| Bone #eeebea | `bg-background` / `bg-bone` | page canvas — never white full-page backgrounds |
-| Paper #ffffff | `bg-card` / `bg-paper` | cards, panels, tiles lifted off the canvas |
-| Linen #f7f5f4 | `bg-muted` / `bg-linen` | nav background, subtle elevated tint |
-| Ink #181717 | `text-foreground`, `bg-primary` | text, primary button. Never use `#000` / `text-black` |
-| Charcoal #575555 | `text-muted-foreground` | secondary/body-muted text, footer links |
-| Ash #706e6d | `text-ash` | captions, tertiary text |
-| Graphite #2e2d2d | `border-graphite` | strong borders/dividers when a dark rule is needed |
-| Mist #d5d3d2 | `border-border` (default) | light dividers, input borders |
-| Signal Red #d04841 | `bg-signal-red` / `text-signal-red` | rare accent (see rules above) |
-| Network Blue | `from-network-blue to-network-blue-deep` | only inside product-screenshot imagery, never on controls |
+| White #ffffff | `bg-background`, `bg-card` | page body and cards (cards separate with `border-border`, not with a tinted canvas) |
+| Subtle #f9f9fb | `bg-subtle` | quiet surfaces (sidebar is `bg-sidebar` #fafafa, its hover/active `sidebar-accent` #f0f0f3) |
+| Muted #f0f0f3 | `bg-muted` | hover/pressed fills, icon tiles |
+| Foreground #1c2024 | `text-foreground` | text. Never `#000` / `text-black` |
+| Muted fg #60646c | `text-muted-foreground` | secondary text |
+| Ash #8b8d98 | `text-ash` | captions, tertiary text, inactive tab icons |
+| Border #e8e8ec | `border-border` (default) | dividers, card borders |
+| Mist #d9d9e0 | `border-input`, `border-mist`, `bg-mist` | input borders, stronger rules, sheet handles |
+| Brand #3e63dd | `bg-primary`, `bg-brand`, `text-brand` | primary button, active tab, accents (hover: `bg-brand-strong`) |
+| Brand soft #edf2fe / strong #3a5bc7 | `bg-brand-soft` + `text-brand-strong` | tinted icon tiles, workspace avatars |
+| Destructive #e5484d | `destructive` | errors, dangerous actions |
 
 ### Typography
 
@@ -92,16 +88,16 @@ DESIGN.md contradicts itself in places. These decisions win:
 ### Shape, elevation, spacing
 
 - Radius: buttons `rounded-lg` (8px) · cards, nav, images `rounded-2xl` (16px) · hero/showcase cards `rounded-3xl` (32px) · pills `rounded-full`. Never 0 or 4px on cards.
-- Shadows: `shadow-sm` (2% black, near-invisible) for all card/nav/button elevation. `shadow-md` only for hover on nav and primary buttons. No other shadows.
+- Shadows: `shadow-sm` (near-invisible) for card/button elevation, `shadow-md` for hover/popovers only. No other shadows.
 - Spacing uses Tailwind's default 4px scale, which matches DESIGN.md: 16px = `4`, 24px = `6`, 32px = `8`, 48px = `12`, 64px = `16`, 84px = `21`, 168px = `42`.
 - Layout: content `max-w-page` (1200px) centered · section gaps 80–96px (`py-20`–`py-24`) · card padding 24–32px (`p-6`–`p-8`) · element gaps 12–16px (`gap-3`–`gap-4`).
 
 ### Hard rules
 
 - Light theme only. Do not add dark mode or `dark:` variants unless asked.
-- Stay on the Bone canvas; no alternating dark/light section bands.
-- One chromatic accent per page: Signal Red. No blue/green/purple CTAs or controls.
-- Icons: `lucide-react`, outlined, ~20px in feature cards.
+- No "island" layouts: the panel is a full-height sidebar + a plain body that scrolls with the document; no inset rounded box around page content. No alternating dark/light bands.
+- One chromatic accent: indigo (`brand`). No other colored CTAs or controls; status colors only when a real status needs them.
+- Icons: **only** `lucide-react` (lucide.dev), outlined, ~20px in feature cards. No other icon sets.
 - No photography or illustrations. Imagery is product UI screenshots, partner logos, avatars.
 - When adding a shadcn component, check its classes against these rules and adjust it in `src/components/ui/` if it drifts (e.g. wrong radius, heavy shadow, bold title).
 
