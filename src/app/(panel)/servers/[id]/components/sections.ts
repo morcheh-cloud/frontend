@@ -61,6 +61,7 @@ export const sectionGroups: SectionGroup[] = [
         label: "Services",
         icon: ServerCog,
         summary: "The systemd units running on this server.",
+        ready: true,
         planned: [
           "See every unit with its state, uptime and memory",
           "Start, stop, restart and enable a service",

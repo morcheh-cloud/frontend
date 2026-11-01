@@ -1,4 +1,5 @@
 import { Loader2, Server as ServerIcon } from "lucide-react"
+import Image from "next/image"
 
 import type { Server } from "@/lib/services"
 import { cn } from "@/lib/utils"
@@ -48,25 +49,58 @@ export const authLabel = {
   private_key: "Private key",
 } as const
 
-// Two-letter monograms for the OS tile: we only use lucide icons, and lucide
-// has no distro logos.
+// os-release ID → logo in public/os/ (Simple Icons, CC0, filled with the
+// brand color). Derivatives that keep their parent's ID (Kubuntu, Proxmox,
+// TrueNAS…) show the parent's logo.
+const logos: Record<string, string> = {
+  ubuntu: "ubuntu",
+  debian: "debian",
+  centos: "centos",
+  rocky: "rockylinux",
+  almalinux: "almalinux",
+  rhel: "redhat",
+  fedora: "fedora",
+  alpine: "alpinelinux",
+  arch: "archlinux",
+  opensuse: "opensuse",
+  "opensuse-leap": "opensuse",
+  "opensuse-tumbleweed": "opensuse",
+  "opensuse-microos": "opensuse",
+  sles: "suse",
+  sled: "suse",
+  "sle-micro": "suse",
+  linuxmint: "linuxmint",
+  kali: "kalilinux",
+  gentoo: "gentoo",
+  nixos: "nixos",
+  manjaro: "manjaro",
+  "manjaro-arm": "manjaro",
+  elementary: "elementary",
+  pop: "popos",
+  zorin: "zorin",
+  raspbian: "raspberrypi",
+  void: "voidlinux",
+  endeavouros: "endeavouros",
+  mx: "mxlinux",
+  deepin: "deepin",
+  slackware: "slackware",
+  solus: "solus",
+  garuda: "garudalinux",
+  artix: "artixlinux",
+  parrot: "parrotsecurity",
+  qubes: "qubesos",
+  openwrt: "openwrt",
+  freebsd: "freebsd",
+  openbsd: "openbsd",
+  netbsd: "netbsd",
+  macos: "apple",
+}
+
+// Two-letter monograms for systems without a logo: we only use lucide icons,
+// and lucide has no distro logos.
 const monograms: Record<string, string> = {
-  ubuntu: "Ub",
-  debian: "De",
-  centos: "Ce",
-  rocky: "Ro",
-  almalinux: "Al",
-  rhel: "RH",
-  fedora: "Fe",
-  alpine: "Ap",
-  arch: "Ar",
   amzn: "AL",
   ol: "OL",
-  "opensuse-leap": "Su",
-  sles: "SL",
-  macos: "Mac",
-  freebsd: "BSD",
-  openbsd: "BSD",
   windows: "Win",
 }
 
@@ -82,6 +116,26 @@ export function OsTile({
   os: Server["os"]
   className?: string
 }) {
+  const logo = logos[os.id]
+  if (logo) {
+    return (
+      <span
+        title={osLabel(os)}
+        className={cn(
+          "flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-card",
+          className,
+        )}
+      >
+        <Image
+          src={`/os/${logo}.svg`}
+          alt={osLabel(os)}
+          width={64}
+          height={64}
+          className="size-[55%]"
+        />
+      </span>
+    )
+  }
   const mono = os.id
     ? (monograms[os.id] ??
       (os.name || os.id).slice(0, 2).replace(/^./, (c) => c.toUpperCase()))

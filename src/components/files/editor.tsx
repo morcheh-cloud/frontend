@@ -30,6 +30,7 @@ import { useOpen } from "@/hooks/useOpen"
 import type { FileContent } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { download, fileKeys, useFileContent, useFileOps } from "./api"
+import { FileLayer } from "./file-layer"
 import { basename, dirname, formatSize, shortcut } from "./meta"
 import { useSource } from "./source"
 
@@ -48,7 +49,17 @@ const theme = EditorView.theme({
     color: "var(--color-ash)",
   },
   ".cm-activeLineGutter": { backgroundColor: "var(--color-muted)" },
-  ".cm-activeLine": { backgroundColor: "var(--color-subtle)" },
+  // Translucent: CodeMirror paints the selection behind the lines, so an
+  // opaque active line would hide it.
+  ".cm-activeLine": {
+    backgroundColor: "color-mix(in oklab, var(--color-muted) 50%, transparent)",
+  },
+  ".cm-selectionBackground, .cm-content ::selection": {
+    backgroundColor: "color-mix(in oklab, var(--color-brand) 14%, transparent)",
+  },
+  "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground": {
+    backgroundColor: "color-mix(in oklab, var(--color-brand) 24%, transparent)",
+  },
   ".cm-panels": {
     backgroundColor: "var(--color-subtle)",
     fontFamily: "var(--font-sans)",
@@ -76,7 +87,8 @@ function readWrap() {
   }
 }
 
-// Full-screen text editor over the file manager. Stays mounted while `path`
+// Text editor over the file manager (a large modal on desktop, full screen on
+// phones). Stays mounted while `path`
 // is set, so closing it with unsaved edits (X, Esc or Back) can ask first and
 // reopen it with the edits intact.
 export function FileEditor({
@@ -303,11 +315,11 @@ export function FileEditor({
 
   return (
     <>
-      <div
-        role="dialog"
-        aria-modal
-        aria-label={`Edit ${name}`}
+      <FileLayer
+        phone={phone}
+        label={`Edit ${name}`}
         hidden={!open}
+        onDismiss={requestClose}
         onKeyDown={(e) => {
           if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
             e.preventDefault()
@@ -319,7 +331,7 @@ export function FileEditor({
             }
           }
         }}
-        className="fixed inset-0 z-50 flex flex-col bg-background pt-[env(safe-area-inset-top)]"
+        className="bg-background"
       >
         {phone ? (
           <header className="flex h-14 shrink-0 items-center gap-1 border-b px-1">
@@ -429,7 +441,7 @@ export function FileEditor({
             <span>{formatSize(new Blob([value]).size)}</span>
           </footer>
         )}
-      </div>
+      </FileLayer>
 
       <ConfirmDialog
         open={discardOpen}

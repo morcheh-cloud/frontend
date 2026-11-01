@@ -13,6 +13,8 @@ import { ApiError } from "@/lib/api"
 import { useCheckingIds, useServer } from "../../api"
 import { DesktopChrome } from "./desktop-chrome"
 import { MobileChrome } from "./mobile-chrome"
+import { useWatchPower } from "./power/api"
+import { PowerProvider } from "./power/power"
 import { sectionFor, sectionHref, settingsSection } from "./sections"
 import { ServerPageContext } from "./server-page"
 
@@ -23,6 +25,8 @@ export function ServerShell({ children }: { children: ReactNode }) {
   const slug = usePathname().split("/")[3] ?? ""
   const section = sectionFor(slug) ?? settingsSection
   const query = useServer(id)
+  // Follows a reboot or shutdown on whichever section is open.
+  useWatchPower(id)
   const checking = useCheckingIds().has(id)
   const isPhone = useIsPhone()
   const router = useRouter()
@@ -67,7 +71,9 @@ export function ServerShell({ children }: { children: ReactNode }) {
   const Chrome = isPhone ? MobileChrome : DesktopChrome
   return (
     <ServerPageContext.Provider value={page}>
-      <Chrome>{children}</Chrome>
+      <PowerProvider>
+        <Chrome>{children}</Chrome>
+      </PowerProvider>
     </ServerPageContext.Provider>
   )
 }

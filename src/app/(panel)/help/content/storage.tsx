@@ -201,9 +201,11 @@ export const storage: GuideSection[] = [
         <P>
           On any file or selection, in a server's <UI>Files</UI> or in a
           storage, choose <UI>Send to…</UI>. Pick the <UI>Destination</UI> (any
-          server or storage) and the <UI>Folder</UI>. Morcheh streams the files
-          from one to the other: nothing passes through your browser, so it's as
-          fast as the link between them.
+          server or storage), then the folder in its tree (or type a path in{" "}
+          <UI>Folder</UI>; <UI>Change</UI> goes back to the list). On an S3
+          storage that shows every bucket, pick a bucket or a folder inside one.
+          Morcheh streams the files from one to the other: nothing passes
+          through your browser, so it's as fast as the link between them.
         </P>
         <List>
           <li>Missing folders on the other side are created.</li>

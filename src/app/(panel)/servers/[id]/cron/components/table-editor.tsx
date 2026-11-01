@@ -37,7 +37,17 @@ const theme = EditorView.theme({
     color: "var(--color-ash)",
   },
   ".cm-activeLineGutter": { backgroundColor: "var(--color-muted)" },
-  ".cm-activeLine": { backgroundColor: "var(--color-subtle)" },
+  // Translucent: CodeMirror paints the selection behind the lines, so an
+  // opaque active line would hide it.
+  ".cm-activeLine": {
+    backgroundColor: "color-mix(in oklab, var(--color-muted) 50%, transparent)",
+  },
+  ".cm-selectionBackground, .cm-content ::selection": {
+    backgroundColor: "color-mix(in oklab, var(--color-brand) 14%, transparent)",
+  },
+  "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground": {
+    backgroundColor: "color-mix(in oklab, var(--color-brand) 24%, transparent)",
+  },
 })
 
 const extensions = [theme, EditorView.lineWrapping]

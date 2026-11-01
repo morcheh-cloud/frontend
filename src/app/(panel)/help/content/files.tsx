@@ -68,6 +68,14 @@ export const files: GuideSection[] = [
           delete them together. <UI>Cut</UI> and <UI>Copy</UI> work across
           folders: paste them in another folder.
         </P>
+        <P>
+          <UI>Move to…</UI> and <UI>Copy to…</UI> show a folder tree: click a
+          folder to pick it (its sub-folders open below it), or type the path in{" "}
+          <UI>Folder</UI>; the tree opens down to what you type. In the tree,{" "}
+          <Keys>↑</Keys>/<Keys>↓</Keys> move, <Keys>→</Keys>/<Keys>←</Keys> open
+          and close, <Keys>Enter</Keys> picks. The folder being moved, and
+          everything inside it, is greyed out.
+        </P>
         <Table
           head={["Keys", "Does"]}
           rows={[

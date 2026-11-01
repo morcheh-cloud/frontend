@@ -1168,6 +1168,23 @@ export interface ListTerminalsResponse {
   items: TerminalSession[];
 }
 
+export interface LogEntry {
+  /** Where this entry sits in the journal, to continue after it */
+  cursor: string;
+  /** Who logged it (SYSLOG_IDENTIFIER) */
+  ident?: string;
+  message: string;
+  /** @format int64 */
+  pid?: number;
+  /**
+   * 0 emerg … 3 err, 4 warning, 5 notice, 6 info, 7 debug
+   * @format int64
+   */
+  priority: number;
+  /** @format date-time */
+  time: string;
+}
+
 export interface Login {
   /** Address, or empty for a local login */
   from: string;
@@ -1315,6 +1332,91 @@ export interface PortsReport {
   privileged: boolean;
   /** What listed the sockets; none means neither ss nor netstat is installed */
   tool: "ss" | "netstat" | "none";
+}
+
+export interface PowerActionBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  action: "reboot" | "poweroff";
+  /**
+   * 0 = now. Later needs systemd
+   * @format int64
+   * @min 0
+   * @max 10080
+   */
+  delay_minutes?: number;
+  /**
+   * Broadcast to logged-in users (wall)
+   * @maxLength 200
+   */
+  message?: string;
+}
+
+export interface PowerActionResult {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  action: "reboot" | "poweroff";
+  /**
+   * When it happens, by the server's clock
+   * @format date-time
+   */
+  at: string;
+  /**
+   * The boot before this one; a later boot_time means the server is back
+   * @format date-time
+   */
+  boot_time: string;
+  /** Delayed: it can still be cancelled */
+  scheduled: boolean;
+}
+
+export interface PowerOverview {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** How the login user can act as root; rebooting needs root or sudo */
+  access: "root" | "sudo" | "user";
+  /** @format date-time */
+  boot_time: string;
+  /** A delayed reboot or shutdown can be scheduled and cancelled (systemd) */
+  can_schedule: boolean;
+  /** The server is a container: rebooting or shutting it down usually stops the container */
+  container: boolean;
+  init: "systemd" | "openrc" | "none";
+  /** The running kernel (uname -r) */
+  kernel: string;
+  /** Packages asking for it (Debian/Ubuntu reboot-required.pkgs) */
+  reboot_packages: string[];
+  /** Why a reboot is waiting, as sentences */
+  reboot_reasons: string[];
+  reboot_required: boolean;
+  /** A pending delayed reboot or shutdown */
+  scheduled?: PowerSchedule;
+  /** @format date-time */
+  server_time: string;
+  /**
+   * Login sessions open right now (who)
+   * @format int64
+   */
+  sessions: number;
+  /** @format int64 */
+  uptime_seconds: number;
+}
+
+export interface PowerSchedule {
+  action: "reboot" | "poweroff" | "halt" | "kexec";
+  /** @format date-time */
+  at: string;
+  /** What logged-in users were told */
+  message?: string;
 }
 
 export interface RenameFileRequest {
@@ -1552,6 +1654,295 @@ export interface ServerOS {
   kernel: string;
   name: string;
   version: string;
+}
+
+export interface Service {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** active, inactive, failed, activating, deactivating, reloading */
+  active: string;
+  /** It reloads its configuration without a restart */
+  can_reload: boolean;
+  can_start: boolean;
+  can_stop: boolean;
+  /**
+   * CPU time used since it started, in nanoseconds
+   * @format int64
+   */
+  cpu_ns?: number;
+  /** Its unit file lives in /etc/systemd/system, so it can be edited or removed here */
+  custom: boolean;
+  description: string;
+  /** Drop-in files that change it */
+  drop_ins: string[];
+  /** Starts at boot: enabled, disabled, static, masked, indirect, generated, alias, transient, linked… Empty when unknown */
+  enabled: string;
+  /**
+   * Exit status of its main process's last run
+   * @format int64
+   */
+  exit_code: number;
+  /** loaded, not-found, masked, bad-setting, error (OpenRC: loaded) */
+  load: string;
+  /**
+   * 0 when not running
+   * @format int64
+   */
+  main_pid: number;
+  /**
+   * Bytes in use by its cgroup, when accounting is on
+   * @format int64
+   */
+  memory?: number;
+  /** The unit (systemd) or init script (OpenRC) */
+  name: string;
+  /** Its unit file changed on disk since systemd read it (daemon-reload) */
+  need_reload: boolean;
+  /** Its unit file */
+  path?: string;
+  /** What the distribution's preset says it should be */
+  preset?: string;
+  /** Morcheh reaches the server through it (sshd) or the system needs it to run; stopping it asks for force */
+  protected: boolean;
+  /**
+   * Automatic restarts since it was started by hand
+   * @format int64
+   */
+  restarts: number;
+  /** How its last run ended: success, exit-code, signal, timeout, core-dump… */
+  result?: string;
+  /**
+   * When it entered its current state
+   * @format date-time
+   */
+  since?: string;
+  /** The finer state: running, exited, dead, failed, auto-restart… (OpenRC: started, stopped, crashed…) */
+  sub: string;
+  /**
+   * Processes and threads
+   * @format int64
+   */
+  tasks?: number;
+  /** Sockets, timers or paths that start it */
+  triggered_by: string[];
+  /** simple, exec, forking, oneshot, notify, dbus, idle */
+  type?: string;
+  /** User= it runs as; empty is root */
+  user?: string;
+}
+
+export interface ServiceActionBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  action:
+    | "start"
+    | "stop"
+    | "restart"
+    | "reload"
+    | "enable"
+    | "disable"
+    | "mask"
+    | "unmask"
+    | "reset-failed"
+    | "kill";
+  /** Stop, disable, mask or kill a protected service (sshd, dbus, journald…) anyway */
+  force?: boolean;
+  /** With enable/disable/mask: also start or stop it now */
+  now?: boolean;
+  /**
+   * With kill
+   * @default "TERM"
+   */
+  signal?: "TERM" | "KILL" | "HUP" | "INT" | "USR1" | "USR2";
+}
+
+export interface ServiceCreateBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * The unit file
+   * @minLength 1
+   * @maxLength 262144
+   */
+  content: string;
+  /** Start it at boot */
+  enable?: boolean;
+  /**
+   * .service is added when missing
+   * @minLength 1
+   * @maxLength 200
+   */
+  name: string;
+  /** Start it now */
+  start?: boolean;
+}
+
+export interface ServiceDetails {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** active, inactive, failed, activating, deactivating, reloading */
+  active: string;
+  /**
+   * When it last became active
+   * @format date-time
+   */
+  active_since?: string;
+  after: string[];
+  before: string[];
+  /** It reloads its configuration without a restart */
+  can_reload: boolean;
+  can_start: boolean;
+  can_stop: boolean;
+  conflicts: string[];
+  /**
+   * CPU time used since it started, in nanoseconds
+   * @format int64
+   */
+  cpu_ns?: number;
+  /** Its unit file lives in /etc/systemd/system, so it can be edited or removed here */
+  custom: boolean;
+  description: string;
+  documentation: string[];
+  /** Drop-in files that change it */
+  drop_ins: string[];
+  /** Starts at boot: enabled, disabled, static, masked, indirect, generated, alias, transient, linked… Empty when unknown */
+  enabled: string;
+  /** KEY=value pairs set on it */
+  environment: string[];
+  environment_files: string[];
+  /** Command lines it starts */
+  exec_start: string[];
+  /**
+   * Exit status of its main process's last run
+   * @format int64
+   */
+  exit_code: number;
+  /** Of the unit file, for editing a custom unit */
+  file_revision: string;
+  /** The unit file and its drop-ins, as systemd reads them */
+  files: UnitFile[];
+  init: "systemd" | "openrc";
+  /** loaded, not-found, masked, bad-setting, error (OpenRC: loaded) */
+  load: string;
+  /**
+   * 0 when not running
+   * @format int64
+   */
+  main_pid: number;
+  /**
+   * Bytes in use by its cgroup, when accounting is on
+   * @format int64
+   */
+  memory?: number;
+  /** The unit (systemd) or init script (OpenRC) */
+  name: string;
+  /** Its unit file changed on disk since systemd read it (daemon-reload) */
+  need_reload: boolean;
+  /** Where Morcheh writes overrides: <unit>.d/override.conf in /etc/systemd/system */
+  override: string;
+  /** Its unit file */
+  path?: string;
+  /** What the distribution's preset says it should be */
+  preset?: string;
+  /** Morcheh reaches the server through it (sshd) or the system needs it to run; stopping it asks for force */
+  protected: boolean;
+  required_by: string[];
+  requires: string[];
+  /** Restart= policy: no, on-failure, always… */
+  restart?: string;
+  restart_sec?: string;
+  /**
+   * Automatic restarts since it was started by hand
+   * @format int64
+   */
+  restarts: number;
+  /** How its last run ended: success, exit-code, signal, timeout, core-dump… */
+  result?: string;
+  /** Of the override file as it is now (empty file when there is none); send it back when saving */
+  revision: string;
+  /**
+   * When it entered its current state
+   * @format date-time
+   */
+  since?: string;
+  /** What the service itself reports (sd_notify STATUS=) */
+  status_text?: string;
+  /** The finer state: running, exited, dead, failed, auto-restart… (OpenRC: started, stopped, crashed…) */
+  sub: string;
+  /**
+   * Processes and threads
+   * @format int64
+   */
+  tasks?: number;
+  /** Sockets, timers or paths that start it */
+  triggered_by: string[];
+  /** simple, exec, forking, oneshot, notify, dbus, idle */
+  type?: string;
+  /** User= it runs as; empty is root */
+  user?: string;
+  /** Targets that pull it in at boot */
+  wanted_by: string[];
+  wants: string[];
+  working_directory?: string;
+}
+
+export interface ServiceFileBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * The whole file; empty removes an override
+   * @maxLength 262144
+   */
+  content: string;
+  /** Restart the service after systemd reloads it (when it runs) */
+  restart?: boolean;
+  /** From the details: 409 when the file changed since */
+  revision: string;
+}
+
+export interface ServiceLogs {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Oldest first */
+  entries: LogEntry[];
+  note?: string;
+  /** none: the server has no journal (OpenRC, no systemd-journald) */
+  source: "journal" | "none";
+}
+
+export interface ServicesOverview {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Starting, stopping or changing services needs root or sudo */
+  access: "root" | "sudo" | "user";
+  /** The service manager; none = neither systemd nor OpenRC runs (e.g. a container) */
+  init: "systemd" | "openrc" | "none";
+  services: Service[];
+  /** systemctl is-system-running: running, degraded (a unit failed), starting, maintenance… */
+  state: string;
+  version: string;
+  warnings: string[];
 }
 
 export interface Session {
@@ -2080,6 +2471,13 @@ export interface TerminalSession {
   /** @format int64 */
   rows: number;
   title: string;
+}
+
+export interface UnitFile {
+  content: string;
+  /** A drop-in (.conf in <unit>.d/) rather than the unit file */
+  drop_in: boolean;
+  path: string;
 }
 
 export interface UpdateCronJobRequest {
@@ -3915,6 +4313,61 @@ export class Api<
         ...params,
       }),
   };
+  power = {
+    /**
+     * @description Runs `shutdown -c` and answers the power state after it.
+     *
+     * @tags Power
+     * @name CancelPower
+     * @summary Cancel a scheduled reboot or shutdown
+     * @request DELETE:/servers/{id}/power/schedule
+     */
+    cancelPower: (id: string, params: RequestParams = {}) =>
+      this.request<PowerOverview, ErrorModel>({
+        path: `/servers/${id}/power/schedule`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Boot time, init system, logged-in sessions, whether a reboot is waiting (reboot-required, needs-restarting, a removed running kernel) and a pending scheduled reboot or shutdown.
+     *
+     * @tags Power
+     * @name GetPower
+     * @summary Power state
+     * @request GET:/servers/{id}/power
+     */
+    getPower: (id: string, params: RequestParams = {}) =>
+      this.request<PowerOverview, ErrorModel>({
+        path: `/servers/${id}/power`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Now (the command runs detached a couple of seconds later, so the answer gets back first) or in `delay_minutes` (systemd's shutdown, cancellable). Needs root or sudo. Poll the server's check until `boot_time` is later than the one answered here to know it's back.
+     *
+     * @tags Power
+     * @name PowerAction
+     * @summary Reboot or shut down
+     * @request POST:/servers/{id}/power
+     */
+    powerAction: (
+      id: string,
+      data: PowerActionBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<PowerActionResult, ErrorModel>({
+        path: `/servers/${id}/power`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
   security = {
     /**
      * @description Removes the jail's section from jail.local: a jail defined elsewhere goes back to its shipped settings, a custom one is gone.
@@ -4223,6 +4676,256 @@ export class Api<
         body: data,
         type: ContentType.Json,
         format: "json",
+        ...params,
+      }),
+  };
+  services = {
+    /**
+     * @description Writes /etc/systemd/system/<name>, reloads systemd, checks it loads, then enables and starts it when asked.
+     *
+     * @tags Services
+     * @name CreateService
+     * @summary Add a service
+     * @request POST:/servers/{id}/services
+     */
+    createService: (
+      id: string,
+      data: ServiceCreateBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Service, ErrorModel>({
+        path: `/servers/${id}/services`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Stops and disables it, deletes its unit file and drop-ins from /etc/systemd/system and reloads systemd. Packaged units can't be removed here.
+     *
+     * @tags Services
+     * @name DeleteService
+     * @summary Remove a custom service
+     * @request DELETE:/servers/{id}/services/{unit}
+     */
+    deleteService: (id: string, unit: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/servers/${id}/services/${unit}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * @description Its state plus dependencies, commands, environment, restart policy and its unit file with drop-ins (systemctl cat). OpenRC: the init script and its conf.d file.
+     *
+     * @tags Services
+     * @name GetService
+     * @summary One service in detail
+     * @request GET:/servers/{id}/services/{unit}
+     */
+    getService: (id: string, unit: string, params: RequestParams = {}) =>
+      this.request<ServiceDetails, ErrorModel>({
+        path: `/servers/${id}/services/${unit}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The last `lines` journal entries for the unit (journalctl -u), oldest first. For new entries as they come, use the stream.
+     *
+     * @tags Services
+     * @name GetServiceLogs
+     * @summary A service's recent journal
+     * @request GET:/servers/{id}/services/{unit}/logs
+     */
+    getServiceLogs: (
+      id: string,
+      unit: string,
+      query?: {
+        /**
+         * @format int64
+         * @min 1
+         * @max 5000
+         * @default 300
+         */
+        lines?: number;
+        /**
+         * Only entries this important or more: 3 errors, 4 warnings, 6 info, 7 everything
+         * @format int64
+         * @min 0
+         * @max 7
+         * @default 7
+         */
+        priority?: number;
+        /** Only entries since then; boot = since the last boot */
+        since?: "" | "15m" | "1h" | "24h" | "7d" | "boot";
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ServiceLogs, ErrorModel>({
+        path: `/servers/${id}/services/${unit}/logs`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Every systemd service unit (loaded or installed) with its state, boot setting, main PID, memory, CPU and restarts; OpenRC init scripts with their state and runlevels; nothing when neither runs.
+     *
+     * @tags Services
+     * @name ListServices
+     * @summary Services on a server
+     * @request GET:/servers/{id}/services
+     */
+    listServices: (id: string, params: RequestParams = {}) =>
+      this.request<ServicesOverview, ErrorModel>({
+        path: `/servers/${id}/services`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description systemctl daemon-reload: systemd rereads every unit file changed on disk. Running services keep running.
+     *
+     * @tags Services
+     * @name ReloadServices
+     * @summary Reload systemd
+     * @request POST:/servers/{id}/services/daemon-reload
+     */
+    reloadServices: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/servers/${id}/services/daemon-reload`,
+        method: "POST",
+        ...params,
+      }),
+
+    /**
+     * @description Only for units whose file is in /etc/systemd/system (not a link to a package's file): writes it, reloads systemd and checks it loads, else restores it (422). Packaged units are changed with an override.
+     *
+     * @tags Services
+     * @name SaveServiceFile
+     * @summary Save a custom service's unit file
+     * @request PUT:/servers/{id}/services/{unit}/file
+     */
+    saveServiceFile: (
+      id: string,
+      unit: string,
+      data: ServiceFileBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Service, ErrorModel>({
+        path: `/servers/${id}/services/${unit}/file`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Writes /etc/systemd/system/<unit>.d/override.conf (what `systemctl edit` does; empty content removes it), reloads systemd and checks the unit still loads, else puts the old file back (422 with systemd's reason). A stale `revision` answers 409.
+     *
+     * @tags Services
+     * @name SaveServiceOverride
+     * @summary Save a service's override
+     * @request PUT:/servers/{id}/services/{unit}/override
+     */
+    saveServiceOverride: (
+      id: string,
+      unit: string,
+      data: ServiceFileBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Service, ErrorModel>({
+        path: `/servers/${id}/services/${unit}/override`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Waits for systemd to finish the job; a failed start answers 422 with systemd's reason. Answers the service as it is after. Stopping, disabling, masking or killing a protected service (sshd, dbus, journald…) needs `force`. OpenRC: start/stop/restart/reload, enable/disable (default runlevel), reset-failed (zap).
+     *
+     * @tags Services
+     * @name ServiceAction
+     * @summary Start, stop, restart, enable… a service
+     * @request POST:/servers/{id}/services/{unit}/action
+     */
+    serviceAction: (
+      id: string,
+      unit: string,
+      data: ServiceActionBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Service, ErrorModel>({
+        path: `/servers/${id}/services/${unit}/action`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Server-sent events: an `entry` for every new journal line of the unit (journalctl -f), after `after` when given; `problem` when it can't be followed, and the stream ends.
+     *
+     * @tags Services
+     * @name StreamServiceLogs
+     * @summary Follow a service's journal
+     * @request GET:/servers/{id}/services/{unit}/logs/stream
+     */
+    streamServiceLogs: (
+      id: string,
+      unit: string,
+      query?: {
+        /**
+         * A cursor from the last entry already shown
+         * @maxLength 1000
+         */
+        after?: string;
+        /**
+         * @format int64
+         * @min 0
+         * @max 7
+         * @default 7
+         */
+        priority?: number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<
+        (
+          | {
+              data: LogEntry;
+              /** The event name. */
+              event: "entry";
+              /** The event ID. */
+              id?: number | string;
+              /** The retry time in milliseconds. */
+              retry?: number;
+            }
+          | {
+              data: StatsProblem;
+              /** The event name. */
+              event: "problem";
+              /** The event ID. */
+              id?: number | string;
+              /** The retry time in milliseconds. */
+              retry?: number;
+            }
+        )[],
+        ErrorModel
+      >({
+        path: `/servers/${id}/services/${unit}/logs/stream`,
+        method: "GET",
+        query: query,
         ...params,
       }),
   };

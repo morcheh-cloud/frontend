@@ -16,7 +16,8 @@ import { useMemo } from "react"
 
 import { StatusDot, statusMeta } from "@/app/(panel)/servers/components/meta"
 import { FileBrowser } from "@/components/files/file-browser"
-import type { FileEntry, FileSource } from "@/components/files/source"
+import { storageLister, toStorageEntry } from "@/components/files/listers"
+import type { FileSource } from "@/components/files/source"
 import { guideForPath } from "@/components/help/guides"
 import { HelpButton } from "@/components/help/help-link"
 import { usePageCrumbs } from "@/components/panel/breadcrumbs"
@@ -31,7 +32,7 @@ import { useBack } from "@/hooks/useBack"
 import { useIsPhone } from "@/hooks/useIsPhone"
 import { useOpen } from "@/hooks/useOpen"
 import { ApiError, api } from "@/lib/api"
-import type { Storage, StorageEntry } from "@/lib/services"
+import type { Storage } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { useCheckingStorages, useStorage } from "../../api"
 import {
@@ -307,28 +308,6 @@ function useStorageSource(s: Storage) {
   )
 }
 
-// What the file manager shows for an object or file on a storage: no Unix
-// owners, modes or links.
-const toEntry = (e: StorageEntry): FileEntry => ({
-  name: e.name,
-  path: e.path,
-  type: e.type,
-  size: e.size,
-  modified: e.modified ?? "",
-  perm: "",
-  mode: "",
-  owner: "",
-  group: "",
-  uid: 0,
-  gid: 0,
-  link_target: "",
-  target_type: "none",
-  bucket: e.bucket,
-  storage_class: e.storage_class,
-  content_type: e.content_type,
-  etag: e.etag,
-})
-
 const basename = (path: string) => path.slice(path.lastIndexOf("/") + 1)
 
 function storageSource(
@@ -342,14 +321,7 @@ function storageSource(
     endpoint: { storage_id: id },
     readOnly: opts.readOnly,
     buckets: opts.buckets,
-    list: (path) =>
-      f.listStorageFiles(id, { path }).then((l) => ({
-        path: l.path,
-        parent: l.parent,
-        home: "/",
-        entries: l.entries.map(toEntry),
-        truncated: l.truncated,
-      })),
+    list: storageLister(id).list,
     read: (path) => f.readStorageFile(id, { path }),
     write: (v) =>
       f
@@ -357,7 +329,7 @@ function storageSource(
         .then((e) => ({ modified: e.modified ?? "", size: e.size })),
     search: (path, q) =>
       f.searchStorageFiles(id, { path, q }).then((r) => ({
-        items: r.items.map(toEntry),
+        items: r.items.map(toStorageEntry),
         truncated: r.truncated,
       })),
     size: (path, signal) =>

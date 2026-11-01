@@ -13,13 +13,14 @@ import { useEffect, useEffectEvent, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { download } from "./api"
+import { FileLayer } from "./file-layer"
 import { FileIcon, formatSize, kindOf } from "./meta"
 import { type FileEntry, useSource } from "./source"
 
 const navButton =
   "flex size-11 shrink-0 items-center justify-center rounded-full text-foreground outline-none hover:bg-muted active:bg-muted disabled:opacity-30 [&_svg]:size-5"
 
-// Full-screen viewer for images, video, audio and PDFs, streamed straight
+// Viewer (a large modal on desktop, full screen on phones) for images, video, audio and PDFs, streamed straight
 // from the source. ← / → (or a swipe on phones) step through the other
 // previewable files in the folder.
 export function FilePreview({
@@ -118,11 +119,11 @@ export function FilePreview({
     )
 
   return (
-    <div
-      role="dialog"
-      aria-modal
-      aria-label={entry.name}
-      className="fixed inset-0 z-50 flex flex-col bg-subtle pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
+    <FileLayer
+      phone={phone}
+      label={entry.name}
+      onDismiss={() => setOpen(false)}
+      className="bg-subtle pb-[env(safe-area-inset-bottom)]"
     >
       <header
         className={cn(
@@ -275,6 +276,6 @@ export function FilePreview({
           </button>
         </nav>
       )}
-    </div>
+    </FileLayer>
   )
 }

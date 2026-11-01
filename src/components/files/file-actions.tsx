@@ -19,6 +19,7 @@ import { useOpen } from "@/hooks/useOpen"
 import type { ApiError } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { download, useFileOps } from "./api"
+import { FolderPicker, insideAny } from "./folder-picker"
 import {
   basename,
   dirname,
@@ -357,6 +358,7 @@ export function FileActionsProvider({
           <DestinationForm
             key={`${d.kind}-${open}`}
             initial={dir}
+            entries={d.entries}
             onSubmit={(destination, setError) => {
               const op = d.kind === "copy" ? ops.copy : ops.move
               op.mutate(
@@ -521,23 +523,23 @@ function NameForm({
 
 // Selects the field once when it mounts (an inline ref would rerun, and
 // reselect, on every keystroke).
-function selectPath(el: HTMLInputElement | null) {
-  if (el && finePointer()) requestAnimationFrame(() => el.select())
-}
-
 function DestinationForm({
   initial,
+  entries,
   onSubmit,
 }: {
   initial: string
+  entries: FileEntry[]
   onSubmit: (path: string, setError: (error: string) => void) => void
 }) {
+  const source = useSource()
   const [path, setPath] = useState(initial)
   const [error, setError] = useState<string>()
   return (
     <form
       id="file-dest-form"
       noValidate
+      className="flex flex-col gap-3"
       onSubmit={(e) => {
         e.preventDefault()
         const p = path.trim().replace(/(.)\/+$/, "$1")
@@ -546,6 +548,15 @@ function DestinationForm({
         onSubmit(p, setError)
       }}
     >
+      <FolderPicker
+        lister={source}
+        value={path}
+        onChange={(p) => {
+          setPath(p)
+          setError(undefined)
+        }}
+        disabled={(p) => (source.buckets && p === "/") || insideAny(p, entries)}
+      />
       <Field label="Folder" error={error}>
         {(p) => (
           <Input
@@ -558,7 +569,6 @@ function DestinationForm({
             spellCheck={false}
             enterKeyHint="go"
             onChange={(e) => setPath(e.target.value)}
-            ref={selectPath}
           />
         )}
       </Field>

@@ -23,12 +23,14 @@ import type { Server } from "@/lib/services"
 import { address, OsTile, osLabel, StatusDot, statusMeta } from "./meta"
 import { useServerActions } from "./server-actions"
 
-type Item = {
+export type Item = {
   key: string
   icon: ReactNode
   label: string
+  description?: string
   onSelect: () => void
   destructive?: boolean
+  disabled?: boolean
 }
 
 // One list of row actions, rendered as a dropdown (desktop) or an action
@@ -143,14 +145,20 @@ export function ServerSheet({
   open,
   onOpenChange,
   onDeleted,
+  extra,
 }: {
   server: Server
   checking: boolean
   open: boolean
   onOpenChange: (open: boolean) => void
   onDeleted?: () => void
+  // A group of rows only this page has, shown above Delete.
+  extra?: Item[]
 }) {
-  const groups = useItems(server, checking, onDeleted)
+  const items = useItems(server, checking, onDeleted)
+  const groups = extra
+    ? [...items.slice(0, -1), extra, ...items.slice(-1)]
+    : items
 
   // Close first, then act once the sheet's history entry is gone, so a layer
   // the action opens gets its own Back entry.
@@ -220,8 +228,9 @@ export function ServerSheet({
               <SheetAction
                 icon={item.icon}
                 label={item.label}
+                description={item.description}
                 destructive={item.destructive}
-                disabled={item.key === "check" && checking}
+                disabled={item.disabled || (item.key === "check" && checking)}
                 onClick={() => run(item)}
               />
             </li>

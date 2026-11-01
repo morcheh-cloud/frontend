@@ -4,8 +4,10 @@ import { fail2ban } from "./fail2ban"
 import { files } from "./files"
 import { gettingStarted } from "./getting-started"
 import { ports } from "./ports"
+import { power } from "./power"
 import { serverOverview } from "./server-overview"
 import { servers } from "./servers"
+import { services } from "./services"
 import { storage } from "./storage"
 import { terminal } from "./terminal"
 import { users } from "./users"
@@ -21,5 +23,7 @@ export const content: Record<string, GuideSection[]> = {
   ports,
   fail2ban,
   users,
+  services,
+  power,
   storage,
 }

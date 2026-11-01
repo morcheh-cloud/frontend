@@ -1,7 +1,7 @@
 "use client"
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Check, HardDrive, Loader2, Server } from "lucide-react"
+import { ChevronRight, HardDrive, Loader2, Server } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -12,7 +12,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { type ApiError, api } from "@/lib/api"
-import { cn } from "@/lib/utils"
+import { FolderPicker } from "./folder-picker"
+import { listerFor } from "./listers"
 import { formatSize } from "./meta"
 import { type Endpoint, type FileEntry, useSource } from "./source"
 
@@ -25,6 +26,8 @@ type Target = {
   // Where the path field starts.
   path: string
   readOnly: boolean
+  // Top-level folders are buckets: nothing can go at "/".
+  buckets: boolean
 }
 
 const endpointId = (e: Endpoint) =>
@@ -89,8 +92,10 @@ function useTargets() {
       name: s.name,
       detail: `${s.protocol.toUpperCase()} · ${s.bucket ? `${s.host || s.provider} / ${s.bucket}` : s.host}`,
       kind: "storage" as const,
-      path: s.capabilities.buckets && s.bucket ? `/${s.bucket}` : "/",
+      // Every bucket is a top-level folder: let the user pick one.
+      path: s.capabilities.buckets ? "" : "/",
       readOnly: s.read_only,
+      buckets: s.capabilities.buckets,
     })),
     ...(servers.data?.items ?? []).map((s) => ({
       endpoint: { server_id: s.id },
@@ -100,6 +105,7 @@ function useTargets() {
       kind: "server" as const,
       path: "/tmp",
       readOnly: false,
+      buckets: false,
     })),
   ].filter((t) => t.id !== self)
   return {
@@ -107,6 +113,23 @@ function useTargets() {
     loading: servers.isPending || storages.isPending,
     error: servers.error ?? storages.error,
   }
+}
+
+function TargetLabel({ target: t }: { target: Target }) {
+  const Icon = t.kind === "server" ? Server : HardDrive
+  return (
+    <>
+      <Icon className="size-4 shrink-0 text-muted-foreground" />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-body-sm font-medium">
+          {t.name}
+        </span>
+        <span className="block truncate text-caption text-ash">
+          {t.readOnly ? "Read-only" : t.detail}
+        </span>
+      </span>
+    </>
+  )
 }
 
 function TransferForm({
@@ -172,7 +195,16 @@ function TransferForm({
   const submit = () => {
     if (!picked) return
     const p = path.trim().replace(/(.)\/+$/, "$1")
-    if (!p.startsWith("/")) return setPathError("Enter a full path, like /srv.")
+    if (!p.startsWith("/")) {
+      return setPathError(
+        picked.buckets && !p
+          ? "Pick a bucket or a folder inside one."
+          : "Enter a full path, like /srv.",
+      )
+    }
+    if (picked.buckets && p === "/") {
+      return setPathError("Files go inside a bucket: pick one.")
+    }
     setPathError(undefined)
     send.mutate({ target: picked, path: p })
   }
@@ -188,82 +220,97 @@ function TransferForm({
         submit()
       }}
     >
-      <div className="flex flex-col gap-1.5">
-        <p className="text-body-sm font-medium">Destination</p>
-        <div
-          role="radiogroup"
-          aria-label="Destination"
-          className="max-h-60 overflow-y-auto rounded-lg border border-input"
-        >
-          {loading ? (
-            <div className="flex flex-col gap-3 p-3">
-              <Skeleton className="h-4 w-40" />
-              <Skeleton className="h-4 w-32" />
-            </div>
-          ) : error ? (
-            <p className="p-3 text-body-sm text-destructive">{error.message}</p>
-          ) : targets.length === 0 ? (
-            <p className="p-3 text-body-sm text-muted-foreground">
-              Add another server or a storage first.
-            </p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {targets.map((t) => {
-                const Icon = t.kind === "server" ? Server : HardDrive
-                const on = picked?.id === t.id
-                return (
+      {picked ? (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-3 rounded-lg border border-input px-3 py-2">
+            <TargetLabel target={picked} />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="max-md:h-11"
+              onClick={() => {
+                setPicked(null)
+                send.reset()
+              }}
+            >
+              Change
+            </Button>
+          </div>
+          <FolderPicker
+            key={picked.id}
+            lister={listerFor(picked.endpoint)}
+            value={path}
+            onChange={(p) => {
+              setPath(p)
+              setPathError(undefined)
+            }}
+            disabled={(p) => picked.buckets && p === "/"}
+            rootLabel={picked.name}
+            rootIcon={picked.kind === "server" ? <Server /> : <HardDrive />}
+          />
+          <Field
+            label="Folder"
+            error={pathError}
+            hint="Pick one above or type a path. Missing folders are created."
+          >
+            {(p) => (
+              <Input
+                {...p}
+                value={path}
+                className="font-mono"
+                autoComplete="off"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                enterKeyHint="send"
+                onChange={(e) => setPath(e.target.value)}
+              />
+            )}
+          </Field>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          <p className="text-body-sm font-medium">Destination</p>
+          <div
+            role="radiogroup"
+            aria-label="Destination"
+            className="max-h-72 overflow-y-auto rounded-lg border border-input"
+          >
+            {loading ? (
+              <div className="flex flex-col gap-3 p-3">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+            ) : error ? (
+              <p className="p-3 text-body-sm text-destructive">
+                {error.message}
+              </p>
+            ) : targets.length === 0 ? (
+              <p className="p-3 text-body-sm text-muted-foreground">
+                Add another server or a storage first.
+              </p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {targets.map((t) => (
                   <li key={t.id}>
                     {/* biome-ignore lint/a11y/useSemanticElements: a list of rich options; radio inputs can't hold two lines and an icon */}
                     <button
                       type="button"
                       role="radio"
-                      aria-checked={on}
+                      aria-checked={false}
                       disabled={t.readOnly}
                       onClick={() => pick(t)}
-                      className={cn(
-                        "flex min-h-12 w-full items-center gap-3 px-3 py-2 text-start outline-none hover:bg-subtle focus-visible:bg-muted disabled:opacity-50 max-md:min-h-14",
-                        on && "bg-brand-soft/60 hover:bg-brand-soft/60",
-                      )}
+                      className="flex min-h-12 w-full items-center gap-3 px-3 py-2 text-start outline-none hover:bg-subtle focus-visible:bg-muted disabled:opacity-50 max-md:min-h-14"
                     >
-                      <Icon className="size-4 shrink-0 text-muted-foreground" />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-body-sm font-medium">
-                          {t.name}
-                        </span>
-                        <span className="block truncate text-caption text-ash">
-                          {t.readOnly ? "Read-only" : t.detail}
-                        </span>
-                      </span>
-                      {on && <Check className="size-4 shrink-0 text-brand" />}
+                      <TargetLabel target={t} />
+                      <ChevronRight className="size-4 shrink-0 text-ash" />
                     </button>
                   </li>
-                )
-              })}
-            </ul>
-          )}
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
-      </div>
-
-      {picked && (
-        <Field
-          label="Folder"
-          error={pathError}
-          hint="Missing folders are created."
-        >
-          {(p) => (
-            <Input
-              {...p}
-              value={path}
-              className="font-mono"
-              autoComplete="off"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              enterKeyHint="send"
-              onChange={(e) => setPath(e.target.value)}
-            />
-          )}
-        </Field>
       )}
 
       <div className="flex flex-col gap-3">

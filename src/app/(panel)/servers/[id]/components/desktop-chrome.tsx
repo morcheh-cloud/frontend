@@ -4,6 +4,7 @@ import {
   Activity,
   ChevronDown,
   Ellipsis,
+  LoaderCircle,
   Pencil,
   SquareTerminal,
   Star,
@@ -12,6 +13,7 @@ import {
 import Link from "next/link"
 import {
   Fragment,
+  type ReactElement,
   type ReactNode,
   useLayoutEffect,
   useRef,
@@ -28,6 +30,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import {
   address,
@@ -39,6 +46,8 @@ import {
 import { useServerActions } from "../../components/server-actions"
 import { ServerMenuItems } from "../../components/server-menu"
 import { serversHref } from "../../components/use-filters"
+import { PowerMenu } from "./power/power"
+import { PowerBanner } from "./power/power-banner"
 import {
   type Section,
   sectionGroups,
@@ -59,6 +68,7 @@ export function DesktopChrome({ children }: { children: ReactNode }) {
         <ServerHeader />
         <SectionTabs />
         <StatusBanner className="mx-6 mt-4 shrink-0" />
+        <PowerBanner className="mx-6 mt-4 shrink-0" />
         <div className="flex min-h-0 flex-1 flex-col">{children}</div>
       </div>
     )
@@ -69,6 +79,7 @@ export function DesktopChrome({ children }: { children: ReactNode }) {
       <SectionTabs />
       <div className="flex w-full min-w-0 flex-col gap-5 px-6 pt-5 pb-24">
         <StatusBanner />
+        <PowerBanner />
         {children}
       </div>
     </>
@@ -134,37 +145,74 @@ function ServerHeader() {
         </p>
       </div>
       <div className="flex shrink-0 gap-2">
-        <Button
-          variant="outline"
-          disabled={checking}
-          onClick={() => actions.check(server)}
+        <HeaderIcon
+          label={checking ? "Checking…" : "Check connection"}
+          render={
+            <Button
+              variant="outline"
+              size="icon"
+              disabled={checking}
+              onClick={() => actions.check(server)}
+            />
+          }
         >
-          <Activity />
-          {checking ? "Checking…" : "Check"}
-        </Button>
-        <Link
-          href={sectionHref(server.id, "terminal")}
-          className={buttonVariants()}
+          {checking ? <LoaderCircle className="animate-spin" /> : <Activity />}
+        </HeaderIcon>
+        <HeaderIcon
+          label="Copy SSH command"
+          render={
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => actions.copySsh(server)}
+            />
+          }
+        >
+          <Terminal />
+        </HeaderIcon>
+        <HeaderIcon
+          label="Edit"
+          render={
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => actions.editServer(server)}
+            />
+          }
+        >
+          <Pencil />
+        </HeaderIcon>
+        <PowerMenu />
+        <HeaderIcon
+          label="Open terminal"
+          render={
+            <Link
+              href={sectionHref(server.id, "terminal")}
+              className={buttonVariants({ size: "icon" })}
+            />
+          }
         >
           <SquareTerminal />
-          SSH
-        </Link>
-        <Button variant="outline" onClick={() => actions.copySsh(server)}>
-          <Terminal />
-          Copy SSH
-        </Button>
-        <Button variant="outline" onClick={() => actions.editServer(server)}>
-          <Pencil />
-          Edit
-        </Button>
+        </HeaderIcon>
         <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button variant="outline" size="icon" aria-label="More actions" />
-            }
-          >
-            <Ellipsis />
-          </DropdownMenuTrigger>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      aria-label="More actions"
+                    />
+                  }
+                />
+              }
+            >
+              <Ellipsis />
+            </TooltipTrigger>
+            <TooltipContent side="bottom">More</TooltipContent>
+          </Tooltip>
           <DropdownMenuContent align="end" className="w-56">
             <ServerMenuItems
               server={server}
@@ -175,6 +223,26 @@ function ServerHeader() {
         </DropdownMenu>
       </div>
     </div>
+  )
+}
+
+// An icon-only header button (`render`: a Button or Link) named by a tooltip.
+function HeaderIcon({
+  label,
+  render,
+  children,
+}: {
+  label: string
+  render: ReactElement
+  children: ReactNode
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={render} aria-label={label}>
+        {children}
+      </TooltipTrigger>
+      <TooltipContent side="bottom">{label}</TooltipContent>
+    </Tooltip>
   )
 }
 

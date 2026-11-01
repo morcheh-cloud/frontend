@@ -7,6 +7,8 @@ import { HelpButton } from "@/components/help/help-link"
 import { useBack } from "@/hooks/useBack"
 import { useOpen } from "@/hooks/useOpen"
 import { ServerSheet } from "../../components/server-menu"
+import { usePowerItems } from "./power/power"
+import { PowerBanner } from "./power/power-banner"
 import { sectionHref } from "./sections"
 import { useServerPage } from "./server-page"
 
@@ -21,6 +23,7 @@ export function MobileChrome({ children }: { children: ReactNode }) {
   const back = useBack(section.slug ? sectionHref(server.id, "") : "/servers")
   const [sheetOpen, setSheetOpen] = useOpen("server-page-sheet")
   const guide = guideForPath(sectionHref(server.id, section.slug))
+  const power = usePowerItems()
 
   return (
     <>
@@ -58,6 +61,7 @@ export function MobileChrome({ children }: { children: ReactNode }) {
           </button>
         </div>
       </header>
+      <PowerBanner />
       {children}
       <ServerSheet
         server={server}
@@ -65,6 +69,7 @@ export function MobileChrome({ children }: { children: ReactNode }) {
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         onDeleted={onDeleted}
+        extra={power}
       />
     </>
   )

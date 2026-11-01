@@ -20,7 +20,9 @@ import type { FileEntry, FileSource, Listing, LoginUser } from "./source"
 
 export const fileKeys = {
   all: (s: FileSource) => s.key,
-  list: (s: FileSource, path: string) => [...s.key, "list", path] as const,
+  // Also used by the folder picker, which only has a `Lister`.
+  list: (s: Pick<FileSource, "key">, path: string) =>
+    [...s.key, "list", path] as const,
   content: (s: FileSource, path: string) =>
     [...s.key, "content", path] as const,
   search: (s: FileSource, path: string, q: string) =>
