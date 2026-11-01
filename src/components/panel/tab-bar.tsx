@@ -3,12 +3,13 @@
 import { Drawer } from "@base-ui/react/drawer"
 import { Check, ChevronRight, Ellipsis } from "lucide-react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { useRouter } from "next/navigation"
 
 import { useOpen } from "@/hooks/useOpen"
 import { cn } from "@/lib/utils"
 import {
   alertsItem,
+  helpItem,
   homeItem,
   isActive,
   keysItem,
@@ -18,18 +19,24 @@ import {
   servicesItem,
   settingsItem,
 } from "./nav"
+import { WithPathname } from "./with-pathname"
 import { useWorkspace, WorkspaceAvatar, workspaces } from "./workspace"
 
 // A native tab bar fits four tabs plus "More"; the rest live in a sheet.
 const tabItems = [homeItem, serversItem, servicesItem, alertsItem]
-const moreItems = [monitoringItem, keysItem, settingsItem]
+const moreItems = [monitoringItem, keysItem, settingsItem, helpItem]
 
 const tabClass =
   "flex min-h-11 flex-1 flex-col items-center justify-center gap-1 text-caption font-medium outline-none select-none focus-visible:bg-muted"
 
 // Phone navigation (below md): a bottom tab bar, like a native app.
 export function TabBar() {
-  const pathname = usePathname()
+  return (
+    <WithPathname>{(pathname) => <Tabs pathname={pathname} />}</WithPathname>
+  )
+}
+
+function Tabs({ pathname }: { pathname: string }) {
   const router = useRouter()
   const [moreOpen, setMoreOpen] = useOpen("panel-more")
   const { workspace, setWorkspaceId } = useWorkspace()

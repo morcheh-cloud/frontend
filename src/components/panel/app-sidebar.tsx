@@ -2,7 +2,6 @@
 
 import { ChevronRight, ChevronsUpDown, CircleUser, LogOut } from "lucide-react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
 import { useState } from "react"
 
 import {
@@ -37,42 +36,47 @@ import {
 } from "@/components/ui/sidebar"
 import {
   currentChild,
+  helpItem,
   isActive,
   type NavItem,
   navGroups,
   settingsItem,
 } from "./nav"
+import { WithPathname } from "./with-pathname"
 import { useWorkspace, WorkspaceAvatar, workspaces } from "./workspace"
 
 // Desktop navigation (md and up), after shadcn's sidebar-07 block: collapses
 // to an icon rail. Phones get the bottom tab bar instead.
 export function AppSidebar() {
-  const pathname = usePathname()
-
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <WorkspaceSwitcher />
       </SidebarHeader>
 
-      <SidebarContent>
-        {navGroups.map((group) => (
-          <SidebarGroup key={group.label}>
-            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
-            <SidebarMenu>
-              {group.items.map((item) => (
-                <NavEntry key={item.href} item={item} pathname={pathname} />
-              ))}
-            </SidebarMenu>
-          </SidebarGroup>
-        ))}
+      <WithPathname>
+        {(pathname) => (
+          <SidebarContent>
+            {navGroups.map((group) => (
+              <SidebarGroup key={group.label}>
+                <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+                <SidebarMenu>
+                  {group.items.map((item) => (
+                    <NavEntry key={item.href} item={item} pathname={pathname} />
+                  ))}
+                </SidebarMenu>
+              </SidebarGroup>
+            ))}
 
-        <SidebarGroup className="mt-auto">
-          <SidebarMenu>
-            <NavEntry item={settingsItem} pathname={pathname} />
-          </SidebarMenu>
-        </SidebarGroup>
-      </SidebarContent>
+            <SidebarGroup className="mt-auto">
+              <SidebarMenu>
+                <NavEntry item={helpItem} pathname={pathname} />
+                <NavEntry item={settingsItem} pathname={pathname} />
+              </SidebarMenu>
+            </SidebarGroup>
+          </SidebarContent>
+        )}
+      </WithPathname>
 
       <SidebarFooter>
         <AccountMenu />

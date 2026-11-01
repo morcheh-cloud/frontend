@@ -21,10 +21,11 @@ export default function HomePage() {
     <>
       <PageHeader
         title="Home"
+        guide="getting-started"
         description="Your servers and the services running on them, at a glance."
       />
 
-      <div className="mx-auto flex w-full max-w-page flex-col gap-4 px-4 py-5 md:gap-6 md:px-6">
+      <div className="flex w-full flex-col gap-4 px-4 py-5 md:gap-6 md:px-6">
         <dl className="grid grid-cols-3 gap-3 md:gap-4">
           {stats.map((stat) => (
             <div

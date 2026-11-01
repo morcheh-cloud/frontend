@@ -56,3 +56,16 @@ export async function apiFetch<T>(
   if (response.status === 204) return undefined as T
   return response.json() as Promise<T>
 }
+
+// A 422's per-field messages keyed by field name ("body.host" → "host"), so a
+// form can show each next to its input.
+export function fieldErrors(error: unknown): Record<string, string> {
+  const out: Record<string, string> = {}
+  if (!(error instanceof ApiError)) return out
+  for (const e of error.body?.errors ?? []) {
+    if (!e.location || !e.message) continue
+    const name = e.location.replace(/^body\./, "")
+    out[name] ??= e.message
+  }
+  return out
+}

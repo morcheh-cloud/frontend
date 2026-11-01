@@ -15,6 +15,9 @@
   --color-brand: #3e63dd;
   --color-brand-soft: #edf2fe;
   --color-brand-strong: #3a5bc7;
+  /* Status colors: only for a real status (a server's dot), never for CTAs. */
+  --color-success: #30a46c;
+  --color-warning: #f76b15;
 
   /* Type scale */
   --text-caption: 12px;
@@ -127,6 +130,26 @@
   --sidebar-accent-foreground: #1c2024;
   --sidebar-border: #e8e8ec;
   --sidebar-ring: #8da4ef;
+
+  /* Web terminal (xterm reads these at runtime): the 16 ANSI colors, tuned
+     for a white background (Radix 11-step shades for normal, 9 for bright). */
+  --term-black: #1c2024;
+  --term-red: #ce2c31;
+  --term-green: #218358;
+  --term-yellow: #ab6400;
+  --term-blue: #3a5bc7;
+  --term-magenta: #953ea3;
+  --term-cyan: #107d98;
+  --term-white: #8b8d98;
+  --term-bright-black: #60646c;
+  --term-bright-red: #e5484d;
+  --term-bright-green: #30a46c;
+  --term-bright-yellow: #e2a336;
+  --term-bright-blue: #3e63dd;
+  --term-bright-magenta: #ab4aba;
+  --term-bright-cyan: #00a2c7;
+  --term-bright-white: #b9bbc6;
+  --term-selection: rgba(62, 99, 221, 0.2);
 }
 
 @layer base {

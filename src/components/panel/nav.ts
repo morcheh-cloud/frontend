@@ -2,6 +2,7 @@ import {
   Activity,
   Bell,
   Boxes,
+  CircleHelp,
   House,
   KeyRound,
   type LucideIcon,
@@ -20,10 +21,6 @@ export const serversItem: NavItem = {
   href: "/servers",
   label: "Servers",
   icon: Server,
-  children: [
-    { href: "/servers", label: "Overview" },
-    { href: "/servers/groups", label: "Groups" },
-  ],
 }
 export const servicesItem: NavItem = {
   href: "/services",
@@ -71,21 +68,27 @@ export const settingsItem: NavItem = {
   ],
 }
 
-// Sidebar order. Settings sits apart, pinned to the bottom.
+export const helpItem: NavItem = {
+  href: "/help",
+  label: "Help",
+  icon: CircleHelp,
+}
+
+// Sidebar order. Help and Settings sit apart, pinned to the bottom.
 export const navGroups: NavGroup[] = [
   { label: "Platform", items: [homeItem] },
   { label: "Infrastructure", items: [serversItem, servicesItem, keysItem] },
   { label: "Observability", items: [monitoringItem, alertsItem] },
 ]
 
-const allItems = [...navGroups.flatMap((g) => g.items), settingsItem]
+const allItems = [...navGroups.flatMap((g) => g.items), helpItem, settingsItem]
 
 export function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
 // The child that owns the current page: the longest matching href, so
-// /servers/groups selects "Groups" and not the "Overview" at /servers.
+// /monitoring/metrics selects "Metrics" and not the "Overview" at /monitoring.
 export function currentChild(pathname: string, children: NavLink[]) {
   let current: string | undefined
   for (const child of children) {
