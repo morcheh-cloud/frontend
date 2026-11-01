@@ -148,3 +148,13 @@
     overscroll-behavior-y: none;
   }
 }
+
+/* Draws an SVG stroke in; the path needs pathLength="1" and stroke-dasharray="1". */
+@keyframes trail-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
