@@ -3,7 +3,7 @@
 import { Globe, House, type LucideIcon, Network } from "lucide-react"
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs"
 
-import type { OpenPort, PortsReport } from "@/lib/services"
+import type { OpenPort } from "@/lib/services"
 
 type Exposure = OpenPort["exposure"]
 
@@ -72,6 +72,10 @@ export function risks(p: OpenPort): Risk[] {
 
 const exposures = ["public", "private", "local"] as const
 const protocols = ["tcp", "udp"] as const
+const shows = ["containers", "exposed"] as const
+
+// A database or admin service other machines can reach.
+const exposed = (p: OpenPort) => p.exposure === "public" && p.sensitive
 
 // Search and filters live in the URL, like the servers list.
 export function usePortFilters() {
@@ -80,6 +84,7 @@ export function usePortFilters() {
       q: parseAsString.withDefault(""),
       exposure: parseAsStringLiteral(exposures),
       proto: parseAsStringLiteral(protocols),
+      show: parseAsStringLiteral(shows),
     },
     { history: "replace" },
   )
@@ -93,6 +98,8 @@ export function filterPorts(ports: OpenPort[], f: Filters) {
   return ports.filter((p) => {
     if (f.exposure && p.exposure !== f.exposure) return false
     if (f.proto && p.protocol !== f.proto) return false
+    if (f.show === "containers" && !p.container) return false
+    if (f.show === "exposed" && !exposed(p)) return false
     if (!q) return true
     return [
       String(p.port),
@@ -109,12 +116,17 @@ export function filterPorts(ports: OpenPort[], f: Filters) {
   })
 }
 
-export function summarize(report: PortsReport) {
-  const ports = report.ports
+// How many ports each filter chip would show.
+export function countPorts(ports: OpenPort[]) {
+  const count = (fn: (p: OpenPort) => boolean) => ports.filter(fn).length
   return {
     total: ports.length,
-    public: ports.filter((p) => p.exposure === "public").length,
-    containers: new Set(ports.flatMap((p) => p.container?.id ?? [])).size,
-    risky: ports.filter((p) => risks(p).length > 0 && p.sensitive).length,
+    public: count((p) => p.exposure === "public"),
+    private: count((p) => p.exposure === "private"),
+    local: count((p) => p.exposure === "local"),
+    tcp: count((p) => p.protocol === "tcp"),
+    udp: count((p) => p.protocol === "udp"),
+    containers: count((p) => !!p.container),
+    exposed: count(exposed),
   }
 }

@@ -6,6 +6,7 @@ import { gettingStarted } from "./getting-started"
 import { ports } from "./ports"
 import { serverOverview } from "./server-overview"
 import { servers } from "./servers"
+import { storage } from "./storage"
 import { terminal } from "./terminal"
 import { users } from "./users"
 
@@ -20,4 +21,5 @@ export const content: Record<string, GuideSection[]> = {
   ports,
   fail2ban,
   users,
+  storage,
 }

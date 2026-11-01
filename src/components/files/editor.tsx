@@ -29,8 +29,9 @@ import { Kbd } from "@/components/ui/kbd"
 import { useOpen } from "@/hooks/useOpen"
 import type { FileContent } from "@/lib/services"
 import { cn } from "@/lib/utils"
-import { download, fileKeys, useFileContent, useFileOps } from "../api"
+import { download, fileKeys, useFileContent, useFileOps } from "./api"
 import { basename, dirname, formatSize, shortcut } from "./meta"
+import { useSource } from "./source"
 
 const MONO =
   "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace"
@@ -79,23 +80,22 @@ function readWrap() {
 // is set, so closing it with unsaved edits (X, Esc or Back) can ask first and
 // reopen it with the edits intact.
 export function FileEditor({
-  serverId,
   path,
   open,
   setOpen,
   onClosed,
   phone,
 }: {
-  serverId: string
   path: string
   open: boolean
   setOpen: (open: boolean) => void
   onClosed: () => void
   phone: boolean
 }) {
+  const source = useSource()
   const queryClient = useQueryClient()
-  const query = useFileContent(serverId, path)
-  const { write } = useFileOps(serverId)
+  const query = useFileContent(source, path)
+  const { write } = useFileOps(source)
   const file = query.data
   const [draft, setDraft] = useState<string | null>(null)
   const value = draft ?? file?.content ?? ""
@@ -140,12 +140,12 @@ export function FileEditor({
       {
         path,
         content,
-        expected_modified: force ? undefined : file.modified,
+        expected_modified: force ? undefined : file.modified || undefined,
       },
       {
         onSuccess: (entry) => {
           queryClient.setQueryData<FileContent>(
-            fileKeys.content(serverId, path),
+            fileKeys.content(source, path),
             { ...file, content, modified: entry.modified, size: entry.size },
           )
           setDraft((d) => (d === content ? null : d))
@@ -265,7 +265,7 @@ export function FileEditor({
             <RotateCw /> Try again
           </Button>
         )}
-        <Button onClick={() => download(serverId, [path])}>
+        <Button onClick={() => download(source, [path])}>
           <Download /> Download
         </Button>
       </div>
@@ -391,7 +391,7 @@ export function FileEditor({
               size="icon-sm"
               aria-label="Download"
               title="Download"
-              onClick={() => download(serverId, [path])}
+              onClick={() => download(source, [path])}
             >
               <Download />
             </Button>
@@ -443,7 +443,7 @@ export function FileEditor({
       <ConfirmDialog
         open={conflictOpen}
         onOpenChange={setConflictOpen}
-        title="The file changed on the server"
+        title={`The file changed on the ${source.noun}`}
         description={
           <>
             Someone saved {name} after you opened it. Overwrite their version
@@ -453,7 +453,7 @@ export function FileEditor({
               className="mt-2 block h-auto p-0"
               onClick={reload}
             >
-              Reload from server
+              Reload
             </Button>
           </>
         }
@@ -483,7 +483,7 @@ export function FileEditor({
           />
           <SheetAction
             icon={<RotateCw />}
-            label="Reload from server"
+            label="Reload"
             description={dirty ? "Drops your unsaved edits" : undefined}
             onClick={() => {
               reload()
@@ -494,7 +494,7 @@ export function FileEditor({
             icon={<Download />}
             label="Download"
             onClick={() => {
-              download(serverId, [path])
+              download(source, [path])
               setMenuOpen(false)
             }}
           />

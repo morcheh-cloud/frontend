@@ -10,17 +10,15 @@ import {
   useState,
 } from "react"
 import { toast } from "sonner"
-
+import { Field, Segmented } from "@/app/(panel)/servers/components/fields"
 import { ConfirmDialog, ResponsiveDialog } from "@/components/responsive-dialog"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { useOpen } from "@/hooks/useOpen"
 import type { ApiError } from "@/lib/api"
-import type { FileEntry } from "@/lib/services"
 import { cn } from "@/lib/utils"
-import { Field, Segmented } from "../../../components/fields"
-import { download, useFileOps } from "../api"
+import { download, useFileOps } from "./api"
 import {
   basename,
   dirname,
@@ -32,6 +30,9 @@ import {
   joinPath,
   nameError,
 } from "./meta"
+import { ShareDialog } from "./share-dialog"
+import { type FileEntry, useSource } from "./source"
+import { TransferDialog } from "./transfer-dialog"
 
 type Dialog =
   | { kind: "new-folder" }
@@ -42,6 +43,8 @@ type Dialog =
   | { kind: "compress"; entries: FileEntry[] }
   | { kind: "move" | "copy"; entries: FileEntry[] }
   | { kind: "info"; entry: FileEntry }
+  | { kind: "share"; entry: FileEntry }
+  | { kind: "transfer"; entries: FileEntry[]; move: boolean }
 
 type Actions = {
   newFolder: () => void
@@ -53,6 +56,10 @@ type Actions = {
   moveTo: (entries: FileEntry[]) => void
   copyTo: (entries: FileEntry[]) => void
   info: (entry: FileEntry) => void
+  // A time-limited public link (sources with `share`).
+  share: (entry: FileEntry) => void
+  // Copy or move to another server or storage.
+  transfer: (entries: FileEntry[], move?: boolean) => void
   // into: a folder to unpack into instead of the archive's own.
   extract: (entry: FileEntry, into?: string) => void
   copyPath: (entry: FileEntry) => void
@@ -75,21 +82,20 @@ const count = (entries: FileEntry[]) =>
 // Every dialog the file manager opens, in one place. `dir` is the folder on
 // screen: new things go there.
 export function FileActionsProvider({
-  serverId,
   dir,
   onCreatedFile,
   onNavigate,
   onRemoved,
   children,
 }: {
-  serverId: string
   dir: string
   onCreatedFile: (path: string) => void
   onNavigate: (dir: string) => void
   onRemoved: (paths: string[]) => void
   children: ReactNode
 }) {
-  const ops = useFileOps(serverId)
+  const source = useSource()
+  const ops = useFileOps(source)
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const [open, setOpen] = useOpen("file-dialog")
 
@@ -109,7 +115,7 @@ export function FileActionsProvider({
         ? `${entries[0].name}.zip`
         : `${basename(dir) === "/" ? "files" : basename(dir)}.zip`
     download(
-      serverId,
+      source,
       entries.map((e) => e.path),
       name,
     )
@@ -127,6 +133,9 @@ export function FileActionsProvider({
     moveTo: (entries) => entries.length && show({ kind: "move", entries }),
     copyTo: (entries) => entries.length && show({ kind: "copy", entries }),
     info: (entry) => show({ kind: "info", entry }),
+    share: (entry) => show({ kind: "share", entry }),
+    transfer: (entries, move = false) =>
+      entries.length && show({ kind: "transfer", entries, move }),
     extract: (entry, into) => {
       const id = toast.loading(`Extracting ${entry.name}…`)
       ops.extract.mutate(
@@ -297,7 +306,6 @@ export function FileActionsProvider({
           <PermissionsForm
             key={`${d.entries[0].path}-${open}`}
             entries={d.entries}
-            serverId={serverId}
             onDone={close}
           />
         )}
@@ -322,7 +330,6 @@ export function FileActionsProvider({
             key={`${d.entries[0].path}-${open}`}
             entries={d.entries}
             dir={dir}
-            serverId={serverId}
             onDone={close}
           />
         )}
@@ -400,10 +407,22 @@ export function FileActionsProvider({
           </div>
         }
       >
-        {d?.kind === "info" && (
-          <Info key={d.entry.path} entry={d.entry} serverId={serverId} />
-        )}
+        {d?.kind === "info" && <Info key={d.entry.path} entry={d.entry} />}
       </ResponsiveDialog>
+
+      <ShareDialog
+        open={open && d?.kind === "share"}
+        setOpen={setOpen}
+        entry={d?.kind === "share" ? d.entry : null}
+      />
+
+      <TransferDialog
+        open={open && d?.kind === "transfer"}
+        setOpen={setOpen}
+        entries={d?.kind === "transfer" ? d.entries : []}
+        move={d?.kind === "transfer" && d.move}
+        onMoved={onRemoved}
+      />
     </ActionsContext.Provider>
   )
 }
@@ -527,11 +546,7 @@ function DestinationForm({
         onSubmit(p, setError)
       }}
     >
-      <Field
-        label="Folder"
-        error={error}
-        hint="Missing folders are not created."
-      >
+      <Field label="Folder" error={error}>
         {(p) => (
           <Input
             {...p}
@@ -575,14 +590,12 @@ export function symbolic(perm: string) {
 
 function PermissionsForm({
   entries,
-  serverId,
   onDone,
 }: {
   entries: FileEntry[]
-  serverId: string
   onDone: () => void
 }) {
-  const { chmod, chown } = useFileOps(serverId)
+  const { chmod, chown } = useFileOps(useSource())
   const first = entries[0]
   const start = digits(first.perm)
   const sameOwner = entries.every((e) => e.owner === first.owner)
@@ -754,15 +767,13 @@ function PermissionsForm({
 function CompressForm({
   entries,
   dir,
-  serverId,
   onDone,
 }: {
   entries: FileEntry[]
   dir: string
-  serverId: string
   onDone: () => void
 }) {
-  const { compress } = useFileOps(serverId)
+  const { compress } = useFileOps(useSource())
   const [format, setFormat] = useState<"tar.gz" | "zip">("tar.gz")
   const [name, setName] = useState(
     entries.length === 1
@@ -843,7 +854,8 @@ function CompressForm({
   )
 }
 
-function Info({ entry, serverId }: { entry: FileEntry; serverId: string }) {
+function Info({ entry }: { entry: FileEntry }) {
+  const { posix } = useSource()
   const dir = isDir(entry)
   const rows: [string, ReactNode][] = [
     [
@@ -859,22 +871,36 @@ function Info({ entry, serverId }: { entry: FileEntry; serverId: string }) {
     [
       "Size",
       dir ? (
-        <FolderSize key="size" serverId={serverId} entry={entry} />
+        <FolderSize key="size" entry={entry} />
       ) : (
         `${formatSize(entry.size)}${entry.size >= 1024 ? ` (${entry.size.toLocaleString()} bytes)` : ""}`
       ),
     ],
     ["Modified", formatDate(entry.modified)],
-    [
-      "Permissions",
-      <span key="p" className="font-mono">
-        {entry.perm} · {symbolic(entry.perm)}
-      </span>,
-    ],
-    ["Owner", `${entry.owner} (${entry.uid})`],
-    ["Group", `${entry.group} (${entry.gid})`],
   ]
+  if (posix)
+    rows.push(
+      [
+        "Permissions",
+        <span key="p" className="font-mono">
+          {entry.perm} · {symbolic(entry.perm)}
+        </span>,
+      ],
+      ["Owner", `${entry.owner} (${entry.uid})`],
+      ["Group", `${entry.group} (${entry.gid})`],
+    )
   if (entry.link_target) rows.push(["Points to", entry.link_target])
+  if (entry.bucket) rows[0][1] = "Bucket"
+  if (entry.content_type && !dir)
+    rows.push(["Content type", entry.content_type])
+  if (entry.storage_class) rows.push(["Storage class", entry.storage_class])
+  if (entry.etag && !dir)
+    rows.push([
+      "ETag",
+      <span key="etag" className="font-mono break-all">
+        {entry.etag}
+      </span>,
+    ])
 
   return (
     <div className="flex flex-col gap-4">

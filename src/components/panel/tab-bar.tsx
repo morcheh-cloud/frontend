@@ -18,13 +18,20 @@ import {
   serversItem,
   servicesItem,
   settingsItem,
+  storageItem,
 } from "./nav"
 import { WithPathname } from "./with-pathname"
 import { useWorkspace, WorkspaceAvatar, workspaces } from "./workspace"
 
 // A native tab bar fits four tabs plus "More"; the rest live in a sheet.
 const tabItems = [homeItem, serversItem, servicesItem, alertsItem]
-const moreItems = [monitoringItem, keysItem, settingsItem, helpItem]
+const moreItems = [
+  storageItem,
+  monitoringItem,
+  keysItem,
+  settingsItem,
+  helpItem,
+]
 
 const tabClass =
   "flex min-h-11 flex-1 flex-col items-center justify-center gap-1 text-caption font-medium outline-none select-none focus-visible:bg-muted"

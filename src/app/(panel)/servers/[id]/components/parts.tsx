@@ -49,14 +49,16 @@ export function SearchBox({
   onChange,
   placeholder,
   label,
+  className,
 }: {
   value: string
   onChange: (value: string) => void
   placeholder: string
   label: string
+  className?: string
 }) {
   return (
-    <div className="relative md:w-72">
+    <div className={cn("relative md:w-72", className)}>
       <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-ash" />
       <input
         type="search"

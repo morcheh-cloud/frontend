@@ -11,19 +11,18 @@ import {
 import { useEffect, useEffectEvent, useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
-import type { FileEntry } from "@/lib/services"
 import { cn } from "@/lib/utils"
-import { download, downloadUrl } from "../api"
+import { download } from "./api"
 import { FileIcon, formatSize, kindOf } from "./meta"
+import { type FileEntry, useSource } from "./source"
 
 const navButton =
   "flex size-11 shrink-0 items-center justify-center rounded-full text-foreground outline-none hover:bg-muted active:bg-muted disabled:opacity-30 [&_svg]:size-5"
 
 // Full-screen viewer for images, video, audio and PDFs, streamed straight
-// from the server. ← / → (or a swipe on phones) step through the other
+// from the source. ← / → (or a swipe on phones) step through the other
 // previewable files in the folder.
 export function FilePreview({
-  serverId,
   entry,
   siblings,
   open,
@@ -31,7 +30,6 @@ export function FilePreview({
   onNavigate,
   phone,
 }: {
-  serverId: string
   entry: FileEntry
   siblings: FileEntry[]
   open: boolean
@@ -39,10 +37,11 @@ export function FilePreview({
   onNavigate: (entry: FileEntry) => void
   phone: boolean
 }) {
+  const source = useSource()
   const index = siblings.findIndex((s) => s.path === entry.path)
   const prev = index > 0 ? siblings[index - 1] : undefined
   const next = index >= 0 ? siblings[index + 1] : undefined
-  const url = downloadUrl(serverId, [entry.path], { inline: true })
+  const url = source.downloadUrl([entry.path], { inline: true })
   const kind = kindOf(entry)
   const [failed, setFailed] = useState<string | null>(null)
   const touch = useRef<{ x: number; y: number } | null>(null)
@@ -69,12 +68,12 @@ export function FilePreview({
           <FileWarning className="size-6 text-ash" />
         </span>
         <p className="font-medium">Couldn't show this file</p>
-        <Button onClick={() => download(serverId, [entry.path])}>
+        <Button onClick={() => download(source, [entry.path])}>
           <Download /> Download
         </Button>
       </div>
     ) : kind === "image" ? (
-      // biome-ignore lint/performance/noImgElement: streamed from the server, not optimisable
+      // biome-ignore lint/performance/noImgElement: streamed from the source, not optimisable
       <img
         key={entry.path}
         src={url}
@@ -83,7 +82,7 @@ export function FilePreview({
         className="max-h-full max-w-full rounded-lg object-contain shadow-sm"
       />
     ) : kind === "video" ? (
-      // biome-ignore lint/a11y/useMediaCaption: server files have no captions
+      // biome-ignore lint/a11y/useMediaCaption: remote files have no captions
       <video
         key={entry.path}
         src={url}
@@ -99,7 +98,7 @@ export function FilePreview({
           <FileIcon entry={entry} className="size-8" />
         </span>
         <p className="max-w-full truncate font-medium">{entry.name}</p>
-        {/* biome-ignore lint/a11y/useMediaCaption: server files have no captions */}
+        {/* biome-ignore lint/a11y/useMediaCaption: remote files have no captions */}
         <audio
           key={entry.path}
           src={url}
@@ -166,7 +165,7 @@ export function FilePreview({
           <button
             type="button"
             aria-label="Download"
-            onClick={() => download(serverId, [entry.path])}
+            onClick={() => download(source, [entry.path])}
             className={navButton}
           >
             <Download />
@@ -177,7 +176,7 @@ export function FilePreview({
             size="icon-sm"
             aria-label="Download"
             title="Download"
-            onClick={() => download(serverId, [entry.path])}
+            onClick={() => download(source, [entry.path])}
           >
             <Download />
           </Button>

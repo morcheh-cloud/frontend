@@ -16,10 +16,9 @@ import { useOpen } from "@/hooks/useOpen"
 import type { OpenPort, PortsReport } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { timeAgo } from "../../../components/meta"
-import { SectionHeader } from "../../components/section-header"
 import { useServerPage } from "../../components/server-page"
 import { usePorts } from "../api"
-import { filterPorts, summarize, usePortFilters } from "./meta"
+import { countPorts, filterPorts, usePortFilters } from "./meta"
 import { PortDetailsLayer } from "./port-details"
 import { PortsList, PortsTable } from "./ports-list"
 
@@ -36,24 +35,24 @@ export function PortsView() {
     setOpen(true)
   }
 
-  const actions = (
-    <>
-      {report && (
-        <span className="hidden self-center text-caption text-ash md:inline">
-          Updated {timeAgo(report.collected_at).toLowerCase()}
-        </span>
-      )}
-      <Button
-        variant="outline"
-        size="sm"
-        className="max-md:h-10 max-md:flex-1"
-        disabled={query.isFetching}
-        onClick={() => query.refetch()}
-      >
-        <RefreshCw className={cn(query.isFetching && "animate-spin")} />
-        {query.isFetching ? "Scanning…" : "Refresh"}
-      </Button>
-    </>
+  const refresh = (
+    <Button
+      variant="outline"
+      size="icon-lg"
+      className="shrink-0 md:size-9"
+      aria-label="Refresh"
+      title="Refresh"
+      disabled={query.isFetching}
+      onClick={() => query.refetch()}
+    >
+      <RefreshCw className={cn(query.isFetching && "animate-spin")} />
+    </Button>
+  )
+  const retry = (
+    <Button variant="outline" onClick={() => query.refetch()}>
+      <RefreshCw className={cn(query.isFetching && "animate-spin")} />
+      Refresh
+    </Button>
   )
 
   let body: ReactNode
@@ -78,6 +77,7 @@ export function PortsView() {
         icon={EthernetPort}
         title="No tool to list sockets"
         body="Neither ss nor netstat is installed on this server. Install iproute2 (for ss) or net-tools, then refresh."
+        action={retry}
       />
     )
   } else if (report.ports.length === 0) {
@@ -86,15 +86,15 @@ export function PortsView() {
         icon={EthernetPort}
         title="Nothing is listening"
         body="No TCP or UDP port is open on this server."
+        action={retry}
       />
     )
   } else {
     const ports = filterPorts(report.ports, filters)
     body = (
       <>
-        <Summary report={report} />
         <Notices report={report} />
-        <Toolbar />
+        <Toolbar report={report} refresh={refresh} />
         {ports.length === 0 ? (
           <Empty
             icon={Search}
@@ -112,7 +112,6 @@ export function PortsView() {
 
   return (
     <>
-      <SectionHeader actions={actions} />
       <div className="flex flex-col gap-4 max-md:gap-0 max-md:pb-6">{body}</div>
       <PortDetailsLayer
         port={selected}
@@ -121,78 +120,6 @@ export function PortsView() {
         privileged={report?.privileged ?? true}
       />
     </>
-  )
-}
-
-// Counts across the top; tapping one filters the list by it.
-function Summary({ report }: { report: PortsReport }) {
-  const { filters, setFilters } = usePortFilters()
-  const s = summarize(report)
-  const cells: {
-    label: string
-    value: number
-    active?: boolean
-    warn?: boolean
-    onClick?: () => void
-  }[] = [
-    {
-      label: "Listening",
-      value: s.total,
-      active: !filters.exposure,
-      onClick: () => setFilters({ exposure: null }),
-    },
-    {
-      label: "Public",
-      value: s.public,
-      active: filters.exposure === "public",
-      onClick: () => setFilters({ exposure: "public" }),
-    },
-    { label: "Containers", value: s.containers },
-    { label: "Exposed databases", value: s.risky, warn: s.risky > 0 },
-  ]
-  return (
-    <div className="grid grid-cols-2 divide-border border-border max-md:mt-4 max-md:border-y md:grid-cols-4 md:divide-x md:rounded-2xl md:border">
-      {cells.map((c, i) => {
-        const content = (
-          <>
-            <span
-              className={cn(
-                "text-subheading font-medium tabular-nums",
-                c.warn && "text-warning",
-              )}
-            >
-              {c.value}
-            </span>
-            <span className="text-caption text-muted-foreground">
-              {c.label}
-            </span>
-          </>
-        )
-        const className = cn(
-          "flex min-h-16 flex-col items-start justify-center px-4 py-3 text-start max-md:odd:border-e md:px-5 max-md:[&:nth-child(-n+2)]:border-b",
-          i === 0 && "md:rounded-s-2xl",
-          i === cells.length - 1 && "md:rounded-e-2xl",
-        )
-        return c.onClick ? (
-          <button
-            key={c.label}
-            type="button"
-            aria-pressed={c.active}
-            onClick={c.onClick}
-            className={cn(
-              className,
-              "outline-none hover:bg-subtle active:bg-muted aria-pressed:bg-subtle",
-            )}
-          >
-            {content}
-          </button>
-        ) : (
-          <div key={c.label} className={className}>
-            {content}
-          </div>
-        )
-      })}
-    </div>
   )
 }
 
@@ -258,65 +185,98 @@ function Notices({ report }: { report: PortsReport }) {
   )
 }
 
-const exposureChips = [
-  { value: null, label: "All" },
-  { value: "public", label: "Public" },
-  { value: "private", label: "Private" },
-  { value: "local", label: "Local" },
-] as const
-
-const protoChips = [
-  { value: null, label: "TCP & UDP" },
-  { value: "tcp", label: "TCP" },
-  { value: "udp", label: "UDP" },
-] as const
-
-function Toolbar() {
+// Search, filters and Refresh. Phones put Refresh beside the search box.
+function Toolbar({
+  report,
+  refresh,
+}: {
+  report: PortsReport
+  refresh: ReactNode
+}) {
   const { filters, setFilters } = usePortFilters()
+  const n = countPorts(report.ports)
+  // Containers and exposed databases narrow the list further; a chip with
+  // nothing to show is left out unless it's on.
+  const showChips = [
+    { value: "containers", label: "Containers", count: n.containers },
+    {
+      value: "exposed",
+      label: "Exposed databases",
+      count: n.exposed,
+      warn: n.exposed > 0,
+    },
+  ] as const
+  const shown = showChips.filter((c) => c.count > 0 || filters.show === c.value)
   return (
     <div className="flex flex-col gap-3 max-md:px-4 max-md:pt-4 md:flex-row md:items-center">
-      <div className="relative md:w-72">
-        <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-ash" />
-        <input
-          type="search"
-          value={filters.q}
-          onChange={(e) => setFilters({ q: e.target.value || null })}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") {
-              setFilters({ q: null })
-              e.currentTarget.blur()
-            }
-          }}
-          placeholder="Port, service, process or container"
-          aria-label="Search ports"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          enterKeyHint="search"
-          className="h-11 w-full rounded-lg border border-input bg-card ps-9 pe-10 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:h-9 md:text-sm [&::-webkit-search-cancel-button]:hidden"
-        />
-        {filters.q && (
-          <button
-            type="button"
-            aria-label="Clear search"
-            onClick={() => setFilters({ q: null })}
-            className="absolute end-1 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-md text-ash hover:text-foreground md:size-7"
-          >
-            <X className="size-4" />
-          </button>
-        )}
+      <div className="flex gap-2 md:contents">
+        <div className="relative min-w-0 flex-1 md:w-72 md:flex-none">
+          <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-ash" />
+          <input
+            type="search"
+            value={filters.q}
+            onChange={(e) => setFilters({ q: e.target.value || null })}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setFilters({ q: null })
+                e.currentTarget.blur()
+              }
+            }}
+            placeholder="Port, service, process or container"
+            aria-label="Search ports"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="search"
+            className="h-11 w-full rounded-lg border border-input bg-card ps-9 pe-10 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:h-9 md:text-sm [&::-webkit-search-cancel-button]:hidden"
+          />
+          {filters.q && (
+            <button
+              type="button"
+              aria-label="Clear search"
+              onClick={() => setFilters({ q: null })}
+              className="absolute end-1 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-md text-ash hover:text-foreground md:size-7"
+            >
+              <X className="size-4" />
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-3 md:order-last md:ms-auto">
+          <span className="text-caption whitespace-nowrap text-ash max-md:hidden">
+            Updated {timeAgo(report.collected_at).toLowerCase()}
+          </span>
+          {refresh}
+        </div>
       </div>
       <div className="-mx-4 flex [scrollbar-width:none] gap-2 overflow-x-auto px-4 md:mx-0 md:px-0">
         <Segmented
-          items={exposureChips}
+          items={[
+            { value: null, label: "All", count: n.total },
+            { value: "public", label: "Public", count: n.public },
+            { value: "private", label: "Private", count: n.private },
+            { value: "local", label: "Local", count: n.local },
+          ]}
           value={filters.exposure}
           onChange={(exposure) => setFilters({ exposure })}
         />
         <Segmented
-          items={protoChips}
+          items={[
+            { value: null, label: "TCP & UDP" },
+            { value: "tcp", label: "TCP", count: n.tcp },
+            { value: "udp", label: "UDP", count: n.udp },
+          ]}
           value={filters.proto}
           onChange={(proto) => setFilters({ proto })}
         />
+        {shown.length > 0 && (
+          <Segmented
+            items={shown}
+            value={filters.show}
+            onChange={(show) =>
+              setFilters({ show: filters.show === show ? null : show })
+            }
+          />
+        )}
       </div>
     </div>
   )
@@ -327,7 +287,12 @@ function Segmented<T extends string | null>({
   value,
   onChange,
 }: {
-  items: readonly { value: T; label: string }[]
+  items: readonly {
+    value: T
+    label: string
+    count?: number
+    warn?: boolean
+  }[]
   value: T | null
   onChange: (value: T) => void
 }) {
@@ -342,6 +307,16 @@ function Segmented<T extends string | null>({
           className="h-10 rounded-md px-3 text-body-sm whitespace-nowrap text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 aria-pressed:bg-card aria-pressed:font-medium aria-pressed:text-foreground aria-pressed:shadow-sm md:h-8"
         >
           {item.label}
+          {item.count !== undefined && (
+            <span
+              className={cn(
+                "ms-1.5 text-ash tabular-nums",
+                item.warn && "font-medium text-warning",
+              )}
+            >
+              {item.count}
+            </span>
+          )}
         </button>
       ))}
     </div>

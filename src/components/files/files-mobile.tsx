@@ -3,6 +3,7 @@
 import {
   ArrowDown,
   ArrowUp,
+  ChartPie,
   Check,
   Circle,
   CircleCheck,
@@ -22,6 +23,7 @@ import {
   RefreshCw,
   Scissors,
   Search,
+  Send,
   SquareTerminal,
   Trash2,
   Upload,
@@ -37,10 +39,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useOpen } from "@/hooks/useOpen"
-import type { FileEntry } from "@/lib/services"
 import { cn } from "@/lib/utils"
-import { useServerPage } from "../../components/server-page"
-import { useLoginUsers } from "../api"
+import { useLoginUsers } from "./api"
 import { useFileActions } from "./file-actions"
 import { useFiles } from "./file-manager"
 import { useEntryMenu } from "./file-menu"
@@ -55,6 +55,7 @@ import {
   isDir,
   type SortField,
 } from "./meta"
+import type { FileEntry } from "./source"
 import { UploadsPanel, useUploads } from "./uploads"
 
 type Sheet =
@@ -310,15 +311,17 @@ function PathBar({
       >
         <Search />
       </button>
-      <button
-        type="button"
-        aria-label="Add"
-        disabled={!listing}
-        onClick={onAdd}
-        className={barButton}
-      >
-        <Plus />
-      </button>
+      {!files.source.readOnly && (
+        <button
+          type="button"
+          aria-label="Add"
+          disabled={!listing}
+          onClick={onAdd}
+          className={barButton}
+        >
+          <Plus />
+        </button>
+      )}
       <button
         type="button"
         aria-label="More"
@@ -400,7 +403,7 @@ function Body({
         }
         description={
           denied
-            ? "The login user has no permission to read it."
+            ? `The ${files.source.noun} refused to list it.`
             : files.error.message
         }
       >
@@ -479,15 +482,19 @@ function Body({
             <Eye /> Show hidden
           </Button>
         )}
-        <Button
-          variant="outline"
-          onClick={() => uploads.pickFiles(files.listing?.path ?? "")}
-        >
-          <Upload /> Upload
-        </Button>
-        <Button onClick={actions.newFolder}>
-          <FolderPlus /> New folder
-        </Button>
+        {!files.source.readOnly && (
+          <>
+            <Button
+              variant="outline"
+              onClick={() => uploads.pickFiles(files.listing?.path ?? "")}
+            >
+              <Upload /> Upload
+            </Button>
+            <Button onClick={actions.newFolder}>
+              <FolderPlus /> New folder
+            </Button>
+          </>
+        )}
       </State>
     )
   }
@@ -560,7 +567,6 @@ function Row({
   onLongPress: () => void
   onMenu: () => void
 }) {
-  const { server } = useServerPage()
   const press = useRef<{
     timer: number
     x: number
@@ -579,7 +585,7 @@ function Row({
   ) : (
     <>
       {isDir(entry) ? (
-        <FolderSize serverId={server.id} entry={entry} fallback="Folder" />
+        <FolderSize entry={entry} fallback="Folder" />
       ) : (
         formatSize(entry.size)
       )}{" "}
@@ -678,6 +684,9 @@ function SelectionActions({
   const actions = useFileActions()
   const sel = files.selectedEntries
   const none = sel.length === 0
+  const write = !files.source.readOnly
+  // Buckets can't be copied or moved.
+  const movable = write && !sel.some((e) => e.bucket)
 
   const item = (
     text: string,
@@ -707,28 +716,35 @@ function SelectionActions({
       {item("Download", <Download />, () =>
         afterAction(() => actions.download(sel)),
       )}
-      {item("Copy", <Copy />, () =>
-        afterAction(() => {
-          files.copy(sel)
-          toast(`Copied ${label(sel)}`, {
-            description: "Open a folder and tap Paste.",
-          })
-        }),
-      )}
-      {item("Move", <Scissors />, () =>
-        afterAction(() => {
-          files.cut(sel)
-          toast(`Moving ${label(sel)}`, {
-            description: "Open a folder and tap Paste.",
-          })
-        }),
-      )}
-      {item(
-        "Delete",
-        <Trash2 />,
-        () => afterAction(() => actions.remove(sel)),
-        true,
-      )}
+      {movable &&
+        item("Copy", <Copy />, () =>
+          afterAction(() => {
+            files.copy(sel)
+            toast(`Copied ${label(sel)}`, {
+              description: "Open a folder and tap Paste.",
+            })
+          }),
+        )}
+      {movable &&
+        item("Move", <Scissors />, () =>
+          afterAction(() => {
+            files.cut(sel)
+            toast(`Moving ${label(sel)}`, {
+              description: "Open a folder and tap Paste.",
+            })
+          }),
+        )}
+      {!movable &&
+        item("Send to", <Send />, () =>
+          afterAction(() => actions.transfer(sel)),
+        )}
+      {write &&
+        item(
+          "Delete",
+          <Trash2 />,
+          () => afterAction(() => actions.remove(sel)),
+          true,
+        )}
       {item("More", <Ellipsis />, onMore)}
     </nav>
   )
@@ -809,7 +825,7 @@ function Groups({
 }
 
 function EntrySheet({ entry, close }: { entry: FileEntry; close: () => void }) {
-  const { server } = useServerPage()
+  const { posix } = useFiles().source
   const menu = useEntryMenu()
   const { groups } = menu(entry)
   return (
@@ -820,16 +836,17 @@ function EntrySheet({ entry, close }: { entry: FileEntry; close: () => void }) {
           <p className="truncate text-body font-medium">{entry.name}</p>
           <p className="truncate text-body-sm text-muted-foreground">
             {isDir(entry) ? (
-              <FolderSize
-                serverId={server.id}
-                entry={entry}
-                fallback="Folder"
-              />
+              <FolderSize entry={entry} fallback="Folder" />
             ) : (
               formatSize(entry.size)
             )}{" "}
-            · {formatModified(entry.modified)} ·{" "}
-            <span className="font-mono">{entry.perm}</span>
+            · {formatModified(entry.modified)}
+            {posix && (
+              <>
+                {" "}
+                · <span className="font-mono">{entry.perm}</span>
+              </>
+            )}
           </p>
         </div>
       </div>
@@ -849,7 +866,11 @@ function SelectionSheet({ onSelect }: { onSelect: (fn: () => void) => void }) {
         Nothing is selected.
       </p>
     )
+  const movable =
+    !files.source.readOnly && !files.selectedEntries.some((e) => e.bucket)
+  // What the bottom bar already shows.
   const shown = new Set(["download", "copy", "cut", "delete"])
+  if (!movable) shown.add("transfer")
   const groups = menu(first).groups.map((g) =>
     g.filter((item) => !shown.has(item.key)),
   )
@@ -916,6 +937,7 @@ function MoreSheet({
 }) {
   const files = useFiles()
   const dir = files.listing?.path ?? ""
+  const { openTerminal } = files
   const Arrow = files.sort.order === "asc" ? ArrowUp : ArrowDown
   return (
     <>
@@ -973,14 +995,30 @@ function MoreSheet({
             onClick={onSelect}
           />
         </li>
-        <li>
-          <SheetAction
-            icon={<SquareTerminal />}
-            label="Open a terminal here"
-            disabled={!files.listing}
-            onClick={() => afterClose(close, () => files.openTerminal(dir))}
-          />
-        </li>
+        {files.analyse && (
+          <li>
+            <SheetAction
+              icon={<ChartPie />}
+              label="Disk usage"
+              description="What takes the space in this folder"
+              disabled={!files.listing}
+              onClick={() => {
+                const { analyse } = files
+                afterClose(close, () => analyse?.(dir))
+              }}
+            />
+          </li>
+        )}
+        {openTerminal && (
+          <li>
+            <SheetAction
+              icon={<SquareTerminal />}
+              label="Open a terminal here"
+              disabled={!files.listing}
+              onClick={() => afterClose(close, () => openTerminal(dir))}
+            />
+          </li>
+        )}
         <li>
           <SheetAction
             icon={
@@ -1001,7 +1039,7 @@ function MoreSheet({
 function PathSheet({ close }: { close: () => void }) {
   const files = useFiles()
   const { listing } = files
-  const users = useLoginUsers(files.serverId).data ?? []
+  const users = useLoginUsers(files.source).data ?? []
   const [value, setValue] = useState("")
   if (!listing) return null
   const go = (path: string) => afterClose(close, () => files.go(path))
@@ -1015,14 +1053,14 @@ function PathSheet({ close }: { close: () => void }) {
           e.preventDefault()
           const next = value.trim().replace(/(.)\/+$/, "$1")
           if (!next.startsWith("/"))
-            return toast.error("Enter a full path, like /etc/nginx.")
+            return toast.error("Enter a full path that starts with /.")
           go(next)
         }}
       >
         <Input
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          placeholder="/etc/nginx"
+          placeholder={files.source.posix ? "/etc/nginx" : "/backups/2026"}
           aria-label="Folder path"
           enterKeyHint="go"
           autoCapitalize="off"

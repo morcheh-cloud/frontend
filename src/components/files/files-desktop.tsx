@@ -4,6 +4,7 @@ import {
   Archive,
   ArrowDown,
   ArrowUp,
+  ChartPie,
   Check,
   ChevronDown,
   ChevronRight,
@@ -22,6 +23,7 @@ import {
   RefreshCw,
   Scissors,
   Search,
+  Send,
   ShieldCheck,
   SquareTerminal,
   Trash2,
@@ -62,9 +64,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { FileEntry } from "@/lib/services"
 import { cn } from "@/lib/utils"
-import { useFileOps, useLoginUsers } from "../api"
+import { useFileOps, useLoginUsers } from "./api"
 import { useFileActions } from "./file-actions"
 import { useFiles } from "./file-manager"
 import { type MenuItem, useEntryMenu } from "./file-menu"
@@ -80,6 +81,7 @@ import {
   type SortField,
   shortcut,
 } from "./meta"
+import type { FileEntry } from "./source"
 import {
   DropHint,
   hasFiles,
@@ -99,6 +101,7 @@ export function FilesDesktop() {
   const dir = files.listing?.path ?? ""
   const [dropping, setDropping] = useState(false)
   const depth = useRef(0)
+  const droppable = !!files.listing && !files.source.readOnly
 
   useShortcuts()
 
@@ -108,7 +111,7 @@ export function FilesDesktop() {
       <div
         className="@container relative flex min-h-0 flex-1 flex-col"
         onDragEnter={(e) => {
-          if (!hasFiles(e) || !files.listing) return
+          if (!hasFiles(e) || !droppable) return
           depth.current++
           setDropping(true)
         }}
@@ -118,10 +121,10 @@ export function FilesDesktop() {
           if (depth.current === 0) setDropping(false)
         }}
         onDragOver={(e) => {
-          if (hasFiles(e) && files.listing) e.preventDefault()
+          if (hasFiles(e) && droppable) e.preventDefault()
         }}
         onDrop={async (e) => {
-          if (!hasFiles(e)) return
+          if (!hasFiles(e) || !droppable) return
           e.preventDefault()
           depth.current = 0
           setDropping(false)
@@ -262,16 +265,30 @@ function Toolbar() {
       >
         {files.showHidden ? <Eye /> : <EyeOff />}
       </Button>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label="Open a terminal here"
-        title="Open a terminal here"
-        disabled={!listing}
-        onClick={() => listing && files.openTerminal(listing.path)}
-      >
-        <SquareTerminal />
-      </Button>
+      {files.analyse && (
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Disk usage"
+          title="Disk usage: what takes the space here"
+          disabled={!listing}
+          onClick={() => listing && files.analyse?.(listing.path)}
+        >
+          <ChartPie />
+        </Button>
+      )}
+      {files.openTerminal && (
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Open a terminal here"
+          title="Open a terminal here"
+          disabled={!listing}
+          onClick={() => listing && files.openTerminal?.(listing.path)}
+        >
+          <SquareTerminal />
+        </Button>
+      )}
       <div className="relative order-last basis-full @xl:order-0 @xl:ms-1 @xl:w-48 @xl:basis-auto @3xl:w-64">
         <Search className="pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-ash" />
         <Input
@@ -308,10 +325,12 @@ function Toolbar() {
           </button>
         )}
       </div>
-      <div className="ms-2 flex gap-2">
-        <UploadMenu />
-        <NewMenu />
-      </div>
+      {!files.source.readOnly && (
+        <div className="ms-2 flex gap-2">
+          <UploadMenu />
+          <NewMenu />
+        </div>
+      )}
     </div>
   )
 }
@@ -321,7 +340,7 @@ function Toolbar() {
 function UsersMenu() {
   const files = useFiles()
   const { listing } = files
-  const users = useLoginUsers(files.serverId).data ?? []
+  const users = useLoginUsers(files.source).data ?? []
   if (!listing || !users.some((u) => u.home !== listing.home)) return null
   return (
     <DropdownMenu>
@@ -476,7 +495,7 @@ function Body() {
         }
         description={
           denied
-            ? "The login user has no permission to read it."
+            ? `The ${files.source.noun} refused to list it.`
             : files.error.message
         }
       >
@@ -505,15 +524,19 @@ function Body() {
         </State>
       )
     }
+    const write = !files.source.readOnly
+    const hidden = files.hiddenCount
+      ? `${files.hiddenCount} hidden ${files.hiddenCount === 1 ? "item" : "items"}.`
+      : ""
     return (
       <ContextMenu>
         <ContextMenuTrigger render={<div />} className="flex flex-1 flex-col">
           <State
             title="This folder is empty"
             description={
-              files.hiddenCount
-                ? `${files.hiddenCount} hidden ${files.hiddenCount === 1 ? "item" : "items"}. Drop files here to upload them.`
-                : "Drop files here to upload them."
+              write
+                ? `${hidden} Drop files here to upload them.`.trim()
+                : hidden || undefined
             }
           >
             {files.hiddenCount > 0 && (
@@ -524,15 +547,19 @@ function Body() {
                 <Eye /> Show hidden
               </Button>
             )}
-            <Button
-              variant="outline"
-              onClick={() => uploads.pickFiles(files.listing?.path ?? "")}
-            >
-              <Upload /> Upload
-            </Button>
-            <Button onClick={actions.newFolder}>
-              <FolderPlus /> New folder
-            </Button>
+            {write && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => uploads.pickFiles(files.listing?.path ?? "")}
+                >
+                  <Upload /> Upload
+                </Button>
+                <Button onClick={actions.newFolder}>
+                  <FolderPlus /> New folder
+                </Button>
+              </>
+            )}
           </State>
         </ContextMenuTrigger>
         <BackgroundMenu />
@@ -551,7 +578,9 @@ function Table({
   location?: boolean
 }) {
   const files = useFiles()
-  const ops = useFileOps(files.serverId)
+  const { source } = files
+  const ops = useFileOps(source)
+  const write = !source.readOnly
   const uploads = useUploads()
   const anchor = useRef<string | null>(null)
   const [target, setTarget] = useState<FileEntry | null>(null)
@@ -632,7 +661,7 @@ function Table({
   // Rows dragged onto a folder move there; files from the desktop upload
   // into it.
   const dropProps = (entry: FileEntry) =>
-    isDir(entry)
+    write && isDir(entry)
       ? {
           onDragOver: (e: React.DragEvent) => {
             const internal = e.dataTransfer.types.includes(DRAG_TYPE)
@@ -722,8 +751,10 @@ function Table({
                 "Modified",
                 "hidden w-40 @lg:table-cell",
               )}
-              {header(null, "Permissions", "hidden w-32 @3xl:table-cell")}
-              {header(null, "Owner", "hidden w-36 @4xl:table-cell")}
+              {source.posix &&
+                header(null, "Permissions", "hidden w-32 @3xl:table-cell")}
+              {source.posix &&
+                header(null, "Owner", "hidden w-36 @4xl:table-cell")}
               <th scope="col" className="w-12">
                 <span className="sr-only">Actions</span>
               </th>
@@ -740,7 +771,7 @@ function Table({
                   key={entry.path}
                   data-path={entry.path}
                   aria-selected={selected}
-                  draggable
+                  draggable={write && !entry.bucket}
                   onDragStart={(e) => {
                     const paths =
                       selected && files.selected.size > 1
@@ -812,7 +843,7 @@ function Table({
                   )}
                   <td className="px-3 text-end whitespace-nowrap text-muted-foreground tabular-nums">
                     {isDir(entry) ? (
-                      <FolderSize serverId={files.serverId} entry={entry} />
+                      <FolderSize entry={entry} />
                     ) : (
                       formatSize(entry.size)
                     )}
@@ -823,15 +854,19 @@ function Table({
                   >
                     {formatModified(entry.modified)}
                   </td>
-                  <td className="hidden px-3 font-mono text-caption whitespace-nowrap text-muted-foreground @3xl:table-cell">
-                    {entry.perm}
-                  </td>
-                  <td className="hidden max-w-0 truncate px-3 text-muted-foreground @4xl:table-cell">
-                    {entry.owner}
-                    {entry.group !== entry.owner && (
-                      <span className="text-ash">:{entry.group}</span>
-                    )}
-                  </td>
+                  {source.posix && (
+                    <td className="hidden px-3 font-mono text-caption whitespace-nowrap text-muted-foreground @3xl:table-cell">
+                      {entry.perm}
+                    </td>
+                  )}
+                  {source.posix && (
+                    <td className="hidden max-w-0 truncate px-3 text-muted-foreground @4xl:table-cell">
+                      {entry.owner}
+                      {entry.group !== entry.owner && (
+                        <span className="text-ash">:{entry.group}</span>
+                      )}
+                    </td>
+                  )}
                   <td className="pe-4">
                     <RowMenu entry={entry} />
                   </td>
@@ -929,34 +964,42 @@ function BackgroundMenu() {
   const actions = useFileActions()
   const uploads = useUploads()
   const dir = files.listing?.path ?? ""
+  const write = !files.source.readOnly
+  const { openTerminal } = files
   return (
     <ContextMenuContent className="w-56">
-      <ContextMenuItem onClick={actions.newFolder}>
-        <FolderPlus /> New folder
-      </ContextMenuItem>
-      <ContextMenuItem onClick={actions.newFile}>
-        <FilePlus /> New text file
-      </ContextMenuItem>
-      <ContextMenuSeparator />
-      <ContextMenuItem onClick={() => uploads.pickFiles(dir)}>
-        <Upload /> Upload files…
-      </ContextMenuItem>
-      <ContextMenuItem onClick={() => uploads.pickFolder(dir)}>
-        <FolderUp /> Upload folder…
-      </ContextMenuItem>
-      {files.clipboard && (
+      {write && (
         <>
-          <ContextMenuSeparator />
-          <ContextMenuItem onClick={files.paste}>
-            <ClipboardPaste /> Paste {clipLabel(files.clipboard.entries)}
-            <ContextMenuShortcut>{shortcut("V")}</ContextMenuShortcut>
+          <ContextMenuItem onClick={actions.newFolder}>
+            <FolderPlus /> New folder
           </ContextMenuItem>
+          <ContextMenuItem onClick={actions.newFile}>
+            <FilePlus /> New text file
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={() => uploads.pickFiles(dir)}>
+            <Upload /> Upload files…
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => uploads.pickFolder(dir)}>
+            <FolderUp /> Upload folder…
+          </ContextMenuItem>
+          {files.clipboard && (
+            <>
+              <ContextMenuSeparator />
+              <ContextMenuItem onClick={files.paste}>
+                <ClipboardPaste /> Paste {clipLabel(files.clipboard.entries)}
+                <ContextMenuShortcut>{shortcut("V")}</ContextMenuShortcut>
+              </ContextMenuItem>
+            </>
+          )}
+          <ContextMenuSeparator />
         </>
       )}
-      <ContextMenuSeparator />
-      <ContextMenuItem onClick={() => files.openTerminal(dir)}>
-        <SquareTerminal /> Open terminal here
-      </ContextMenuItem>
+      {openTerminal && (
+        <ContextMenuItem onClick={() => openTerminal(dir)}>
+          <SquareTerminal /> Open terminal here
+        </ContextMenuItem>
+      )}
       <ContextMenuItem onClick={() => files.setShowHidden(!files.showHidden)}>
         {files.showHidden ? <EyeOff /> : <Eye />}
         {files.showHidden ? "Hide hidden files" : "Show hidden files"}
@@ -1047,9 +1090,11 @@ function StatusBar() {
           {sel.length} selected{size > 0 && ` · ${formatSize(size)}`}
         </span>
       )}
-      <span className="ms-auto hidden @2xl:inline">
-        Drop files to upload · Drag rows onto a folder to move them
-      </span>
+      {!files.source.readOnly && (
+        <span className="ms-auto hidden @2xl:inline">
+          Drop files to upload · Drag rows onto a folder to move them
+        </span>
+      )}
     </div>
   )
 }
@@ -1061,7 +1106,7 @@ function BulkBar() {
   const actions = useFileActions()
   const sel = files.selectedEntries
 
-  if (sel.length === 0 && files.clipboard) {
+  if (sel.length === 0 && files.clipboard && !files.source.readOnly) {
     const { clipboard } = files
     return (
       <div className="absolute inset-x-0 bottom-12 z-30 mx-auto flex w-fit items-center gap-1 rounded-2xl border border-border bg-card p-1.5 shadow-md">
@@ -1097,6 +1142,11 @@ function BulkBar() {
 
   if (sel.length === 0) return null
 
+  const { source } = files
+  const write = !source.readOnly
+  // Buckets can't be copied or moved, only emptied or deleted.
+  const movable = write && !sel.some((e) => e.bucket)
+
   const item = (label: string, icon: ReactNode, onClick: () => void) => (
     <Button variant="ghost" className={barButton} onClick={onClick}>
       {icon}
@@ -1110,19 +1160,26 @@ function BulkBar() {
         {sel.length} selected
       </span>
       {item("Download", <Download />, () => actions.download(sel))}
-      {item("Copy", <Copy />, () => files.copy(sel))}
-      {item("Cut", <Scissors />, () => files.cut(sel))}
-      {item("Move to", <FolderInput />, () => actions.moveTo(sel))}
-      {item("Compress", <Archive />, () => actions.compress(sel))}
-      {item("Permissions", <ShieldCheck />, () => actions.permissions(sel))}
-      <Button
-        variant="ghost"
-        className={cn(barButton, "text-destructive hover:text-destructive")}
-        onClick={() => actions.remove(sel)}
-      >
-        <Trash2 />
-        <span className="max-[1180px]:sr-only">Delete</span>
-      </Button>
+      {movable && item("Copy", <Copy />, () => files.copy(sel))}
+      {movable && item("Cut", <Scissors />, () => files.cut(sel))}
+      {movable && item("Move to", <FolderInput />, () => actions.moveTo(sel))}
+      {item("Send to", <Send />, () => actions.transfer(sel))}
+      {write &&
+        source.compress &&
+        item("Compress", <Archive />, () => actions.compress(sel))}
+      {write &&
+        source.chmod &&
+        item("Permissions", <ShieldCheck />, () => actions.permissions(sel))}
+      {write && (
+        <Button
+          variant="ghost"
+          className={cn(barButton, "text-destructive hover:text-destructive")}
+          onClick={() => actions.remove(sel)}
+        >
+          <Trash2 />
+          <span className="max-[1180px]:sr-only">Delete</span>
+        </Button>
+      )}
       <Button
         variant="ghost"
         size="icon-sm"
@@ -1206,27 +1263,33 @@ function useShortcuts() {
     const list =
       files.search !== null ? (files.results.data?.items ?? []) : files.entries
     const key = e.key.toLowerCase()
+    const write = !files.source.readOnly && !sel.some((x) => x.bucket)
 
     if (mod && key === "a") {
       e.preventDefault()
       files.setSelected(new Set(list.map((x) => x.path)))
-    } else if (mod && key === "c" && sel.length) {
+    } else if (mod && key === "c" && sel.length && write) {
       if (window.getSelection()?.toString()) return
       files.copy(sel)
       toast(`Copied ${clipLabel(sel)}`, {
         description: "Paste it in any folder.",
       })
-    } else if (mod && key === "x" && sel.length) {
+    } else if (mod && key === "x" && sel.length && write) {
       files.cut(sel)
       toast(`Cut ${clipLabel(sel)}`, {
         description: "Paste it in another folder to move it.",
       })
-    } else if (mod && key === "v" && files.clipboard) {
+    } else if (
+      mod &&
+      key === "v" &&
+      files.clipboard &&
+      !files.source.readOnly
+    ) {
       e.preventDefault()
       files.paste()
     } else if (e.key === "Delete" || (e.metaKey && e.key === "Backspace")) {
-      if (sel.length) actions.remove(sel)
-    } else if (e.key === "F2" && sel.length === 1) {
+      if (sel.length && !files.source.readOnly) actions.remove(sel)
+    } else if (e.key === "F2" && sel.length === 1 && write) {
       e.preventDefault()
       actions.rename(sel[0])
     } else if (e.key === "Enter" && sel.length === 1) {

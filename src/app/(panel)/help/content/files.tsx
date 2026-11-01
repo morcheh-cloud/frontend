@@ -7,6 +7,8 @@ import {
   List,
   P,
   Recommended,
+  See,
+  Steps,
   Table,
   Tip,
   UI,
@@ -55,9 +57,10 @@ export const files: GuideSection[] = [
           Right-click a file (or use its <UI>⋯</UI>; on a phone, tap it) for
           everything you can do with it: <UI>Open</UI>, <UI>Edit</UI>,{" "}
           <UI>Preview</UI>, <UI>Download</UI>, <UI>Rename</UI>,{" "}
-          <UI>Move to…</UI>, <UI>Copy to…</UI>, <UI>Compress…</UI>,{" "}
-          <UI>Extract here</UI>, <UI>Permissions…</UI>, <UI>Copy path</UI>,{" "}
-          <UI>Open in terminal</UI>, <UI>Info</UI> and <UI>Delete</UI>.
+          <UI>Move to…</UI>, <UI>Copy to…</UI>, <UI>Send to…</UI>,{" "}
+          <UI>Compress…</UI>, <UI>Extract here</UI>, <UI>Permissions…</UI>,{" "}
+          <UI>Copy path</UI>, <UI>Open in terminal</UI>, <UI>Info</UI> and{" "}
+          <UI>Delete</UI>.
         </P>
         <P>
           Select several with <Keys>Ctrl</Keys>/<Keys>Shift</Keys>-click (on a
@@ -95,6 +98,14 @@ export const files: GuideSection[] = [
         <P>
           <UI>Download</UI> saves a file; a folder or a selection downloads as a
           zip.
+        </P>
+        <P>
+          <UI>Send to…</UI> copies (or moves) the selection straight to another
+          server or a storage, without going through your computer: see{" "}
+          <See guide="storage" section="send">
+            sending files
+          </See>
+          .
         </P>
       </>
     ),
@@ -195,6 +206,93 @@ export const files: GuideSection[] = [
     ),
   },
   {
+    id: "usage",
+    title: "Disk usage",
+    body: (
+      <>
+        <P>
+          <UI>Disk usage</UI> shows what takes the space in a folder, biggest
+          first, like <C>ncdu</C>: each folder and file with its size and its
+          share of the folder, plus how much of the whole disk the folder uses
+          and how much is free. Click a folder to look inside it; the path at
+          the top and <UI>Up</UI> take you back.
+        </P>
+        <Steps>
+          {[
+            <>
+              Open the folder to check and click the chart icon in the toolbar
+              (on a phone: <UI>⋯</UI> → <UI>Disk usage</UI>). A folder's own
+              menu has <UI>Disk usage</UI> too.
+            </>,
+            <>
+              Wait for the scan: small folders take a moment, a whole disk can
+              take a minute or more.
+            </>,
+            <>
+              Follow the biggest bars down until you find what grew. Each row's{" "}
+              <UI>⋯</UI> has <UI>Show in Files</UI>, <UI>Copy path</UI> and{" "}
+              <UI>Delete</UI> (it asks first and says how much space it frees).
+            </>,
+          ]}
+        </Steps>
+        <Table
+          head={["You see", "Meaning"]}
+          rows={[
+            [
+              "Percent next to a row",
+              "Its share of the folder you're in. Hover the bar for its share of the whole disk.",
+            ],
+            [
+              <>
+                <UI>Separate filesystem</UI> on a row
+              </>,
+              "Another disk is mounted there. Its bytes aren't counted in this folder; open it to scan that disk.",
+            ],
+            [
+              "“N folders couldn't be read”",
+              "The scan had no permission for them, so the totals are too small.",
+            ],
+            [
+              "“N smaller items”",
+              "Only the 500 biggest entries are listed; the rest are summed in one row.",
+            ],
+          ]}
+        />
+        <Example title="The root disk is 95% full">
+          <P>
+            Open <C>/</C> and the scan usually points at <C>/var</C>. Inside it,{" "}
+            <C>log</C> or <C>lib/docker</C> are the common suspects. An old{" "}
+            <C>/var/log/app/debug.log</C> of 30 GB can go with <UI>Delete</UI>.
+            A live database file can't, so move it to a bigger disk instead.
+          </P>
+        </Example>
+        <Recommended
+          rows={[
+            {
+              setting: "Sudo for the SSH user",
+              value: (
+                <>
+                  Passwordless (<C>NOPASSWD</C>)
+                </>
+              ),
+              why: "The scan runs as root when it can, so folders other users own are counted too. Without it, it scans as the login user and says so.",
+            },
+            {
+              setting: "Where to start",
+              value: "The folder you suspect",
+              why: "Scanning / on a big server reads every file. Start from /var or /home when you can.",
+            },
+          ]}
+        />
+        <Tip>
+          Results are kept for 10 minutes so going back up is instant. Click{" "}
+          <UI>Scan again</UI> after cleaning up; deleting from the list rescans
+          for you.
+        </Tip>
+      </>
+    ),
+  },
+  {
     id: "troubleshooting",
     title: "Troubleshooting",
     body: (
@@ -211,6 +309,15 @@ export const files: GuideSection[] = [
         <li>
           Folder sizes stay empty: the server is busy or the folder is huge.
           They're worked out with <C>du</C> and stop when you leave the folder.
+        </li>
+        <li>
+          <UI>Scanning took too long</UI>: a disk usage scan stops after 5
+          minutes. Open a smaller folder (e.g. <C>/var</C> instead of <C>/</C>).
+        </li>
+        <li>
+          Disk usage totals look too small: check for <UI>couldn't be read</UI>{" "}
+          (give the SSH user passwordless sudo) and <UI>Separate filesystem</UI>{" "}
+          rows (scan them on their own).
         </li>
       </List>
     ),

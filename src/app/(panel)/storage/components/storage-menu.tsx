@@ -1,0 +1,224 @@
+"use client"
+
+import {
+  Activity,
+  Copy,
+  KeyRound,
+  Pencil,
+  Star,
+  StarOff,
+  Trash2,
+} from "lucide-react"
+import type { ReactNode } from "react"
+
+import { StatusDot, statusMeta } from "@/app/(panel)/servers/components/meta"
+import { BottomSheet, SheetAction } from "@/components/bottom-sheet"
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
+import type { Storage } from "@/lib/services"
+import { endpointLabel, ProtocolTile, providerLabel } from "./meta"
+import { useStorageActions } from "./storage-actions"
+
+type Item = {
+  key: string
+  icon: ReactNode
+  label: string
+  onSelect: () => void
+  destructive?: boolean
+}
+
+// One list of actions, rendered as a dropdown (desktop) or an action sheet
+// (phone). `onDeleted` runs once the remove confirmation has closed.
+function useItems(
+  storage: Storage,
+  checking: boolean,
+  onDeleted?: () => void,
+): Item[][] {
+  const a = useStorageActions()
+  const primary: Item[] = [
+    {
+      key: "check",
+      icon: <Activity />,
+      label: checking ? "Checking…" : "Check connection",
+      onSelect: () => a.check(storage),
+    },
+    {
+      key: "edit",
+      icon: <Pencil />,
+      label: "Edit",
+      onSelect: () => a.editStorage(storage),
+    },
+    {
+      key: "copy",
+      icon: <Copy />,
+      label: "Copy address",
+      onSelect: () => a.copyEndpoint(storage),
+    },
+  ]
+  if (storage.status === "host_key_mismatch") {
+    primary.push({
+      key: "trust",
+      icon: <KeyRound />,
+      label: "Trust new host key…",
+      onSelect: () => a.trustHostKey(storage),
+    })
+  }
+  return [
+    primary,
+    [
+      {
+        key: "favorite",
+        icon: storage.favorite ? <StarOff /> : <Star />,
+        label: storage.favorite ? "Remove from favorites" : "Add to favorites",
+        onSelect: () => a.toggleFavorite(storage),
+      },
+    ],
+    [
+      {
+        key: "delete",
+        icon: <Trash2 />,
+        label: "Remove…",
+        destructive: true,
+        onSelect: () => a.deleteStorage(storage, onDeleted),
+      },
+    ],
+  ]
+}
+
+export function StorageMenuItems({
+  storage,
+  checking,
+  onDeleted,
+}: {
+  storage: Storage
+  checking: boolean
+  onDeleted?: () => void
+}) {
+  const groups = useItems(storage, checking, onDeleted)
+  return groups.map((group, i) => (
+    <div key={group[0].key}>
+      {i > 0 && <DropdownMenuSeparator />}
+      {group.map((item) => (
+        <DropdownMenuItem
+          key={item.key}
+          variant={item.destructive ? "destructive" : "default"}
+          disabled={item.key === "check" && checking}
+          onClick={item.onSelect}
+        >
+          {item.icon}
+          {item.label}
+        </DropdownMenuItem>
+      ))}
+    </div>
+  ))
+}
+
+// Phone: the storage's details on top, its actions below.
+export function StorageSheet({
+  storage,
+  checking,
+  open,
+  onOpenChange,
+  onDeleted,
+}: {
+  storage: Storage
+  checking: boolean
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onDeleted?: () => void
+}) {
+  const groups = useItems(storage, checking, onDeleted)
+
+  // Close first, then act once the sheet's history entry is gone, so a layer
+  // the action opens gets its own Back entry.
+  function run(item: Item) {
+    window.addEventListener("popstate", () => item.onSelect(), { once: true })
+    onOpenChange(false)
+  }
+
+  return (
+    <BottomSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title={storage.name}
+      header={
+        <div className="flex items-center gap-3 px-6 pt-1 pb-3">
+          <ProtocolTile protocol={storage.protocol} className="size-11" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-subheading font-medium">
+              {storage.name}
+            </p>
+            <p className="truncate font-mono text-body-sm text-muted-foreground">
+              {endpointLabel(storage)}
+            </p>
+          </div>
+        </div>
+      }
+    >
+      <dl className="mx-2 mb-3 grid grid-cols-2 gap-3 rounded-2xl bg-subtle p-4 text-body-sm">
+        <div>
+          <dt className="text-caption text-ash">Status</dt>
+          <dd className="mt-0.5 flex items-center gap-1.5 font-medium">
+            <StatusDot status={storage.status} checking={checking} />
+            {statusMeta[storage.status].label}
+            {storage.status === "online" && storage.latency_ms != null && (
+              <span className="font-normal text-muted-foreground">
+                {storage.latency_ms} ms
+              </span>
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-caption text-ash">Type</dt>
+          <dd className="mt-0.5 truncate font-medium">
+            {providerLabel(storage)}
+            {storage.read_only && (
+              <span className="font-normal text-muted-foreground">
+                {" "}
+                · Read-only
+              </span>
+            )}
+          </dd>
+        </div>
+        {(storage.status_message || storage.detail) && (
+          <div className="col-span-2">
+            <dt className="text-caption text-ash">Last check</dt>
+            <dd className="mt-0.5 text-muted-foreground">
+              {storage.status === "online"
+                ? storage.detail
+                : storage.status_message}
+            </dd>
+          </div>
+        )}
+        {storage.description && (
+          <div className="col-span-2">
+            <dt className="text-caption text-ash">Notes</dt>
+            <dd className="mt-0.5 whitespace-pre-line">
+              {storage.description}
+            </dd>
+          </div>
+        )}
+      </dl>
+      {groups.map((group) => (
+        <ul
+          key={group[0].key}
+          className="mb-2 divide-y divide-border border-b border-border last:border-b-0"
+        >
+          {group.map((item) => (
+            <li key={item.key}>
+              <SheetAction
+                icon={item.icon}
+                label={item.label}
+                destructive={item.destructive}
+                disabled={item.key === "check" && checking}
+                onClick={() => run(item)}
+              />
+            </li>
+          ))}
+        </ul>
+      ))}
+    </BottomSheet>
+  )
+}

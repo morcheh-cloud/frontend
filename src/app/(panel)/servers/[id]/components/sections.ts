@@ -32,7 +32,7 @@ export type Section = {
   ready?: boolean
   planned?: string[]
   // Desktop: the section fills the area under the tabs edge to edge (no
-  // padding, no SectionHeader), e.g. the terminal.
+  // padding, no SectionActions), e.g. the terminal.
   bleed?: boolean
 }
 

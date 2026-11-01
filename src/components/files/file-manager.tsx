@@ -14,25 +14,32 @@ import {
 } from "react"
 import { toast } from "sonner"
 
+import {
+  DiskUsageLayer,
+  type UsageSource,
+} from "@/components/disk-usage/disk-usage"
 import { useOpen } from "@/hooks/useOpen"
 import type { ApiError } from "@/lib/api"
-import type { DirListing, FileEntry } from "@/lib/services"
-import { useServerPage } from "../../components/server-page"
-import { terminalHref } from "../../terminal/components/use-tabs"
-import { fileKeys, useFileOps, useListing, useSearchFiles } from "../api"
+import { fileKeys, useFileOps, useListing, useSearchFiles } from "./api"
 import { FileEditor } from "./editor"
 import { FileActionsProvider } from "./file-actions"
 import { dirname, isDir, previewable, type Sort, sortEntries } from "./meta"
 import { FilePreview } from "./preview"
+import {
+  type FileEntry,
+  type FileSource,
+  type Listing,
+  useSource,
+} from "./source"
 
 type Clipboard = { mode: "cut" | "copy"; entries: FileEntry[]; from: string }
 
 type Manager = {
-  serverId: string
+  source: FileSource
   phone: boolean
   // The folder asked for ("" = home) and the one actually on screen.
   path: string
-  listing: DirListing | undefined
+  listing: Listing | undefined
   loading: boolean
   fetching: boolean
   error: ApiError | null
@@ -63,7 +70,10 @@ type Manager = {
   pasting: boolean
   open: (entry: FileEntry) => void
   edit: (path: string) => void
-  openTerminal: (dir: string) => void
+  // Null when the source has no terminal.
+  openTerminal: ((dir: string) => void) | null
+  // Opens the disk usage analyser at a folder; null when the source can't.
+  analyse: ((dir: string) => void) | null
 }
 
 const Context = createContext<Manager | null>(null)
@@ -95,15 +105,20 @@ function store(key: string, value: unknown) {
 // Link to the file manager opening the folder `path`.
 export const filesHref = createSerializer({ path: parseAsString })
 
-// Browser state for one server's files: the folder and the search (in the
+// Browser state for one source's files: the folder and the search (in the
 // URL, so Back walks up the folders, a reload keeps the results and links can
 // be shared), selection, clipboard, and the editor and viewer layered over
 // the list.
-export function FileManager({ children }: { children: ReactNode }) {
-  const { server, phone } = useServerPage()
-  const serverId = server.id
+export function FileManager({
+  phone,
+  children,
+}: {
+  phone: boolean
+  children: ReactNode
+}) {
+  const source = useSource()
   const router = useRouter()
-  const ops = useFileOps(serverId)
+  const ops = useFileOps(source)
   const queryClient = useQueryClient()
 
   const [{ path, q: search }, setUrl] = useQueryStates(
@@ -111,7 +126,7 @@ export function FileManager({ children }: { children: ReactNode }) {
     { history: "replace" },
   )
   const setSearch = (q: string | null) => void setUrl({ q })
-  const query = useListing(serverId, path)
+  const query = useListing(source, path)
   // keepPreviousData shows the last folder while the next loads; only trust
   // a listing that belongs to the folder asked for.
   const listing = query.data
@@ -126,7 +141,7 @@ export function FileManager({ children }: { children: ReactNode }) {
   const [filter, setFilter] = useState(search ?? "")
   const searchRef = useRef(search)
   searchRef.current = search
-  const results = useSearchFiles(serverId, listing?.path ?? path, search ?? "")
+  const results = useSearchFiles(source, listing?.path ?? path, search ?? "")
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [clipboard, setClipboard] = useState<Clipboard | null>(null)
 
@@ -134,6 +149,8 @@ export function FileManager({ children }: { children: ReactNode }) {
   const [editorOpen, setEditorOpen] = useOpen("file-editor")
   const [viewing, setViewing] = useState<FileEntry | null>(null)
   const [viewerOpen, setViewerOpen] = useOpen("file-preview")
+  const [analysing, setAnalysing] = useState("/")
+  const [usageOpen, setUsageOpen] = useOpen("file-usage")
 
   // A new folder starts fresh. Leaving one clears the search (see `go`);
   // Back and Forward bring back whatever search the URL had.
@@ -226,8 +243,20 @@ export function FileManager({ children }: { children: ReactNode }) {
     )
   }
 
+  const { terminalHref } = source
+  // Scans are cached under the folder sizes, so every write refreshes them.
+  const usageSource: UsageSource | null = source.usage
+    ? {
+        key: [...fileKeys.sizes(source), "usage"],
+        load: source.usage,
+        remove: source.readOnly
+          ? undefined
+          : (paths) => ops.remove.mutateAsync(paths),
+        reveal: (p, folder) => go(folder ? p : dirname(p)),
+      }
+    : null
   const manager: Manager = {
-    serverId,
+    source,
     phone,
     path,
     listing,
@@ -236,7 +265,7 @@ export function FileManager({ children }: { children: ReactNode }) {
     error: query.error,
     refetch: () => {
       query.refetch()
-      queryClient.invalidateQueries({ queryKey: fileKeys.sizes(serverId) })
+      queryClient.invalidateQueries({ queryKey: fileKeys.sizes(source) })
     },
     go,
     up: () => listing && listing.path !== "/" && go(listing.parent),
@@ -273,14 +302,18 @@ export function FileManager({ children }: { children: ReactNode }) {
     pasting: ops.move.isPending || ops.copy.isPending,
     open,
     edit,
-    openTerminal: (cwd) =>
-      router.push(terminalHref(`/servers/${serverId}/terminal`, { cwd })),
+    openTerminal: terminalHref ? (cwd) => router.push(terminalHref(cwd)) : null,
+    analyse: usageSource
+      ? (d) => {
+          setAnalysing(d)
+          setUsageOpen(true)
+        }
+      : null,
   }
 
   return (
     <Context.Provider value={manager}>
       <FileActionsProvider
-        serverId={serverId}
         dir={dir}
         onCreatedFile={edit}
         onNavigate={go}
@@ -295,7 +328,6 @@ export function FileManager({ children }: { children: ReactNode }) {
       {editing !== null && (
         <FileEditor
           key={editing}
-          serverId={serverId}
           path={editing}
           open={editorOpen}
           setOpen={setEditorOpen}
@@ -303,9 +335,17 @@ export function FileManager({ children }: { children: ReactNode }) {
           phone={phone}
         />
       )}
+      {usageSource && (
+        <DiskUsageLayer
+          source={usageSource}
+          path={analysing}
+          open={usageOpen}
+          onOpenChange={setUsageOpen}
+          phone={phone}
+        />
+      )}
       {viewing && (
         <FilePreview
-          serverId={serverId}
           entry={viewing}
           siblings={siblings}
           open={viewerOpen}

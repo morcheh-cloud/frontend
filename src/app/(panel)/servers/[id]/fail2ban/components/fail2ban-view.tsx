@@ -33,7 +33,7 @@ import {
   SheetItems,
   Summary,
 } from "../../components/parts"
-import { SectionHeader } from "../../components/section-header"
+import { SectionActions } from "../../components/section-actions"
 import { useServerPage } from "../../components/server-page"
 import { useFail2ban } from "../api"
 import { ActivityTab } from "./activity"
@@ -64,7 +64,7 @@ export function Fail2banView() {
   if (!o) {
     return (
       <>
-        <SectionHeader actions={refresh} />
+        <SectionActions>{refresh}</SectionActions>
         <div className="flex flex-col gap-4 max-md:gap-0 max-md:pb-6">
           {query.error ? (
             <Empty
@@ -113,7 +113,7 @@ function NotInstalled({ refresh }: { refresh: ReactNode }) {
 
   return (
     <>
-      <SectionHeader actions={refresh} />
+      <SectionActions>{refresh}</SectionActions>
       <div className="flex flex-col gap-4 max-md:gap-0 max-md:pb-6">
         <Empty
           icon={ShieldBan}
@@ -312,14 +312,10 @@ function Content({ refresh }: { refresh: ReactNode }) {
 
   return (
     <>
-      <SectionHeader
-        actions={
-          <>
-            {refresh}
-            <Manage />
-          </>
-        }
-      />
+      <SectionActions>
+        {refresh}
+        <Manage />
+      </SectionActions>
       <div className="flex flex-col gap-4 max-md:gap-0 max-md:pb-6">
         <OverviewSummary o={o} bans={bans.length} onTab={setTab} />
         <Notices notes={notes(o, a)} />

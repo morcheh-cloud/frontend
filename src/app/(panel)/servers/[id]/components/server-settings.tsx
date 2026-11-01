@@ -10,7 +10,6 @@ import { buildTree, folderPath } from "../../components/folder-tree"
 import { address } from "../../components/meta"
 import { useServerActions } from "../../components/server-actions"
 import { authText, Mono } from "./facts"
-import { SectionHeader } from "./section-header"
 import { useServerPage } from "./server-page"
 
 export function ServerSettings() {
@@ -22,7 +21,6 @@ export function ServerSettings() {
 
   return (
     <>
-      <SectionHeader />
       <Group title="General">
         <Row
           title="Name"

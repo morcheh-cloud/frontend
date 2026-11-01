@@ -2,6 +2,7 @@
 
 import {
   Archive,
+  ChartPie,
   ClipboardCopy,
   Copy,
   Download,
@@ -11,17 +12,18 @@ import {
   FolderInput,
   FolderOpen,
   Info,
+  Link,
   type LucideIcon,
   PackageOpen,
   Pencil,
   Scissors,
+  Send,
   ShieldCheck,
   SquarePen,
   SquareTerminal,
   Trash2,
 } from "lucide-react"
 
-import type { FileEntry } from "@/lib/services"
 import { useFileActions } from "./file-actions"
 import { useFiles } from "./file-manager"
 import {
@@ -34,6 +36,7 @@ import {
   previewable,
   shortcut,
 } from "./meta"
+import { type FileEntry, useSource } from "./source"
 
 export type MenuItem = {
   key: string
@@ -50,6 +53,8 @@ export type MenuItem = {
 export function useEntryMenu() {
   const files = useFiles()
   const actions = useFileActions()
+  const source = useSource()
+  const write = !source.readOnly
 
   return (entry: FileEntry): { targets: FileEntry[]; groups: MenuItem[][] } => {
     const targets =
@@ -58,6 +63,8 @@ export function useEntryMenu() {
         : [entry]
     const one = targets.length === 1
     const dir = isDir(entry)
+    // Buckets can't be renamed or moved.
+    const fixed = targets.some((e) => e.bucket)
 
     const openGroup: MenuItem[] = []
     if (one) {
@@ -83,12 +90,28 @@ export function useEntryMenu() {
                 onSelect: () => files.open(entry),
               },
       )
-      if (dir)
+      const { openTerminal } = files
+      if (dir && openTerminal)
         openGroup.push({
           key: "terminal",
           label: "Open in terminal",
           icon: SquareTerminal,
-          onSelect: () => files.openTerminal(entry.path),
+          onSelect: () => openTerminal(entry.path),
+        })
+      const { analyse } = files
+      if (dir && analyse)
+        openGroup.push({
+          key: "usage",
+          label: "Disk usage",
+          icon: ChartPie,
+          onSelect: () => analyse(entry.path),
+        })
+      if (!dir && source.share)
+        openGroup.push({
+          key: "share",
+          label: "Share link…",
+          icon: Link,
+          onSelect: () => actions.share(entry),
         })
     }
     openGroup.push({
@@ -99,7 +122,7 @@ export function useEntryMenu() {
     })
 
     const editGroup: MenuItem[] = []
-    if (one)
+    if (one && write && !fixed)
       editGroup.push({
         key: "rename",
         label: "Rename",
@@ -107,44 +130,51 @@ export function useEntryMenu() {
         shortcut: "F2",
         onSelect: () => actions.rename(entry),
       })
-    editGroup.push(
-      {
-        key: "copy",
-        label: "Copy",
-        icon: Copy,
-        shortcut: shortcut("C"),
-        onSelect: () => files.copy(targets),
-      },
-      {
-        key: "cut",
-        label: "Cut",
-        icon: Scissors,
-        shortcut: shortcut("X"),
-        onSelect: () => files.cut(targets),
-      },
-      {
-        key: "copy-to",
-        label: "Copy to…",
-        icon: FileInput,
-        onSelect: () => actions.copyTo(targets),
-      },
-      {
-        key: "move-to",
-        label: "Move to…",
-        icon: FolderInput,
-        onSelect: () => actions.moveTo(targets),
-      },
-    )
+    if (write && !fixed)
+      editGroup.push(
+        {
+          key: "copy",
+          label: "Copy",
+          icon: Copy,
+          shortcut: shortcut("C"),
+          onSelect: () => files.copy(targets),
+        },
+        {
+          key: "cut",
+          label: "Cut",
+          icon: Scissors,
+          shortcut: shortcut("X"),
+          onSelect: () => files.cut(targets),
+        },
+        {
+          key: "copy-to",
+          label: "Copy to…",
+          icon: FileInput,
+          onSelect: () => actions.copyTo(targets),
+        },
+        {
+          key: "move-to",
+          label: "Move to…",
+          icon: FolderInput,
+          onSelect: () => actions.moveTo(targets),
+        },
+      )
+    editGroup.push({
+      key: "transfer",
+      label: "Send to…",
+      icon: Send,
+      onSelect: () => actions.transfer(targets),
+    })
 
-    const moreGroup: MenuItem[] = [
-      {
+    const moreGroup: MenuItem[] = []
+    if (write && source.compress)
+      moreGroup.push({
         key: "compress",
         label: "Compress…",
         icon: Archive,
         onSelect: () => actions.compress(targets),
-      },
-    ]
-    if (one && isArchive(entry)) {
+      })
+    if (one && write && source.extract && isArchive(entry)) {
       const folder = freeName(
         archiveStem(entry.name),
         dirname(entry.path) === files.listing?.path
@@ -167,12 +197,13 @@ export function useEntryMenu() {
         },
       )
     }
-    moreGroup.push({
-      key: "permissions",
-      label: "Permissions…",
-      icon: ShieldCheck,
-      onSelect: () => actions.permissions(targets),
-    })
+    if (write && source.chmod)
+      moreGroup.push({
+        key: "permissions",
+        label: "Permissions…",
+        icon: ShieldCheck,
+        onSelect: () => actions.permissions(targets),
+      })
     if (one)
       moreGroup.push(
         {
@@ -189,16 +220,18 @@ export function useEntryMenu() {
         },
       )
 
-    const deleteGroup: MenuItem[] = [
-      {
-        key: "delete",
-        label: one ? "Delete" : `Delete ${targets.length} items`,
-        icon: Trash2,
-        shortcut: "Del",
-        destructive: true,
-        onSelect: () => actions.remove(targets),
-      },
-    ]
+    const deleteGroup: MenuItem[] = write
+      ? [
+          {
+            key: "delete",
+            label: one ? "Delete" : `Delete ${targets.length} items`,
+            icon: Trash2,
+            shortcut: "Del",
+            destructive: true,
+            onSelect: () => actions.remove(targets),
+          },
+        ]
+      : []
 
     return {
       targets,

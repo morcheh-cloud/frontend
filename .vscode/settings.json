@@ -9,5 +9,6 @@
     "editor.formatOnSave": false
   },
   "eslint.enable": false,
-  "prettier.enable": false
+  "prettier.enable": false,
+  "cSpell.words": ["turbopack"]
 }

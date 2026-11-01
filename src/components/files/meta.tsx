@@ -1,4 +1,5 @@
 import {
+  Database,
   File,
   FileArchive,
   FileAudio,
@@ -19,9 +20,9 @@ import {
 import type { ReactNode } from "react"
 
 import { formatSize } from "@/lib/format"
-import type { FileEntry } from "@/lib/services"
 import { cn } from "@/lib/utils"
-import { useFolderSize } from "../api"
+import { useFolderSize } from "./api"
+import { type FileEntry, useSource } from "./source"
 
 // A folder, or a symlink to one: both open as folders.
 export const isDir = (e: FileEntry) =>
@@ -150,8 +151,11 @@ export function FileIcon({
   className?: string
 }) {
   const kind = kindOf(entry)
-  const Icon =
-    kind === "folder" && entry.type === "symlink" ? FolderSymlink : icons[kind]
+  const Icon = entry.bucket
+    ? Database
+    : kind === "folder" && entry.type === "symlink"
+      ? FolderSymlink
+      : icons[kind]
   return (
     <Icon
       aria-hidden
@@ -181,18 +185,17 @@ export function FileTile({ entry }: { entry: FileEntry }) {
 
 export { formatSize }
 
-// A folder's total size, worked out with du once it's on screen. Links to
-// folders aren't followed: they show `fallback`.
+// A folder's total size, worked out once it's on screen. Links to folders
+// aren't followed: they show `fallback`.
 export function FolderSize({
-  serverId,
   entry,
   fallback = "—",
 }: {
-  serverId: string
   entry: FileEntry
   fallback?: ReactNode
 }) {
-  const size = useFolderSize(serverId, entry.path, entry.type === "dir")
+  const source = useSource()
+  const size = useFolderSize(source, entry.path, entry.type === "dir")
   if (size.data !== undefined) return formatSize(size.data)
   if (size.isFetching)
     return (
@@ -214,10 +217,13 @@ const shortDate = new Intl.DateTimeFormat(undefined, {
 })
 const shortTime = new Intl.DateTimeFormat(undefined, { timeStyle: "short" })
 
-export const formatDate = (iso: string) => dateFormat.format(new Date(iso))
+// "" = unknown (S3 folders have no date).
+export const formatDate = (iso: string) =>
+  iso ? dateFormat.format(new Date(iso)) : "—"
 
 // Today: the time; this year: the day; else the full date.
 export function formatModified(iso: string) {
+  if (!iso) return "—"
   const d = new Date(iso)
   const now = new Date()
   if (d.toDateString() === now.toDateString()) return shortTime.format(d)
@@ -225,7 +231,7 @@ export function formatModified(iso: string) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(d)
 }
 
-// Path helpers (the server is POSIX).
+// Path helpers (every source uses POSIX paths).
 export const joinPath = (dir: string, name: string) =>
   dir === "/" ? `/${name}` : `${dir}/${name}`
 
@@ -249,7 +255,7 @@ export function crumbs(path: string) {
   ]
 }
 
-// A name the server would accept for one entry.
+// A name the source would accept for one entry.
 export function nameError(name: string) {
   if (!name.trim()) return "Enter a name."
   if (name.includes("/")) return "A name can't contain “/”."
@@ -274,7 +280,7 @@ export function sortEntries(entries: FileEntry[], { field, order }: Sort) {
     let cmp = 0
     if (field === "size") cmp = a.size - b.size
     else if (field === "modified")
-      cmp = Date.parse(a.modified) - Date.parse(b.modified)
+      cmp = (Date.parse(a.modified) || 0) - (Date.parse(b.modified) || 0)
     if (!cmp) cmp = collator.compare(a.name, b.name)
     return cmp * dir
   })

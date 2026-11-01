@@ -25,8 +25,9 @@ import { Button } from "@/components/ui/button"
 import { useOpen } from "@/hooks/useOpen"
 import { ApiError } from "@/lib/api"
 import { cn } from "@/lib/utils"
-import { fileKeys, uploadFile } from "../api"
+import { uploadFile } from "./api"
 import { formatSize, joinPath } from "./meta"
+import { useSource } from "./source"
 
 const CONCURRENCY = 3
 
@@ -35,7 +36,7 @@ type Status = "queued" | "uploading" | "done" | "failed" | "conflict"
 export type Upload = {
   id: number
   file: File
-  // Full destination path on the server.
+  // Full destination path on the source.
   dest: string
   // What to call it in the list: the path under the folder it went to.
   label: string
@@ -69,16 +70,11 @@ export function useUploads() {
 
 let seq = 0
 
-// The upload queue for one server: a few files at a time, each written to a
+// The upload queue for one source: a few files at a time, each written to a
 // temp name and renamed into place by the backend, so a cancel never leaves
 // half a file.
-export function UploadsProvider({
-  serverId,
-  children,
-}: {
-  serverId: string
-  children: ReactNode
-}) {
+export function UploadsProvider({ children }: { children: ReactNode }) {
+  const source = useSource()
   const queryClient = useQueryClient()
   const [items, setItems] = useState<Upload[]>([])
   const itemsRef = useRef<Upload[]>([])
@@ -107,11 +103,11 @@ export function UploadsProvider({
     refreshTimer.current = setTimeout(
       () =>
         queryClient.invalidateQueries({
-          queryKey: [...fileKeys.all(serverId), "list"],
+          queryKey: [...source.key, "list"],
         }),
       300,
     )
-  }, [queryClient, serverId])
+  }, [queryClient, source])
 
   const pump = useCallback(() => {
     const running = itemsRef.current.filter(
@@ -124,7 +120,7 @@ export function UploadsProvider({
       const abort = new AbortController()
       aborts.current.set(upload.id, abort)
       patch(upload.id, { status: "uploading", loaded: 0, error: undefined })
-      uploadFile(serverId, upload.dest, upload.file, {
+      uploadFile(source, upload.dest, upload.file, {
         overwrite: upload.overwrite,
         signal: abort.signal,
         onProgress: (loaded) => patch(upload.id, { loaded }),
@@ -146,7 +142,7 @@ export function UploadsProvider({
           pump()
         })
     }
-  }, [serverId, patch, refresh])
+  }, [source, patch, refresh])
 
   const add = useCallback(
     (files: PickedFile[], dir: string) => {
@@ -211,7 +207,7 @@ export function UploadsProvider({
     commit([])
   }, [commit])
 
-  // Leaving the server's files cancels what's still going.
+  // Leaving these files cancels what's still going.
   useEffect(() => {
     const running = aborts.current
     return () => {

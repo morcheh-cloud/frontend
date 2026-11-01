@@ -2,6 +2,7 @@
 
 import {
   CalendarClock,
+  Clock,
   Info,
   Plus,
   RefreshCw,
@@ -23,7 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import type { CronHistory } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { timeAgo } from "../../../components/meta"
-import { SectionHeader } from "../../components/section-header"
+import { SectionActions } from "../../components/section-actions"
 import { useServerPage } from "../../components/server-page"
 import { useCron, useCronHistory } from "../api"
 import { CronActionsProvider, useCronActions } from "./cron-actions"
@@ -63,8 +64,10 @@ export function CronView() {
   const refresh = (
     <Button
       variant="outline"
-      size="sm"
-      className="max-md:h-10 max-md:flex-1"
+      size="icon"
+      className="max-md:size-11 md:size-9"
+      aria-label="Refresh"
+      title="Refresh"
       disabled={query.isFetching}
       onClick={() => {
         query.refetch()
@@ -72,14 +75,13 @@ export function CronView() {
       }}
     >
       <RefreshCw className={cn(query.isFetching && "animate-spin")} />
-      Refresh
     </Button>
   )
 
   if (!data || !clock) {
     return (
       <>
-        <SectionHeader actions={refresh} />
+        <SectionActions>{refresh}</SectionActions>
         <div className="flex flex-col gap-4 max-md:gap-0 max-md:pb-6">
           {query.error ? (
             <Empty
@@ -136,22 +138,6 @@ function Content({
   }
   const tab = tabs.some((t) => t.value === filters.tab) ? filters.tab : "jobs"
 
-  const actions = (
-    <>
-      {refresh}
-      {canAdd && (
-        <Button
-          size="sm"
-          className="max-md:h-10 max-md:flex-1"
-          onClick={() => a.newJob()}
-        >
-          <Plus />
-          New job
-        </Button>
-      )}
-    </>
-  )
-
   let body: ReactNode
   if (tab === "timers") {
     body = <TimersView timers={o.timers} />
@@ -203,25 +189,16 @@ function Content({
   }
 
   return (
-    <>
-      <SectionHeader actions={actions} />
-      <div className="flex flex-col gap-4 max-md:gap-0 max-md:pb-6">
-        <Summary />
-        <Notices history={history} />
-        {tabs.length > 1 && (
-          <div className="flex [scrollbar-width:none] overflow-x-auto max-md:px-4 max-md:pt-4">
-            <Segmented
-              label="Show"
-              items={tabs}
-              value={tab}
-              onChange={(t) => setFilters({ tab: t === "jobs" ? null : t })}
-            />
-          </div>
-        )}
-        {tab === "jobs" && all.length > 0 && <Toolbar />}
-        {body}
-      </div>
-    </>
+    <div className="flex flex-col gap-4 max-md:gap-0 max-md:pb-6">
+      <Bar
+        tabs={tabs}
+        tab={tab}
+        refresh={refresh}
+        filters={tab === "jobs" && all.length > 0}
+      />
+      <Notices history={history} />
+      {body}
+    </div>
   )
 }
 
@@ -236,113 +213,62 @@ function useServerTime(clock: ServerClock) {
   return now
 }
 
-function Summary() {
+// The soonest run and the server's clock, as one quiet line. `named` spells
+// out which job runs next (desktop keeps it in the tooltip).
+function Timing({
+  named = false,
+  className,
+}: {
+  named?: boolean
+  className?: string
+}) {
   const { overview: o, clock } = useCronActions()
-  const { filters, setFilters } = useCronFilters()
   const now = useServerTime(clock)
-  const all = rows(o)
-  const on = all.filter((r) => r.enabled)
 
-  // The soonest run across every job that's on.
   let soonest: { at: Date; title: string } | null = null
-  for (const r of on) {
+  for (const r of rows(o)) {
+    if (!r.enabled) continue
     const [at] = nextRuns(r.schedule, clock, 1, envValue(r.table, "CRON_TZ"))
     if (at && (!soonest || at < soonest.at))
       soonest = { at, title: jobTitle(r) }
   }
-
-  const cells: {
-    label: string
-    value: ReactNode
-    sub?: string
-    tip?: string
-    active?: boolean
-    onClick?: () => void
-  }[] = [
-    {
-      label: "Jobs on",
-      value: on.length,
-      active: filters.tab === "jobs" && filters.status === "enabled",
-      onClick: () =>
-        setFilters({
-          tab: null,
-          status: filters.status === "enabled" ? null : "enabled",
-        }),
-    },
-    {
-      label: "Turned off",
-      value: all.length - on.length,
-      active: filters.tab === "jobs" && filters.status === "disabled",
-      onClick: () =>
-        setFilters({
-          tab: null,
-          status: filters.status === "disabled" ? null : "disabled",
-        }),
-    },
-    {
-      label: soonest ? `Next: ${soonest.title}` : "Next run",
-      value: soonest ? timeAgo(soonest.at.toISOString()) : "—",
-      tip: soonest ? formatAt(soonest.at, clock) : undefined,
-    },
-    {
-      label: clock.label,
-      value: formatAt(now, clock, {
-        hour: "2-digit",
-        minute: "2-digit",
-        hourCycle: "h23",
-      }),
-      sub: formatAt(now, clock, {
-        weekday: "short",
-        day: "numeric",
-        month: "short",
-      }),
-    },
-  ]
+  const city = clock.zone.split("/").pop()?.replaceAll("_", " ")
 
   return (
-    <div className="grid grid-cols-2 divide-border border-border max-md:mt-4 max-md:border-y md:grid-cols-4 md:divide-x md:rounded-2xl md:border">
-      {cells.map((c, i) => {
-        const content = (
-          <>
-            <span className="flex items-baseline gap-2">
-              <span className="text-subheading font-medium whitespace-nowrap tabular-nums">
-                {c.value}
-              </span>
-              {c.sub && (
-                <span className="truncate text-caption text-ash tabular-nums max-md:hidden">
-                  {c.sub}
-                </span>
-              )}
-            </span>
-            <span className="w-full truncate text-caption text-muted-foreground">
-              {c.label}
-            </span>
-          </>
-        )
-        const className = cn(
-          "flex min-h-16 min-w-0 flex-col items-start justify-center px-4 py-3 text-start max-md:odd:border-e md:px-5 max-md:[&:nth-child(-n+2)]:border-b",
-          i === 0 && "md:rounded-s-2xl",
-          i === cells.length - 1 && "md:rounded-e-2xl",
-        )
-        return c.onClick ? (
-          <button
-            key={c.label}
-            type="button"
-            aria-pressed={c.active}
-            onClick={c.onClick}
-            className={cn(
-              className,
-              "outline-none hover:bg-subtle active:bg-muted aria-pressed:bg-subtle",
-            )}
-          >
-            {content}
-          </button>
-        ) : (
-          <div key={c.label} className={className} title={c.tip}>
-            {content}
-          </div>
-        )
-      })}
+    <div
+      className={cn(
+        "flex min-w-0 items-center gap-3 text-caption whitespace-nowrap text-muted-foreground",
+        className,
+      )}
+    >
+      {soonest && (
+        <span
+          className="flex min-w-0 items-center gap-1.5"
+          title={`Next run: ${soonest.title}, ${formatAt(soonest.at, clock)}`}
+        >
+          <CalendarClock className="size-3.5 shrink-0 text-ash" />
+          {named ? (
+            <span className="truncate">{soonest.title}</span>
+          ) : (
+            "Next run"
+          )}
+          <span className="text-ash">
+            {timeAgo(soonest.at.toISOString()).toLowerCase()}
+          </span>
+        </span>
+      )}
+      <span
+        className="flex shrink-0 items-center gap-1.5 tabular-nums"
+        title={`Server time: ${formatAt(now, clock)} · ${clock.label}`}
+      >
+        <Clock className="size-3.5 text-ash" />
+        {formatAt(now, clock, {
+          hour: "2-digit",
+          minute: "2-digit",
+          hourCycle: "h23",
+        })}
+        <span className="text-ash">{city}</span>
+      </span>
     </div>
   )
 }
@@ -412,16 +338,125 @@ function Notices({ history }: { history?: CronHistory }) {
   )
 }
 
-const statusChips = [
-  { value: "all", label: "All" },
-  { value: "enabled", label: "On" },
-  { value: "disabled", label: "Off" },
-] as const
+// Everything above the list in one row: tabs, search, filters, timing and
+// actions. Phones stack it: search + actions, then scrolling chips.
+function Bar({
+  tabs,
+  tab,
+  refresh,
+  filters,
+}: {
+  tabs: { value: Tab; label: string }[]
+  tab: Tab
+  refresh: ReactNode
+  filters: boolean
+}) {
+  const { phone } = useServerPage()
+  const a = useCronActions()
+  const { setFilters } = useCronFilters()
 
-function Toolbar() {
+  const tabSwitch = tabs.length > 1 && (
+    <Segmented
+      label="Show"
+      items={tabs}
+      value={tab}
+      onChange={(t) => setFilters({ tab: t === "jobs" ? null : t })}
+    />
+  )
+  const add = targets(a.overview).length > 0 && (
+    <Button
+      size={phone ? "icon-lg" : "default"}
+      className="md:h-9"
+      aria-label="New job"
+      onClick={() => a.newJob()}
+    >
+      <Plus />
+      {!phone && "New job"}
+    </Button>
+  )
+
+  if (phone) {
+    return (
+      <div className="flex flex-col gap-3 px-4 pt-4">
+        <div className="flex items-center gap-2">
+          {filters ? <SearchBox /> : <Timing named className="flex-1" />}
+          {refresh}
+          {add}
+        </div>
+        {(tabSwitch || filters) && (
+          <div className="-mx-4 flex [scrollbar-width:none] gap-2 overflow-x-auto px-4">
+            {tabSwitch}
+            {filters && <JobFilters />}
+          </div>
+        )}
+        {filters && <Timing named />}
+      </div>
+    )
+  }
+
+  return (
+    <div className="@container flex items-center gap-2">
+      {tabSwitch}
+      {tabSwitch && filters && <span className="mx-1 h-5 w-px bg-border" />}
+      {filters && (
+        <>
+          <SearchBox />
+          <JobFilters />
+        </>
+      )}
+      <div className="ms-auto flex shrink-0 items-center gap-2">
+        <Timing className="me-2 hidden @5xl:flex" />
+        {refresh}
+        {add}
+      </div>
+    </div>
+  )
+}
+
+function SearchBox() {
+  const { filters, setFilters } = useCronFilters()
+  return (
+    <div className="relative min-w-0 flex-1 md:max-w-72 md:min-w-36">
+      <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-ash" />
+      <input
+        type="search"
+        value={filters.q}
+        onChange={(e) => setFilters({ q: e.target.value || null })}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            setFilters({ q: null })
+            e.currentTarget.blur()
+          }
+        }}
+        placeholder="Name, command or schedule"
+        aria-label="Search jobs"
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
+        enterKeyHint="search"
+        className="h-11 w-full rounded-lg border border-input bg-card ps-9 pe-10 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:h-9 md:text-sm [&::-webkit-search-cancel-button]:hidden"
+      />
+      {filters.q && (
+        <button
+          type="button"
+          aria-label="Clear search"
+          onClick={() => setFilters({ q: null })}
+          className="absolute end-1 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-md text-ash hover:text-foreground md:size-7"
+        >
+          <X className="size-4" />
+        </button>
+      )}
+    </div>
+  )
+}
+
+// Status (with counts) and, when there's more than one, the table.
+function JobFilters() {
   const { phone } = useServerPage()
   const { overview: o } = useCronActions()
   const { filters, setFilters } = useCronFilters()
+  const all = rows(o)
+  const on = all.filter((r) => r.enabled).length
   const tables = o.tables.filter((t) => t.jobs.length > 0)
   const items = [
     { value: "all", label: "Every table" },
@@ -431,79 +466,50 @@ function Toolbar() {
   const setTable = (v: string) => setFilters({ table: v === "all" ? null : v })
 
   return (
-    <div className="flex flex-col gap-3 max-md:px-4 max-md:pt-4 md:flex-row md:items-center">
-      <div className="relative md:w-72">
-        <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-ash" />
-        <input
-          type="search"
-          value={filters.q}
-          onChange={(e) => setFilters({ q: e.target.value || null })}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") {
-              setFilters({ q: null })
-              e.currentTarget.blur()
-            }
-          }}
-          placeholder="Name, command or schedule"
-          aria-label="Search jobs"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          enterKeyHint="search"
-          className="h-11 w-full rounded-lg border border-input bg-card ps-9 pe-10 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:h-9 md:text-sm [&::-webkit-search-cancel-button]:hidden"
-        />
-        {filters.q && (
-          <button
-            type="button"
-            aria-label="Clear search"
-            onClick={() => setFilters({ q: null })}
-            className="absolute end-1 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-md text-ash hover:text-foreground md:size-7"
+    <>
+      <Segmented
+        label="Status"
+        items={[
+          { value: "all", label: `All · ${all.length}` },
+          { value: "enabled", label: `On · ${on}` },
+          { value: "disabled", label: `Off · ${all.length - on}` },
+        ]}
+        value={filters.status ?? "all"}
+        onChange={(v) => setFilters({ status: v === "all" ? null : v })}
+      />
+      {tables.length > 1 &&
+        (phone ? (
+          <select
+            aria-label="Table"
+            value={table}
+            onChange={(e) => setTable(e.target.value)}
+            className="h-11 max-w-56 shrink-0 rounded-lg border border-input bg-card px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           >
-            <X className="size-4" />
-          </button>
-        )}
-      </div>
-      <div className="flex gap-2">
-        {tables.length > 1 &&
-          (phone ? (
-            <select
-              aria-label="Table"
-              value={table}
-              onChange={(e) => setTable(e.target.value)}
-              className="h-11 min-w-0 flex-1 rounded-lg border border-input bg-card px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-            >
+            {items.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <Select
+            items={items}
+            value={table}
+            onValueChange={(v) => v !== null && setTable(v)}
+          >
+            <SelectTrigger aria-label="Table" className="h-9 w-44 shrink-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent alignItemWithTrigger={false}>
               {items.map((item) => (
-                <option key={item.value} value={item.value}>
+                <SelectItem key={item.value} value={item.value}>
                   {item.label}
-                </option>
+                </SelectItem>
               ))}
-            </select>
-          ) : (
-            <Select
-              items={items}
-              value={table}
-              onValueChange={(v) => v !== null && setTable(v)}
-            >
-              <SelectTrigger aria-label="Table" className="h-9 w-56">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent alignItemWithTrigger={false}>
-                {items.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ))}
-        <Segmented
-          label="Status"
-          items={statusChips}
-          value={filters.status ?? "all"}
-          onChange={(v) => setFilters({ status: v === "all" ? null : v })}
-        />
-      </div>
-    </div>
+            </SelectContent>
+          </Select>
+        ))}
+    </>
   )
 }
 
@@ -563,7 +569,7 @@ function Loading({ phone }: { phone: boolean }) {
   if (phone) {
     return (
       <div className="flex flex-col gap-3 px-4 pt-4">
-        <Skeleton className="h-32 rounded-2xl" />
+        <Skeleton className="h-11 rounded-lg" />
         {Array.from({ length: 6 }, (_, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: static placeholders
           <Skeleton key={i} className="h-14 rounded-lg" />
@@ -573,7 +579,7 @@ function Loading({ phone }: { phone: boolean }) {
   }
   return (
     <>
-      <Skeleton className="h-[4.5rem] rounded-2xl" />
+      <Skeleton className="h-9 rounded-lg" />
       <Skeleton className="h-80 rounded-2xl" />
     </>
   )

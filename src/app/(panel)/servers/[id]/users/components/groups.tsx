@@ -7,14 +7,7 @@ import { BottomSheet } from "@/components/bottom-sheet"
 import { useOpen } from "@/hooks/useOpen"
 import type { Group } from "@/lib/services"
 import { cn } from "@/lib/utils"
-import {
-  Empty,
-  Facts,
-  ItemMenu,
-  SearchBox,
-  Segmented,
-  SheetItems,
-} from "../../components/parts"
+import { Empty, Facts, ItemMenu, SheetItems } from "../../components/parts"
 import { useServerPage } from "../../components/server-page"
 import { everyMember, filterGroups, useUsersFilters } from "./meta"
 import { useGroupMenu, useUsersActions } from "./users-actions"
@@ -22,33 +15,12 @@ import { useGroupMenu, useUsersActions } from "./users-actions"
 export function GroupsTab() {
   const { phone } = useServerPage()
   const a = useUsersActions()
-  const { filters, setFilters } = useUsersFilters()
+  const { filters } = useUsersFilters()
   const show = filters.show ?? "people"
   const list = filterGroups(a.overview.groups, show, filters.q)
 
-  const toolbar = (
-    <div className="flex flex-col gap-3 max-md:px-4 max-md:pt-4 md:flex-row md:items-center">
-      <SearchBox
-        value={filters.q}
-        onChange={(q) => setFilters({ q: q || null })}
-        placeholder="Search group, gid or member"
-        label="Search groups"
-      />
-      <Segmented
-        label="Groups to show"
-        items={[
-          { value: "people", label: "Regular" },
-          { value: "all", label: `All · ${a.overview.groups.length}` },
-        ]}
-        value={show}
-        onChange={(v) => setFilters({ show: v === "people" ? null : v })}
-      />
-    </div>
-  )
-
-  let body: React.ReactNode
   if (list.length === 0) {
-    body = (
+    return (
       <Empty
         icon={Search}
         title="No matching groups"
@@ -60,16 +32,8 @@ export function GroupsTab() {
         className="max-md:mt-4"
       />
     )
-  } else {
-    body = phone ? <GroupsList groups={list} /> : <GroupsTable groups={list} />
   }
-
-  return (
-    <>
-      {toolbar}
-      {body}
-    </>
-  )
+  return phone ? <GroupsList groups={list} /> : <GroupsTable groups={list} />
 }
 
 function Kind({ group: g }: { group: Group }) {

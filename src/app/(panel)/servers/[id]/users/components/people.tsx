@@ -4,13 +4,7 @@ import { ChevronRight, Search, ShieldCheck, UserRound } from "lucide-react"
 
 import type { User } from "@/lib/services"
 import { cn } from "@/lib/utils"
-import {
-  Empty,
-  ItemMenu,
-  SearchBox,
-  Segmented,
-  StateDot,
-} from "../../components/parts"
+import { Empty, ItemMenu, StateDot } from "../../components/parts"
 import { useServerPage } from "../../components/server-page"
 import {
   ago,
@@ -28,33 +22,12 @@ export function PeopleTab() {
   const { phone } = useServerPage()
   const a = useUsersActions()
   const o = a.overview
-  const { filters, setFilters } = useUsersFilters()
+  const { filters } = useUsersFilters()
   const show = filters.show ?? "people"
   const list = filterUsers(o, show, filters.q)
 
-  const toolbar = (
-    <div className="flex flex-col gap-3 max-md:px-4 max-md:pt-4 md:flex-row md:items-center">
-      <SearchBox
-        value={filters.q}
-        onChange={(q) => setFilters({ q: q || null })}
-        placeholder="Search name, uid or group"
-        label="Search accounts"
-      />
-      <Segmented
-        label="Accounts to show"
-        items={[
-          { value: "people", label: "People" },
-          { value: "all", label: `All · ${o.users.length}` },
-        ]}
-        value={show}
-        onChange={(v) => setFilters({ show: v === "people" ? null : v })}
-      />
-    </div>
-  )
-
-  let body: React.ReactNode
   if (list.length === 0) {
-    body = (
+    return (
       <Empty
         icon={Search}
         title="No matching accounts"
@@ -66,16 +39,8 @@ export function PeopleTab() {
         className="max-md:mt-4"
       />
     )
-  } else {
-    body = phone ? <UsersList users={list} /> : <UsersTable users={list} />
   }
-
-  return (
-    <>
-      {toolbar}
-      {body}
-    </>
-  )
+  return phone ? <UsersList users={list} /> : <UsersTable users={list} />
 }
 
 // ---- Desktop ----

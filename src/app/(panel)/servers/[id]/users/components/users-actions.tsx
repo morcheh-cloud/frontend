@@ -21,13 +21,12 @@ import {
   useState,
 } from "react"
 import { toast } from "sonner"
-
+import { filesHref } from "@/components/files/file-manager"
 import { ConfirmDialog } from "@/components/responsive-dialog"
 import { useOpen } from "@/hooks/useOpen"
 import type { Group, User, UsersOverview } from "@/lib/services"
 import type { Item } from "../../components/parts"
 import { useServerPage } from "../../components/server-page"
-import { filesHref } from "../../files/components/file-manager"
 import { useChange } from "../api"
 import {
   GroupEditor,

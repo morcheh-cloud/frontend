@@ -512,6 +512,44 @@ export interface Disk {
   used_percent: number;
 }
 
+export interface DiskUsage {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Who scanned: as root, through sudo or as the login user */
+  access: "root" | "sudo" | "user";
+  /** The filesystem path lives on; null when df failed */
+  disk: UsageDisk;
+  /** @format int64 */
+  duration_ms: number;
+  entries: UsageEntry[];
+  /**
+   * Smallest entries left out of the list
+   * @format int64
+   */
+  more: number;
+  /**
+   * Bytes in the entries left out
+   * @format int64
+   */
+  more_size: number;
+  /** Empty at / */
+  parent: string;
+  path: string;
+  /**
+   * Bytes on disk under path, on its own filesystem
+   * @format int64
+   */
+  size: number;
+  /**
+   * Folders du couldn't read: their bytes are missing
+   * @format int64
+   */
+  unreadable: number;
+}
+
 export interface DockerStatus {
   /**
    * Running containers
@@ -1112,6 +1150,15 @@ export interface JailStatus {
   total_failed: number;
 }
 
+export interface ListStoragesResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: Storage[];
+}
+
 export interface ListTerminalsResponse {
   /**
    * A URL to the JSON Schema for this object.
@@ -1347,6 +1394,16 @@ export interface SearchResult {
   truncated: boolean;
 }
 
+export interface SearchStorageFilesResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: StorageEntry[];
+  truncated: boolean;
+}
+
 export interface Server {
   /**
    * A URL to the JSON Schema for this object.
@@ -1514,6 +1571,44 @@ export interface SetServerFavoriteRequest {
   favorite: boolean;
 }
 
+export interface SetStorageFavoriteRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  favorite: boolean;
+}
+
+export interface ShareStorageFileRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Seconds
+   * @format int64
+   * @min 60
+   * @max 604800
+   * @default 86400
+   */
+  expires_in?: number;
+  /** @minLength 1 */
+  path: string;
+}
+
+export interface ShareStorageFileResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format date-time */
+  expires_at: string;
+  url: string;
+}
+
 export interface Stats {
   /**
    * A URL to the JSON Schema for this object.
@@ -1547,6 +1642,422 @@ export interface StatsProblem {
    * @format int64
    */
   status: number;
+}
+
+export interface Storage {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  auth_method: "password" | "private_key";
+  bucket: string;
+  capabilities: StorageCapabilities;
+  /** @format date-time */
+  created_at: string;
+  description: string;
+  /** What the last good check found, e.g. "3 buckets" */
+  detail: string;
+  favorite: boolean;
+  has_passphrase: boolean;
+  has_private_key: boolean;
+  /** A password (or S3 secret key) is stored */
+  has_secret: boolean;
+  /** S3 endpoint or WebDAV URL; host name for FTP and SFTP */
+  host: string;
+  host_key_fingerprint: string;
+  /** @format uuid */
+  id: string;
+  insecure_tls: boolean;
+  /** @format date-time */
+  last_checked_at: string | null;
+  /** @format int32 */
+  latency_ms: number | null;
+  name: string;
+  path_style: boolean;
+  /**
+   * 0 = the protocol's default
+   * @format int32
+   */
+  port: number;
+  protocol: "s3" | "ftp" | "sftp" | "webdav";
+  /** Preset the settings came from (aws, minio, r2, nextcloud…) */
+  provider: string;
+  /** Refuse every change through Morcheh */
+  read_only: boolean;
+  region: string;
+  /** Folder shown as the top; empty = the login folder (or every bucket) */
+  root_path: string;
+  status:
+    | "unknown"
+    | "online"
+    | "unreachable"
+    | "auth_failed"
+    | "host_key_mismatch"
+    | "error";
+  status_message: string;
+  tls: "none" | "explicit" | "implicit";
+  /** @format date-time */
+  updated_at: string;
+  /** Access key for S3 */
+  username: string;
+}
+
+export interface StorageAffectedOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format int64 */
+  affected: number;
+}
+
+export interface StorageBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * private_key is SFTP only
+   * @default "password"
+   */
+  auth_method?: "password" | "private_key";
+  /**
+   * S3: stay in one bucket; empty lists every bucket
+   * @maxLength 63
+   */
+  bucket?: string;
+  /** On update: forget the stored password / secret key */
+  clear_secret?: boolean;
+  /** @maxLength 500 */
+  description?: string;
+  favorite?: boolean;
+  /**
+   * S3: endpoint URL or host (https unless given); WebDAV: the folder's URL; FTP/SFTP: host name or IP
+   * @minLength 1
+   * @maxLength 500
+   */
+  host: string;
+  /** Accept any TLS certificate (self-signed). Anyone on the path can then read the traffic */
+  insecure_tls?: boolean;
+  /**
+   * @minLength 1
+   * @maxLength 64
+   */
+  name: string;
+  /** @maxLength 1024 */
+  passphrase?: string;
+  /** S3: endpoint/bucket/key URLs (MinIO and most self-hosted servers) */
+  path_style?: boolean;
+  /**
+   * 0 or left out = the default (21, 990 for implicit FTPS, 22; S3 and WebDAV take it from the URL)
+   * @format int32
+   * @min 0
+   * @max 65535
+   */
+  port?: number;
+  /**
+   * On update, leave out to keep the stored one
+   * @maxLength 16384
+   */
+  private_key?: string;
+  protocol: "s3" | "ftp" | "sftp" | "webdav";
+  /** @maxLength 32 */
+  provider?: string;
+  read_only?: boolean;
+  /** @maxLength 64 */
+  region?: string;
+  /**
+   * Folder to show as the top (S3: bucket/prefix)
+   * @maxLength 1024
+   */
+  root_path?: string;
+  /**
+   * Password, or S3 secret key. On update, leave out to keep the stored one
+   * @maxLength 4096
+   */
+  secret?: string;
+  /**
+   * FTP: explicit = AUTH TLS on the normal port, implicit = FTPS (990)
+   * @default "none"
+   */
+  tls?: "none" | "explicit" | "implicit";
+  /**
+   * S3: access key id. Empty FTP user logs in anonymously
+   * @maxLength 256
+   */
+  username?: string;
+}
+
+export interface StorageCapabilities {
+  /** Top-level folders are buckets (S3 without a fixed bucket) */
+  buckets: boolean;
+  /** Downloads resume and media can seek */
+  ranges: boolean;
+  /** Copies happen on the storage itself */
+  server_copy: boolean;
+  /** Can make time-limited public download links */
+  share_links: boolean;
+}
+
+export interface StorageDeleteRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * @maxItems 1000
+   * @minItems 1
+   */
+  paths: string[];
+}
+
+export interface StorageEntry {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** A top-level folder that is an S3 bucket */
+  bucket: boolean;
+  content_type: string;
+  etag: string;
+  /**
+   * Unknown for S3 prefixes
+   * @format date-time
+   */
+  modified: string | null;
+  name: string;
+  /** From the storage's top ("/") */
+  path: string;
+  /**
+   * Bytes; 0 for folders
+   * @format int64
+   */
+  size: number;
+  /** S3 storage class (STANDARD, GLACIER…) */
+  storage_class: string;
+  type: "file" | "dir";
+}
+
+export interface StorageFolderSizeResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format int64 */
+  files: number;
+  /** @format int64 */
+  folders: number;
+  /** Stopped before the end (too big to count in time) */
+  partial: boolean;
+  path: string;
+  /** @format int64 */
+  size: number;
+}
+
+export interface StorageListing {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  entries: StorageEntry[];
+  /** Empty at the top */
+  parent: string;
+  path: string;
+  /** The folder has more entries than limit */
+  truncated: boolean;
+}
+
+export interface StorageMkdirRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @minLength 1 */
+  path: string;
+}
+
+export interface StorageMoveBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Folder to put them in */
+  destination: string;
+  /**
+   * @maxItems 1000
+   * @minItems 1
+   */
+  paths: string[];
+}
+
+export interface StorageRenameRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * @minLength 1
+   * @maxLength 255
+   */
+  name: string;
+  /** @minLength 1 */
+  path: string;
+}
+
+export interface StorageTestBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * private_key is SFTP only
+   * @default "password"
+   */
+  auth_method?: "password" | "private_key";
+  /**
+   * S3: stay in one bucket; empty lists every bucket
+   * @maxLength 63
+   */
+  bucket?: string;
+  /** On update: forget the stored password / secret key */
+  clear_secret?: boolean;
+  /**
+   * S3: endpoint URL or host (https unless given); WebDAV: the folder's URL; FTP/SFTP: host name or IP
+   * @minLength 1
+   * @maxLength 500
+   */
+  host: string;
+  /** Accept any TLS certificate (self-signed). Anyone on the path can then read the traffic */
+  insecure_tls?: boolean;
+  /** @maxLength 1024 */
+  passphrase?: string;
+  /** S3: endpoint/bucket/key URLs (MinIO and most self-hosted servers) */
+  path_style?: boolean;
+  /**
+   * 0 or left out = the default (21, 990 for implicit FTPS, 22; S3 and WebDAV take it from the URL)
+   * @format int32
+   * @min 0
+   * @max 65535
+   */
+  port?: number;
+  /**
+   * On update, leave out to keep the stored one
+   * @maxLength 16384
+   */
+  private_key?: string;
+  protocol: "s3" | "ftp" | "sftp" | "webdav";
+  /** @maxLength 32 */
+  provider?: string;
+  /** @maxLength 64 */
+  region?: string;
+  /**
+   * Folder to show as the top (S3: bucket/prefix)
+   * @maxLength 1024
+   */
+  root_path?: string;
+  /**
+   * Password, or S3 secret key. On update, leave out to keep the stored one
+   * @maxLength 4096
+   */
+  secret?: string;
+  /**
+   * When editing a saved storage: reuse its stored secrets (for fields left out) and trusted host key
+   * @format uuid
+   */
+  storage_id?: string;
+  /**
+   * FTP: explicit = AUTH TLS on the normal port, implicit = FTPS (990)
+   * @default "none"
+   */
+  tls?: "none" | "explicit" | "implicit";
+  /**
+   * S3: access key id. Empty FTP user logs in anonymously
+   * @maxLength 256
+   */
+  username?: string;
+}
+
+export interface StorageTestOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  detail: string;
+  host_key_fingerprint: string;
+  /** @format int32 */
+  latency_ms: number;
+  message: string;
+  status:
+    | "online"
+    | "unreachable"
+    | "auth_failed"
+    | "host_key_mismatch"
+    | "error";
+}
+
+export interface StorageTransferBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  destination: StorageTransferBodyDestinationStruct;
+  /** Delete each source once it's copied */
+  move?: boolean;
+  /** Replace what's already in the destination */
+  overwrite?: boolean;
+  source: StorageTransferBodySourceStruct;
+}
+
+export interface StorageTransferBodyDestinationStruct {
+  /** Folder to put them in */
+  path: string;
+  /** @format uuid */
+  server_id?: string;
+  /** @format uuid */
+  storage_id?: string;
+}
+
+export interface StorageTransferBodySourceStruct {
+  /**
+   * @maxItems 1000
+   * @minItems 1
+   */
+  paths: string[];
+  /** @format uuid */
+  server_id?: string;
+  /** @format uuid */
+  storage_id?: string;
+}
+
+export interface StorageTransferResult {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Bytes streamed through Morcheh (0 when the storage copied by itself)
+   * @format int64
+   */
+  bytes: number;
+  /**
+   * Files copied
+   * @format int64
+   */
+  files: number;
 }
 
 export interface TerminalSession {
@@ -1590,6 +2101,31 @@ export interface UpdateCronJobRequest {
    * @maxLength 300
    */
   table: string;
+}
+
+export interface UsageDisk {
+  /** @format int64 */
+  available: number;
+  device: string;
+  mount: string;
+  /** @format int64 */
+  size: number;
+  type: string;
+  /** @format int64 */
+  used: number;
+}
+
+export interface UsageEntry {
+  /** Filesystem type when this is another filesystem's mount point (its bytes aren't counted here); empty otherwise */
+  mount: string;
+  name: string;
+  path: string;
+  /**
+   * Bytes on disk
+   * @format int64
+   */
+  size: number;
+  type: "file" | "dir" | "symlink" | "other";
 }
 
 export interface User {
@@ -1806,6 +2342,20 @@ export interface UsersOverview {
 }
 
 export interface WriteFileRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  content: string;
+  create?: boolean;
+  /** @format date-time */
+  expected_modified?: string;
+  /** @minLength 1 */
+  path: string;
+}
+
+export interface WriteStorageFileRequest {
   /**
    * A URL to the JSON Schema for this object.
    * @format uri
@@ -2819,6 +3369,30 @@ export class Api<
       }),
 
     /**
+     * @description Runs `du -x` one level deep (as root when the login user can) and `df` for the filesystem. Stays on path's filesystem: other disks mounted below it are flagged, not counted. Big trees can take minutes.
+     *
+     * @tags Files
+     * @name DiskUsage
+     * @summary What takes the space in a folder
+     * @request GET:/servers/{id}/files/usage
+     */
+    diskUsage: (
+      id: string,
+      query?: {
+        /** Absolute path; empty, ~ or a relative path are taken from the home directory */
+        path?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<DiskUsage, ErrorModel>({
+        path: `/servers/${id}/files/usage`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description One file streams as itself (with Range support). Several paths, or a folder, stream as one zip. `inline` shows images, media, PDFs and plain text in the browser instead of saving them.
      *
      * @tags Files
@@ -3701,6 +4275,523 @@ export class Api<
       this.request<TerminalSession, ErrorModel>({
         path: `/servers/${id}/terminals/${session}`,
         method: "PATCH",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  storage = {
+    /**
+     * @description Connects afresh and records the status. For SFTP, the first good check trusts the host key; pass trust_new_host_key after a legitimate key change.
+     *
+     * @tags Storage
+     * @name CheckStorage
+     * @summary Check a storage's connection
+     * @request POST:/storages/{id}/check
+     */
+    checkStorage: (
+      id: string,
+      query?: {
+        trust_new_host_key?: boolean;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<Storage, ErrorModel>({
+        path: `/storages/${id}/check`,
+        method: "POST",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Storage
+     * @name CreateStorage
+     * @summary Add a storage
+     * @request POST:/storages
+     */
+    createStorage: (data: StorageBody, params: RequestParams = {}) =>
+      this.request<Storage, ErrorModel>({
+        path: `/storages`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Forgets the storage in Morcheh; nothing on the storage itself is touched.
+     *
+     * @tags Storage
+     * @name DeleteStorage
+     * @summary Remove a storage
+     * @request DELETE:/storages/{id}
+     */
+    deleteStorage: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/storages/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Storage
+     * @name GetStorage
+     * @summary Get a storage
+     * @request GET:/storages/{id}
+     */
+    getStorage: (id: string, params: RequestParams = {}) =>
+      this.request<Storage, ErrorModel>({
+        path: `/storages/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Favourites first, then by name.
+     *
+     * @tags Storage
+     * @name ListStorages
+     * @summary List storages
+     * @request GET:/storages
+     */
+    listStorages: (params: RequestParams = {}) =>
+      this.request<ListStoragesResponse, ErrorModel>({
+        path: `/storages`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Storage
+     * @name SetStorageFavorite
+     * @summary Star or unstar a storage
+     * @request PUT:/storages/{id}/favorite
+     */
+    setStorageFavorite: (
+      id: string,
+      data: SetStorageFavoriteRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<Storage, ErrorModel>({
+        path: `/storages/${id}/favorite`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Connects with the given settings without saving anything.
+     *
+     * @tags Storage
+     * @name TestStorageConnection
+     * @summary Test storage settings
+     * @request POST:/storages/test-connection
+     */
+    testStorageConnection: (
+      data: StorageTestBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<StorageTestOutputBody, ErrorModel>({
+        path: `/storages/test-connection`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Replaces the editable fields. Secrets left out keep their stored values. Changing the host or port forgets the trusted SFTP host key.
+     *
+     * @tags Storage
+     * @name UpdateStorage
+     * @summary Update a storage
+     * @request PUT:/storages/{id}
+     */
+    updateStorage: (
+      id: string,
+      data: StorageBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Storage, ErrorModel>({
+        path: `/storages/${id}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  storageFiles = {
+    /**
+     * @description One file streams as itself (Range support on S3 and SFTP). Several paths, or a folder, stream as one zip.
+     *
+     * @tags Storage files
+     * @name DownloadStorageFiles
+     * @summary Download files
+     * @request GET:/storages/{id}/files/download
+     */
+    downloadStorageFiles: (
+      id: string,
+      query: {
+        /** Show in the browser instead of saving (images, media, PDF, plain text only) */
+        inline?: boolean;
+        /** File name for a zip of several paths */
+        name?: string;
+        /**
+         * Repeat for several files
+         * @minItems 1
+         */
+        path: string[];
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<Blob, ErrorModel>({
+        path: `/storages/${id}/files/download`,
+        method: "GET",
+        query: query,
+        ...params,
+      }),
+
+    /**
+     * @description Direct children of a folder. On S3 without a fixed bucket, "/" lists the buckets.
+     *
+     * @tags Storage files
+     * @name ListStorageFiles
+     * @summary List a storage folder
+     * @request GET:/storages/{id}/files
+     */
+    listStorageFiles: (
+      id: string,
+      query?: {
+        /**
+         * @format int64
+         * @min 1
+         * @max 20000
+         * @default 5000
+         */
+        limit?: number;
+        /** From the storage's top; empty = "/" */
+        path?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<StorageListing, ErrorModel>({
+        path: `/storages/${id}/files`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description For the editor: UTF-8 text up to 5 MB. Bigger files are 413, binary ones 415.
+     *
+     * @tags Storage files
+     * @name ReadStorageFile
+     * @summary Read a text file
+     * @request GET:/storages/{id}/files/content
+     */
+    readStorageFile: (
+      id: string,
+      query?: {
+        /** From the storage's top; empty = "/" */
+        path?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<FileContent, ErrorModel>({
+        path: `/storages/${id}/files/content`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Case-insensitive name match under path (recursive). At most 200 results; stops after a minute.
+     *
+     * @tags Storage files
+     * @name SearchStorageFiles
+     * @summary Find files by name
+     * @request GET:/storages/{id}/files/search
+     */
+    searchStorageFiles: (
+      id: string,
+      query: {
+        /** From the storage's top; empty = "/" */
+        path?: string;
+        /**
+         * @minLength 1
+         * @maxLength 200
+         */
+        q: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<SearchStorageFilesResponse, ErrorModel>({
+        path: `/storages/${id}/files/search`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description A pre-signed link anyone can open until it expires (S3 only; at most 7 days). It can't be revoked early except by rotating the access key.
+     *
+     * @tags Storage files
+     * @name ShareStorageFile
+     * @summary Make a public download link
+     * @request POST:/storages/{id}/files/share
+     */
+    shareStorageFile: (
+      id: string,
+      data: ShareStorageFileRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<ShareStorageFileResponse, ErrorModel>({
+        path: `/storages/${id}/files/share`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Storage files
+     * @name StatStorageFile
+     * @summary Details of one file or folder
+     * @request GET:/storages/{id}/files/stat
+     */
+    statStorageFile: (
+      id: string,
+      query?: {
+        /** From the storage's top; empty = "/" */
+        path?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<StorageEntry, ErrorModel>({
+        path: `/storages/${id}/files/stat`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Copies into their own folder get a free "copy" name; any other clash is 409.
+     *
+     * @tags Storage files
+     * @name StorageCopy
+     * @summary Copy files into a folder
+     * @request POST:/storages/{id}/files/copy
+     */
+    storageCopy: (
+      id: string,
+      data: StorageMoveBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<StorageTransferResult, ErrorModel>({
+        path: `/storages/${id}/files/copy`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Folders go with everything in them. On S3, deleting a top-level bucket folder deletes the bucket.
+     *
+     * @tags Storage files
+     * @name StorageDelete
+     * @summary Delete files and folders
+     * @request POST:/storages/{id}/files/delete
+     */
+    storageDelete: (
+      id: string,
+      data: StorageDeleteRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<StorageAffectedOutputBody, ErrorModel>({
+        path: `/storages/${id}/files/delete`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Walks the folder. Stops after a minute and reports what it counted so far (partial).
+     *
+     * @tags Storage files
+     * @name StorageFolderSize
+     * @summary Total size of a folder
+     * @request GET:/storages/{id}/files/size
+     */
+    storageFolderSize: (
+      id: string,
+      query?: {
+        /** From the storage's top; empty = "/" */
+        path?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<StorageFolderSizeResponse, ErrorModel>({
+        path: `/storages/${id}/files/size`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description On S3 without a fixed bucket, a folder at the top creates a bucket.
+     *
+     * @tags Storage files
+     * @name StorageMkdir
+     * @summary Create a folder
+     * @request POST:/storages/{id}/files/mkdir
+     */
+    storageMkdir: (
+      id: string,
+      data: StorageMkdirRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<StorageEntry, ErrorModel>({
+        path: `/storages/${id}/files/mkdir`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description A name already in the destination is 409 and nothing moves.
+     *
+     * @tags Storage files
+     * @name StorageMove
+     * @summary Move files into a folder
+     * @request POST:/storages/{id}/files/move
+     */
+    storageMove: (
+      id: string,
+      data: StorageMoveBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<StorageAffectedOutputBody, ErrorModel>({
+        path: `/storages/${id}/files/move`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description On S3 a rename copies every object and deletes the old ones, so big folders take a while. Buckets can't be renamed.
+     *
+     * @tags Storage files
+     * @name StorageRename
+     * @summary Rename a file or folder
+     * @request POST:/storages/{id}/files/rename
+     */
+    storageRename: (
+      id: string,
+      data: StorageRenameRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<StorageEntry, ErrorModel>({
+        path: `/storages/${id}/files/rename`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Each end is a storage or a server (over SFTP). Files stream through Morcheh; two places on one storage copy on the storage itself when it can. Server paths are absolute or relative to the login user's home. A name already in the destination is 409 unless overwrite is set.
+     *
+     * @tags Storage files
+     * @name TransferFiles
+     * @summary Copy or move files between storages and servers
+     * @request POST:/storages/transfer
+     */
+    transferFiles: (data: StorageTransferBody, params: RequestParams = {}) =>
+      this.request<StorageTransferResult, ErrorModel>({
+        path: `/storages/transfer`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The raw body is the file. Missing parent folders are created. An existing file is 409 unless overwrite is set.
+     *
+     * @tags Storage files
+     * @name UploadStorageFile
+     * @summary Upload a file
+     * @request PUT:/storages/{id}/files/upload
+     */
+    uploadStorageFile: (
+      id: string,
+      query: {
+        /** Replace an existing file */
+        overwrite?: boolean;
+        /** Destination, including the file name */
+        path: string;
+      },
+      data: File,
+      params: RequestParams = {},
+    ) =>
+      this.request<StorageEntry, ErrorModel>({
+        path: `/storages/${id}/files/upload`,
+        method: "PUT",
+        query: query,
+        body: data,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Replaces the file. With expected_modified, refuses (409) if it changed since it was read. With create, makes a new file and refuses if one exists.
+     *
+     * @tags Storage files
+     * @name WriteStorageFile
+     * @summary Save a text file
+     * @request PUT:/storages/{id}/files/content
+     */
+    writeStorageFile: (
+      id: string,
+      data: WriteStorageFileRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<StorageEntry, ErrorModel>({
+        path: `/storages/${id}/files/content`,
+        method: "PUT",
         body: data,
         type: ContentType.Json,
         format: "json",
