@@ -395,7 +395,7 @@ function Bar({
   }
 
   return (
-    <div className="@container flex items-center gap-2">
+    <div className="@container flex flex-wrap items-center gap-2">
       {tabSwitch}
       {tabSwitch && filters && <span className="mx-1 h-5 w-px bg-border" />}
       {filters && (

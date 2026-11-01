@@ -161,7 +161,7 @@ export function Loading({ phone }: { phone: boolean }) {
   if (phone) {
     return (
       <div className="flex flex-col gap-3 px-4 pt-4">
-        <Skeleton className="h-32 rounded-2xl" />
+        <Skeleton className="h-11 rounded-lg" />
         {Array.from({ length: 6 }, (_, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: static placeholders
           <Skeleton key={i} className="h-14 rounded-lg" />
@@ -171,7 +171,7 @@ export function Loading({ phone }: { phone: boolean }) {
   }
   return (
     <>
-      <Skeleton className="h-[4.5rem] rounded-2xl" />
+      <Skeleton className="h-9 rounded-lg" />
       <Skeleton className="h-80 rounded-2xl" />
     </>
   )
@@ -292,71 +292,6 @@ export function SheetItems({
         ))}
       </ul>
     ))
-}
-
-// A summary strip: counts across the top, some of them filters.
-export type Cell = {
-  label: string
-  value: ReactNode
-  sub?: string
-  tone?: "warning" | "success"
-  active?: boolean
-  onClick?: () => void
-}
-
-export function Summary({ cells }: { cells: Cell[] }) {
-  return (
-    <div className="grid grid-cols-2 divide-border border-border max-md:mt-4 max-md:border-y md:grid-cols-4 md:divide-x md:rounded-2xl md:border">
-      {cells.map((c, i) => {
-        const content = (
-          <>
-            <span className="flex items-baseline gap-2">
-              <span
-                className={cn(
-                  "text-subheading font-medium whitespace-nowrap tabular-nums",
-                  c.tone === "warning" && "text-warning",
-                  c.tone === "success" && "text-success",
-                )}
-              >
-                {c.value}
-              </span>
-              {c.sub && (
-                <span className="truncate text-caption text-ash tabular-nums max-md:hidden">
-                  {c.sub}
-                </span>
-              )}
-            </span>
-            <span className="w-full truncate text-caption text-muted-foreground">
-              {c.label}
-            </span>
-          </>
-        )
-        const className = cn(
-          "flex min-h-16 min-w-0 flex-col items-start justify-center px-4 py-3 text-start max-md:odd:border-e md:px-5 max-md:[&:nth-child(-n+2)]:border-b",
-          i === 0 && "md:rounded-s-2xl",
-          i === cells.length - 1 && "md:rounded-e-2xl",
-        )
-        return c.onClick ? (
-          <button
-            key={c.label}
-            type="button"
-            aria-pressed={c.active}
-            onClick={c.onClick}
-            className={cn(
-              className,
-              "outline-none hover:bg-subtle active:bg-muted aria-pressed:bg-subtle",
-            )}
-          >
-            {content}
-          </button>
-        ) : (
-          <div key={c.label} className={className}>
-            {content}
-          </div>
-        )
-      })}
-    </div>
-  )
 }
 
 // A label/value block for phone sheets.

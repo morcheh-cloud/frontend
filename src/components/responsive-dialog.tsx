@@ -22,6 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { cn } from "@/lib/utils"
 
 // A centred dialog on desktop, a bottom sheet on phones. Drive `open` with
 // useOpen so Back closes it.
@@ -31,6 +32,7 @@ export function ResponsiveDialog({
   title,
   description,
   footer,
+  className,
   children,
 }: {
   open: boolean
@@ -38,6 +40,8 @@ export function ResponsiveDialog({
   title: string
   description?: string
   footer?: ReactNode
+  // Desktop dialog only, e.g. a wider `sm:max-w-lg`.
+  className?: string
   children: ReactNode
 }) {
   const isMobile = useIsMobile()
@@ -62,7 +66,7 @@ export function ResponsiveDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => onOpenChange(next)}>
-      <DialogContent className="gap-5 p-6 sm:max-w-md">
+      <DialogContent className={cn("gap-5 p-6 sm:max-w-md", className)}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}

@@ -20,6 +20,7 @@ import { Switch } from "@/components/ui/switch"
 import { useOpen } from "@/hooks/useOpen"
 import type { Fail2BanJail } from "@/lib/services"
 import { cn } from "@/lib/utils"
+import { BarSlot } from "../../components/bar-slots"
 import {
   Empty,
   Facts,
@@ -55,14 +56,17 @@ export function JailsTab() {
   const list = filterJails(a.overview.jails, show, filters.q)
 
   const toolbar = (
-    <div className="flex flex-col gap-3 max-md:px-4 max-md:pt-4 md:flex-row md:items-center">
-      <SearchBox
-        value={filters.q}
-        onChange={(q) => setFilters({ q: q || null })}
-        placeholder="Search jails"
-        label="Search jails"
-      />
-      <div className="flex items-center gap-2">
+    <>
+      <BarSlot slot="search">
+        <SearchBox
+          value={filters.q}
+          onChange={(q) => setFilters({ q: q || null })}
+          placeholder="Search jails"
+          label="Search jails"
+          className="w-full md:w-full"
+        />
+      </BarSlot>
+      <BarSlot slot="filters">
         <Segmented
           label="Jails to show"
           items={[
@@ -72,18 +76,20 @@ export function JailsTab() {
           value={show}
           onChange={(v) => setFilters({ show: v === "enabled" ? null : v })}
         />
-        <span className="flex-1" />
+      </BarSlot>
+      <BarSlot slot="actions">
         <Button
-          size="sm"
-          className="max-md:h-10"
+          size={phone ? "icon-lg" : "default"}
+          className="md:h-9"
+          aria-label="Add jail"
           disabled={a.overview.access === "user"}
           onClick={() => a.editJail(null)}
         >
           <Plus />
-          Add jail
+          {!phone && "Add jail"}
         </Button>
-      </div>
-    </div>
+      </BarSlot>
+    </>
   )
 
   let body: React.ReactNode

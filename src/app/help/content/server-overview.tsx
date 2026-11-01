@@ -91,7 +91,12 @@ export const serverOverview: GuideSection[] = [
         </li>
         <li>
           <UI>Connection</UI>: host, port, user, authentication and the trusted
-          host key fingerprint.
+          host key fingerprint. <UI>Credentials</UI> shows the password or key
+          itself; see{" "}
+          <See guide="servers" section="credentials">
+            SSH credentials
+          </See>
+          .
         </li>
         <li>
           <UI>Health</UI>: status, latency, and when it was last checked and

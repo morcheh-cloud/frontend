@@ -1,13 +1,6 @@
 "use client"
 
-import {
-  Ban,
-  Copy,
-  History,
-  RefreshCw,
-  Search,
-  TriangleAlert,
-} from "lucide-react"
+import { Ban, Copy, History, Search, TriangleAlert } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 
 import { BottomSheet } from "@/components/bottom-sheet"
@@ -16,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useOpen } from "@/hooks/useOpen"
 import type { Event } from "@/lib/services"
 import { cn } from "@/lib/utils"
+import { BarSlot } from "../../components/bar-slots"
 import {
   Empty,
   type Item,
@@ -63,16 +57,19 @@ export function ActivityTab() {
   const log = query.data
 
   const toolbar = (
-    <div className="flex flex-col gap-3 max-md:px-4 max-md:pt-4 md:flex-row md:items-center">
+    <>
       {view === "events" && (
-        <SearchBox
-          value={filters.q}
-          onChange={(q) => setFilters({ q: q || null })}
-          placeholder="Search address or jail"
-          label="Search activity"
-        />
+        <BarSlot slot="search">
+          <SearchBox
+            value={filters.q}
+            onChange={(q) => setFilters({ q: q || null })}
+            placeholder="Search address or jail"
+            label="Search activity"
+            className="w-full md:w-full"
+          />
+        </BarSlot>
       )}
-      <div className="flex [scrollbar-width:none] items-center gap-2 overflow-x-auto">
+      <BarSlot slot="filters">
         {view === "events" && (
           <Segmented
             label="Events to show"
@@ -97,19 +94,8 @@ export function ActivityTab() {
           value={view}
           onChange={setView}
         />
-      </div>
-      <span className="flex-1 max-md:hidden" />
-      <Button
-        variant="ghost"
-        size="sm"
-        className="max-md:hidden"
-        disabled={query.isFetching}
-        onClick={() => query.refetch()}
-      >
-        <RefreshCw className={cn(query.isFetching && "animate-spin")} />
-        Reload log
-      </Button>
-    </div>
+      </BarSlot>
+    </>
   )
 
   if (!log) {

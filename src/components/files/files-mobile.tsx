@@ -16,6 +16,7 @@ import {
   Folder,
   FolderPlus,
   FolderUp,
+  HardDriveDownload,
   House,
   ListChecks,
   Loader2,
@@ -902,6 +903,14 @@ function AddSheet({ close }: { close: () => void }) {
           icon={<FolderUp />}
           label="Upload a folder"
           onClick={pick(uploads.pickFolder)}
+        />
+      </li>
+      <li>
+        <SheetAction
+          icon={<HardDriveDownload />}
+          label="From a server or storage"
+          description="Straight from there, not through this phone"
+          onClick={() => afterClose(close, actions.importFrom)}
         />
       </li>
       <li>

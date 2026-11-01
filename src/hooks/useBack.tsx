@@ -8,7 +8,7 @@ import { useEffect } from "react"
 // steps back is a Back; anything else is a push.
 const stack: string[] = []
 
-// Mount once in the panel layout.
+// Mount once in each shell layout (panel, help).
 export function RouteHistory() {
   const pathname = usePathname()
   useEffect(() => {
@@ -41,5 +41,19 @@ export function useBackOr(fallback: string) {
   return () => {
     if (stack.length > 1) router.back()
     else router.replace(fallback)
+  }
+}
+
+/**
+ * Leaves a section that has its own shell (help): back to the last page
+ * outside `prefix`, else `fallback`.
+ */
+export function useLeave(prefix: string, fallback: string) {
+  const router = useRouter()
+  return () => {
+    const from = stack.findLast(
+      (p) => p !== prefix && !p.startsWith(`${prefix}/`),
+    )
+    router.push(from ?? fallback)
   }
 }

@@ -14,6 +14,7 @@ import { useState } from "react"
 import { BottomSheet } from "@/components/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { useOpen } from "@/hooks/useOpen"
+import { BarSlot } from "../../components/bar-slots"
 import {
   Empty,
   Facts,
@@ -43,28 +44,33 @@ export function BansTab({ rows }: { rows: BanRow[] }) {
   const canBan = o.jails.some((j) => j.active) && o.access !== "user"
 
   const toolbar = (
-    <div className="flex flex-col gap-3 max-md:px-4 max-md:pt-4 md:flex-row md:items-center">
+    <>
       {rows.length > 0 && (
-        <SearchBox
-          value={filters.q}
-          onChange={(q) => setFilters({ q: q || null })}
-          placeholder="Search addresses"
-          label="Search banned addresses"
-        />
+        <BarSlot slot="search">
+          <SearchBox
+            value={filters.q}
+            onChange={(q) => setFilters({ q: q || null })}
+            placeholder="Search addresses"
+            label="Search banned addresses"
+            className="w-full md:w-full"
+          />
+        </BarSlot>
       )}
-      <span className="flex-1 max-md:hidden" />
       {canBan && (
-        <Button
-          size="sm"
-          variant="outline"
-          className="max-md:h-10"
-          onClick={() => a.ban()}
-        >
-          <Ban />
-          Ban an address
-        </Button>
+        <BarSlot slot="actions">
+          <Button
+            variant="outline"
+            size={phone ? "icon-lg" : "default"}
+            className="md:h-9"
+            aria-label="Ban an address"
+            onClick={() => a.ban()}
+          >
+            <Ban />
+            {!phone && "Ban an address"}
+          </Button>
+        </BarSlot>
       )}
-    </div>
+    </>
   )
 
   let body: React.ReactNode

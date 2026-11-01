@@ -29,7 +29,7 @@ export type GuideMeta = {
 
 // Every guide, in reading order. A new feature ships with its guide: add an
 // entry here (with the routes it covers) and its content in
-// app/(panel)/help/content/. The help index, the article pages and the
+// app/help/content/. The help index, the article pages and the
 // "Guide" link in each page's header follow.
 export const guides: GuideMeta[] = [
   {
@@ -53,6 +53,9 @@ export const guides: GuideMeta[] = [
       "ssh",
       "password",
       "private key",
+      "credentials",
+      "show password",
+      "reveal",
       "folder",
       "tag",
       "favorite",
@@ -215,6 +218,8 @@ export const guides: GuideMeta[] = [
       "backup",
       "transfer",
       "send",
+      "import",
+      "copy from storage",
       "share link",
       "r2",
     ],

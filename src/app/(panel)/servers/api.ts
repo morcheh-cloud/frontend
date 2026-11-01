@@ -91,6 +91,18 @@ export function useServer(id: string) {
   })
 }
 
+// Decrypted SSH secrets: never cached past the layer that shows them, and
+// kept out of ["servers"] so server invalidations don't refetch them.
+export function useCredentials(id: string) {
+  return useQuery({
+    queryKey: ["server-credentials", id],
+    queryFn: () => api.servers.revealServerCredentials(id),
+    gcTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
+  })
+}
+
 export function useFacets() {
   return useQuery({
     queryKey: keys.facets,

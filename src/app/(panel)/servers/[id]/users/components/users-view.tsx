@@ -182,7 +182,7 @@ function Bar({ refresh }: { refresh: ReactNode }) {
   }
 
   return (
-    <div className="@container flex items-center gap-2">
+    <div className="@container flex flex-wrap items-center gap-2">
       {tabs}
       {search && <span className="mx-1 h-5 w-px shrink-0 bg-border" />}
       {search}

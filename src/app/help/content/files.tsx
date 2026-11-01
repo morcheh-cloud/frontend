@@ -109,7 +109,11 @@ export const files: GuideSection[] = [
         </P>
         <P>
           <UI>Send to…</UI> copies (or moves) the selection straight to another
-          server or a storage, without going through your computer: see{" "}
+          server or a storage, without going through your computer. The other
+          way round, <UI>Upload</UI> › <UI>From a server or storage…</UI> (on
+          phones: <UI>+</UI> › <UI>From a server or storage</UI>; or right-click
+          an empty spot) brings files from elsewhere into the folder you're in:
+          see{" "}
           <See guide="storage" section="send">
             sending files
           </See>

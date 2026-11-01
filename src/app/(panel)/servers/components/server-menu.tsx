@@ -5,6 +5,7 @@ import {
   CopyPlus,
   FolderInput,
   KeyRound,
+  KeySquare,
   Pencil,
   Star,
   StarOff,
@@ -60,6 +61,12 @@ function useItems(
       icon: <Terminal />,
       label: "Copy SSH command",
       onSelect: () => a.copySsh(server),
+    },
+    {
+      key: "credentials",
+      icon: <KeySquare />,
+      label: "Show SSH credentials…",
+      onSelect: () => a.showCredentials(server),
     },
   ]
   if (server.status === "host_key_mismatch") {

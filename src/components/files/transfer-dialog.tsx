@@ -1,7 +1,7 @@
 "use client"
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ChevronRight, HardDrive, Loader2, Server } from "lucide-react"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { Loader2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -10,32 +10,18 @@ import { ResponsiveDialog } from "@/components/responsive-dialog"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
-import { Skeleton } from "@/components/ui/skeleton"
 import { type ApiError, api } from "@/lib/api"
+import {
+  filesKey,
+  type Target,
+  TargetIcon,
+  TargetLabel,
+  TargetList,
+} from "./endpoints"
 import { FolderPicker } from "./folder-picker"
 import { listerFor } from "./listers"
 import { formatSize } from "./meta"
-import { type Endpoint, type FileEntry, useSource } from "./source"
-
-type Target = {
-  endpoint: Endpoint
-  id: string
-  name: string
-  detail: string
-  kind: "server" | "storage"
-  // Where the path field starts.
-  path: string
-  readOnly: boolean
-  // Top-level folders are buckets: nothing can go at "/".
-  buckets: boolean
-}
-
-const endpointId = (e: Endpoint) =>
-  "server_id" in e ? e.server_id : e.storage_id
-
-// Query key of the other end's file lists, to refresh them after a transfer.
-const filesKey = (t: Target) =>
-  t.kind === "server" ? ["files", t.id] : ["storage-files", t.id]
+import { type FileEntry, useSource } from "./source"
 
 // Copy (or move) files to another server or storage. The backend streams
 // them, so nothing goes through the browser.
@@ -74,64 +60,6 @@ export function TransferDialog({
   )
 }
 
-function useTargets() {
-  const source = useSource()
-  const self = endpointId(source.endpoint)
-  const servers = useQuery({
-    queryKey: ["servers", "transfer-targets"],
-    queryFn: () => api.servers.listServers({ limit: 500 }),
-  })
-  const storages = useQuery({
-    queryKey: ["storages"],
-    queryFn: () => api.storage.listStorages(),
-  })
-  const targets: Target[] = [
-    ...(storages.data?.items ?? []).map((s) => ({
-      endpoint: { storage_id: s.id },
-      id: s.id,
-      name: s.name,
-      detail: `${s.protocol.toUpperCase()} · ${s.bucket ? `${s.host || s.provider} / ${s.bucket}` : s.host}`,
-      kind: "storage" as const,
-      // Every bucket is a top-level folder: let the user pick one.
-      path: s.capabilities.buckets ? "" : "/",
-      readOnly: s.read_only,
-      buckets: s.capabilities.buckets,
-    })),
-    ...(servers.data?.items ?? []).map((s) => ({
-      endpoint: { server_id: s.id },
-      id: s.id,
-      name: s.name,
-      detail: s.host,
-      kind: "server" as const,
-      path: "/tmp",
-      readOnly: false,
-      buckets: false,
-    })),
-  ].filter((t) => t.id !== self)
-  return {
-    targets,
-    loading: servers.isPending || storages.isPending,
-    error: servers.error ?? storages.error,
-  }
-}
-
-function TargetLabel({ target: t }: { target: Target }) {
-  const Icon = t.kind === "server" ? Server : HardDrive
-  return (
-    <>
-      <Icon className="size-4 shrink-0 text-muted-foreground" />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-body-sm font-medium">
-          {t.name}
-        </span>
-        <span className="block truncate text-caption text-ash">
-          {t.readOnly ? "Read-only" : t.detail}
-        </span>
-      </span>
-    </>
-  )
-}
-
 function TransferForm({
   entries,
   initialMove,
@@ -145,7 +73,6 @@ function TransferForm({
 }) {
   const source = useSource()
   const qc = useQueryClient()
-  const { targets, loading, error } = useTargets()
   const [picked, setPicked] = useState<Target | null>(null)
   const [path, setPath] = useState("")
   const [move, setMove] = useState(initialMove)
@@ -246,7 +173,7 @@ function TransferForm({
             }}
             disabled={(p) => picked.buckets && p === "/"}
             rootLabel={picked.name}
-            rootIcon={picked.kind === "server" ? <Server /> : <HardDrive />}
+            rootIcon={<TargetIcon target={picked} />}
           />
           <Field
             label="Folder"
@@ -269,48 +196,11 @@ function TransferForm({
           </Field>
         </div>
       ) : (
-        <div className="flex flex-col gap-1.5">
-          <p className="text-body-sm font-medium">Destination</p>
-          <div
-            role="radiogroup"
-            aria-label="Destination"
-            className="max-h-72 overflow-y-auto rounded-lg border border-input"
-          >
-            {loading ? (
-              <div className="flex flex-col gap-3 p-3">
-                <Skeleton className="h-4 w-40" />
-                <Skeleton className="h-4 w-32" />
-              </div>
-            ) : error ? (
-              <p className="p-3 text-body-sm text-destructive">
-                {error.message}
-              </p>
-            ) : targets.length === 0 ? (
-              <p className="p-3 text-body-sm text-muted-foreground">
-                Add another server or a storage first.
-              </p>
-            ) : (
-              <ul className="divide-y divide-border">
-                {targets.map((t) => (
-                  <li key={t.id}>
-                    {/* biome-ignore lint/a11y/useSemanticElements: a list of rich options; radio inputs can't hold two lines and an icon */}
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={false}
-                      disabled={t.readOnly}
-                      onClick={() => pick(t)}
-                      className="flex min-h-12 w-full items-center gap-3 px-3 py-2 text-start outline-none hover:bg-subtle focus-visible:bg-muted disabled:opacity-50 max-md:min-h-14"
-                    >
-                      <TargetLabel target={t} />
-                      <ChevronRight className="size-4 shrink-0 text-ash" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
+        <TargetList
+          label="Destination"
+          disabled={(t) => t.readOnly}
+          onPick={pick}
+        />
       )}
 
       <div className="flex flex-col gap-3">

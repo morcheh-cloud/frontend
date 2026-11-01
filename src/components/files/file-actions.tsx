@@ -20,6 +20,7 @@ import type { ApiError } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { download, useFileOps } from "./api"
 import { FolderPicker, insideAny } from "./folder-picker"
+import { ImportDialog } from "./import-dialog"
 import {
   basename,
   dirname,
@@ -46,6 +47,7 @@ type Dialog =
   | { kind: "info"; entry: FileEntry }
   | { kind: "share"; entry: FileEntry }
   | { kind: "transfer"; entries: FileEntry[]; move: boolean }
+  | { kind: "import" }
 
 type Actions = {
   newFolder: () => void
@@ -61,6 +63,8 @@ type Actions = {
   share: (entry: FileEntry) => void
   // Copy or move to another server or storage.
   transfer: (entries: FileEntry[], move?: boolean) => void
+  // Copy or move from another server or storage into `dir`.
+  importFrom: () => void
   // into: a folder to unpack into instead of the archive's own.
   extract: (entry: FileEntry, into?: string) => void
   copyPath: (entry: FileEntry) => void
@@ -137,6 +141,7 @@ export function FileActionsProvider({
     share: (entry) => show({ kind: "share", entry }),
     transfer: (entries, move = false) =>
       entries.length && show({ kind: "transfer", entries, move }),
+    importFrom: () => show({ kind: "import" }),
     extract: (entry, into) => {
       const id = toast.loading(`Extracting ${entry.name}…`)
       ops.extract.mutate(
@@ -424,6 +429,12 @@ export function FileActionsProvider({
         entries={d?.kind === "transfer" ? d.entries : []}
         move={d?.kind === "transfer" && d.move}
         onMoved={onRemoved}
+      />
+
+      <ImportDialog
+        open={open && d?.kind === "import"}
+        setOpen={setOpen}
+        dir={dir}
       />
     </ActionsContext.Provider>
   )

@@ -18,6 +18,7 @@ import {
   FolderInput,
   FolderPlus,
   FolderUp,
+  HardDriveDownload,
   House,
   Loader2,
   RefreshCw,
@@ -161,6 +162,7 @@ export function FilesDesktop() {
 
 function UploadMenu() {
   const files = useFiles()
+  const actions = useFileActions()
   const uploads = useUploads()
   const dir = files.listing?.path ?? ""
   return (
@@ -170,12 +172,16 @@ function UploadMenu() {
       >
         <Upload /> Upload <ChevronDown className="text-ash" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44">
+      <DropdownMenuContent align="end" className="w-60">
         <DropdownMenuItem onClick={() => uploads.pickFiles(dir)}>
           <FilePlus /> Files…
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => uploads.pickFolder(dir)}>
           <FolderUp /> Folder…
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={actions.importFrom}>
+          <HardDriveDownload /> From a server or storage…
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -982,6 +988,9 @@ function BackgroundMenu() {
           </ContextMenuItem>
           <ContextMenuItem onClick={() => uploads.pickFolder(dir)}>
             <FolderUp /> Upload folder…
+          </ContextMenuItem>
+          <ContextMenuItem onClick={actions.importFrom}>
+            <HardDriveDownload /> Copy from a server or storage…
           </ContextMenuItem>
           {files.clipboard && (
             <>

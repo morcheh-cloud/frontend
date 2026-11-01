@@ -36,6 +36,7 @@ import {
   useTagServers,
   useUpdateServer,
 } from "../api"
+import { CredentialsLayer } from "./credentials"
 import { Field, FolderSelect, TagInput } from "./fields"
 import { buildTree, flatten, subtreeIds } from "./folder-tree"
 import { osLabel, sshCommand, statusMeta } from "./meta"
@@ -54,6 +55,7 @@ type Actions = {
   check: (server: Pick<Server, "id" | "name">) => void
   trustHostKey: (server: Server) => void
   copySsh: (server: Server) => void
+  showCredentials: (server: Server) => void
   duplicate: (server: Server) => void
   toggleFavorite: (server: Server) => void
   deleteServers: (
@@ -106,6 +108,8 @@ export function ServerActionsProvider({ children }: { children: ReactNode }) {
   const [toMove, setToMove] = useState<{ ids: string[]; done?: () => void }>({
     ids: [],
   })
+  const [credsOpen, setCredsOpen] = useOpen("server-credentials")
+  const [credsServer, setCredsServer] = useState<Server | null>(null)
   const [tagsOpen, setTagsOpen] = useOpen("servers-tags")
   const [toTag, setToTag] = useState<{ servers: Server[]; done?: () => void }>({
     servers: [],
@@ -153,6 +157,10 @@ export function ServerActionsProvider({ children }: { children: ReactNode }) {
       } catch {
         toast.error("Couldn't access the clipboard")
       }
+    },
+    showCredentials: (server) => {
+      setCredsServer(server)
+      setCredsOpen(true)
     },
     duplicate: (server) =>
       duplicateMutation.mutate(server.id, {
@@ -234,6 +242,23 @@ export function ServerActionsProvider({ children }: { children: ReactNode }) {
         onDone={() => {
           setTagsOpen(false)
           toTag.done?.()
+        }}
+      />
+
+      <CredentialsLayer
+        open={credsOpen}
+        onOpenChange={setCredsOpen}
+        server={credsServer}
+        onEdit={() => {
+          const server = credsServer
+          if (!server) return
+          // Close first so the form gets its own Back entry.
+          window.addEventListener(
+            "popstate",
+            () => actions.editServer(server),
+            { once: true },
+          )
+          setCredsOpen(false)
         }}
       />
 

@@ -1,6 +1,13 @@
 "use client"
 
-import { Activity, ChevronRight, Pencil, Star, Terminal } from "lucide-react"
+import {
+  Activity,
+  ChevronRight,
+  KeySquare,
+  Pencil,
+  Star,
+  Terminal,
+} from "lucide-react"
 import Link from "next/link"
 import type { ReactNode } from "react"
 
@@ -68,14 +75,24 @@ function DesktopOverview() {
         <Card
           title="Connection"
           action={
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => actions.editServer(server)}
-            >
-              <Pencil />
-              Edit
-            </Button>
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => actions.showCredentials(server)}
+              >
+                <KeySquare />
+                Credentials
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => actions.editServer(server)}
+              >
+                <Pencil />
+                Edit
+              </Button>
+            </>
           }
         >
           <Facts facts={facts.connection} />
@@ -143,7 +160,7 @@ function Card({
     <section className="rounded-2xl border border-border bg-card p-6">
       <div className="mb-4 flex h-7 items-center justify-between gap-2">
         <h2 className="text-body font-medium">{title}</h2>
-        {action && <div className="-me-2">{action}</div>}
+        {action && <div className="-me-2 flex gap-1">{action}</div>}
       </div>
       {children}
     </section>
@@ -236,6 +253,21 @@ function MobileOverview() {
       </Group>
       <Group title="Connection">
         <FactRows facts={facts.connection} />
+        <li>
+          <button
+            type="button"
+            onClick={() => actions.showCredentials(server)}
+            className="flex min-h-12 w-full items-center gap-3 px-4 py-2 text-start outline-none active:bg-muted"
+          >
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-strong">
+              <KeySquare className="size-4" />
+            </span>
+            <span className="min-w-0 flex-1 truncate text-body">
+              Show SSH credentials
+            </span>
+            <ChevronRight className="size-4 shrink-0 text-ash rtl:rotate-180" />
+          </button>
+        </li>
       </Group>
       <Group title="Organization">
         <FactRows facts={facts.organization} />

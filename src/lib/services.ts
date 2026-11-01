@@ -1622,6 +1622,31 @@ export interface ServerBody {
   username: string;
 }
 
+export interface ServerCredentials {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  auth_method: "password" | "private_key";
+  host: string;
+  /** Trusted host key in authorized_keys format; empty until the first successful check */
+  host_key: string;
+  host_key_fingerprint: string;
+  /** The private key's passphrase; empty when it has none */
+  passphrase: string;
+  /** Empty unless auth_method=password */
+  password: string;
+  /** @format int32 */
+  port: number;
+  /** Empty unless auth_method=private_key */
+  private_key: string;
+  /** authorized_keys line derived from the private key; empty when it can't be parsed */
+  public_key: string;
+  public_key_fingerprint: string;
+  username: string;
+}
+
 export interface ServerItemsOutputBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -3367,6 +3392,22 @@ export class Api<
         path: `/servers`,
         method: "GET",
         query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Opens the stored secrets of the chosen auth method. POST and `Cache-Control: no-store` so nothing caches them.
+     *
+     * @tags Servers
+     * @name RevealServerCredentials
+     * @summary Reveal a server's SSH credentials
+     * @request POST:/servers/{id}/credentials
+     */
+    revealServerCredentials: (id: string, params: RequestParams = {}) =>
+      this.request<ServerCredentials, ErrorModel>({
+        path: `/servers/${id}/credentials`,
+        method: "POST",
         format: "json",
         ...params,
       }),

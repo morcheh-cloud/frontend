@@ -1,5 +1,6 @@
 "use client"
 
+import { useIsFetching, useQueryClient } from "@tanstack/react-query"
 import {
   FileCode,
   FlaskConical,
@@ -22,6 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { useOpen } from "@/hooks/useOpen"
 import type { Fail2BanOverview } from "@/lib/services"
 import { cn } from "@/lib/utils"
+import { BarSlots, SlotTarget, useSlotFilled } from "../../components/bar-slots"
 import {
   Empty,
   type Item,
@@ -31,11 +33,10 @@ import {
   Notices,
   Segmented,
   SheetItems,
-  Summary,
 } from "../../components/parts"
 import { SectionActions } from "../../components/section-actions"
 import { useServerPage } from "../../components/server-page"
-import { useFail2ban } from "../api"
+import { f2bKeys, useFail2ban } from "../api"
 import { ActivityTab } from "./activity"
 import { BansTab } from "./bans"
 import { F2bActionsProvider, useF2bActions } from "./fail2ban-actions"
@@ -47,17 +48,21 @@ export function Fail2banView() {
   const { server, phone } = useServerPage()
   const query = useFail2ban(server.id)
   const o = query.data
+  const qc = useQueryClient()
+  // Also reloads the log while Activity shows it.
+  const fetching = useIsFetching({ queryKey: f2bKeys.all(server.id) }) > 0
 
   const refresh = (
     <Button
       variant="outline"
-      size="sm"
-      className="max-md:h-10 max-md:flex-1"
-      disabled={query.isFetching}
-      onClick={() => query.refetch()}
+      size="icon"
+      className="max-md:size-11 md:size-9"
+      aria-label="Refresh"
+      title="Refresh"
+      disabled={fetching}
+      onClick={() => qc.invalidateQueries({ queryKey: f2bKeys.all(server.id) })}
     >
-      <RefreshCw className={cn(query.isFetching && "animate-spin")} />
-      Refresh
+      <RefreshCw className={cn(fetching && "animate-spin")} />
     </Button>
   )
 
@@ -262,9 +267,13 @@ function Manage() {
         groups={items}
         label="Manage fail2ban"
         trigger={
-          <Button variant="outline" size="sm">
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-9"
+            title="Manage fail2ban"
+          >
             <Settings2 />
-            Manage
           </Button>
         }
       />
@@ -274,12 +283,11 @@ function Manage() {
     <>
       <Button
         variant="outline"
-        size="sm"
-        className="h-10 flex-1"
+        size="icon-lg"
+        aria-label="Manage fail2ban"
         onClick={() => setOpen(true)}
       >
         <Settings2 />
-        Manage
       </Button>
       <BottomSheet open={open} onOpenChange={setOpen} title="Fail2ban">
         <SheetItems groups={items} onOpenChange={setOpen} />
@@ -291,53 +299,109 @@ function Manage() {
 function Content({ refresh }: { refresh: ReactNode }) {
   const a = useF2bActions()
   const o = a.overview
-  const { filters, setFilters } = useF2bFilters()
+  const { filters } = useF2bFilters()
   const bans = banRows(o)
-  const tab = filters.tab
-  const setTab = (t: Tab) =>
-    setFilters({ tab: t === "jails" ? null : t, q: null })
-
-  const tabs: { value: Tab; label: string }[] = [
-    { value: "jails", label: `Jails · ${o.jails.length}` },
-    { value: "bans", label: `Bans · ${bans.length}` },
-    { value: "settings", label: "Settings" },
-    { value: "activity", label: "Activity" },
-  ]
 
   let body: ReactNode
-  if (tab === "bans") body = <BansTab rows={bans} />
-  else if (tab === "settings") body = <SettingsTab />
-  else if (tab === "activity") body = <ActivityTab />
+  if (filters.tab === "bans") body = <BansTab rows={bans} />
+  else if (filters.tab === "settings") body = <SettingsTab />
+  else if (filters.tab === "activity") body = <ActivityTab />
   else body = <JailsTab />
 
   return (
-    <>
-      <SectionActions>
-        {refresh}
-        <Manage />
-      </SectionActions>
+    <BarSlots>
       <div className="flex flex-col gap-4 max-md:gap-0 max-md:pb-6">
-        <OverviewSummary o={o} bans={bans.length} onTab={setTab} />
+        <Bar refresh={refresh} bans={bans.length} />
         <Notices notes={notes(o, a)} />
-        <div className="flex [scrollbar-width:none] overflow-x-auto max-md:px-4 max-md:pt-4">
-          <Segmented label="Show" items={tabs} value={tab} onChange={setTab} />
-        </div>
         {body}
       </div>
-    </>
+    </BarSlots>
   )
 }
 
-function OverviewSummary({
-  o,
-  bans,
-  onTab,
-}: {
-  o: Fail2BanOverview
-  bans: number
-  onTab: (t: Tab) => void
-}) {
-  const { filters } = useF2bFilters()
+// Everything above the content in one row: tabs, the tab's own search,
+// filters and button (portalled in through <BarSlot>), the service's state as
+// quiet text, Refresh and Manage. Phones stack it: search + buttons, then
+// scrolling chips.
+function Bar({ refresh, bans }: { refresh: ReactNode; bans: number }) {
+  const { phone } = useServerPage()
+  const o = useF2bActions().overview
+  const { filters, setFilters } = useF2bFilters()
+  const searching = useSlotFilled("search")
+
+  const tabs = (
+    <Segmented
+      label="Show"
+      items={[
+        { value: "jails", label: `Jails · ${o.jails.length}` },
+        { value: "bans", label: `Bans · ${o.responding ? bans : "—"}` },
+        { value: "settings", label: "Settings" },
+        { value: "activity", label: "Activity" },
+      ]}
+      value={filters.tab}
+      onChange={(t: Tab) =>
+        setFilters({ tab: t === "jails" ? null : t, q: null })
+      }
+    />
+  )
+  const search = (
+    <SlotTarget
+      slot="search"
+      className="flex min-w-0 flex-1 empty:hidden md:max-w-72 md:min-w-36"
+    />
+  )
+  const filterSlot = (
+    <SlotTarget
+      slot="filters"
+      className="flex shrink-0 items-center gap-2 empty:hidden"
+    />
+  )
+  const actions = (
+    <SlotTarget
+      slot="actions"
+      className="flex shrink-0 items-center gap-2 empty:hidden"
+    />
+  )
+
+  if (phone) {
+    return (
+      <div className="flex flex-col gap-3 px-4 pt-4">
+        <div className="flex items-center gap-2">
+          {search}
+          {!searching && <State bans={bans} className="flex-1" />}
+          {actions}
+          {refresh}
+          <Manage />
+        </div>
+        <div className="-mx-4 flex [scrollbar-width:none] gap-2 overflow-x-auto px-4">
+          {tabs}
+          {filterSlot}
+        </div>
+        {searching && <State bans={bans} />}
+      </div>
+    )
+  }
+
+  return (
+    <div className="@container flex flex-wrap items-center gap-2">
+      {tabs}
+      {searching && <span className="mx-1 h-5 w-px shrink-0 bg-border" />}
+      {search}
+      {filterSlot}
+      <div className="ms-auto flex shrink-0 items-center gap-2">
+        <State bans={bans} className="me-2 hidden @5xl:flex" />
+        {actions}
+        {refresh}
+        <Manage />
+      </div>
+    </div>
+  )
+}
+
+// Running or not, how many jails are on, and failures being counted, as one
+// quiet line. Details sit in the tooltips.
+function State({ bans, className }: { bans: number; className?: string }) {
+  const o = useF2bActions().overview
   const active = o.jails.filter((j) => j.active).length
   const failing = o.jails.reduce(
     (n, j) => n + (j.status?.currently_failed ?? 0),
@@ -345,37 +409,39 @@ function OverviewSummary({
   )
   const total = o.jails.reduce((n, j) => n + (j.status?.total_banned ?? 0), 0)
   return (
-    <Summary
-      cells={[
-        {
-          label: "Service",
-          value: o.running ? "Running" : "Stopped",
-          tone: o.running ? undefined : "warning",
-          sub: o.version ? `v${o.version}` : undefined,
-        },
-        {
-          label: "Jails active",
-          value: active,
-          sub: `of ${o.jails.filter((j) => j.enabled).length} on`,
-          active: filters.tab === "jails",
-          onClick: () => onTab("jails"),
-        },
-        {
-          label: "Banned now",
-          value: o.responding ? bans : "—",
-          sub:
-            o.responding && total > bans ? `${total} since start` : undefined,
-          active: filters.tab === "bans",
-          onClick: () => onTab("bans"),
-        },
-        {
-          label: "Failures being counted",
-          value: o.responding ? failing : "—",
-          active: filters.tab === "activity",
-          onClick: () => onTab("activity"),
-        },
-      ]}
-    />
+    <div
+      className={cn(
+        "flex min-w-0 items-center gap-3 text-caption whitespace-nowrap text-muted-foreground",
+        className,
+      )}
+    >
+      <span
+        className="flex items-center gap-1.5"
+        title={o.version ? `fail2ban ${o.version}` : undefined}
+      >
+        <span
+          className={cn(
+            "size-1.5 rounded-full",
+            o.running ? "bg-success" : "bg-warning",
+          )}
+        />
+        {o.running ? "Running" : "Stopped"}
+      </span>
+      <span title={`${o.jails.filter((j) => j.enabled).length} turned on`}>
+        {active} active
+      </span>
+      {o.responding && failing > 0 && (
+        <span
+          title={
+            total > bans
+              ? `${total} banned since it started`
+              : "Failed logins counted toward a ban"
+          }
+        >
+          {failing} failing
+        </span>
+      )}
+    </div>
   )
 }
 

@@ -196,6 +196,76 @@ ssh-copy-id -i ~/.ssh/morcheh.pub morcheh@203.0.113.10
     ),
   },
   {
+    id: "credentials",
+    title: "Seeing a server's SSH credentials",
+    body: (
+      <>
+        <P>
+          Morcheh stores passwords and keys encrypted and never shows them in
+          lists. To connect by hand (from your own terminal, an SFTP client, a
+          deploy script), open the credentials on demand:
+        </P>
+        <Steps>
+          {[
+            <P key="1">
+              Open the server, then <UI>⋯</UI> → <UI>Show SSH credentials…</UI>,
+              or <UI>Credentials</UI> on the <UI>Connection</UI> card (on a
+              phone: the <UI>Show SSH credentials</UI> row under Connection).
+              The same item is in each server's menu on the servers list.
+            </P>,
+            <P key="2">
+              Host, port and user are shown as they are. The password, private
+              key and passphrase stay hidden until you press the eye; the copy
+              button works either way.
+            </P>,
+            <P key="3">
+              <UI>Edit credentials</UI> opens the server form to change them.
+            </P>,
+          ]}
+        </Steps>
+        <Table
+          head={["Field", "What it's for"]}
+          rows={[
+            [
+              <UI key="pw">Password</UI>,
+              "The login password (password servers). Also what sudo asks for when the user has no passwordless sudo.",
+            ],
+            [
+              <UI key="pk">Private key</UI>,
+              "The key Morcheh logs in with. The download button saves it as a file for ssh -i.",
+            ],
+            [
+              <UI key="pub">Public key</UI>,
+              "Worked out from the private key, with its fingerprint. Add this line to ~/.ssh/authorized_keys on other servers to log in with the same key.",
+            ],
+            [
+              <UI key="hk">Host key</UI>,
+              "The trusted host key as a known_hosts line, with its fingerprint, so your own ssh trusts the same key.",
+            ],
+          ]}
+        />
+        <Example title="Log in with the saved key from your computer">
+          <P>Save the key with the download button, then:</P>
+          <Code>{`
+chmod 600 ~/Downloads/web-01.key
+ssh -i ~/Downloads/web-01.key -p 22 deploy@10.0.0.12
+`}</Code>
+        </Example>
+        <Warn>
+          Anyone who can open Morcheh can read these. Don't share your screen
+          with a secret visible, and delete a downloaded key once it is in{" "}
+          <C>~/.ssh</C>.
+        </Warn>
+        <Tip>
+          The secrets are fetched only while the window is open and are
+          forgotten when you close it. If it says the credentials can't be
+          decrypted, the backend's <C>SECRETS_KEY</C> changed since they were
+          saved: enter them again with <UI>Edit credentials</UI>.
+        </Tip>
+      </>
+    ),
+  },
+  {
     id: "organize",
     title: "Folders, tags and favorites",
     body: (

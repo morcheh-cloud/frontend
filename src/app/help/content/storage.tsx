@@ -207,6 +207,14 @@ export const storage: GuideSection[] = [
           Morcheh streams the files from one to the other: nothing passes
           through your browser, so it's as fast as the link between them.
         </P>
+        <P>
+          To pull files the other way, open the folder they should land in and
+          choose <UI>Upload</UI> › <UI>From a server or storage…</UI> (phones:{" "}
+          <UI>+</UI> › <UI>From a server or storage</UI>). Pick where they are
+          under <UI>From</UI>, browse its folders, tick the files or folders you
+          want (the ticks stay while you move between folders), then{" "}
+          <UI>Copy here</UI>. A folder with many entries gets a filter box.
+        </P>
         <List>
           <li>Missing folders on the other side are created.</li>
           <li>
@@ -223,6 +231,14 @@ export const storage: GuideSection[] = [
           <P>
             Then in <UI>Files</UI>, open <C>/tmp</C>, choose <UI>Send to…</UI>{" "}
             on the dump, pick your backup bucket, tick <UI>Move</UI>, and send.
+          </P>
+        </Example>
+        <Example title="Restore a backup onto a server">
+          <P>
+            In the server's <UI>Files</UI>, open <C>/tmp</C>, choose{" "}
+            <UI>Upload</UI> › <UI>From a server or storage…</UI>, pick the
+            backup storage, open its bucket, tick yesterday's dump and press{" "}
+            <UI>Copy here</UI>. Then restore it in the terminal.
           </P>
         </Example>
       </>
