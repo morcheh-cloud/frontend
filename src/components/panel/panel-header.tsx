@@ -16,11 +16,12 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { useExtraCrumbs } from "./breadcrumbs"
+import { SearchButton } from "./command/command-palette"
 import { breadcrumbFor } from "./nav"
 import { WithPathname } from "./with-pathname"
 
-// Desktop bar above every panel page: sidebar toggle, where you are and the
-// page's guide. It stays pinned while the page scrolls; sticky things below
+// Desktop bar above every panel page: sidebar toggle, where you are, and at
+// the end the search (⌘K) and the page's guide. It stays pinned while the page scrolls; sticky things below
 // it offset by its height (3rem + 1px border).
 export function PanelHeader() {
   return (
@@ -34,7 +35,10 @@ export function PanelHeader() {
         {(pathname) => (
           <>
             <Crumbs pathname={pathname} />
-            <ContextHelp pathname={pathname} />
+            <div className="ms-auto flex items-center gap-1">
+              <SearchButton />
+              <ContextHelp pathname={pathname} />
+            </div>
           </>
         )}
       </WithPathname>

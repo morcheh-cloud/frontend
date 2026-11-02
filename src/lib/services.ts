@@ -148,6 +148,16 @@ export interface ChownFilesRequest {
   recursive?: boolean;
 }
 
+export interface ClearJobsResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format int64 */
+  deleted: number;
+}
+
 export interface CompressFilesRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -644,15 +654,6 @@ export interface ExtractArchiveRequest {
   path: string;
 }
 
-export interface ExtractResult {
-  /**
-   * A URL to the JSON Schema for this object.
-   * @format uri
-   */
-  $schema?: string;
-  destination: string;
-}
-
 export interface Facet {
   /** @format int32 */
   count: number;
@@ -920,6 +921,28 @@ export interface Fail2BanUninstallBody {
   purge?: boolean;
 }
 
+export interface FetchBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * File name; default is the last part of the URL
+   * @maxLength 255
+   */
+  name?: string;
+  /** Replace a file with that name */
+  overwrite?: boolean;
+  /** Folder to save into */
+  path: string;
+  /**
+   * @minLength 1
+   * @maxLength 4096
+   */
+  url: string;
+}
+
 export interface FileContent {
   /**
    * A URL to the JSON Schema for this object.
@@ -1120,6 +1143,15 @@ export interface HealthOutputBody {
   status: string;
 }
 
+export interface HostNet {
+  hostname: string;
+  interfaces: NetInterface[];
+  /** Default routes, v4 and v6 */
+  routes: NetRoute[];
+  /** The server has no ip tool (iproute2), so its addresses couldn't be read */
+  unsupported: boolean;
+}
+
 export interface IDsBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -1148,6 +1180,68 @@ export interface JailStatus {
   total_banned: number;
   /** @format int64 */
   total_failed: number;
+}
+
+export interface Job {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format date-time */
+  created_at: string;
+  /** Why it failed or was interrupted */
+  error: string;
+  /** @format date-time */
+  finished_at?: string;
+  /** @format uuid */
+  id: string;
+  /** What it does: transfer, compress, extract or fetch */
+  kind: string;
+  /** What it printed (newest last); only on GET /jobs/{id} */
+  log?: string;
+  progress: Progress;
+  /** Servers and storages it touches */
+  refs: string[];
+  /** What it produced; the shape depends on kind */
+  result?: Record<string, any>;
+  /** @format uuid */
+  retry_of?: string;
+  /** @format date-time */
+  started_at?: string;
+  state:
+    | "queued"
+    | "running"
+    | "succeeded"
+    | "failed"
+    | "canceled"
+    | "interrupted";
+  /** Where its output lands */
+  target?: JobPlace;
+  title: string;
+}
+
+export interface JobPlace {
+  /** The server's or storage's name when the job started */
+  name?: string;
+  path: string;
+  /** @format uuid */
+  server_id?: string;
+  /** @format uuid */
+  storage_id?: string;
+}
+
+export interface JobRemoved {
+  id: string;
+}
+
+export interface ListJobsResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: Job[];
 }
 
 export interface ListStoragesResponse {
@@ -1242,6 +1336,53 @@ export interface MoveFilesRequest {
   paths: string[];
 }
 
+export interface NetAddress {
+  family: "ipv4" | "ipv6";
+  ip: string;
+  /** @format int64 */
+  prefix: number;
+  scope: "public" | "private" | "cgnat" | "link" | "host";
+  /** The subnet in CIDR form */
+  subnet: string;
+}
+
+export interface NetInterface {
+  addresses: NetAddress[];
+  /**
+   * Interfaces attached to this bridge (containers, on a Docker bridge)
+   * @format int64
+   */
+  attached: number;
+  kind:
+    | "loopback"
+    | "ethernet"
+    | "wireless"
+    | "bridge"
+    | "container"
+    | "veth"
+    | "vlan"
+    | "bond"
+    | "vpn"
+    | "overlay"
+    | "virtual";
+  /** What it belongs to, when known: a Docker network's name, Tailscale, WireGuard… */
+  label: string;
+  mac: string;
+  /** The bridge or bond it is attached to */
+  master: string;
+  /** @format int64 */
+  mtu: number;
+  name: string;
+  state: "up" | "down" | "unknown";
+}
+
+export interface NetRoute {
+  family: "ipv4" | "ipv6";
+  /** Empty for a route straight out of an interface (VPNs) */
+  gateway: string;
+  interface: string;
+}
+
 export interface Network {
   /**
    * Received over the last second, all interfaces except loopback and virtual ones
@@ -1257,6 +1398,31 @@ export interface Network {
   tx_bytes_per_sec: number;
   /** @format int64 */
   tx_bytes_total: number;
+}
+
+export interface NetworkMap {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format int64 */
+  duration_ms: number;
+  /** One per ordered pair of servers */
+  links: Reach[];
+  networks: Subnet[];
+  /** @format date-time */
+  scanned_at: string;
+  servers: NetworkServer[];
+}
+
+export interface NetworkServer {
+  /** Why it couldn't be read */
+  error: string;
+  host?: HostNet;
+  /** Its interfaces were read and it probed the others */
+  scanned: boolean;
+  server: Server;
 }
 
 export interface OSFacet {
@@ -1417,6 +1583,81 @@ export interface PowerSchedule {
   at: string;
   /** What logged-in users were told */
   message?: string;
+}
+
+export interface Progress {
+  /** The file it's on */
+  current?: string;
+  /**
+   * Bytes done
+   * @format int64
+   */
+  done: number;
+  /**
+   * Files (or other units) done
+   * @format int64
+   */
+  items: number;
+  /**
+   * Files in all; 0 = not known
+   * @format int64
+   */
+  items_total: number;
+  /** What it's doing now */
+  phase?: string;
+  /**
+   * Bytes per second, smoothed
+   * @format double
+   */
+  rate: number;
+  /**
+   * Bytes in all; 0 = not known
+   * @format int64
+   */
+  total: number;
+}
+
+export interface Reach {
+  /** @format uuid */
+  from: string;
+  /**
+   * Round trip on the best path
+   * @format double
+   */
+  ping_ms?: number;
+  probes: ReachProbe[];
+  /** open: the SSH port accepts connections; up: the host answers (ping or a refused connect) but the port doesn't; blocked: nothing answered; unknown: the source couldn't be read, or there was no address to try */
+  status: "open" | "up" | "blocked" | "unknown";
+  /** @format uuid */
+  to: string;
+  /** The best path found */
+  via: "lan" | "vpn" | "host" | "address" | "";
+}
+
+export interface ReachProbe {
+  address: string;
+  /** The connect error, if any */
+  message: string;
+  ping: "ok" | "lost" | "unavailable";
+  /** @format double */
+  ping_ms?: number;
+  /** @format int64 */
+  port: number;
+  /** The route the kernel picked (ip route get) */
+  route: string;
+  /** The shared network's ID, for lan and vpn */
+  subnet: string;
+  /** refused still means the host answered */
+  tcp:
+    | "open"
+    | "refused"
+    | "timeout"
+    | "unreachable"
+    | "dns"
+    | "failed"
+    | "unavailable";
+  /** Why this address was tried: a shared LAN or VPN, the address Morcheh uses, or one of the server's own */
+  via: "lan" | "vpn" | "host" | "address";
 }
 
 export interface RenameFileRequest {
@@ -2476,6 +2717,30 @@ export interface StorageTransferResult {
   files: number;
 }
 
+export interface Subnet {
+  /** Empty for the internet */
+  cidr: string;
+  family: "ipv4" | "ipv6" | "";
+  /** Default gateways inside it */
+  gateways: string[];
+  /** The CIDR; host-only networks (containers) are prefixed with their server's ID */
+  id: string;
+  /** A default route goes out through it */
+  internet: boolean;
+  /** internet gathers the public addresses that share no subnet with another server */
+  kind: "lan" | "vpn" | "public" | "container" | "internet";
+  /** Tailscale, a Docker network's name… */
+  label: string;
+  members: SubnetMember[];
+}
+
+export interface SubnetMember {
+  interface: string;
+  ip: string;
+  /** @format uuid */
+  server_id: string;
+}
+
 export interface TerminalSession {
   /**
    * A URL to the JSON Schema for this object.
@@ -3139,6 +3404,210 @@ export class Api<
         ...params,
       }),
   };
+  jobs = {
+    /**
+     * @description A queued job is dropped at once; a running one stops as soon as it can (its state changes on the stream). 409 when it has already finished.
+     *
+     * @tags Jobs
+     * @name CancelJob
+     * @summary Cancel a job
+     * @request POST:/jobs/{id}/cancel
+     */
+    cancelJob: (id: string, params: RequestParams = {}) =>
+      this.request<Job, ErrorModel>({
+        path: `/jobs/${id}/cancel`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Jobs
+     * @name ClearJobs
+     * @summary Remove finished jobs
+     * @request DELETE:/jobs
+     */
+    clearJobs: (
+      query?: {
+        /**
+         * Only jobs touching this server or storage
+         * @format uuid
+         */
+        ref?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ClearJobsResponse, ErrorModel>({
+        path: `/jobs`,
+        method: "DELETE",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Jobs
+     * @name DeleteJob
+     * @summary Remove a finished job from the list
+     * @request DELETE:/jobs/{id}
+     */
+    deleteJob: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/jobs/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Jobs
+     * @name GetJob
+     * @summary Get a job with its log
+     * @request GET:/jobs/{id}
+     */
+    getJob: (id: string, params: RequestParams = {}) =>
+      this.request<Job, ErrorModel>({
+        path: `/jobs/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Newest first. Finished jobs are kept for 30 days.
+     *
+     * @tags Jobs
+     * @name ListJobs
+     * @summary List background jobs
+     * @request GET:/jobs
+     */
+    listJobs: (
+      query?: {
+        /** Only this kind */
+        kind?: string;
+        /**
+         * @format int32
+         * @min 1
+         * @max 200
+         * @default 50
+         */
+        limit?: number;
+        /**
+         * Only jobs touching this server or storage
+         * @format uuid
+         */
+        ref?: string;
+        /** @default "all" */
+        show?: "all" | "active" | "finished";
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ListJobsResponse, ErrorModel>({
+        path: `/jobs`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Queues a new job with the same settings. Checks (like a name already taken) run again when it starts.
+     *
+     * @tags Jobs
+     * @name RetryJob
+     * @summary Run a finished job again
+     * @request POST:/jobs/{id}/retry
+     */
+    retryJob: (id: string, params: RequestParams = {}) =>
+      this.request<Job, ErrorModel>({
+        path: `/jobs/${id}/retry`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Server-sent events: `job` whenever one is queued, makes progress (about twice a second) or finishes; `removed` when one is deleted (empty id: several were, reload the list). Load GET /jobs once connected; the stream only sends changes.
+     *
+     * @tags Jobs
+     * @name StreamJobs
+     * @summary Stream job changes
+     * @request GET:/jobs/stream
+     */
+    streamJobs: (params: RequestParams = {}) =>
+      this.request<
+        (
+          | {
+              data: Job;
+              /** The event name. */
+              event: "job";
+              /** The event ID. */
+              id?: number | string;
+              /** The retry time in milliseconds. */
+              retry?: number;
+            }
+          | {
+              data: JobRemoved;
+              /** The event name. */
+              event: "removed";
+              /** The event ID. */
+              id?: number | string;
+              /** The retry time in milliseconds. */
+              retry?: number;
+            }
+        )[],
+        ErrorModel
+      >({
+        path: `/jobs/stream`,
+        method: "GET",
+        ...params,
+      }),
+  };
+  network = {
+    /**
+     * @description Each server's interfaces, addresses and default routes (ip over SSH), the subnets they share, and whether each server reaches every other one: a TCP connect to its SSH port and a ping, on their shared LAN/VPN addresses and on the address Morcheh uses. Returns the last scan unless `refresh` is set or there is none; a scan takes a few seconds.
+     *
+     * @tags Network
+     * @name GetNetworkMap
+     * @summary Network map of every server
+     * @request GET:/network/map
+     */
+    getNetworkMap: (
+      query?: {
+        /** Scan again instead of returning the last scan */
+        refresh?: boolean;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<NetworkMap, ErrorModel>({
+        path: `/network/map`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Listening TCP and UDP sockets (ss, else netstat), each with the process holding it, its systemd unit, the Docker/Podman container a published port forwards to, and a best guess at the service. Read-only; runs as root through `sudo -n` when that works without a password, else only the login user's processes are named.
+     *
+     * @tags Network
+     * @name ListPorts
+     * @summary List open ports
+     * @request GET:/servers/{id}/ports
+     */
+    listPorts: (id: string, params: RequestParams = {}) =>
+      this.request<PortsReport, ErrorModel>({
+        path: `/servers/${id}/ports`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+  };
   servers = {
     /**
      * @description Runs connection checks in parallel and returns the updated servers.
@@ -3742,7 +4211,7 @@ export class Api<
       }),
 
     /**
-     * @description All paths must be in one folder. The archive goes next to them unless destination is given; an existing name gets a number.
+     * @description All paths must be in one folder. The archive goes next to them unless destination is given; an existing name gets a number. Runs as a background job (kind `compress`, result FileEntry of the archive).
      *
      * @tags Files
      * @name CompressFiles
@@ -3754,7 +4223,7 @@ export class Api<
       data: CompressFilesRequest,
       params: RequestParams = {},
     ) =>
-      this.request<FileEntry, ErrorModel>({
+      this.request<Job, ErrorModel>({
         path: `/servers/${id}/files/compress`,
         method: "POST",
         body: data,
@@ -3862,7 +4331,7 @@ export class Api<
       }),
 
     /**
-     * @description Handles .tar, .tar.gz/.tgz, .tar.bz2, .tar.xz, .zip and .gz with the server's tar, unzip and gzip. Existing files are overwritten.
+     * @description Handles .tar, .tar.gz/.tgz, .tar.bz2, .tar.xz, .zip and .gz with the server's tar, unzip and gzip. Existing files are overwritten. Runs as a background job (kind `extract`, result ExtractResult).
      *
      * @tags Files
      * @name ExtractArchive
@@ -3874,8 +4343,26 @@ export class Api<
       data: ExtractArchiveRequest,
       params: RequestParams = {},
     ) =>
-      this.request<ExtractResult, ErrorModel>({
+      this.request<Job, ErrorModel>({
         path: `/servers/${id}/files/extract`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The server downloads it itself with curl (or wget), so it never passes through Morcheh or the browser. Only http and https. It's written to a hidden .part file and renamed when complete. Runs as a background job (kind `fetch`, result FileEntry); 409 when the name is taken and overwrite isn't set.
+     *
+     * @tags Files
+     * @name FetchUrl
+     * @summary Download a file from the web onto the server
+     * @request POST:/servers/{id}/files/fetch
+     */
+    fetchUrl: (id: string, data: FetchBody, params: RequestParams = {}) =>
+      this.request<Job, ErrorModel>({
+        path: `/servers/${id}/files/fetch`,
         method: "POST",
         body: data,
         type: ContentType.Json,
@@ -4333,23 +4820,6 @@ export class Api<
         method: "PATCH",
         body: data,
         type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-  };
-  network = {
-    /**
-     * @description Listening TCP and UDP sockets (ss, else netstat), each with the process holding it, its systemd unit, the Docker/Podman container a published port forwards to, and a best guess at the service. Read-only; runs as root through `sudo -n` when that works without a password, else only the login user's processes are named.
-     *
-     * @tags Network
-     * @name ListPorts
-     * @summary List open ports
-     * @request GET:/servers/{id}/ports
-     */
-    listPorts: (id: string, params: RequestParams = {}) =>
-      this.request<PortsReport, ErrorModel>({
-        path: `/servers/${id}/ports`,
-        method: "GET",
         format: "json",
         ...params,
       }),
@@ -5475,7 +5945,7 @@ export class Api<
       }),
 
     /**
-     * @description Each end is a storage or a server (over SFTP). Files stream through Morcheh; two places on one storage copy on the storage itself when it can. Server paths are absolute or relative to the login user's home. A name already in the destination is 409 unless overwrite is set.
+     * @description Each end is a storage or a server (over SFTP). Files stream through Morcheh; two places on one storage copy on the storage itself when it can. Server paths are absolute or relative to the login user's home. A name already in the destination is 409 unless overwrite is set. The request is checked at once, then the copy runs as a background job (kind `transfer`, result StorageTransferResult); follow it on /jobs/stream.
      *
      * @tags Storage files
      * @name TransferFiles
@@ -5483,7 +5953,7 @@ export class Api<
      * @request POST:/storages/transfer
      */
     transferFiles: (data: StorageTransferBody, params: RequestParams = {}) =>
-      this.request<StorageTransferResult, ErrorModel>({
+      this.request<Job, ErrorModel>({
         path: `/storages/transfer`,
         method: "POST",
         body: data,

@@ -19,7 +19,7 @@ export function ContextHelp({ pathname }: { pathname: string }) {
       className={buttonVariants({
         variant: "ghost",
         size: "sm",
-        className: "ms-auto text-muted-foreground",
+        className: "text-muted-foreground",
       })}
     >
       <CircleHelp />

@@ -181,3 +181,13 @@
     stroke-dashoffset: 0;
   }
 }
+
+/* Help: briefly tints the section a search result or link pointed at. */
+@keyframes help-flash {
+  from {
+    background-color: var(--color-brand-soft);
+  }
+  to {
+    background-color: transparent;
+  }
+}

@@ -5,8 +5,8 @@ import Link from "next/link"
 
 import { LogoMark } from "@/components/logo"
 import { Button } from "@/components/ui/button"
-import { Kbd } from "@/components/ui/kbd"
 import { useLeave } from "@/hooks/useBack"
+import { SearchShortcut } from "./home-parts"
 import { useHelpSearch } from "./search"
 
 // Desktop top bar of the help center: brand, search, the way back to the
@@ -35,7 +35,7 @@ export function HelpHeader() {
         >
           <Search className="size-4" />
           <span className="flex-1 text-start">Search guides…</span>
-          <Kbd>Ctrl K</Kbd>
+          <SearchShortcut />
         </button>
 
         <Button variant="outline" onClick={leave} className="shrink-0">

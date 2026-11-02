@@ -13,7 +13,9 @@ const EVENT = "morcheh:help-recent"
 function read(key: string): string[] {
   try {
     const value = JSON.parse(localStorage.getItem(key) ?? "[]")
-    return Array.isArray(value) ? value.filter((v) => typeof v === "string") : []
+    return Array.isArray(value)
+      ? value.filter((v) => typeof v === "string")
+      : []
   } catch {
     return []
   }

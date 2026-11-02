@@ -19,6 +19,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { useIntent } from "@/hooks/useIntent"
 import { useOpen } from "@/hooks/useOpen"
 import { ApiError, fieldErrors } from "@/lib/api"
 import type { Folder, Server } from "@/lib/services"
@@ -200,6 +201,9 @@ export function ServerActionsProvider({ children }: { children: ReactNode }) {
       setFolderDeleteOpen(true)
     },
   }
+
+  // "Add server" from the command palette, on any page.
+  useIntent("add-server", () => actions.addServer())
 
   const deleteCount = toDelete.servers.length
 

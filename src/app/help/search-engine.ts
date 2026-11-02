@@ -34,10 +34,10 @@ export function terms(query: string) {
 // 0 = absent, 1 = inside a word, 2 = at a word start.
 function weight(haystack: string, term: string) {
   if (!haystack.includes(term)) return 0
-  return new RegExp(`(^|[^a-z0-9])${escape(term)}`).test(haystack) ? 2 : 1
+  return new RegExp(`(^|[^a-z0-9])${escapeRegex(term)}`).test(haystack) ? 2 : 1
 }
 
-export function escape(term: string) {
+export function escapeRegex(term: string) {
   return term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
 
@@ -66,7 +66,8 @@ export function searchHelp(index: IndexedGuide[], query: string): Hit[] {
     const summary = g.summary.toLowerCase()
 
     const guideScores = words.map(
-      (w) => 12 * weight(title, w) + 6 * weight(keys, w) + 2 * weight(summary, w),
+      (w) =>
+        12 * weight(title, w) + 6 * weight(keys, w) + 2 * weight(summary, w),
     )
     if (guideScores.every((s) => s > 0)) {
       guides.push({

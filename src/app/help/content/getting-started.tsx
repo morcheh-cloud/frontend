@@ -63,6 +63,48 @@ export const gettingStarted: GuideSection[] = [
     ),
   },
   {
+    id: "search",
+    title: "Search and quick actions",
+    body: (
+      <>
+        <P>
+          The search field at the end of the header (desktop) finds anything in
+          the panel: servers, storages, pages, actions and guides. Press{" "}
+          <Keys>Ctrl+K</Keys> (<Keys>⌘+K</Keys> on a Mac) from any page to open
+          it; the same keys close it again.
+        </P>
+        <List>
+          <li>
+            <UI>Before you type</UI> it shows shortcuts: what you opened
+            recently, the tools of the server you are on, quick actions (
+            <UI>Add server</UI>, <UI>Add storage</UI>, this page's guide, toggle
+            the sidebar, copy the page link) and the main pages.
+          </li>
+          <li>
+            <UI>As you type</UI> it searches server names, addresses, host names
+            and tags, storage names and endpoints, and every page, action and
+            guide. Every word you type must match.
+          </li>
+          <li>
+            Move with <Keys>↑</Keys> <Keys>↓</Keys>, open with{" "}
+            <Keys>Enter</Keys>, close with <Keys>Esc</Keys>. The last row,{" "}
+            <UI>Search all servers</UI>, opens the servers list filtered by what
+            you typed.
+          </li>
+        </List>
+        <Example title="Open a server's terminal in two keystrokes">
+          On a server's page press <Keys>Ctrl+K</Keys>, type <C>term</C> and
+          press <Keys>Enter</Keys>.
+        </Example>
+        <Tip>
+          Inside the terminal <Keys>Ctrl+K</Keys> belongs to the shell (it
+          deletes to the end of the line), so the search doesn't open there.
+          Click the search field in the header instead.
+        </Tip>
+      </>
+    ),
+  },
+  {
     id: "workspaces",
     title: "Workspaces",
     body: (

@@ -1,6 +1,7 @@
 import { Suspense } from "react"
 
 import { AppSidebar } from "@/components/panel/app-sidebar"
+import { CommandProvider } from "@/components/panel/command/command-palette"
 import { PanelHeader } from "@/components/panel/panel-header"
 import { TabBar } from "@/components/panel/tab-bar"
 import { WorkspaceProvider } from "@/components/panel/workspace"
@@ -14,12 +15,14 @@ export default function PanelLayout({ children }: LayoutProps<"/">) {
   return (
     <WorkspaceProvider>
       <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset className="pb-[calc(--spacing(16)+env(safe-area-inset-bottom))] md:pb-0">
-          <PanelHeader />
-          {children}
-        </SidebarInset>
-        <TabBar />
+        <CommandProvider>
+          <AppSidebar />
+          <SidebarInset className="pb-[calc(--spacing(16)+env(safe-area-inset-bottom))] md:pb-0">
+            <PanelHeader />
+            {children}
+          </SidebarInset>
+          <TabBar />
+        </CommandProvider>
         <Suspense>
           <RouteHistory />
         </Suspense>

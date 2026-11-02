@@ -30,7 +30,7 @@ import { useIsPhone } from "@/hooks/useIsPhone"
 import { useOpen } from "@/hooks/useOpen"
 import { cn } from "@/lib/utils"
 import { forgetSearch, rememberSearch, useRecentSearches } from "../recent"
-import { escape, type Hit, searchHelp, terms } from "../search-engine"
+import { escapeRegex, type Hit, searchHelp, terms } from "../search-engine"
 import type { IndexedGuide } from "../search-index"
 
 type HelpSearch = { open: (query?: string) => void; index: IndexedGuide[] }
@@ -117,14 +117,14 @@ function SearchLayer({
   return (
     <Dialog.Root open={open} onOpenChange={(next) => onOpenChange(next)}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-50 bg-foreground/15 duration-150 supports-backdrop-filter:backdrop-blur-[2px] data-closed:animate-out data-closed:fade-out-0 data-open:animate-in data-open:fade-in-0 max-md:hidden" />
+        <Dialog.Backdrop className="fixed inset-0 z-50 bg-foreground/15 duration-150 supports-backdrop-filter:backdrop-blur-[2px] max-md:hidden data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0" />
         <Dialog.Popup
           aria-label="Search help"
           className={cn(
             "fixed z-50 flex flex-col bg-popover text-popover-foreground outline-none",
             phone
-              ? "inset-0 duration-200 data-closed:animate-out data-closed:fade-out-0 data-open:animate-in data-open:fade-in-0"
-              : "start-1/2 top-[12vh] max-h-[min(36rem,76vh)] w-[min(40rem,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-2xl border border-border shadow-md duration-150 rtl:translate-x-1/2 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-[0.98] data-open:animate-in data-open:fade-in-0 data-open:zoom-in-[0.98]",
+              ? "inset-0 duration-200 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0"
+              : "start-1/2 top-[12vh] max-h-[min(36rem,76vh)] w-[min(40rem,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-2xl border border-border shadow-md duration-150 rtl:translate-x-1/2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-[0.98] data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-[0.98]",
           )}
         >
           {open && (
@@ -162,10 +162,7 @@ function SearchPanel({
   const [active, setActive] = useState(0)
   const list = useRef<HTMLDivElement>(null)
 
-  const fine = useMemo(
-    () => window.matchMedia("(pointer: fine)").matches,
-    [],
-  )
+  const fine = useMemo(() => window.matchMedia("(pointer: fine)").matches, [])
 
   const go = (href: string, remember: boolean) => {
     if (remember && query.trim()) rememberSearch(query.trim())
@@ -531,7 +528,7 @@ function SectionRow({
 export function Highlight({ text, words }: { text: string; words: string[] }) {
   if (!words.length) return text
   const parts = text.split(
-    new RegExp(`(${words.map(escape).join("|")})`, "gi"),
+    new RegExp(`(${words.map(escapeRegex).join("|")})`, "gi"),
   )
   return parts.map((part, i) =>
     i % 2 ? (

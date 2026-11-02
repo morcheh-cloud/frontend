@@ -16,6 +16,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { useIntent } from "@/hooks/useIntent"
 import { useOpen } from "@/hooks/useOpen"
 import { fieldErrors } from "@/lib/api"
 import type { Storage } from "@/lib/services"
@@ -114,6 +115,9 @@ export function StorageActionsProvider({ children }: { children: ReactNode }) {
       setDeleteOpen(true)
     },
   }
+
+  // "Add storage" from the command palette, on any page.
+  useIntent("add-storage", () => actions.addStorage())
 
   return (
     <ActionsContext value={actions}>

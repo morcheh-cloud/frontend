@@ -89,7 +89,7 @@ export function RecentGuides() {
         <History className="size-3.5" />
         Continue reading
       </h2>
-      <ul className="flex snap-x gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:grid md:grid-cols-4 md:overflow-visible md:px-0">
+      <ul className="flex snap-x [scrollbar-width:none] gap-3 overflow-x-auto px-4 pb-1 md:grid md:grid-cols-4 md:overflow-visible md:px-0">
         {recent.map((g) => {
           const Icon = g.icon
           return (

@@ -50,7 +50,7 @@ export default function HelpHome() {
           <div className="w-full md:mt-8 md:max-w-2xl">
             <HeroSearch />
           </div>
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] md:mx-0 md:mt-5 md:flex-wrap md:justify-center md:overflow-visible md:px-0">
+          <div className="-mx-4 flex [scrollbar-width:none] gap-2 overflow-x-auto px-4 md:mx-0 md:mt-5 md:flex-wrap md:justify-center md:overflow-visible md:px-0">
             <span className="hidden h-8 items-center text-body-sm text-ash md:flex">
               Popular:
             </span>

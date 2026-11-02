@@ -38,7 +38,17 @@ export const guides: GuideMeta[] = [
     summary: "What Morcheh does, how the panel is laid out, and a first setup.",
     icon: Rocket,
     group: "Basics",
-    keywords: ["intro", "workspace", "navigation", "phone", "mobile"],
+    keywords: [
+      "intro",
+      "workspace",
+      "navigation",
+      "phone",
+      "mobile",
+      "search",
+      "command palette",
+      "ctrl k",
+      "shortcuts",
+    ],
     routes: ["/home"],
   },
   {
