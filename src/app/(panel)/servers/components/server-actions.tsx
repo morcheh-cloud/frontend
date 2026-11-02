@@ -37,7 +37,7 @@ import {
   useTagServers,
   useUpdateServer,
 } from "../api"
-import { CredentialsLayer } from "./credentials"
+import { ServerCredentialsLayer } from "./credentials"
 import { Field, FolderSelect, TagInput } from "./fields"
 import { buildTree, flatten, subtreeIds } from "./folder-tree"
 import { osLabel, sshCommand, statusMeta } from "./meta"
@@ -249,7 +249,7 @@ export function ServerActionsProvider({ children }: { children: ReactNode }) {
         }}
       />
 
-      <CredentialsLayer
+      <ServerCredentialsLayer
         open={credsOpen}
         onOpenChange={setCredsOpen}
         server={credsServer}

@@ -1,4 +1,5 @@
 import {
+  A,
   C,
   Code,
   Example,
@@ -70,10 +71,10 @@ export const storage: GuideSection[] = [
           </P>
         </Steps>
         <P>
-          Passwords, secret keys and private keys are stored encrypted and never
-          sent back to the browser. When you edit a storage, leave a secret
-          blank to keep the saved one, or tick <UI>Forget the saved…</UI> to
-          remove it.
+          Passwords, secret keys and private keys are stored encrypted. When you
+          edit a storage, leave a secret blank to keep the saved one, or tick{" "}
+          <UI>Forget the saved…</UI> to remove it. To read a saved secret, see{" "}
+          <A href="#credentials">Seeing a storage's credentials</A>.
         </P>
       </>
     ),
@@ -215,6 +216,11 @@ export const storage: GuideSection[] = [
           want (the ticks stay while you move between folders), then{" "}
           <UI>Copy here</UI>. A folder with many entries gets a filter box.
         </P>
+        <P>
+          Either way it runs as a background task, so you can close the dialog
+          and the page. Follow its progress, cancel it or try it again under{" "}
+          <See guide="tasks">Tasks</See>.
+        </P>
         <List>
           <li>Missing folders on the other side are created.</li>
           <li>
@@ -241,6 +247,80 @@ export const storage: GuideSection[] = [
             <UI>Copy here</UI>. Then restore it in the terminal.
           </P>
         </Example>
+      </>
+    ),
+  },
+  {
+    id: "credentials",
+    title: "Seeing a storage's credentials",
+    body: (
+      <>
+        <P>
+          To use a storage outside Morcheh (the AWS CLI, an FTP client, a backup
+          script), open its credentials on demand:
+        </P>
+        <Steps>
+          {[
+            <P key="1">
+              On the storage's page press <UI>Credentials</UI>, or choose{" "}
+              <UI>Show credentials…</UI> from a storage's menu on the list (on a
+              phone: its action sheet).
+            </P>,
+            <P key="2">
+              Addresses and usernames are shown as they are. The secret key,
+              password, private key and passphrase stay hidden until you press
+              the eye; the copy button works either way.
+            </P>,
+            <P key="3">
+              <UI>Edit credentials</UI> opens the storage form to change them.
+            </P>,
+          ]}
+        </Steps>
+        <P>
+          The edit form has the same eye: press it on a blank secret field to
+          see the saved value, or on a field you typed in to check your typing.
+          For a private key, use <UI>Show saved key</UI>. Showing a saved value
+          doesn't change it: leave the field blank and saving keeps it.
+        </P>
+        <Table
+          head={["Protocol", "What you see"]}
+          rows={[
+            [
+              <UI key="s3">S3</UI>,
+              "Endpoint, access key, secret key, bucket, region and URL style.",
+            ],
+            [
+              <UI key="ftp">FTP / FTPS</UI>,
+              "Host, port, username, password, encryption and the full address.",
+            ],
+            [
+              <UI key="sftp">SFTP</UI>,
+              "Host, port, username, password or private key (with passphrase and public key), the trusted host key and a ready sftp command.",
+            ],
+            [<UI key="dav">WebDAV</UI>, "URL, username and password."],
+          ]}
+        />
+        <Example title="List a bucket with the AWS CLI">
+          <P>
+            Copy the access key, secret key and endpoint from the window, then:
+          </P>
+          <Code>{`
+export AWS_ACCESS_KEY_ID=<access key>
+export AWS_SECRET_ACCESS_KEY=<secret key>
+aws s3 ls s3://backups --endpoint-url https://s3.example.com
+`}</Code>
+        </Example>
+        <Warn>
+          Anyone who can open Morcheh can read these. Don't share your screen
+          with a secret visible, and delete a downloaded key once it is in{" "}
+          <C>~/.ssh</C>.
+        </Warn>
+        <Tip>
+          The secrets are fetched only while the window is open and are
+          forgotten when you close it. If it says the credentials can't be
+          decrypted, the backend's <C>SECRETS_KEY</C> changed since they were
+          saved: enter them again with <UI>Edit credentials</UI>.
+        </Tip>
       </>
     ),
   },

@@ -4,6 +4,7 @@ import {
   Activity,
   Copy,
   KeyRound,
+  KeySquare,
   Pencil,
   Star,
   StarOff,
@@ -55,6 +56,12 @@ function useItems(
       icon: <Copy />,
       label: "Copy address",
       onSelect: () => a.copyEndpoint(storage),
+    },
+    {
+      key: "credentials",
+      icon: <KeySquare />,
+      label: "Show credentials…",
+      onSelect: () => a.showCredentials(storage),
     },
   ]
   if (storage.status === "host_key_mismatch") {

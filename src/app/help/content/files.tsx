@@ -66,7 +66,9 @@ export const files: GuideSection[] = [
           Select several with <Keys>Ctrl</Keys>/<Keys>Shift</Keys>-click (on a
           phone, long-press one) to move, copy, compress, download as zip or
           delete them together. <UI>Cut</UI> and <UI>Copy</UI> work across
-          folders: paste them in another folder.
+          folders: paste them in another folder. Pasting, moving and copying run
+          as <See guide="tasks">tasks</See>, so a big copy carries on if you
+          leave the page, and you can follow or cancel it from <UI>Tasks</UI>.
         </P>
         <P>
           <UI>Move to…</UI> and <UI>Copy to…</UI> show a folder tree: click a
@@ -118,6 +120,20 @@ export const files: GuideSection[] = [
             sending files
           </See>
           .
+        </P>
+        <P>
+          On a server, <UI>Upload</UI> › <UI>From a URL…</UI> (phones:{" "}
+          <UI>+</UI> › <UI>From a URL</UI>) makes the server download a link
+          straight into this folder, using <C>curl</C> or <C>wget</C>. Nothing
+          goes through your computer. Leave <UI>Save as</UI> empty to keep the
+          name from the link; a name that's already here stops the download
+          unless you tick <UI>Replace existing file</UI>.
+        </P>
+        <P>
+          Sending, downloading from a URL, compressing and extracting all run in
+          the background: you can leave the page or close the browser, and
+          follow or cancel them under <See guide="tasks">Tasks</See>. The folder
+          refreshes when one ends.
         </P>
       </>
     ),

@@ -1,6 +1,6 @@
 "use client"
 
-import { FileKey, Loader2, PlugZap, TriangleAlert } from "lucide-react"
+import { Loader2, PlugZap, TriangleAlert } from "lucide-react"
 import {
   type FormEvent,
   type ReactNode,
@@ -11,6 +11,7 @@ import {
 
 import { Field, Segmented } from "@/app/(panel)/servers/components/fields"
 import { StatusDot, statusMeta } from "@/app/(panel)/servers/components/meta"
+import { PrivateKeyInput, SecretInput } from "@/components/secret-input"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -23,7 +24,7 @@ import type {
   StorageTestOutputBody,
 } from "@/lib/services"
 import { cn } from "@/lib/utils"
-import { useTestStorage } from "../api"
+import { useRevealStorageCredentials, useTestStorage } from "../api"
 import {
   defaultPort,
   type Protocol,
@@ -174,7 +175,7 @@ export function StorageForm({
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [tested, setTested] = useState<StorageTestOutputBody | null>(null)
   const test = useTestStorage()
-  const fileRef = useRef<HTMLInputElement>(null)
+  const reveal = useRevealStorageCredentials(storage?.id)
   const nameRef = useRef<HTMLInputElement>(null)
   const preset = presetFor(values.protocol, values.provider)
   // Secrets saved for this storage only count while the protocol (and so the
@@ -267,11 +268,6 @@ export function StorageForm({
         onError: (error) => setErrors((e) => ({ ...e, ...fieldErrors(error) })),
       },
     )
-  }
-
-  async function loadKey(file: File | undefined) {
-    if (!file) return
-    set("private_key", await file.text())
   }
 
   const p = values.protocol
@@ -511,33 +507,16 @@ export function StorageForm({
             }
           >
             {(f) => (
-              <div className="flex flex-col gap-2">
-                <Textarea
-                  {...f}
-                  value={values.private_key}
-                  onChange={(e) => set("private_key", e.target.value)}
-                  placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
-                  spellCheck={false}
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  className="field-sizing-fixed h-36 resize-none font-mono text-caption md:text-caption"
-                />
-                <input
-                  ref={fileRef}
-                  type="file"
-                  hidden
-                  onChange={(e) => loadKey(e.target.files?.[0])}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="self-start max-md:h-11"
-                  onClick={() => fileRef.current?.click()}
-                >
-                  <FileKey />
-                  Load from file
-                </Button>
-              </div>
+              <PrivateKeyInput
+                {...f}
+                value={values.private_key}
+                onChange={(v) => set("private_key", v)}
+                load={
+                  saved?.auth_method === "private_key" && saved.has_private_key
+                    ? () => reveal.mutateAsync().then((c) => c.private_key)
+                    : undefined
+                }
+              />
             )}
           </Field>
           <Field
@@ -550,12 +529,18 @@ export function StorageForm({
             }
           >
             {(f) => (
-              <Input
+              <SecretInput
                 {...f}
-                type="password"
+                label="passphrase"
                 value={values.passphrase}
                 onChange={(e) => set("passphrase", e.target.value)}
+                placeholder={saved?.has_passphrase ? "••••••••" : undefined}
                 autoComplete="off"
+                load={
+                  saved?.has_passphrase
+                    ? () => reveal.mutateAsync().then((c) => c.passphrase)
+                    : undefined
+                }
               />
             )}
           </Field>
@@ -572,9 +557,9 @@ export function StorageForm({
             }
           >
             {(f) => (
-              <Input
+              <SecretInput
                 {...f}
-                type="password"
+                label={secretLabel.toLowerCase()}
                 value={values.secret}
                 onChange={(e) => {
                   set("secret", e.target.value)
@@ -586,6 +571,11 @@ export function StorageForm({
                     : undefined
                 }
                 autoComplete="new-password"
+                load={
+                  saved?.has_secret && !values.clear_secret
+                    ? () => reveal.mutateAsync().then((c) => c.secret)
+                    : undefined
+                }
               />
             )}
           </Field>

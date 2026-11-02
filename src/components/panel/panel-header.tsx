@@ -4,6 +4,7 @@ import Link from "next/link"
 import { Fragment } from "react"
 
 import { ContextHelp } from "@/components/help/help-link"
+import { TasksButton } from "@/components/jobs/tasks-button"
 
 import {
   Breadcrumb,
@@ -37,6 +38,7 @@ export function PanelHeader() {
             <Crumbs pathname={pathname} />
             <div className="ms-auto flex items-center gap-1">
               <SearchButton />
+              <TasksButton />
               <ContextHelp pathname={pathname} />
             </div>
           </>

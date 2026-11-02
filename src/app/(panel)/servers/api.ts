@@ -103,6 +103,15 @@ export function useCredentials(id: string) {
   })
 }
 
+// The saved secrets for the edit form's eye. One round trip per press; nothing
+// stays in the mutation cache.
+export function useRevealCredentials(id?: string) {
+  return useMutation({
+    mutationFn: () => api.servers.revealServerCredentials(id ?? ""),
+    gcTime: 0,
+  })
+}
+
 export function useFacets() {
   return useQuery({
     queryKey: keys.facets,

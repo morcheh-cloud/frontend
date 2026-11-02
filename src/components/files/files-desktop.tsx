@@ -20,6 +20,7 @@ import {
   FolderUp,
   HardDriveDownload,
   House,
+  Link2,
   Loader2,
   RefreshCw,
   Scissors,
@@ -43,6 +44,7 @@ import {
 } from "react"
 import { toast } from "sonner"
 
+import { useJobActions } from "@/components/jobs/jobs-provider"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -183,6 +185,11 @@ function UploadMenu() {
         <DropdownMenuItem onClick={actions.importFrom}>
           <HardDriveDownload /> From a server or storage…
         </DropdownMenuItem>
+        {actions.fetchUrl && (
+          <DropdownMenuItem onClick={actions.fetchUrl}>
+            <Link2 /> From a URL…
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -586,6 +593,7 @@ function Table({
   const files = useFiles()
   const { source } = files
   const ops = useFileOps(source)
+  const jobs = useJobActions()
   const write = !source.readOnly
   const uploads = useUploads()
   const anchor = useRef<string | null>(null)
@@ -693,11 +701,9 @@ function Table({
               ops.move.mutate(
                 { paths, destination: entry.path },
                 {
-                  onSuccess: () => {
+                  onSuccess: (job) => {
                     files.setSelected(new Set())
-                    toast.success(
-                      `Moved ${paths.length === 1 ? "1 item" : `${paths.length} items`} to ${entry.name}`,
-                    )
+                    jobs.track(job)
                   },
                   onError: (err) =>
                     toast.error(
@@ -992,6 +998,11 @@ function BackgroundMenu() {
           <ContextMenuItem onClick={actions.importFrom}>
             <HardDriveDownload /> Copy from a server or storage…
           </ContextMenuItem>
+          {actions.fetchUrl && (
+            <ContextMenuItem onClick={actions.fetchUrl}>
+              <Link2 /> Download from a URL…
+            </ContextMenuItem>
+          )}
           {files.clipboard && (
             <>
               <ContextMenuSeparator />

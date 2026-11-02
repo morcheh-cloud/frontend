@@ -1,5 +1,5 @@
 import { Suspense } from "react"
-
+import { JobsProvider } from "@/components/jobs/jobs-provider"
 import { AppSidebar } from "@/components/panel/app-sidebar"
 import { CommandProvider } from "@/components/panel/command/command-palette"
 import { PanelHeader } from "@/components/panel/panel-header"
@@ -15,14 +15,16 @@ export default function PanelLayout({ children }: LayoutProps<"/">) {
   return (
     <WorkspaceProvider>
       <SidebarProvider>
-        <CommandProvider>
-          <AppSidebar />
-          <SidebarInset className="pb-[calc(--spacing(16)+env(safe-area-inset-bottom))] md:pb-0">
-            <PanelHeader />
-            {children}
-          </SidebarInset>
-          <TabBar />
-        </CommandProvider>
+        <JobsProvider>
+          <CommandProvider>
+            <AppSidebar />
+            <SidebarInset className="pb-[calc(--spacing(16)+env(safe-area-inset-bottom))] md:pb-0">
+              <PanelHeader />
+              {children}
+            </SidebarInset>
+            <TabBar />
+          </CommandProvider>
+        </JobsProvider>
         <Suspense>
           <RouteHistory />
         </Suspense>

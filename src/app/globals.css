@@ -191,3 +191,23 @@
     background-color: transparent;
   }
 }
+
+/* React Flow (network map), on our tokens. */
+.react-flow.netmap {
+  --xy-background-color-default: var(--background);
+  --xy-background-pattern-dots-color-default: var(--color-mist);
+  --xy-edge-stroke-default: var(--color-ash);
+  --xy-handle-background-color-default: var(--color-ash);
+  --xy-handle-border-color-default: var(--background);
+  --xy-controls-button-background-color-default: var(--background);
+  --xy-controls-button-background-color-hover-default: var(--muted);
+  --xy-controls-button-color-default: var(--muted-foreground);
+  --xy-controls-button-color-hover-default: var(--foreground);
+  --xy-controls-button-border-color-default: var(--border);
+  --xy-controls-box-shadow-default: var(--shadow-sm);
+  --xy-minimap-background-color-default: var(--background);
+  --xy-minimap-mask-background-color-default: rgb(240 240 243 / 0.7);
+  --xy-minimap-node-background-color-default: var(--color-mist);
+  --xy-attribution-background-color-default: transparent;
+  font-family: inherit;
+}

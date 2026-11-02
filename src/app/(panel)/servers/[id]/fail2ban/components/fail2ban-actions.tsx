@@ -12,6 +12,7 @@ import {
 import { toast } from "sonner"
 
 import { BottomSheet } from "@/components/bottom-sheet"
+import { useJobActions } from "@/components/jobs/jobs-provider"
 import { ConfirmDialog, ResponsiveDialog } from "@/components/responsive-dialog"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -23,10 +24,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useOpen } from "@/hooks/useOpen"
-import type { Fail2BanJail, Fail2BanOverview } from "@/lib/services"
+import type { Fail2BanJail, Fail2BanOverview, Job } from "@/lib/services"
 import { afterClose } from "../../components/parts"
 import { useServerPage } from "../../components/server-page"
-import { type Task, useBan, useEdit, useTask } from "../api"
+import {
+  type PackageOp,
+  type ServiceAction,
+  useBan,
+  useEdit,
+  usePackageJob,
+  usePackageOp,
+  useServiceAction,
+} from "../api"
 import { BanDialog, type BanPrefill } from "./ban-dialog"
 import { JailEditor } from "./jail-editor"
 import { JAIL_LOCAL } from "./meta"
@@ -43,14 +52,6 @@ const FilterEditor = dynamic(
   { ssr: false },
 )
 
-export type ServiceAction =
-  | "start"
-  | "stop"
-  | "restart"
-  | "reload"
-  | "enable"
-  | "disable"
-
 const serviceDone: Record<ServiceAction, string> = {
   start: "Fail2ban started",
   stop: "Fail2ban stopped",
@@ -66,6 +67,8 @@ type F2bActions = {
   pending: boolean
   // The service is being installed, started, stopped…
   busy: boolean
+  // The install or removal under way, from here or anywhere else.
+  packageJob: Job | undefined
   install: (protectSSH: boolean) => void
   uninstall: () => void
   service: (action: ServiceAction) => void
@@ -96,12 +99,15 @@ export function F2bActionsProvider({
   children: ReactNode
 }) {
   const { server } = useServerPage()
-  const task = useTask(server.id)
+  const jobs = useJobActions()
+  const task = useServiceAction(server.id)
+  const packageOp = usePackageOp(server.id)
+  const packageJob = usePackageJob(server.id)
   const edit = useEdit(server.id)
   const banner = useBan(server.id)
 
   const [taskOpen, setTaskOpen] = useOpen("f2b-task")
-  const [taskTitle, setTaskTitle] = useState({ title: "", pending: "" })
+  const [taskTitle, setTaskTitle] = useState("")
 
   const [uninstallOpen, setUninstallOpen] = useOpen("f2b-uninstall")
   const [jailOpen, setJailOpen] = useOpen("f2b-jail-editor")
@@ -121,21 +127,17 @@ export function F2bActionsProvider({
 
   // TanStack keeps `mutate` stable across renders.
   const { mutate: runTaskMutation } = task
+  const { mutate: packageMutation } = packageOp
   const { mutate: editMutation } = edit
   const { mutate: banMutation } = banner
 
-  const runTask = useCallback(
-    (t: Task, title: string, pending: string) => {
-      setTaskTitle({ title, pending })
-      setTaskOpen(true)
-      runTaskMutation(t, {
-        onError: (e) => {
-          setTaskOpen(false)
-          toast.error(e.message)
-        },
-      })
-    },
-    [setTaskOpen, runTaskMutation],
+  const runPackage = useCallback(
+    (op: PackageOp) =>
+      packageMutation(op, {
+        onSuccess: jobs.track,
+        onError: (e) => toast.error(e.message),
+      }),
+    [packageMutation, jobs.track],
   )
 
   const service = useCallback(
@@ -145,22 +147,19 @@ export function F2bActionsProvider({
           ? "Updating…"
           : `${action[0].toUpperCase()}${action.slice(1)}ing fail2ban…`,
       )
-      runTaskMutation(
-        { kind: "service", action },
-        {
-          onSuccess: (r) => {
-            if (r.ok) {
-              toast.success(serviceDone[action], { id })
-              return
-            }
-            // Show why: the init system's own words.
-            toast.dismiss(id)
-            setTaskTitle({ title: `Couldn't ${action} fail2ban`, pending: "" })
-            setTaskOpen(true)
-          },
-          onError: (e) => toast.error(e.message, { id }),
+      runTaskMutation(action, {
+        onSuccess: (r) => {
+          if (r.ok) {
+            toast.success(serviceDone[action], { id })
+            return
+          }
+          // Show why: the init system's own words.
+          toast.dismiss(id)
+          setTaskTitle(`Couldn't ${action} fail2ban`)
+          setTaskOpen(true)
         },
-      )
+        onError: (e) => toast.error(e.message, { id }),
+      })
     },
     [setTaskOpen, runTaskMutation],
   )
@@ -208,13 +207,10 @@ export function F2bActionsProvider({
     () => ({
       overview,
       pending: edit.isPending,
-      busy: task.isPending,
+      busy: task.isPending || packageOp.isPending || !!packageJob,
+      packageJob,
       install: (protectSSH) =>
-        runTask(
-          { kind: "install", protect_ssh: protectSSH },
-          "Install fail2ban",
-          "Installing… this can take a few minutes.",
-        ),
+        runPackage({ kind: "install", protect_ssh: protectSSH }),
       uninstall: () => setUninstallOpen(true),
       service,
       editJail: (j) => {
@@ -254,7 +250,9 @@ export function F2bActionsProvider({
       overview,
       edit.isPending,
       task.isPending,
-      runTask,
+      packageOp.isPending,
+      packageJob,
+      runPackage,
       service,
       setEnabled,
       unban,
@@ -298,8 +296,7 @@ export function F2bActionsProvider({
       <TaskDialog
         open={taskOpen}
         onOpenChange={setTaskOpen}
-        title={taskTitle.title}
-        pendingLabel={taskTitle.pending}
+        title={taskTitle}
         task={task}
       />
       <UninstallDialog
@@ -307,11 +304,7 @@ export function F2bActionsProvider({
         onOpenChange={setUninstallOpen}
         onConfirm={(purge) =>
           afterClose(setUninstallOpen, () =>
-            runTask(
-              { kind: "uninstall", purge },
-              "Uninstall fail2ban",
-              "Removing fail2ban…",
-            ),
+            runPackage({ kind: "uninstall", purge }),
           )
         }
       />
@@ -373,14 +366,12 @@ function TaskDialog({
   open,
   onOpenChange,
   title,
-  pendingLabel,
   task,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   title: string
-  pendingLabel: string
-  task: ReturnType<typeof useTask>
+  task: ReturnType<typeof useServiceAction>
 }) {
   const { phone } = useServerPage()
   const body = (
@@ -388,23 +379,17 @@ function TaskDialog({
       <TaskOutput
         result={task.data}
         pending={task.isPending}
-        pendingLabel={pendingLabel || "Working…"}
+        pendingLabel="Working…"
         phone={phone}
       />
       <div className="flex gap-2 max-md:mt-auto max-md:flex-col md:justify-end">
         <Button
           size={phone ? "lg" : "default"}
-          variant={task.isPending ? "outline" : "default"}
           onClick={() => onOpenChange(false)}
         >
-          {task.isPending ? "Hide" : "Close"}
+          Close
         </Button>
       </div>
-      {task.isPending && (
-        <p className="text-caption text-muted-foreground">
-          It keeps running on the server if you hide this.
-        </p>
-      )}
     </div>
   )
 

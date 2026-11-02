@@ -6,6 +6,7 @@ import {
   CloudOff,
   Ellipsis,
   KeyRound,
+  KeySquare,
   Pencil,
   Star,
   TriangleAlert,
@@ -139,6 +140,10 @@ function DesktopPage({ storage: s, checking, onDeleted }: PageProps) {
           >
             <Activity />
             {checking ? "Checking…" : "Check"}
+          </Button>
+          <Button variant="outline" onClick={() => actions.showCredentials(s)}>
+            <KeySquare />
+            Credentials
           </Button>
           <Button variant="outline" onClick={() => actions.editStorage(s)}>
             <Pencil />

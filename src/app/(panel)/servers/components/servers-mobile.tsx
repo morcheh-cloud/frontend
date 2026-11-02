@@ -14,6 +14,7 @@ import {
   Plus,
   Star,
   Trash2,
+  Waypoints,
 } from "lucide-react"
 import Link from "next/link"
 import { type ReactNode, useEffect, useRef, useState } from "react"
@@ -101,6 +102,13 @@ export function ServersMobile() {
           label="Servers guide"
           className="ms-auto"
         />
+        <Link
+          href="/servers/network"
+          aria-label="Network map"
+          className="flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none active:bg-muted"
+        >
+          <Waypoints className="size-5" />
+        </Link>
         <Button
           size="icon-lg"
           aria-label="Add server"

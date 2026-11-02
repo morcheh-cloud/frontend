@@ -11,6 +11,7 @@ import {
 } from "react"
 import { toast } from "sonner"
 import { Field, Segmented } from "@/app/(panel)/servers/components/fields"
+import { useJobActions } from "@/components/jobs/jobs-provider"
 import { ConfirmDialog, ResponsiveDialog } from "@/components/responsive-dialog"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -19,6 +20,7 @@ import { useOpen } from "@/hooks/useOpen"
 import type { ApiError } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { download, useFileOps } from "./api"
+import { FetchDialog } from "./fetch-dialog"
 import { FolderPicker, insideAny } from "./folder-picker"
 import { ImportDialog } from "./import-dialog"
 import {
@@ -48,6 +50,7 @@ type Dialog =
   | { kind: "share"; entry: FileEntry }
   | { kind: "transfer"; entries: FileEntry[]; move: boolean }
   | { kind: "import" }
+  | { kind: "fetch" }
 
 type Actions = {
   newFolder: () => void
@@ -65,6 +68,8 @@ type Actions = {
   transfer: (entries: FileEntry[], move?: boolean) => void
   // Copy or move from another server or storage into `dir`.
   importFrom: () => void
+  // Set when the source can download a URL by itself.
+  fetchUrl?: () => void
   // into: a folder to unpack into instead of the archive's own.
   extract: (entry: FileEntry, into?: string) => void
   copyPath: (entry: FileEntry) => void
@@ -89,18 +94,17 @@ const count = (entries: FileEntry[]) =>
 export function FileActionsProvider({
   dir,
   onCreatedFile,
-  onNavigate,
   onRemoved,
   children,
 }: {
   dir: string
   onCreatedFile: (path: string) => void
-  onNavigate: (dir: string) => void
   onRemoved: (paths: string[]) => void
   children: ReactNode
 }) {
   const source = useSource()
   const ops = useFileOps(source)
+  const jobs = useJobActions()
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const [open, setOpen] = useOpen("file-dialog")
 
@@ -142,21 +146,13 @@ export function FileActionsProvider({
     transfer: (entries, move = false) =>
       entries.length && show({ kind: "transfer", entries, move }),
     importFrom: () => show({ kind: "import" }),
+    fetchUrl: source.fetchUrl ? () => show({ kind: "fetch" }) : undefined,
     extract: (entry, into) => {
-      const id = toast.loading(`Extracting ${entry.name}…`)
       ops.extract.mutate(
         { path: entry.path, destination: into },
         {
-          onSuccess: ({ destination }) =>
-            toast.success(`Extracted ${entry.name}`, {
-              id,
-              description: destination,
-              action:
-                destination !== dir
-                  ? { label: "Open", onClick: () => onNavigate(destination) }
-                  : undefined,
-            }),
-          onError: (err) => toast.error(err.message, { id }),
+          onSuccess: jobs.track,
+          onError: (err) => toast.error(err.message),
         },
       )
     },
@@ -369,21 +365,9 @@ export function FileActionsProvider({
               op.mutate(
                 { paths: d.entries.map((e) => e.path), destination },
                 {
-                  onSuccess: () => {
+                  onSuccess: (job) => {
                     close()
-                    toast.success(
-                      `${d.kind === "copy" ? "Copied" : "Moved"} ${count(d.entries)}`,
-                      {
-                        description: destination,
-                        action:
-                          destination !== dir
-                            ? {
-                                label: "Open",
-                                onClick: () => onNavigate(destination),
-                              }
-                            : undefined,
-                      },
-                    )
+                    jobs.track(job)
                   },
                   onError: (err) =>
                     setError(
@@ -433,6 +417,12 @@ export function FileActionsProvider({
 
       <ImportDialog
         open={open && d?.kind === "import"}
+        setOpen={setOpen}
+        dir={dir}
+      />
+
+      <FetchDialog
+        open={open && d?.kind === "fetch"}
         setOpen={setOpen}
         dir={dir}
       />
@@ -795,6 +785,7 @@ function CompressForm({
   onDone: () => void
 }) {
   const { compress } = useFileOps(useSource())
+  const jobs = useJobActions()
   const [format, setFormat] = useState<"tar.gz" | "zip">("tar.gz")
   const [name, setName] = useState(
     entries.length === 1
@@ -817,7 +808,6 @@ function CompressForm({
         if (invalid) return setError(invalid)
         setError(undefined)
         const file = `${trimmed}.${format}`
-        const id = toast.loading(`Compressing into ${file}…`)
         compress.mutate(
           {
             format,
@@ -825,15 +815,11 @@ function CompressForm({
             destination: joinPath(dir, file),
           },
           {
-            onSuccess: (entry) => {
+            onSuccess: (job) => {
               onDone()
-              toast.success(`Created ${entry.name}`, {
-                id,
-                description: formatSize(entry.size),
-              })
+              jobs.track(job)
             },
             onError: (err) => {
-              toast.dismiss(id)
               setError(
                 err.status === 409
                   ? "An archive with that name is already here."

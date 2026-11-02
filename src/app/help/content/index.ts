@@ -3,12 +3,14 @@ import { cron } from "./cron"
 import { fail2ban } from "./fail2ban"
 import { files } from "./files"
 import { gettingStarted } from "./getting-started"
+import { networkMap } from "./network-map"
 import { ports } from "./ports"
 import { power } from "./power"
 import { serverOverview } from "./server-overview"
 import { servers } from "./servers"
 import { services } from "./services"
 import { storage } from "./storage"
+import { tasks } from "./tasks"
 import { terminal } from "./terminal"
 import { users } from "./users"
 
@@ -16,6 +18,7 @@ import { users } from "./users"
 export const content: Record<string, GuideSection[]> = {
   "getting-started": gettingStarted,
   servers,
+  "network-map": networkMap,
   "server-overview": serverOverview,
   terminal,
   files,
@@ -26,4 +29,5 @@ export const content: Record<string, GuideSection[]> = {
   services,
   power,
   storage,
+  tasks,
 }

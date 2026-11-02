@@ -6,6 +6,7 @@ import {
   HardDrive,
   House,
   KeyRound,
+  ListChecks,
   type LucideIcon,
   Server,
   Settings,
@@ -22,11 +23,20 @@ export const serversItem: NavItem = {
   href: "/servers",
   label: "Servers",
   icon: Server,
+  children: [
+    { href: "/servers", label: "All servers" },
+    { href: "/servers/network", label: "Network map" },
+  ],
 }
 export const storageItem: NavItem = {
   href: "/storage",
   label: "Storage",
   icon: HardDrive,
+}
+export const tasksItem: NavItem = {
+  href: "/tasks",
+  label: "Tasks",
+  icon: ListChecks,
 }
 export const servicesItem: NavItem = {
   href: "/services",
@@ -82,7 +92,7 @@ export const helpItem: NavItem = {
 
 // Sidebar order. Help and Settings sit apart, pinned to the bottom.
 export const navGroups: NavGroup[] = [
-  { label: "Platform", items: [homeItem] },
+  { label: "Platform", items: [homeItem, tasksItem] },
   {
     label: "Infrastructure",
     items: [serversItem, storageItem, servicesItem, keysItem],

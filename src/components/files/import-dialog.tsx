@@ -1,24 +1,20 @@
 "use client"
 
-import {
-  keepPreviousData,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query"
+import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query"
 import { ArrowUp, ChevronRight, Loader2, RotateCw } from "lucide-react"
 import { Fragment, useState } from "react"
-import { toast } from "sonner"
 
+import { useJobActions } from "@/components/jobs/jobs-provider"
 import { ResponsiveDialog } from "@/components/responsive-dialog"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { type ApiError, api } from "@/lib/api"
+import type { Job } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { fileKeys } from "./api"
-import { filesKey, type Target, TargetLabel, TargetList } from "./endpoints"
+import { type Target, TargetLabel, TargetList } from "./endpoints"
 import { listerFor } from "./listers"
 import { crumbs, FileIcon, formatSize, isDir, sortEntries } from "./meta"
 import { type FileEntry, type Listing, useSource } from "./source"
@@ -49,7 +45,7 @@ export function ImportDialog({
 
 function ImportForm({ dir, onClose }: { dir: string; onClose: () => void }) {
   const source = useSource()
-  const qc = useQueryClient()
+  const jobs = useJobActions()
   const [from, setFrom] = useState<Target | null>(null)
   const [picked, setPicked] = useState<Map<string, FileEntry>>(new Map())
   const [move, setMove] = useState(false)
@@ -59,11 +55,7 @@ function ImportForm({ dir, onClose }: { dir: string; onClose: () => void }) {
   const canMove = !!from && !from.readOnly
   const moving = move && canMove
 
-  const send = useMutation<
-    { files: number; bytes: number },
-    ApiError,
-    { from: Target; paths: string[] }
-  >({
+  const send = useMutation<Job, ApiError, { from: Target; paths: string[] }>({
     mutationFn: ({ from, paths }) =>
       api.storageFiles.transferFiles({
         source: { ...from.endpoint, paths },
@@ -71,14 +63,9 @@ function ImportForm({ dir, onClose }: { dir: string; onClose: () => void }) {
         move: moving,
         overwrite,
       }),
-    onSuccess: (r, { from }) => {
-      qc.invalidateQueries({ queryKey: source.key })
-      if (moving) qc.invalidateQueries({ queryKey: filesKey(from) })
+    onSuccess: (job) => {
       onClose()
-      toast.success(
-        `${moving ? "Moved" : "Copied"} ${r.files === 1 ? "1 file" : `${r.files} files`} from ${from.name}`,
-        { description: r.bytes ? `${dir} · ${formatSize(r.bytes)}` : dir },
-      )
+      jobs.track(job)
     },
   })
 
@@ -330,7 +317,8 @@ function EntryPicker({
         </div>
       )}
 
-      <div className="max-h-72 overflow-y-auto overscroll-contain max-md:max-h-[38svh]">
+      {/* Short laptop screens: the list gives way so the buttons stay on screen. */}
+      <div className="max-h-[clamp(8rem,calc(100dvh-35rem),18rem)] overflow-y-auto overscroll-contain max-md:max-h-[38svh]">
         {list.isPending ? (
           <div className="flex flex-col gap-3 p-3">
             <Skeleton className="h-4 w-40" />

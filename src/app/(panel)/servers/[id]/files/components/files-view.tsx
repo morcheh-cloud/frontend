@@ -40,6 +40,7 @@ function serverSource(id: string): FileSource {
     chown: (v) => f.chownFiles(id, v),
     compress: (v) => f.compressFiles(id, v),
     extract: (v) => f.extractArchive(id, v),
+    fetchUrl: (v) => f.fetchUrl(id, v),
     // Downloads are plain links (the browser streams them to disk); several
     // paths or a folder arrive as one zip. `inline` opens media in the
     // browser.

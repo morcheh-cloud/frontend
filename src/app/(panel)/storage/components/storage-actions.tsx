@@ -27,6 +27,7 @@ import {
   useSetStorageFavorite,
   useUpdateStorage,
 } from "../api"
+import { StorageCredentialsLayer } from "./credentials"
 import { endpointUrl } from "./meta"
 import {
   connectionChanged,
@@ -41,6 +42,7 @@ type Actions = {
   trustHostKey: (storage: Storage) => void
   toggleFavorite: (storage: Storage) => void
   copyEndpoint: (storage: Storage) => void
+  showCredentials: (storage: Storage) => void
   deleteStorage: (storage: Storage, done?: () => void) => void
 }
 
@@ -67,6 +69,8 @@ export function StorageActionsProvider({ children }: { children: ReactNode }) {
   }>({})
   const [trustOpen, setTrustOpen] = useOpen("storage-host-key")
   const [toTrust, setToTrust] = useState<Storage | null>(null)
+  const [credsOpen, setCredsOpen] = useOpen("storage-credentials")
+  const [credsStorage, setCredsStorage] = useState<Storage | null>(null)
 
   const checkMutation = useCheckStorage()
   const favorite = useSetStorageFavorite()
@@ -110,6 +114,10 @@ export function StorageActionsProvider({ children }: { children: ReactNode }) {
         toast.error("Couldn't access the clipboard")
       }
     },
+    showCredentials: (storage) => {
+      setCredsStorage(storage)
+      setCredsOpen(true)
+    },
     deleteStorage: (storage, done) => {
       setToDelete({ storage, done })
       setDeleteOpen(true)
@@ -131,6 +139,23 @@ export function StorageActionsProvider({ children }: { children: ReactNode }) {
         onSaved={(saved, recheck) => {
           setFormOpen(false)
           if (recheck) check(saved)
+        }}
+      />
+
+      <StorageCredentialsLayer
+        open={credsOpen}
+        onOpenChange={setCredsOpen}
+        storage={credsStorage}
+        onEdit={() => {
+          const storage = credsStorage
+          if (!storage) return
+          // Close first so the form gets its own Back entry.
+          window.addEventListener(
+            "popstate",
+            () => actions.editStorage(storage),
+            { once: true },
+          )
+          setCredsOpen(false)
         }}
       />
 

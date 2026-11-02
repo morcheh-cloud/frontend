@@ -1,26 +1,20 @@
 "use client"
 
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
 import { useState } from "react"
-import { toast } from "sonner"
 
 import { Field } from "@/app/(panel)/servers/components/fields"
+import { useJobActions } from "@/components/jobs/jobs-provider"
 import { ResponsiveDialog } from "@/components/responsive-dialog"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { type ApiError, api } from "@/lib/api"
-import {
-  filesKey,
-  type Target,
-  TargetIcon,
-  TargetLabel,
-  TargetList,
-} from "./endpoints"
+import type { Job } from "@/lib/services"
+import { type Target, TargetIcon, TargetLabel, TargetList } from "./endpoints"
 import { FolderPicker } from "./folder-picker"
 import { listerFor } from "./listers"
-import { formatSize } from "./meta"
 import { type FileEntry, useSource } from "./source"
 
 // Copy (or move) files to another server or storage. The backend streams
@@ -72,7 +66,7 @@ function TransferForm({
   onMoved: (paths: string[]) => void
 }) {
   const source = useSource()
-  const qc = useQueryClient()
+  const jobs = useJobActions()
   const [picked, setPicked] = useState<Target | null>(null)
   const [path, setPath] = useState("")
   const [move, setMove] = useState(initialMove)
@@ -81,11 +75,7 @@ function TransferForm({
   const canMove = !source.readOnly && !entries.some((e) => e.bucket)
   const paths = entries.map((e) => e.path)
 
-  const send = useMutation<
-    { files: number; bytes: number },
-    ApiError,
-    { target: Target; path: string }
-  >({
+  const send = useMutation<Job, ApiError, { target: Target; path: string }>({
     mutationFn: ({ target, path }) =>
       api.storageFiles.transferFiles({
         source: { ...source.endpoint, paths },
@@ -93,19 +83,10 @@ function TransferForm({
         move: move && canMove,
         overwrite,
       }),
-    onSuccess: (r, { target, path }) => {
-      qc.invalidateQueries({ queryKey: filesKey(target) })
-      if (move && canMove) {
-        qc.invalidateQueries({ queryKey: source.key })
-        onMoved(paths)
-      }
+    onSuccess: (job) => {
+      if (move && canMove) onMoved(paths)
       onClose()
-      toast.success(
-        `${move && canMove ? "Moved" : "Sent"} ${r.files === 1 ? "1 file" : `${r.files} files`} to ${target.name}`,
-        {
-          description: r.bytes ? `${path} · ${formatSize(r.bytes)}` : path,
-        },
-      )
+      jobs.track(job)
     },
     onError: (err) => {
       if (err.status === 422 || err.status === 404) setPathError(err.message)

@@ -18,10 +18,12 @@ import {
 import { type ReactNode, useState } from "react"
 
 import { BottomSheet } from "@/components/bottom-sheet"
+import { useJobActions } from "@/components/jobs/jobs-provider"
+import { JobBar, progressText } from "@/components/jobs/meta"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useOpen } from "@/hooks/useOpen"
-import type { Fail2BanOverview } from "@/lib/services"
+import type { Fail2BanOverview, Job } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { BarSlots, SlotTarget, useSlotFilled } from "../../components/bar-slots"
 import {
@@ -107,6 +109,23 @@ function NotInstalled({ refresh }: { refresh: ReactNode }) {
   const o = a.overview
   const [protect, setProtect] = useState(true)
 
+  if (a.packageJob) {
+    return (
+      <>
+        <SectionActions>{refresh}</SectionActions>
+        <div className="flex flex-col gap-4 max-md:gap-0 max-md:pb-6">
+          <Empty
+            icon={ShieldBan}
+            title={packageLabel(a.packageJob)}
+            className="max-md:mt-4"
+            body="It keeps running on the server if you leave this page."
+            action={<PackageProgress job={a.packageJob} />}
+          />
+        </div>
+      </>
+    )
+  }
+
   let blocker: string | null = null
   if (o.access === "user") {
     blocker =
@@ -168,6 +187,31 @@ function NotInstalled({ refresh }: { refresh: ReactNode }) {
         />
       </div>
     </>
+  )
+}
+
+const packageLabel = (job: Job) =>
+  job.kind === "fail2ban-install"
+    ? "Installing fail2ban…"
+    : "Removing fail2ban…"
+
+function PackageProgress({ job }: { job: Job }) {
+  const { phone } = useServerPage()
+  const jobs = useJobActions()
+  return (
+    <div className="flex w-full flex-col gap-3 md:w-80">
+      <JobBar job={job} />
+      <p className="truncate text-caption text-muted-foreground">
+        {progressText(job)}
+      </p>
+      <Button
+        variant="outline"
+        size={phone ? "lg" : "default"}
+        onClick={() => jobs.show(job.id)}
+      >
+        View details
+      </Button>
+    </div>
   )
 }
 
@@ -298,6 +342,7 @@ function Manage() {
 
 function Content({ refresh }: { refresh: ReactNode }) {
   const a = useF2bActions()
+  const jobs = useJobActions()
   const o = a.overview
   const { filters } = useF2bFilters()
   const bans = banRows(o)
@@ -312,7 +357,7 @@ function Content({ refresh }: { refresh: ReactNode }) {
     <BarSlots>
       <div className="flex flex-col gap-4 max-md:gap-0 max-md:pb-6">
         <Bar refresh={refresh} bans={bans.length} />
-        <Notices notes={notes(o, a)} />
+        <Notices notes={notes(o, a, jobs)} />
         {body}
       </div>
     </BarSlots>
@@ -445,7 +490,11 @@ function State({ bans, className }: { bans: number; className?: string }) {
   )
 }
 
-function notes(o: Fail2BanOverview, a: ReturnType<typeof useF2bActions>) {
+function notes(
+  o: Fail2BanOverview,
+  a: ReturnType<typeof useF2bActions>,
+  jobs: ReturnType<typeof useJobActions>,
+) {
   const out: Note[] = o.warnings.map((w) => ({
     key: w,
     title: w,
@@ -483,6 +532,24 @@ function notes(o: Fail2BanOverview, a: ReturnType<typeof useF2bActions>) {
       title: "Fail2ban doesn't answer",
       body: "It's running, but jail status and bans can't be read. Try restarting it.",
       warn: true,
+    })
+  }
+  if (a.packageJob) {
+    const { id } = a.packageJob
+    out.unshift({
+      key: "package",
+      title: packageLabel(a.packageJob),
+      body: progressText(a.packageJob),
+      action: (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => jobs.show(id)}
+          className="max-md:h-10"
+        >
+          View details
+        </Button>
+      ),
     })
   }
   return out

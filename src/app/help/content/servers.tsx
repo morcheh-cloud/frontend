@@ -256,6 +256,17 @@ ssh -i ~/Downloads/web-01.key -p 22 deploy@10.0.0.12
           with a secret visible, and delete a downloaded key once it is in{" "}
           <C>~/.ssh</C>.
         </Warn>
+        <P>
+          The server form has the same eye: on a blank password or passphrase it
+          shows the saved value, on a field you typed in it shows your typing.
+          For a private key, use <UI>Show saved key</UI>. Showing a saved value
+          doesn't change it: leave the field blank and saving keeps it.
+        </P>
+        <P>
+          Passwords of the server's own users (the <UI>Users</UI> section) can't
+          be shown: Morcheh sets them on the server without keeping a copy, and
+          the server stores only a one-way hash.
+        </P>
         <Tip>
           The secrets are fetched only while the window is open and are
           forgotten when you close it. If it says the credentials can't be

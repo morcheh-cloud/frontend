@@ -242,21 +242,6 @@ export interface ConnectionTestOutputBody {
     | "error";
 }
 
-export interface CopyFilesRequest {
-  /**
-   * A URL to the JSON Schema for this object.
-   * @format uri
-   */
-  $schema?: string;
-  /** @minLength 1 */
-  destination: string;
-  /**
-   * @maxItems 1000
-   * @minItems 1
-   */
-  paths: string[];
-}
-
 export interface CronEnv {
   name: string;
   value: string;
@@ -1196,7 +1181,7 @@ export interface Job {
   finished_at?: string;
   /** @format uuid */
   id: string;
-  /** What it does: transfer, compress, extract or fetch */
+  /** What it does: transfer, copy, move, storage-copy, storage-move, compress, extract, fetch, fail2ban-install or fail2ban-uninstall */
   kind: string;
   /** What it printed (newest last); only on GET /jobs/{id} */
   log?: string;
@@ -1319,21 +1304,6 @@ export interface Memory {
    * @format int64
    */
   used_bytes: number;
-}
-
-export interface MoveFilesRequest {
-  /**
-   * A URL to the JSON Schema for this object.
-   * @format uri
-   */
-  $schema?: string;
-  /** @minLength 1 */
-  destination: string;
-  /**
-   * @maxItems 1000
-   * @minItems 1
-   */
-  paths: string[];
 }
 
 export interface NetAddress {
@@ -1603,6 +1573,8 @@ export interface Progress {
    * @format int64
    */
   items_total: number;
+  /** At a step that can't be stopped safely; cancel answers 409 until it's over */
+  locked: boolean;
   /** What it's doing now */
   phase?: string;
   /**
@@ -2459,6 +2431,36 @@ export interface StorageCapabilities {
   share_links: boolean;
 }
 
+export interface StorageCredentials {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  auth_method: "password" | "private_key";
+  host: string;
+  /** SFTP: trusted host key in authorized_keys format; empty until the first successful check */
+  host_key: string;
+  host_key_fingerprint: string;
+  /** The private key's passphrase; empty when it has none */
+  passphrase: string;
+  /**
+   * 0 = the protocol's default
+   * @format int32
+   */
+  port: number;
+  /** Empty unless auth_method=private_key */
+  private_key: string;
+  protocol: "s3" | "ftp" | "sftp" | "webdav";
+  /** authorized_keys line derived from the private key; empty when it can't be parsed */
+  public_key: string;
+  public_key_fingerprint: string;
+  /** Password, or S3 secret key. Empty unless auth_method=password */
+  secret: string;
+  /** Access key for S3 */
+  username: string;
+}
+
 export interface StorageDeleteRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -2699,24 +2701,6 @@ export interface StorageTransferBodySourceStruct {
   storage_id?: string;
 }
 
-export interface StorageTransferResult {
-  /**
-   * A URL to the JSON Schema for this object.
-   * @format uri
-   */
-  $schema?: string;
-  /**
-   * Bytes streamed through Morcheh (0 when the storage copied by itself)
-   * @format int64
-   */
-  bytes: number;
-  /**
-   * Files copied
-   * @format int64
-   */
-  files: number;
-}
-
 export interface Subnet {
   /** Empty for the internet */
   cidr: string;
@@ -2761,6 +2745,21 @@ export interface TerminalSession {
   /** @format int64 */
   rows: number;
   title: string;
+}
+
+export interface TransferFilesBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @minLength 1 */
+  destination: string;
+  /**
+   * @maxItems 1000
+   * @minItems 1
+   */
+  paths: string[];
 }
 
 export interface UnitFile {
@@ -3406,7 +3405,7 @@ export class Api<
   };
   jobs = {
     /**
-     * @description A queued job is dropped at once; a running one stops as soon as it can (its state changes on the stream). 409 when it has already finished.
+     * @description A queued job is dropped at once; a running one stops as soon as it can (its state changes on the stream). 409 when it has already finished, or while progress.locked is true (a package manager running).
      *
      * @tags Jobs
      * @name CancelJob
@@ -4233,7 +4232,7 @@ export class Api<
       }),
 
     /**
-     * @description Copies with `cp -a` (keeps permissions and times). Copying into the same folder makes "name copy", "name copy 2"…; elsewhere an existing name is 409.
+     * @description Copies with `cp -a` (keeps permissions and times). Copying into the same folder makes "name copy", "name copy 2"…; elsewhere an existing name is 409. Runs as a background job (kind `copy`, result StorageTransferResult).
      *
      * @tags Files
      * @name CopyFiles
@@ -4242,10 +4241,10 @@ export class Api<
      */
     copyFiles: (
       id: string,
-      data: CopyFilesRequest,
+      data: TransferFilesBody,
       params: RequestParams = {},
     ) =>
-      this.request<AffectedOutputBody, ErrorModel>({
+      this.request<Job, ErrorModel>({
         path: `/servers/${id}/files/copy`,
         method: "POST",
         body: data,
@@ -4441,7 +4440,7 @@ export class Api<
       }),
 
     /**
-     * @description Nothing moves if any name already exists in the destination (409).
+     * @description Nothing moves if any name already exists in the destination (409); 422 when they're already there. Runs as a background job (kind `move`) that starts at once: a rename takes no time. Between filesystems it's `mv`, which can take long.
      *
      * @tags Files
      * @name MoveFiles
@@ -4450,10 +4449,10 @@ export class Api<
      */
     moveFiles: (
       id: string,
-      data: MoveFilesRequest,
+      data: TransferFilesBody,
       params: RequestParams = {},
     ) =>
-      this.request<AffectedOutputBody, ErrorModel>({
+      this.request<Job, ErrorModel>({
         path: `/servers/${id}/files/move`,
         method: "POST",
         body: data,
@@ -5035,7 +5034,7 @@ export class Api<
       }),
 
     /**
-     * @description With the server's package manager (EPEL on RHEL-likes), then starts it and enables it at boot. Can take minutes. A failed install answers 200 with ok=false and the output.
+     * @description With the server's package manager (EPEL on RHEL-likes), then starts it and enables it at boot. Checked at once, then runs as a background job (kind `fail2ban-install`); it can't be canceled once the package manager is running. 409 when an install or removal is already under way.
      *
      * @tags Security
      * @name InstallFail2Ban
@@ -5047,7 +5046,7 @@ export class Api<
       data: Fail2BanInstallBody,
       params: RequestParams = {},
     ) =>
-      this.request<Fail2BanTask, ErrorModel>({
+      this.request<Job, ErrorModel>({
         path: `/servers/${id}/security/fail2ban/install`,
         method: "POST",
         body: data,
@@ -5124,7 +5123,7 @@ export class Api<
       }),
 
     /**
-     * @description Stops it (lifting every ban) and removes the package.
+     * @description Stops it (lifting every ban) and removes the package. Runs as a background job (kind `fail2ban-uninstall`), like install.
      *
      * @tags Security
      * @name UninstallFail2Ban
@@ -5136,7 +5135,7 @@ export class Api<
       data: Fail2BanUninstallBody,
       params: RequestParams = {},
     ) =>
-      this.request<Fail2BanTask, ErrorModel>({
+      this.request<Job, ErrorModel>({
         path: `/servers/${id}/security/fail2ban/uninstall`,
         method: "POST",
         body: data,
@@ -5585,6 +5584,22 @@ export class Api<
       }),
 
     /**
+     * @description Opens the stored secrets of the chosen auth method. POST and `Cache-Control: no-store` so nothing caches them.
+     *
+     * @tags Storage
+     * @name RevealStorageCredentials
+     * @summary Reveal a storage's credentials
+     * @request POST:/storages/{id}/credentials
+     */
+    revealStorageCredentials: (id: string, params: RequestParams = {}) =>
+      this.request<StorageCredentials, ErrorModel>({
+        path: `/storages/${id}/credentials`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * No description
      *
      * @tags Storage
@@ -5811,7 +5826,7 @@ export class Api<
       }),
 
     /**
-     * @description Copies into their own folder get a free "copy" name; any other clash is 409.
+     * @description Copies into their own folder get a free "copy" name; any other clash is 409. Runs as a background job (kind `storage-copy`, result StorageTransferResult).
      *
      * @tags Storage files
      * @name StorageCopy
@@ -5823,7 +5838,7 @@ export class Api<
       data: StorageMoveBody,
       params: RequestParams = {},
     ) =>
-      this.request<StorageTransferResult, ErrorModel>({
+      this.request<Job, ErrorModel>({
         path: `/storages/${id}/files/copy`,
         method: "POST",
         body: data,
@@ -5901,7 +5916,7 @@ export class Api<
       }),
 
     /**
-     * @description A name already in the destination is 409 and nothing moves.
+     * @description A name already in the destination is 409 and nothing moves; 422 when they're already there. Runs as a background job (kind `storage-move`) that starts at once.
      *
      * @tags Storage files
      * @name StorageMove
@@ -5913,7 +5928,7 @@ export class Api<
       data: StorageMoveBody,
       params: RequestParams = {},
     ) =>
-      this.request<StorageAffectedOutputBody, ErrorModel>({
+      this.request<Job, ErrorModel>({
         path: `/storages/${id}/files/move`,
         method: "POST",
         body: data,

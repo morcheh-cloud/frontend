@@ -97,6 +97,27 @@ export function useDeleteStorage() {
   })
 }
 
+// Decrypted secrets: never cached past the layer that shows them, and kept
+// out of ["storages"] so storage invalidations don't refetch them.
+export function useStorageCredentials(id: string) {
+  return useQuery({
+    queryKey: ["storage-credentials", id],
+    queryFn: () => api.storage.revealStorageCredentials(id),
+    gcTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
+  })
+}
+
+// The saved secrets for the edit form's eye. One round trip per press; nothing
+// stays in the mutation cache.
+export function useRevealStorageCredentials(id?: string) {
+  return useMutation({
+    mutationFn: () => api.storage.revealStorageCredentials(id ?? ""),
+    gcTime: 0,
+  })
+}
+
 export function useTestStorage() {
   return useMutation({
     mutationFn: (body: StorageTestBody) =>

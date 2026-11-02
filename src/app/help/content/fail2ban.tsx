@@ -7,6 +7,7 @@ import {
   List,
   P,
   Recommended,
+  See,
   Steps,
   Tip,
   UI,
@@ -47,7 +48,10 @@ export const fail2ban: GuideSection[] = [
         <Steps>
           <div>
             Leave <UI>Protect SSH right away</UI> ticked (it turns on the{" "}
-            <C>sshd</C> jail), press install and wait for the output to finish.
+            <C>sshd</C> jail) and press install. It runs as a{" "}
+            <See guide="tasks">task</See>: the tab shows its progress and you
+            can leave the page. It can't be canceled once the package manager is
+            running. The tab refreshes by itself when it ends.
           </div>
           <div>
             Open <UI>Settings</UI> and add your own addresses to{" "}
@@ -209,6 +213,13 @@ export const fail2ban: GuideSection[] = [
         <li>
           A jail won't start: its log file doesn't exist. Point it at the right
           file, or switch the backend to systemd.
+        </li>
+        <li>
+          The install task says <UI>Fail2ban was installed but didn't start</UI>
+          : the package is on, and the tab opens as usual. Usually a jail has no
+          log to read. Alpine, for example, turns on its own <C>sshd</C> jail
+          that needs <C>/var/log/messages</C>, so run a syslog service or turn
+          that jail off, then press <UI>Start</UI>.
         </li>
         <li>
           Read-only view: changes need root or password-less sudo for the login

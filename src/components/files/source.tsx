@@ -8,6 +8,7 @@ import type {
   CompressFilesRequest,
   DiskUsage,
   FileContent,
+  Job,
   FileEntry as ServerEntry,
   WriteFileRequest,
 } from "@/lib/services"
@@ -62,8 +63,8 @@ export type FileSource = {
   size: (path: string, signal: AbortSignal) => Promise<number>
   mkdir: (path: string) => Promise<unknown>
   rename: (v: { from: string; to: string }) => Promise<unknown>
-  move: (v: { paths: string[]; destination: string }) => Promise<unknown>
-  copy: (v: { paths: string[]; destination: string }) => Promise<unknown>
+  move: (v: { paths: string[]; destination: string }) => Promise<Job>
+  copy: (v: { paths: string[]; destination: string }) => Promise<Job>
   remove: (paths: string[]) => Promise<unknown>
   downloadUrl: (
     paths: string[],
@@ -73,13 +74,15 @@ export type FileSource = {
 
   chmod?: (v: ChmodFilesRequest) => Promise<unknown>
   chown?: (v: ChownFilesRequest) => Promise<unknown>
-  compress?: (
-    v: CompressFilesRequest,
-  ) => Promise<{ name: string; size: number }>
-  extract?: (v: {
+  // These run as background jobs: the answer is the queued job.
+  compress?: (v: CompressFilesRequest) => Promise<Job>
+  extract?: (v: { path: string; destination?: string }) => Promise<Job>
+  fetchUrl?: (v: {
+    url: string
     path: string
-    destination?: string
-  }) => Promise<{ destination: string }>
+    name?: string
+    overwrite?: boolean
+  }) => Promise<Job>
   share?: (
     path: string,
     expiresIn: number,

@@ -18,6 +18,7 @@ import {
   FolderUp,
   HardDriveDownload,
   House,
+  Link2,
   ListChecks,
   Loader2,
   Plus,
@@ -913,6 +914,18 @@ function AddSheet({ close }: { close: () => void }) {
           onClick={() => afterClose(close, actions.importFrom)}
         />
       </li>
+      {actions.fetchUrl && (
+        <li>
+          <SheetAction
+            icon={<Link2 />}
+            label="From a URL"
+            description="The server downloads it itself"
+            onClick={() =>
+              actions.fetchUrl && afterClose(close, actions.fetchUrl)
+            }
+          />
+        </li>
+      )}
       <li>
         <SheetAction
           icon={<FolderPlus />}

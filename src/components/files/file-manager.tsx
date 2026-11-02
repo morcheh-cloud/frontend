@@ -18,6 +18,7 @@ import {
   DiskUsageLayer,
   type UsageSource,
 } from "@/components/disk-usage/disk-usage"
+import { useJobActions } from "@/components/jobs/jobs-provider"
 import { useOpen } from "@/hooks/useOpen"
 import type { ApiError } from "@/lib/api"
 import { fileKeys, useFileOps, useListing, useSearchFiles } from "./api"
@@ -119,6 +120,7 @@ export function FileManager({
   const source = useSource()
   const router = useRouter()
   const ops = useFileOps(source)
+  const jobs = useJobActions()
   const queryClient = useQueryClient()
 
   const [{ path, q: search }, setUrl] = useQueryStates(
@@ -225,13 +227,9 @@ export function FileManager({
     op.mutate(
       { paths, destination: dir },
       {
-        onSuccess: () => {
+        onSuccess: (job) => {
           if (mode === "cut") setClipboard(null)
-          toast.success(
-            `${mode === "cut" ? "Moved" : "Copied"} ${
-              items.length === 1 ? items[0].name : `${items.length} items`
-            }`,
-          )
+          jobs.track(job)
         },
         onError: (err) =>
           toast.error(
@@ -316,7 +314,6 @@ export function FileManager({
       <FileActionsProvider
         dir={dir}
         onCreatedFile={edit}
-        onNavigate={go}
         onRemoved={(paths) => {
           const gone = new Set(paths)
           setSelected(new Set([...selected].filter((p) => !gone.has(p))))

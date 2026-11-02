@@ -1,6 +1,6 @@
 "use client"
 
-import { FileKey, Loader2, PlugZap } from "lucide-react"
+import { Loader2, PlugZap } from "lucide-react"
 import {
   type ClipboardEvent,
   type FormEvent,
@@ -10,6 +10,7 @@ import {
   useState,
 } from "react"
 
+import { PrivateKeyInput, SecretInput } from "@/components/secret-input"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -20,7 +21,12 @@ import type {
   ServerBody,
 } from "@/lib/services"
 import { cn } from "@/lib/utils"
-import { useFacets, useFolders, useTestConnection } from "../api"
+import {
+  useFacets,
+  useFolders,
+  useRevealCredentials,
+  useTestConnection,
+} from "../api"
 import { Field, FolderSelect, Segmented, TagInput } from "./fields"
 import { buildTree } from "./folder-tree"
 import { osLabel, StatusDot, statusMeta } from "./meta"
@@ -182,7 +188,7 @@ export function ServerForm({
   const { roots } = buildTree(folders.data ?? [])
   const test = useTestConnection()
   const [tested, setTested] = useState<ConnectionTestOutputBody | null>(null)
-  const fileRef = useRef<HTMLInputElement>(null)
+  const reveal = useRevealCredentials(server?.id)
   const nameRef = useRef<HTMLInputElement>(null)
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: on mount only
@@ -261,11 +267,6 @@ export function ServerForm({
     }))
     setErrors(({ host: _h, username: _u, port: _p, ...rest }) => rest)
     setTested(null)
-  }
-
-  async function loadKey(file: File | undefined) {
-    if (!file) return
-    set("private_key", await file.text())
   }
 
   const editingKey = server?.auth_method === "private_key"
@@ -369,13 +370,17 @@ export function ServerForm({
           }
         >
           {(p) => (
-            <Input
+            <SecretInput
               {...p}
-              type="password"
               value={values.password}
               onChange={(e) => set("password", e.target.value)}
               placeholder={server?.has_password ? "••••••••" : undefined}
               autoComplete="new-password"
+              load={
+                server?.has_password
+                  ? () => reveal.mutateAsync().then((c) => c.password)
+                  : undefined
+              }
             />
           )}
         </Field>
@@ -391,33 +396,16 @@ export function ServerForm({
             }
           >
             {(p) => (
-              <div className="flex flex-col gap-2">
-                <Textarea
-                  {...p}
-                  value={values.private_key}
-                  onChange={(e) => set("private_key", e.target.value)}
-                  placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
-                  spellCheck={false}
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  className="field-sizing-fixed h-36 resize-none font-mono text-caption md:text-caption"
-                />
-                <input
-                  ref={fileRef}
-                  type="file"
-                  hidden
-                  onChange={(e) => loadKey(e.target.files?.[0])}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="self-start max-md:h-11"
-                  onClick={() => fileRef.current?.click()}
-                >
-                  <FileKey />
-                  Load from file
-                </Button>
-              </div>
+              <PrivateKeyInput
+                {...p}
+                value={values.private_key}
+                onChange={(v) => set("private_key", v)}
+                load={
+                  editingKey && server?.has_private_key
+                    ? () => reveal.mutateAsync().then((c) => c.private_key)
+                    : undefined
+                }
+              />
             )}
           </Field>
           <Field
@@ -430,12 +418,18 @@ export function ServerForm({
             }
           >
             {(p) => (
-              <Input
+              <SecretInput
                 {...p}
-                type="password"
+                label="passphrase"
                 value={values.passphrase}
                 onChange={(e) => set("passphrase", e.target.value)}
+                placeholder={server?.has_passphrase ? "••••••••" : undefined}
                 autoComplete="off"
+                load={
+                  server?.has_passphrase
+                    ? () => reveal.mutateAsync().then((c) => c.passphrase)
+                    : undefined
+                }
               />
             )}
           </Field>

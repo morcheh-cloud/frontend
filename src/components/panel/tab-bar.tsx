@@ -5,6 +5,7 @@ import { Check, ChevronRight, Ellipsis } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
+import { TasksStrip, useActiveJobs } from "@/components/jobs/tasks-button"
 import { useOpen } from "@/hooks/useOpen"
 import { cn } from "@/lib/utils"
 import {
@@ -19,6 +20,7 @@ import {
   servicesItem,
   settingsItem,
   storageItem,
+  tasksItem,
 } from "./nav"
 import { WithPathname } from "./with-pathname"
 import { useWorkspace, WorkspaceAvatar, workspaces } from "./workspace"
@@ -26,6 +28,7 @@ import { useWorkspace, WorkspaceAvatar, workspaces } from "./workspace"
 // A native tab bar fits four tabs plus "More"; the rest live in a sheet.
 const tabItems = [homeItem, serversItem, servicesItem, alertsItem]
 const moreItems = [
+  tasksItem,
   storageItem,
   monitoringItem,
   keysItem,
@@ -47,6 +50,7 @@ function Tabs({ pathname }: { pathname: string }) {
   const router = useRouter()
   const [moreOpen, setMoreOpen] = useOpen("panel-more")
   const { workspace, setWorkspaceId } = useWorkspace()
+  const running = useActiveJobs().length
   const moreActive = moreItems.some((item) => isActive(pathname, item.href))
 
   // Closing the sheet pops its history entry asynchronously; navigating
@@ -62,6 +66,7 @@ function Tabs({ pathname }: { pathname: string }) {
   return (
     <>
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden">
+        <TasksStrip />
         <ul className="flex h-16 items-stretch px-2">
           {tabItems.map((item) => {
             const active = isActive(pathname, item.href)
@@ -86,7 +91,17 @@ function Tabs({ pathname }: { pathname: string }) {
               onClick={() => setMoreOpen(true)}
               className={cn(tabClass, moreActive ? "text-brand" : "text-ash")}
             >
-              <Ellipsis className="size-6" strokeWidth={moreActive ? 2 : 1.5} />
+              <span className="relative">
+                <Ellipsis
+                  className="size-6"
+                  strokeWidth={moreActive ? 2 : 1.5}
+                />
+                {running > 0 && (
+                  <span className="absolute -end-1.5 -top-1 flex size-4 items-center justify-center rounded-full bg-brand text-[10px] leading-none font-medium text-primary-foreground tabular-nums">
+                    {running > 9 ? "9+" : running}
+                  </span>
+                )}
+              </span>
               More
             </button>
           </li>
@@ -143,6 +158,7 @@ function Tabs({ pathname }: { pathname: string }) {
                       <SheetRow
                         item={item}
                         active={isActive(pathname, item.href)}
+                        count={item === tasksItem ? running : 0}
                         onSelect={openFromSheet}
                       />
                     </li>
@@ -160,10 +176,12 @@ function Tabs({ pathname }: { pathname: string }) {
 function SheetRow({
   item,
   active,
+  count,
   onSelect,
 }: {
   item: NavItem
   active: boolean
+  count: number
   onSelect: (href: string) => void
 }) {
   const Icon = item.icon
@@ -182,6 +200,11 @@ function SheetRow({
         <Icon className="size-5" strokeWidth={1.75} />
       </span>
       <span className="flex-1">{item.label}</span>
+      {count > 0 && (
+        <span className="text-body-sm font-normal text-muted-foreground tabular-nums">
+          {count} running
+        </span>
+      )}
       {active ? (
         <span aria-hidden className="size-1.5 rounded-full bg-brand" />
       ) : (

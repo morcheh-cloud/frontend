@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
+import { isActive, useJobList } from "@/components/jobs/api"
 import { type ApiError, api } from "@/lib/api"
 import type {
   Fail2BanBanBody,
@@ -10,6 +11,7 @@ import type {
   Fail2BanTask,
   Fail2BanTestBody,
   Fail2BanTestResult,
+  Job,
 } from "@/lib/services"
 
 export const f2bKeys = {
@@ -41,33 +43,50 @@ export function useFail2banLog(serverId: string, enabled: boolean) {
   })
 }
 
-export type Task =
-  | { kind: "install"; protect_ssh: boolean }
-  | { kind: "uninstall"; purge: boolean }
-  | {
-      kind: "service"
-      action: "start" | "stop" | "restart" | "reload" | "enable" | "disable"
-    }
+export type ServiceAction =
+  | "start"
+  | "stop"
+  | "restart"
+  | "reload"
+  | "enable"
+  | "disable"
 
-// Installs, removes and service actions: long-running, they answer with the
-// command's output, and the overview is read again after.
-export function useTask(serverId: string) {
+// Service actions answer with the command's output, and the overview is read
+// again after.
+export function useServiceAction(serverId: string) {
   const qc = useQueryClient()
-  return useMutation<Fail2BanTask, ApiError, Task>({
-    mutationFn: (t) => {
-      switch (t.kind) {
-        case "install":
-          return api.security.installFail2Ban(serverId, {
-            protect_ssh: t.protect_ssh,
-          })
-        case "uninstall":
-          return api.security.uninstallFail2Ban(serverId, { purge: t.purge })
-        case "service":
-          return api.security.fail2BanService(serverId, { action: t.action })
-      }
-    },
+  return useMutation<Fail2BanTask, ApiError, ServiceAction>({
+    mutationFn: (action) => api.security.fail2BanService(serverId, { action }),
     onSettled: () => qc.invalidateQueries({ queryKey: f2bKeys.all(serverId) }),
   })
+}
+
+export type PackageOp =
+  | { kind: "install"; protect_ssh: boolean }
+  | { kind: "uninstall"; purge: boolean }
+
+// Install and remove run as background jobs: the answer is the job, and the
+// overview is read again when it ends (refreshAfterJob).
+export function usePackageOp(serverId: string) {
+  return useMutation<Job, ApiError, PackageOp>({
+    mutationFn: (op) =>
+      op.kind === "install"
+        ? api.security.installFail2Ban(serverId, {
+            protect_ssh: op.protect_ssh,
+          })
+        : api.security.uninstallFail2Ban(serverId, { purge: op.purge }),
+  })
+}
+
+// The install or removal under way on this server, wherever it was started.
+export function usePackageJob(serverId: string) {
+  const { data } = useJobList()
+  return data?.find(
+    (j) =>
+      isActive(j) &&
+      j.refs.includes(serverId) &&
+      j.kind.startsWith("fail2ban-"),
+  )
 }
 
 export type Edit =
