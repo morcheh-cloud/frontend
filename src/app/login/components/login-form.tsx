@@ -14,14 +14,15 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ApiError } from "@/lib/api"
-import { login } from "../api"
+import { ApiError, api } from "@/lib/api"
+import type { PanelUser } from "@/lib/services"
 
 type FieldErrors = { username?: string; password?: string }
 
 function errorMessage(error: Error) {
-  if (error instanceof ApiError && error.status === 401) {
-    return "Username or password is incorrect."
+  // Wrong credentials, a blocked account, too many tries: the backend's words.
+  if (error instanceof ApiError && [401, 403, 429].includes(error.status)) {
+    return error.message
   }
   if (error instanceof ApiError) {
     return "The server couldn't sign you in. Try again in a moment."
@@ -29,7 +30,11 @@ function errorMessage(error: Error) {
   return "Couldn't reach the server. Check your connection and try again."
 }
 
-export function LoginForm() {
+export function LoginForm({
+  onSignedIn,
+}: {
+  onSignedIn: (user: PanelUser) => void
+}) {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [remember, setRemember] = useState(false)
@@ -48,10 +53,12 @@ export function LoginForm() {
   }, [])
 
   const mutation = useMutation({
-    mutationFn: login,
-    onSuccess: () => {
-      // TODO: navigate to the dashboard once it exists.
-    },
+    mutationFn: (body: {
+      username: string
+      password: string
+      remember: boolean
+    }) => api.auth.authLogin(body),
+    onSuccess: onSignedIn,
     onError: () => setPassword(""),
   })
 

@@ -26,6 +26,7 @@ import {
 import { cn } from "@/lib/utils"
 import { useFacets, useFolders } from "../api"
 import { buildTree, type FolderNode } from "./folder-tree"
+import { useWorkspaceCan } from "./permissions"
 import { useServerActions } from "./server-actions"
 import { useFilters } from "./use-filters"
 
@@ -38,6 +39,7 @@ export function FolderRail() {
   const facets = useFacets()
   const folders = useFolders()
   const actions = useServerActions()
+  const can = useWorkspaceCan()
   const { roots } = buildTree(folders.data ?? [])
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
 
@@ -89,26 +91,32 @@ export function FolderRail() {
           <span className="font-label text-caption tracking-label text-ash uppercase">
             Folders
           </span>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="New folder"
-            onClick={() => actions.newFolder(null)}
-          >
-            <FolderPlus />
-          </Button>
+          {can.folders && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="New folder"
+              onClick={() => actions.newFolder(null)}
+            >
+              <FolderPlus />
+            </Button>
+          )}
         </div>
         {roots.length === 0 && !folders.isPending ? (
-          <button
-            type="button"
-            onClick={() => actions.newFolder(null)}
-            className="flex flex-col items-start gap-0.5 rounded-lg border border-dashed border-mist px-3 py-2.5 text-start text-body-sm text-muted-foreground hover:bg-muted"
-          >
-            <span className="font-medium text-foreground">
-              Group your servers
-            </span>
-            Create folders like Production or EU, and nest them.
-          </button>
+          can.folders ? (
+            <button
+              type="button"
+              onClick={() => actions.newFolder(null)}
+              className="flex flex-col items-start gap-0.5 rounded-lg border border-dashed border-mist px-3 py-2.5 text-start text-body-sm text-muted-foreground hover:bg-muted"
+            >
+              <span className="font-medium text-foreground">
+                Group your servers
+              </span>
+              Create folders like Production or EU, and nest them.
+            </button>
+          ) : (
+            <p className="px-3 text-body-sm text-ash">No folders here.</p>
+          )
         ) : (
           <ul className="flex flex-col gap-0.5">
             {roots.map((node) => (
@@ -173,6 +181,7 @@ function FolderRow({
   onSelect: (id: string) => void
 }) {
   const actions = useServerActions()
+  const can = useWorkspaceCan()
   const [menuOpen, setMenuOpen] = useState(false)
   const open = !collapsed.has(node.id)
   const current = node.id === currentId
@@ -216,45 +225,53 @@ function FolderRow({
             {node.total || ""}
           </span>
         </button>
-        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                aria-label={`${node.name} options`}
-                className={cn(
-                  "absolute end-1 opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100",
-                  menuOpen && "opacity-100",
-                )}
-              />
-            }
-          >
-            <Ellipsis />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-48">
-            <DropdownMenuItem onClick={() => actions.addServer(node.id)}>
-              <Plus />
-              Add server here
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => actions.newFolder(node.id)}>
-              <FolderPlus />
-              New subfolder
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => actions.editFolder(node)}>
-              <Pencil />
-              Rename or move…
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              variant="destructive"
-              onClick={() => actions.deleteFolder(node)}
+        {(can.addServer || can.folders) && (
+          <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={`${node.name} options`}
+                  className={cn(
+                    "absolute end-1 opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100",
+                    menuOpen && "opacity-100",
+                  )}
+                />
+              }
             >
-              <Trash2 />
-              Delete folder…
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <Ellipsis />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              {can.addServer && (
+                <DropdownMenuItem onClick={() => actions.addServer(node.id)}>
+                  <Plus />
+                  Add server here
+                </DropdownMenuItem>
+              )}
+              {can.folders && (
+                <>
+                  <DropdownMenuItem onClick={() => actions.newFolder(node.id)}>
+                    <FolderPlus />
+                    New subfolder
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => actions.editFolder(node)}>
+                    <Pencil />
+                    Rename or move…
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => actions.deleteFolder(node)}
+                  >
+                    <Trash2 />
+                    Delete folder…
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
       {open && hasChildren && (
         <ul className="mt-0.5 flex flex-col gap-0.5">

@@ -52,10 +52,25 @@ import {
 import { ScriptsView, TimersView } from "./timers"
 
 export function CronView() {
-  const { server, phone } = useServerPage()
+  const { server, phone, can } = useServerPage()
   const query = useCron(server.id)
-  const data = query.data
-  const history = useCronHistory(server.id, Boolean(data))
+  const engineer = can("engineer")
+  const seesHistory = can("operator")
+  // Below engineer nothing here can change: the views already handle a
+  // read-only table and a server without sudo, so show them that.
+  const data = useMemo(
+    () =>
+      query.data && !engineer
+        ? {
+            ...query.data,
+            access: "user" as const,
+            login_user: "",
+            tables: query.data.tables.map((t) => ({ ...t, editable: false })),
+          }
+        : query.data,
+    [query.data, engineer],
+  )
+  const history = useCronHistory(server.id, Boolean(data) && seesHistory)
   const clock = useMemo(
     () => (data ? serverClock(data, query.dataUpdatedAt) : null),
     [data, query.dataUpdatedAt],
@@ -71,7 +86,7 @@ export function CronView() {
       disabled={query.isFetching}
       onClick={() => {
         query.refetch()
-        history.refetch()
+        if (seesHistory) history.refetch()
       }}
     >
       <RefreshCw className={cn(query.isFetching && "animate-spin")} />
@@ -291,7 +306,7 @@ function Notices({ history }: { history?: CronHistory }) {
       body: "Jobs are saved but won't run until cron starts (e.g. systemctl enable --now cron, or crond on Alpine).",
     })
   }
-  if (o.access === "user") {
+  if (o.access === "user" && o.login_user) {
     notes.push({
       key: "access",
       title: `Only ${o.login_user}'s own crontab is shown`,

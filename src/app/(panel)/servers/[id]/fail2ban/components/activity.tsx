@@ -213,29 +213,32 @@ export function ActivityTab() {
 
 function useEventMenu(e: Event): Item[][] {
   const a = useF2bActions()
+  const { can } = useServerPage()
   const o = a.overview
   const jail = o.jails.find((j) => j.name === e.jail)
   const banned = jail?.bans.some((b) => b.ip === e.ip)
   return [
-    banned
-      ? [
-          {
-            key: "unban",
-            label: `Unban from ${e.jail}`,
-            icon: <Ban />,
-            onSelect: () => a.unban(e.ip, e.jail),
-          },
-        ]
-      : jail?.active && o.access !== "user"
+    !can("engineer")
+      ? []
+      : banned
         ? [
             {
-              key: "ban",
-              label: `Ban in ${e.jail}…`,
+              key: "unban",
+              label: `Unban from ${e.jail}`,
               icon: <Ban />,
-              onSelect: () => a.ban({ ip: e.ip, jail: e.jail }),
+              onSelect: () => a.unban(e.ip, e.jail),
             },
           ]
-        : [],
+        : jail?.active && o.access !== "user"
+          ? [
+              {
+                key: "ban",
+                label: `Ban in ${e.jail}…`,
+                icon: <Ban />,
+                onSelect: () => a.ban({ ip: e.ip, jail: e.jail }),
+              },
+            ]
+          : [],
     [
       {
         key: "copy",

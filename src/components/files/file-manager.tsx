@@ -196,6 +196,7 @@ export function FileManager({
 
   const open = (entry: FileEntry) => {
     if (isDir(entry)) go(entry.path)
+    else if (source.listOnly) return
     else if (previewable(entry)) {
       setViewing(entry)
       setViewerOpen(true)

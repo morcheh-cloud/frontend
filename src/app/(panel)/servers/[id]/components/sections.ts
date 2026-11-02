@@ -19,7 +19,10 @@ import {
   ShieldCheck,
   SquareTerminal,
   Users,
+  UsersRound,
 } from "lucide-react"
+
+import { atLeast, type Level } from "@/components/auth/level"
 
 export type Section = {
   // URL segment under /servers/[id]; "" is the overview itself.
@@ -241,6 +244,13 @@ export const sectionGroups: SectionGroup[] = [
         bleed: true,
       },
       {
+        slug: "access",
+        label: "Panel access",
+        icon: UsersRound,
+        summary: "Who can use this server in Morcheh, and how far.",
+        ready: true,
+      },
+      {
         slug: "keys",
         label: "Authorized keys",
         icon: KeyRound,
@@ -264,6 +274,29 @@ export const settingsSection: Section = {
 }
 
 const all = [...sectionGroups.flatMap((g) => g.sections), settingsSection]
+
+// The level each section needs; everything else opens from Viewer up. Keep in
+// step with the backend's policy table.
+const MIN: Record<string, Level> = {
+  files: "operator",
+  terminal: "engineer",
+  settings: "owner",
+  access: "owner",
+}
+
+export function sectionMin(section: Section): Level {
+  return MIN[section.slug] ?? "viewer"
+}
+
+// The groups as this level sees them: no links to what would only refuse.
+export function sectionsFor(level: string) {
+  return sectionGroups
+    .map((g) => ({
+      ...g,
+      sections: g.sections.filter((s) => atLeast(level, sectionMin(s))),
+    }))
+    .filter((g) => g.sections.length > 0)
+}
 
 export function sectionFor(slug: string) {
   return all.find((s) => s.slug === slug)

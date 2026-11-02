@@ -413,6 +413,7 @@ function KillDialog({
 // details footer.
 export function useServiceMenu(s: Service): Item[][] {
   const a = useServicesActions()
+  const { can } = useServerPage()
   const off = !a.canManage || s.name in a.busy
   const st = serviceState(s)
   const up = st !== "stopped" && st !== "failed"
@@ -556,5 +557,16 @@ export function useServiceMenu(s: Service): Item[][] {
         ]
       : []
 
+  // Operators restart things and read logs; the rest needs an engineer, and so
+  // does stopping a protected unit (force).
+  if (!can("operator")) return []
+  if (!can("engineer")) {
+    return [
+      now.filter(
+        (i) => i.key !== "reset" && !(s.protected && i.key === "stop"),
+      ),
+      read.filter((i) => i.key === "logs"),
+    ]
+  }
   return [now, read, boot, remove]
 }

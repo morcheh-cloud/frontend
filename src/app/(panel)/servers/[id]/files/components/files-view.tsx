@@ -11,19 +11,24 @@ import { terminalHref } from "../../terminal/components/use-tabs"
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? ""
 
 export function FilesView() {
-  const { server, phone } = useServerPage()
-  const source = useMemo(() => serverSource(server.id), [server.id])
+  const { server, phone, can } = useServerPage()
+  const engineer = can("engineer")
+  const source = useMemo(
+    () => serverSource(server.id, engineer),
+    [server.id, engineer],
+  )
   return <FileBrowser source={source} phone={phone} />
 }
 
 // The server's own disk over SFTP.
-function serverSource(id: string): FileSource {
+function serverSource(id: string, write: boolean): FileSource {
   const f = api.files
   return {
     key: ["files", id],
     noun: "server",
     endpoint: { server_id: id },
     posix: true,
+    readOnly: !write,
     list: (path) => f.listFiles(id, { path }),
     read: (path) => f.readFile(id, { path }),
     write: (v) => f.writeFile(id, v),
@@ -60,7 +65,10 @@ function serverSource(id: string): FileSource {
       f
         .readFile(id, { path: "/etc/passwd" })
         .then((r) => loginUsers(r.content)),
-    terminalHref: (cwd) => terminalHref(`/servers/${id}/terminal`, { cwd }),
+    ...(write && {
+      terminalHref: (cwd: string) =>
+        terminalHref(`/servers/${id}/terminal`, { cwd }),
+    }),
   }
 }
 

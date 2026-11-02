@@ -144,7 +144,7 @@ export function FileEditor({
   // A ref, not isPending: two quick ⌘S presses land before a re-render.
   const inFlight = useRef(false)
   const save = useEffectEvent((force = false) => {
-    if (!file || inFlight.current) return
+    if (!file || inFlight.current || source.readOnly) return
     if (!dirty && !force) return
     const content = value
     inFlight.current = true
@@ -178,10 +178,11 @@ export function FileEditor({
   const extensions = useMemo(() => {
     // ⌘S is handled on the editor's wrapper, which also sees CodeMirror's keys.
     const list: Extension[] = [theme]
+    if (source.readOnly) list.push(EditorView.editable.of(false))
     if (wrap) list.push(EditorView.lineWrapping)
     if (lang) list.push(lang.ext)
     return list
-  }, [wrap, lang])
+  }, [wrap, lang, source.readOnly])
 
   const toggleWrap = () => {
     setWrap((w) => {
@@ -317,7 +318,7 @@ export function FileEditor({
     <>
       <FileLayer
         phone={phone}
-        label={`Edit ${name}`}
+        label={`${source.readOnly ? "View" : "Edit"} ${name}`}
         hidden={!open}
         onDismiss={requestClose}
         onKeyDown={(e) => {
@@ -357,13 +358,15 @@ export function FileEditor({
             >
               <Ellipsis className="size-5" />
             </button>
-            <Button
-              className="me-2 h-9"
-              disabled={!ready || !dirty || saving}
-              onClick={() => save()}
-            >
-              {saving ? <Loader2 className="animate-spin" /> : "Save"}
-            </Button>
+            {!source.readOnly && (
+              <Button
+                className="me-2 h-9"
+                disabled={!ready || !dirty || saving}
+                onClick={() => save()}
+              >
+                {saving ? <Loader2 className="animate-spin" /> : "Save"}
+              </Button>
+            )}
           </header>
         ) : (
           <header className="flex h-14 shrink-0 items-center gap-3 border-b px-4">
@@ -407,16 +410,18 @@ export function FileEditor({
             >
               <Download />
             </Button>
-            <Button
-              disabled={!ready || !dirty || saving}
-              onClick={() => save()}
-            >
-              {saving && <Loader2 className="animate-spin" />}
-              Save
-              <Kbd className="bg-primary-foreground/20 text-primary-foreground">
-                {shortcut("S")}
-              </Kbd>
-            </Button>
+            {!source.readOnly && (
+              <Button
+                disabled={!ready || !dirty || saving}
+                onClick={() => save()}
+              >
+                {saving && <Loader2 className="animate-spin" />}
+                Save
+                <Kbd className="bg-primary-foreground/20 text-primary-foreground">
+                  {shortcut("S")}
+                </Kbd>
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon-sm"

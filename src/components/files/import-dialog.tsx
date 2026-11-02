@@ -156,7 +156,11 @@ function ImportForm({ dir, onClose }: { dir: string; onClose: () => void }) {
           </div>
         </div>
       ) : (
-        <TargetList label="From" onPick={setFrom} />
+        <TargetList
+          label="From"
+          disabled={(t) => !t.readable}
+          onPick={setFrom}
+        />
       )}
 
       <div className="flex flex-col gap-3">

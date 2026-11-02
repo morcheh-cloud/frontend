@@ -1179,11 +1179,13 @@ function BulkBar() {
       <span className="px-2 text-body-sm font-medium whitespace-nowrap">
         {sel.length} selected
       </span>
-      {item("Download", <Download />, () => actions.download(sel))}
+      {!source.listOnly &&
+        item("Download", <Download />, () => actions.download(sel))}
       {movable && item("Copy", <Copy />, () => files.copy(sel))}
       {movable && item("Cut", <Scissors />, () => files.cut(sel))}
       {movable && item("Move to", <FolderInput />, () => actions.moveTo(sel))}
-      {item("Send to", <Send />, () => actions.transfer(sel))}
+      {!source.listOnly &&
+        item("Send to", <Send />, () => actions.transfer(sel))}
       {write &&
         source.compress &&
         item("Compress", <Archive />, () => actions.compress(sel))}

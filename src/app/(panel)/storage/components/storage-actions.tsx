@@ -4,6 +4,7 @@ import { createContext, type ReactNode, useContext, useState } from "react"
 import { toast } from "sonner"
 
 import { statusMeta } from "@/app/(panel)/servers/components/meta"
+import { AccessLayer, ResourceAccess } from "@/components/access/grants"
 import { BottomSheet } from "@/components/bottom-sheet"
 import { ConfirmDialog } from "@/components/responsive-dialog"
 import { Button } from "@/components/ui/button"
@@ -43,6 +44,7 @@ type Actions = {
   toggleFavorite: (storage: Storage) => void
   copyEndpoint: (storage: Storage) => void
   showCredentials: (storage: Storage) => void
+  manageAccess: (storage: Storage) => void
   deleteStorage: (storage: Storage, done?: () => void) => void
 }
 
@@ -83,6 +85,9 @@ export function StorageActionsProvider({ children }: { children: ReactNode }) {
     )
   }
 
+  const [accessStorage, setAccessStorage] = useState<Storage>()
+  const [accessOpen, setAccessOpen] = useOpen("storage-access")
+
   function trustHostKey(storage: Storage) {
     setToTrust(storage)
     setTrustOpen(true)
@@ -118,6 +123,10 @@ export function StorageActionsProvider({ children }: { children: ReactNode }) {
       setCredsStorage(storage)
       setCredsOpen(true)
     },
+    manageAccess: (storage) => {
+      setAccessStorage(storage)
+      setAccessOpen(true)
+    },
     deleteStorage: (storage, done) => {
       setToDelete({ storage, done })
       setDeleteOpen(true)
@@ -130,6 +139,21 @@ export function StorageActionsProvider({ children }: { children: ReactNode }) {
   return (
     <ActionsContext value={actions}>
       {children}
+
+      {accessStorage && (
+        <AccessLayer
+          open={accessOpen}
+          onOpenChange={setAccessOpen}
+          title={`Access to ${accessStorage.name}`}
+          description="Who can reach this storage, and at what level."
+        >
+          <ResourceAccess
+            scope={{ storage_id: accessStorage.id }}
+            kind="storage"
+            workspaceId={accessStorage.workspace_id}
+          />
+        </AccessLayer>
+      )}
 
       <StorageFormLayer
         key={formKey}

@@ -49,7 +49,7 @@ import {
 const tone = { active: "success", failed: "warning", off: "muted" } as const
 
 export function JailsTab() {
-  const { phone } = useServerPage()
+  const { phone, can } = useServerPage()
   const a = useF2bActions()
   const { filters, setFilters } = useF2bFilters()
   const show = filters.show ?? "enabled"
@@ -77,18 +77,20 @@ export function JailsTab() {
           onChange={(v) => setFilters({ show: v === "enabled" ? null : v })}
         />
       </BarSlot>
-      <BarSlot slot="actions">
-        <Button
-          size={phone ? "icon-lg" : "default"}
-          className="md:h-9"
-          aria-label="Add jail"
-          disabled={a.overview.access === "user"}
-          onClick={() => a.editJail(null)}
-        >
-          <Plus />
-          {!phone && "Add jail"}
-        </Button>
-      </BarSlot>
+      {can("engineer") && (
+        <BarSlot slot="actions">
+          <Button
+            size={phone ? "icon-lg" : "default"}
+            className="md:h-9"
+            aria-label="Add jail"
+            disabled={a.overview.access === "user"}
+            onClick={() => a.editJail(null)}
+          >
+            <Plus />
+            {!phone && "Add jail"}
+          </Button>
+        </BarSlot>
+      )}
     </>
   )
 
@@ -133,6 +135,7 @@ export function JailsTab() {
 // What can be done with a jail, for its ⋯ menu and its phone sheet.
 function useJailMenu(j: Fail2BanJail): Item[][] {
   const a = useF2bActions()
+  const { can } = useServerPage()
   const o = a.overview
   const filter = filterName(effective(o, j, "filter"))
   const backend = resolve(o, j, effective(o, j, "backend")) ?? ""
@@ -141,6 +144,7 @@ function useJailMenu(j: Fail2BanJail): Item[][] {
     : (j.status?.files[0] ??
       listValue(resolve(o, j, effective(o, j, "logpath")) ?? "")[0])
   const local = inLocal(j)
+  if (!can("engineer")) return []
   return [
     [
       {
@@ -241,6 +245,7 @@ function JailsTable({ jails }: { jails: Fail2BanJail[] }) {
 
 function JailRow({ jail: j }: { jail: Fail2BanJail }) {
   const a = useF2bActions()
+  const { can } = useServerPage()
   const o = a.overview
   const menu = useJailMenu(j)
   const state = jailState(j)
@@ -250,6 +255,7 @@ function JailRow({ jail: j }: { jail: Fail2BanJail }) {
       <td className="max-w-0 ps-4">
         <button
           type="button"
+          disabled={!can("engineer")}
           onClick={() => a.editJail(j)}
           className="block w-full min-w-0 text-start outline-none focus-visible:underline"
         >
@@ -292,7 +298,7 @@ function JailRow({ jail: j }: { jail: Fail2BanJail }) {
           size="sm"
           aria-label={j.enabled ? `Turn off ${j.name}` : `Turn on ${j.name}`}
           checked={j.enabled}
-          disabled={a.pending || o.access === "user"}
+          disabled={a.pending || o.access === "user" || !can("engineer")}
           onCheckedChange={(on) => a.setEnabled(j, on)}
         />
       </td>
@@ -383,6 +389,7 @@ function JailSheet({
   onOpenChange: (open: boolean) => void
 }) {
   const a = useF2bActions()
+  const { can } = useServerPage()
   const o = a.overview
   const menu = useJailMenu(j)
   const state = jailState(j)
@@ -442,7 +449,10 @@ function JailSheet({
           },
         ]}
       />
-      <SheetItems groups={[[toggle], ...menu]} onOpenChange={onOpenChange} />
+      <SheetItems
+        groups={can("engineer") ? [[toggle], ...menu] : []}
+        onOpenChange={onOpenChange}
+      />
     </BottomSheet>
   )
 }

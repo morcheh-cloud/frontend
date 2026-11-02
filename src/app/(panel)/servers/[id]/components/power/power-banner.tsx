@@ -15,7 +15,7 @@ import { usePowerActions } from "./power"
 // Above every section of the server: a pending scheduled reboot or shutdown
 // (with Cancel), and the progress of one that's under way.
 export function PowerBanner({ className }: { className?: string }) {
-  const { server } = useServerPage()
+  const { server, can } = useServerPage()
   const { overview: o, cancelSchedule } = usePowerActions()
   const { wait, start } = usePowerWait(server.id)
 
@@ -47,7 +47,7 @@ export function PowerBanner({ className }: { className?: string }) {
             title: `${reboot ? "Reboot" : "Shutdown"} scheduled for ${clock(s.at)} (${countdown(Date.parse(s.at) - now)})`,
             body: s.message ? `Message: “${s.message}”` : undefined,
             warn: true,
-            action: o.access !== "user" && (
+            action: can("operator") && o.access !== "user" && (
               <Button variant="outline" size="sm" onClick={cancelSchedule}>
                 Cancel it
               </Button>

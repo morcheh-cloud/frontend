@@ -46,7 +46,7 @@ export function SettingsTab() {
 }
 
 function DefaultsForm() {
-  const { server, phone } = useServerPage()
+  const { server, phone, can } = useServerPage()
   const a = useF2bActions()
   const o = a.overview
   const edit = useEdit(server.id)
@@ -60,7 +60,7 @@ function DefaultsForm() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [problem, setProblem] = useState<string | null>(null)
   const { set, unset, changed } = diffSettings(initial, values)
-  const readOnly = o.access === "user"
+  const readOnly = o.access === "user" || !can("engineer")
 
   function submit(e: FormEvent) {
     e.preventDefault()
@@ -106,29 +106,31 @@ function DefaultsForm() {
           <p className="min-w-0 break-words whitespace-pre-wrap">{problem}</p>
         </div>
       )}
-      {groups.map((g) => (
-        <section
-          key={g.title}
-          className="max-md:mt-6 md:rounded-2xl md:border md:border-border md:p-6"
-        >
-          <h3 className="px-4 pb-3 font-label text-caption tracking-label text-muted-foreground uppercase md:px-0 md:pb-5">
-            {g.title}
-          </h3>
-          <div className="grid gap-x-8 gap-y-6 max-md:border-y max-md:border-border max-md:px-4 max-md:py-5 md:grid-cols-2">
-            {g.keys.map((k) => (
-              <SettingField
-                key={k}
-                meta={settingMeta[k]}
-                value={values[k]}
-                inherited={inheritedDefault(o, k)}
-                onChange={(v) => setValues((s) => ({ ...s, [k]: v }))}
-                error={errors[`set.${k}`]}
-                suggestions={k === "banaction" ? o.actions : undefined}
-              />
-            ))}
-          </div>
-        </section>
-      ))}
+      <fieldset disabled={readOnly} className="contents">
+        {groups.map((g) => (
+          <section
+            key={g.title}
+            className="max-md:mt-6 md:rounded-2xl md:border md:border-border md:p-6"
+          >
+            <h3 className="px-4 pb-3 font-label text-caption tracking-label text-muted-foreground uppercase md:px-0 md:pb-5">
+              {g.title}
+            </h3>
+            <div className="grid gap-x-8 gap-y-6 max-md:border-y max-md:border-border max-md:px-4 max-md:py-5 md:grid-cols-2">
+              {g.keys.map((k) => (
+                <SettingField
+                  key={k}
+                  meta={settingMeta[k]}
+                  value={values[k]}
+                  inherited={inheritedDefault(o, k)}
+                  onChange={(v) => setValues((s) => ({ ...s, [k]: v }))}
+                  error={errors[`set.${k}`]}
+                  suggestions={k === "banaction" ? o.actions : undefined}
+                />
+              ))}
+            </div>
+          </section>
+        ))}
+      </fieldset>
       {!readOnly && (
         <div
           className={cn(
@@ -166,8 +168,10 @@ function DefaultsForm() {
 
 // The files fail2ban reads, and the way to edit jail.local by hand.
 function Files() {
+  const { can } = useServerPage()
   const a = useF2bActions()
   const o = a.overview
+  const editable = o.access !== "user" && can("engineer")
   return (
     <section className="max-md:mt-6 md:rounded-2xl md:border md:border-border md:p-6">
       <div className="flex items-end justify-between gap-3 px-4 pb-3 md:px-0 md:pb-4">
@@ -180,7 +184,7 @@ function Files() {
             jail.local.
           </p>
         </div>
-        {o.access !== "user" && (
+        {editable && (
           <Button
             type="button"
             variant="outline"
@@ -216,7 +220,7 @@ function Files() {
           </li>
         )}
       </ol>
-      {o.access !== "user" && (
+      {editable && (
         <div className="px-4 pt-3 md:hidden">
           <Button
             type="button"

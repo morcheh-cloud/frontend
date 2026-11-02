@@ -3,6 +3,8 @@
 import { useQuery } from "@tanstack/react-query"
 import { ChevronRight, HardDrive, Server } from "lucide-react"
 
+import { useAccess } from "@/components/auth/auth"
+import { atLeast } from "@/components/auth/level"
 import { Skeleton } from "@/components/ui/skeleton"
 import { api } from "@/lib/api"
 import { type Endpoint, useSource } from "./source"
@@ -16,7 +18,10 @@ export type Target = {
   kind: "server" | "storage"
   // Where the path field starts.
   path: string
+  // Can't be written to: refused by the storage, or by this person's access.
   readOnly: boolean
+  // This person can read files here (import from it).
+  readable: boolean
   // Top-level folders are buckets: nothing can go at "/".
   buckets: boolean
 }
@@ -31,6 +36,7 @@ export const filesKey = (t: Target) =>
 // Every storage, then every server, except the one on screen.
 export function useTargets() {
   const source = useSource()
+  const { serverLevel, storageLevel } = useAccess()
   const self = endpointId(source.endpoint)
   const servers = useQuery({
     queryKey: ["servers", "transfer-targets"],
@@ -41,27 +47,35 @@ export function useTargets() {
     queryFn: () => api.storage.listStorages(),
   })
   const targets: Target[] = [
-    ...(storages.data?.items ?? []).map((s) => ({
-      endpoint: { storage_id: s.id },
-      id: s.id,
-      name: s.name,
-      detail: `${s.protocol.toUpperCase()} · ${s.bucket ? `${s.host || s.provider} / ${s.bucket}` : s.host}`,
-      kind: "storage" as const,
-      // Every bucket is a top-level folder: let the user pick one.
-      path: s.capabilities.buckets ? "" : "/",
-      readOnly: s.read_only,
-      buckets: s.capabilities.buckets,
-    })),
-    ...(servers.data?.items ?? []).map((s) => ({
-      endpoint: { server_id: s.id },
-      id: s.id,
-      name: s.name,
-      detail: s.host,
-      kind: "server" as const,
-      path: "/tmp",
-      readOnly: false,
-      buckets: false,
-    })),
+    ...(storages.data?.items ?? []).map((s) => {
+      const level = storageLevel(s.id, s.workspace_id)
+      return {
+        endpoint: { storage_id: s.id },
+        id: s.id,
+        name: s.name,
+        detail: `${s.protocol.toUpperCase()} · ${s.bucket ? `${s.host || s.provider} / ${s.bucket}` : s.host}`,
+        kind: "storage" as const,
+        // Every bucket is a top-level folder: let the user pick one.
+        path: s.capabilities.buckets ? "" : "/",
+        readOnly: s.read_only || !atLeast(level, "engineer"),
+        readable: atLeast(level, "operator"),
+        buckets: s.capabilities.buckets,
+      }
+    }),
+    ...(servers.data?.items ?? []).map((s) => {
+      const level = serverLevel(s.id, s.workspace_id)
+      return {
+        endpoint: { server_id: s.id },
+        id: s.id,
+        name: s.name,
+        detail: s.host,
+        kind: "server" as const,
+        path: "/tmp",
+        readOnly: !atLeast(level, "engineer"),
+        readable: atLeast(level, "operator"),
+        buckets: false,
+      }
+    }),
   ].filter((t) => t.id !== self)
   return {
     targets,

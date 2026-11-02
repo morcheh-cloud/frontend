@@ -1,9 +1,17 @@
 "use client"
 
-import { ChevronRight, ChevronsUpDown, CircleUser, LogOut } from "lucide-react"
+import {
+  ChevronRight,
+  ChevronsUpDown,
+  CircleUser,
+  LogOut,
+  Settings2,
+} from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 
+import { useAuth } from "@/components/auth/auth"
+import { atLeast } from "@/components/auth/level"
 import {
   Collapsible,
   CollapsibleContent,
@@ -17,6 +25,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -40,14 +49,16 @@ import {
   isActive,
   type NavItem,
   navGroups,
-  settingsItem,
+  settingsFor,
 } from "./nav"
 import { WithPathname } from "./with-pathname"
-import { useWorkspace, WorkspaceAvatar, workspaces } from "./workspace"
+import { useWorkspace, WorkspaceAvatar } from "./workspace"
 
 // Desktop navigation (md and up), after shadcn's sidebar-07 block: collapses
 // to an icon rail. Phones get the bottom tab bar instead.
 export function AppSidebar() {
+  const settings = useSettingsItem()
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
@@ -71,7 +82,7 @@ export function AppSidebar() {
             <SidebarGroup className="mt-auto">
               <SidebarMenu>
                 <NavEntry item={helpItem} pathname={pathname} />
-                <NavEntry item={settingsItem} pathname={pathname} />
+                {settings && <NavEntry item={settings} pathname={pathname} />}
               </SidebarMenu>
             </SidebarGroup>
           </SidebarContent>
@@ -87,8 +98,18 @@ export function AppSidebar() {
   )
 }
 
+// The Settings entry this person gets, if any.
+export function useSettingsItem() {
+  const { access } = useAuth()
+  return settingsFor(
+    access.admin,
+    access.workspaces.some((w) => atLeast(w.level, "owner")),
+  )
+}
+
 function WorkspaceSwitcher() {
-  const { workspace, setWorkspaceId } = useWorkspace()
+  const { access } = useAuth()
+  const { workspace, workspaces, setWorkspaceId } = useWorkspace()
 
   return (
     <SidebarMenu>
@@ -107,7 +128,7 @@ function WorkspaceSwitcher() {
               className="group-data-[collapsible=icon]:mx-auto"
             />
             <span className="flex-1 truncate font-medium">
-              {workspace.name}
+              {workspace?.name ?? "No workspace"}
             </span>
             <ChevronsUpDown className="ms-auto text-muted-foreground" />
           </DropdownMenuTrigger>
@@ -115,7 +136,7 @@ function WorkspaceSwitcher() {
             <DropdownMenuGroup>
               <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
               <DropdownMenuRadioGroup
-                value={workspace.id}
+                value={workspace?.id ?? ""}
                 onValueChange={(id) => setWorkspaceId(id as string)}
               >
                 {workspaces.map((w) => (
@@ -125,7 +146,21 @@ function WorkspaceSwitcher() {
                   </DropdownMenuRadioItem>
                 ))}
               </DropdownMenuRadioGroup>
+              {workspaces.length === 0 && (
+                <p className="px-1.5 py-1 text-body-sm text-muted-foreground">
+                  Ask an admin to give you access.
+                </p>
+              )}
             </DropdownMenuGroup>
+            {access.admin && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem render={<Link href="/settings/workspaces" />}>
+                  <Settings2 />
+                  Manage workspaces
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
@@ -205,8 +240,9 @@ function NavSection({
   )
 }
 
-// TODO: show the signed-in user once the backend has auth.
 function AccountMenu() {
+  const { user, signOut } = useAuth()
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -217,13 +253,23 @@ function AccountMenu() {
             }
           >
             <CircleUser />
-            <span>Account</span>
+            <span className="truncate">{user.full_name || user.username}</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="min-w-48" side="right" align="end">
-            <DropdownMenuItem render={<Link href="/login" />}>
-              <LogOut />
-              Sign out
-            </DropdownMenuItem>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="truncate">
+                {user.username}
+              </DropdownMenuLabel>
+              <DropdownMenuItem render={<Link href="/account" />}>
+                <CircleUser />
+                Account
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={signOut}>
+                <LogOut />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>

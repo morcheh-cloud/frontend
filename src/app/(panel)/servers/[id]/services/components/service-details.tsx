@@ -470,7 +470,7 @@ function lastRun(s: Service) {
 // ---- Unit files ----
 
 function Files({ details: d }: { details: Details }) {
-  const { server } = useServerPage()
+  const { server, can } = useServerPage()
   const a = useServicesActions()
   const s = a.overview.services.find((x) => x.name === d.name)
   const hasOverride = d.files.some((f) => f.path === d.override)
@@ -482,7 +482,7 @@ function Files({ details: d }: { details: Details }) {
         As systemd reads them, in order: later files change earlier ones.
         Packaged files are replaced on updates, so changes go in an override.
       </p>
-      {s && a.canManage && (
+      {s && a.canManage && can("engineer") && (
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => a.edit(s, "override")}>
             <FileSliders />

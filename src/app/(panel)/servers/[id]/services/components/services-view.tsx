@@ -98,7 +98,7 @@ export function ServicesView() {
 // service manager's own state, and actions. Phones stack it: search +
 // actions, then scrolling chips.
 function Bar({ refresh }: { refresh: ReactNode }) {
-  const { phone } = useServerPage()
+  const { phone, can } = useServerPage()
   const a = useServicesActions()
   const o = a.overview
   const { filters, setFilters } = useServicesFilters()
@@ -129,7 +129,7 @@ function Bar({ refresh }: { refresh: ReactNode }) {
       className="min-w-0 flex-1 md:max-w-72 md:min-w-36"
     />
   )
-  const add = a.systemd && (
+  const add = a.systemd && can("engineer") && (
     <Button
       size={phone ? "icon-lg" : "default"}
       className="md:h-9"
@@ -218,7 +218,8 @@ function Manager({
 }
 
 function Notes() {
-  const { server } = useServerPage()
+  const { server, can } = useServerPage()
+  const engineer = can("engineer")
   const a = useServicesActions()
   const o = a.overview
   const { filters, setFilters } = useServicesFilters()
@@ -259,7 +260,7 @@ function Notes() {
       key: "reload",
       title: `${stale.length === 1 ? `${shortName(stale[0].name)}'s unit file` : `${stale.length} unit files`} changed on disk`,
       body: "systemd still runs the old version until it reloads them (daemon-reload). Running services keep going.",
-      action: (
+      action: engineer && (
         <Button
           variant="outline"
           size="sm"

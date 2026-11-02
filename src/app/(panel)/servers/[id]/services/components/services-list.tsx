@@ -121,6 +121,7 @@ function ServicesTable({
 
 function Row({ service: s, now }: { service: Service; now: number }) {
   const a = useServicesActions()
+  const { can } = useServerPage()
   const menu = useServiceMenu(s)
   const st = serviceState(s)
   const up = upFor(s, now)
@@ -129,6 +130,7 @@ function Row({ service: s, now }: { service: Service; now: number }) {
       <td className="max-w-0 ps-4">
         <button
           type="button"
+          disabled={!can("operator")}
           onClick={() => a.details(s)}
           className="block w-full min-w-0 text-start outline-none focus-visible:underline"
         >
@@ -195,6 +197,7 @@ function Tag({ children }: { children: string }) {
 
 function PhoneList({ services, now }: { services: Service[]; now: number }) {
   const a = useServicesActions()
+  const { can } = useServerPage()
   return (
     <ul className="mt-4 divide-y divide-border border-y border-border">
       {services.map((s) => {
@@ -209,8 +212,9 @@ function PhoneList({ services, now }: { services: Service[]; now: number }) {
           <li key={s.name}>
             <button
               type="button"
+              disabled={!can("operator")}
               onClick={() => a.details(s)}
-              className="flex min-h-16 w-full items-center gap-3 px-4 py-2.5 text-start outline-none active:bg-muted"
+              className="flex min-h-16 w-full items-center gap-3 px-4 py-2.5 text-start outline-none enabled:active:bg-muted"
             >
               <span
                 className={cn(

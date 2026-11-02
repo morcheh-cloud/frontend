@@ -26,15 +26,56 @@ async function toApiError(response: Response) {
   )
 }
 
+// The workspace the panel is showing. Sent with every request so lists narrow
+// to it and new servers and storages land in it. Set before the requests that
+// depend on it, so it's a plain variable rather than React state.
+let activeWorkspace: string | null = null
+
+export function setActiveWorkspace(id: string | null) {
+  activeWorkspace = id
+}
+
+function withWorkspace(headers?: HeadersInit) {
+  const out = new Headers(headers)
+  // A request may ask about another workspace by naming it itself.
+  if (activeWorkspace && !out.has("X-Workspace-Id")) {
+    out.set("X-Workspace-Id", activeWorkspace)
+  }
+  return out
+}
+
+// Told when a request is refused for who's asking: the session ended, or this
+// person's access changed since the page loaded.
+let refusalListener: (() => void) | null = null
+
+export function onRefused(listener: () => void) {
+  refusalListener = listener
+  return () => {
+    refusalListener = null
+  }
+}
+
+function noteRefusal(url: string, status: number) {
+  if ((status === 401 || status === 403) && !url.includes("/auth/")) {
+    refusalListener?.()
+  }
+}
+
 // Typed client generated from the backend's OpenAPI spec (`pnpm gen:api`).
 // Prefer it over apiFetch for endpoints that exist in the spec. Failures throw
 // ApiError, same as apiFetch.
 export const api = new Api({
   baseUrl: API_URL,
   baseApiParams: { credentials: "include" },
-  customFetch: async (...args) => {
-    const response = await fetch(...args)
-    if (!response.ok) throw await toApiError(response)
+  customFetch: async (input, init) => {
+    const response = await fetch(input, {
+      ...init,
+      headers: withWorkspace(init?.headers),
+    })
+    if (!response.ok) {
+      noteRefusal(String(input), response.status)
+      throw await toApiError(response)
+    }
     return response
   },
 })
@@ -45,13 +86,20 @@ export async function apiFetch<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
+  const headers = withWorkspace(init?.headers)
+  if (!headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json")
+  }
   const response = await fetch(`${API_URL}${path}`, {
     credentials: "include",
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers,
   })
 
-  if (!response.ok) throw await toApiError(response)
+  if (!response.ok) {
+    noteRefusal(path, response.status)
+    throw await toApiError(response)
+  }
 
   if (response.status === 204) return undefined as T
   return response.json() as Promise<T>

@@ -19,7 +19,7 @@ const barButton =
 // full-screen view. The overview goes back to the list; a section goes back
 // to the overview.
 export function MobileChrome({ children }: { children: ReactNode }) {
-  const { server, checking, section, onDeleted } = useServerPage()
+  const { server, checking, section, onDeleted, can } = useServerPage()
   const back = useBack(section.slug ? sectionHref(server.id, "") : "/servers")
   const [sheetOpen, setSheetOpen] = useOpen("server-page-sheet")
   const guide = guideForPath(sectionHref(server.id, section.slug))
@@ -69,7 +69,7 @@ export function MobileChrome({ children }: { children: ReactNode }) {
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         onDeleted={onDeleted}
-        extra={power}
+        extra={can("operator") ? power : undefined}
       />
     </>
   )

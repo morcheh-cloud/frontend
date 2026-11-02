@@ -36,6 +36,7 @@ import {
 import { EmptyState, ErrorState } from "./empty-state"
 import { buildTree, flatten, folderPath } from "./folder-tree"
 import { address, OsTile, osLabel, StatusDot, statusMeta } from "./meta"
+import { useWorkspaceCan } from "./permissions"
 import { SearchInput } from "./search-input"
 import { useServerActions } from "./server-actions"
 import { ServerSheet } from "./server-menu"
@@ -92,6 +93,7 @@ export function ServersMobile() {
 
   const folderId =
     filters.folder && filters.folder !== "none" ? filters.folder : null
+  const can = useWorkspaceCan()
 
   return (
     <>
@@ -109,14 +111,16 @@ export function ServersMobile() {
         >
           <Waypoints className="size-5" />
         </Link>
-        <Button
-          size="icon-lg"
-          aria-label="Add server"
-          className="rounded-full"
-          onClick={() => actions.addServer(folderId)}
-        >
-          <Plus className="size-5" />
-        </Button>
+        {can.addServer && (
+          <Button
+            size="icon-lg"
+            aria-label="Add server"
+            className="rounded-full"
+            onClick={() => actions.addServer(folderId)}
+          >
+            <Plus className="size-5" />
+          </Button>
+        )}
       </header>
 
       <div className="sticky top-0 z-20 flex flex-col gap-2 bg-background pt-3 pb-2">
@@ -129,7 +133,7 @@ export function ServersMobile() {
           {total !== undefined &&
             `${total} ${total === 1 ? "server" : "servers"}`}
         </span>
-        {folderId && (
+        {folderId && (can.addServer || can.folders) && (
           <button
             type="button"
             onClick={() => openSheet("folder-actions")}
@@ -476,6 +480,7 @@ function FolderPicker({ close }: { close: () => void }) {
   const facets = useFacets()
   const folders = useFolders()
   const actions = useServerActions()
+  const can = useWorkspaceCan()
   const { roots } = buildTree(folders.data ?? [])
 
   const pick = (patch: Parameters<typeof setFilters>[0]) =>
@@ -542,13 +547,15 @@ function FolderPicker({ close }: { close: () => void }) {
             />
           </li>
         ))}
-        <li>
-          <SheetAction
-            icon={<FolderPlus />}
-            label="New folder"
-            onClick={() => afterClose(close, () => actions.newFolder(null))}
-          />
-        </li>
+        {can.folders && (
+          <li>
+            <SheetAction
+              icon={<FolderPlus />}
+              label="New folder"
+              onClick={() => afterClose(close, () => actions.newFolder(null))}
+            />
+          </li>
+        )}
       </ul>
     </>
   )
@@ -567,6 +574,7 @@ function FolderActions({ close }: { close: () => void }) {
   const { filters } = useFilters()
   const folders = useFolders()
   const actions = useServerActions()
+  const can = useWorkspaceCan()
   const { nodes } = buildTree(folders.data ?? [])
   const folder = filters.folder ? nodes.get(filters.folder) : undefined
   if (!folder) return null
@@ -578,36 +586,42 @@ function FolderActions({ close }: { close: () => void }) {
         {folderPath(nodes, folder.id)}
       </p>
       <ul className="divide-y divide-border">
-        <li>
-          <SheetAction
-            icon={<Plus />}
-            label="Add server here"
-            onClick={run(() => actions.addServer(folder.id))}
-          />
-        </li>
-        <li>
-          <SheetAction
-            icon={<FolderPlus />}
-            label="New subfolder"
-            onClick={run(() => actions.newFolder(folder.id))}
-          />
-        </li>
-        <li>
-          <SheetAction
-            icon={<Pencil />}
-            label="Rename or move"
-            onClick={run(() => actions.editFolder(folder))}
-          />
-        </li>
-        <li>
-          <SheetAction
-            icon={<Trash2 />}
-            label="Delete folder"
-            description="Its servers move up a level"
-            destructive
-            onClick={run(() => actions.deleteFolder(folder))}
-          />
-        </li>
+        {can.addServer && (
+          <li>
+            <SheetAction
+              icon={<Plus />}
+              label="Add server here"
+              onClick={run(() => actions.addServer(folder.id))}
+            />
+          </li>
+        )}
+        {can.folders && (
+          <>
+            <li>
+              <SheetAction
+                icon={<FolderPlus />}
+                label="New subfolder"
+                onClick={run(() => actions.newFolder(folder.id))}
+              />
+            </li>
+            <li>
+              <SheetAction
+                icon={<Pencil />}
+                label="Rename or move"
+                onClick={run(() => actions.editFolder(folder))}
+              />
+            </li>
+            <li>
+              <SheetAction
+                icon={<Trash2 />}
+                label="Delete folder"
+                description="Its servers move up a level"
+                destructive
+                onClick={run(() => actions.deleteFolder(folder))}
+              />
+            </li>
+          </>
+        )}
       </ul>
     </>
   )

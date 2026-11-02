@@ -37,6 +37,51 @@ export interface AffectedOutputBody {
   affected: number;
 }
 
+export interface AuthLoginBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 1024 */
+  password: string;
+  remember?: boolean;
+  /** @maxLength 64 */
+  username: string;
+}
+
+export interface AuthSetupBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 254 */
+  email: string;
+  /** @maxLength 64 */
+  first_name: string;
+  /** @maxLength 128 */
+  full_name: string;
+  /** @maxLength 1024 */
+  password: string;
+  /** @maxLength 256 */
+  setup_token?: string;
+  /** @maxLength 32 */
+  username: string;
+}
+
+export interface AuthState {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** No user exists yet: show the first-run form. */
+  needs_setup: boolean;
+  registration_open: boolean;
+  setup_token_required: boolean;
+}
+
 export interface Ban {
   ip: string;
   /**
@@ -111,6 +156,18 @@ export interface CPU {
    * @format double
    */
   usage_percent: number;
+}
+
+export interface ChangePasswordBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 1024 */
+  current_password: string;
+  /** @maxLength 1024 */
+  new_password: string;
 }
 
 export interface ChmodFilesRequest {
@@ -1020,6 +1077,8 @@ export interface Folder {
   server_count: number;
   /** @format date-time */
   updated_at: string;
+  /** @format uuid */
+  workspace_id: string;
 }
 
 export interface FolderBody {
@@ -1061,6 +1120,58 @@ export interface FolderSize {
    * @format int64
    */
   size: number;
+}
+
+export interface GrantBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Add servers and storages to the workspace. Defaults to on for Owner. */
+  can_create?: boolean;
+  /** @format uuid */
+  group_id?: string;
+  level: "viewer" | "operator" | "engineer" | "owner";
+  /** @format uuid */
+  server_id?: string;
+  /** @format uuid */
+  storage_id?: string;
+  /** @format uuid */
+  user_id?: string;
+  /** @format uuid */
+  workspace_id?: string;
+}
+
+export interface GrantListOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: PanelGrant[];
+}
+
+export interface GrantOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format uuid */
+  id: string;
+}
+
+export interface GrantSpec {
+  /** Add servers and storages to the workspace. Defaults to on for Owner. */
+  can_create?: boolean;
+  level: "viewer" | "operator" | "engineer" | "owner";
+  /** @format uuid */
+  server_id?: string;
+  /** @format uuid */
+  storage_id?: string;
+  /** @format uuid */
+  workspace_id?: string;
 }
 
 export interface Group {
@@ -1306,6 +1417,20 @@ export interface Memory {
   used_bytes: number;
 }
 
+export interface MyAccess {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  admin: boolean;
+  /** Can add servers and storages somewhere. */
+  can_create: boolean;
+  servers: ResourceAccess[];
+  storages: ResourceAccess[];
+  workspaces: WorkspaceAccess[];
+}
+
 export interface NetAddress {
   family: "ipv4" | "ipv6";
   ip: string;
@@ -1420,6 +1545,243 @@ export interface OpenPort {
   service: string;
   service_source: "container" | "process" | "port" | "none";
   unit?: PortUnit;
+}
+
+export interface PanelApproveBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  grants?: GrantSpec[];
+  group_ids?: string[];
+}
+
+export interface PanelGrant {
+  can_create: boolean;
+  /** @format date-time */
+  created_at: string;
+  full_name?: string;
+  /** @format uuid */
+  group_id?: string;
+  group_name?: string;
+  /** @format uuid */
+  id: string;
+  level: "viewer" | "operator" | "engineer" | "owner";
+  /** @format uuid */
+  server_id?: string;
+  server_name?: string;
+  /** @format uuid */
+  storage_id?: string;
+  storage_name?: string;
+  /** @format uuid */
+  user_id?: string;
+  user_status?: string;
+  username?: string;
+  /** @format uuid */
+  workspace_id?: string;
+  workspace_name?: string;
+}
+
+export interface PanelGroup {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  description: string;
+  /** @format uuid */
+  id: string;
+  member_ids: string[];
+  name: string;
+}
+
+export interface PanelGroupBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 500 */
+  description?: string;
+  /**
+   * @minLength 1
+   * @maxLength 64
+   */
+  name: string;
+}
+
+export interface PanelGroupListOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: PanelGroup[];
+}
+
+export interface PanelGroupMembersBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  user_ids: string[];
+}
+
+export interface PanelPasswordBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 1024 */
+  password: string;
+}
+
+export interface PanelProfile {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 254 */
+  email: string;
+  /** @maxLength 64 */
+  first_name: string;
+  /** @maxLength 128 */
+  full_name: string;
+}
+
+export interface PanelSettings {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  registration_open: boolean;
+}
+
+export interface PanelSignup {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 254 */
+  email: string;
+  /** @maxLength 64 */
+  first_name: string;
+  /** @maxLength 128 */
+  full_name: string;
+  /** @maxLength 1024 */
+  password: string;
+  /** @maxLength 32 */
+  username: string;
+}
+
+export interface PanelUser {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format date-time */
+  created_at: string;
+  email: string;
+  first_name: string;
+  full_name: string;
+  group_ids?: string[];
+  /** @format uuid */
+  id: string;
+  /** @format date-time */
+  last_login_at?: string;
+  must_change_password: boolean;
+  role: "admin" | "member";
+  status: "pending" | "active" | "blocked";
+  username: string;
+}
+
+export interface PanelUserCount {
+  /** @format int32 */
+  count: number;
+  value: string;
+}
+
+export interface PanelUserCreateBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 254 */
+  email: string;
+  /** @maxLength 64 */
+  first_name: string;
+  /** @maxLength 128 */
+  full_name: string;
+  grants?: GrantSpec[];
+  group_ids?: string[];
+  /** @maxLength 1024 */
+  password: string;
+  role: "admin" | "member";
+  /** @maxLength 32 */
+  username: string;
+}
+
+export interface PanelUserListOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  counts: PanelUserCount[];
+  items: PanelUser[];
+}
+
+export interface PanelUserUpdateBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 254 */
+  email?: string;
+  /** @maxLength 64 */
+  first_name?: string;
+  /** @maxLength 128 */
+  full_name?: string;
+  /** Replaces their groups; leave out to keep them. */
+  group_ids?: string[];
+  role?: "admin" | "member";
+}
+
+export interface PanelWorkspace {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** You can add servers and storages here. */
+  can_create: boolean;
+  description: string;
+  /** @format uuid */
+  id: string;
+  /** Your level on the whole workspace; none if you only reach some servers or storages in it. */
+  level: string;
+  name: string;
+  /** You only reach some servers or storages in it. */
+  partial: boolean;
+  /**
+   * Servers you can reach here.
+   * @format int32
+   */
+  server_count: number;
+  /**
+   * Storages you can reach here.
+   * @format int32
+   */
+  storage_count: number;
 }
 
 export interface PortContainer {
@@ -1555,6 +1917,29 @@ export interface PowerSchedule {
   message?: string;
 }
 
+export interface PrincipalGroup {
+  /** @format uuid */
+  id: string;
+  name: string;
+}
+
+export interface PrincipalUser {
+  full_name: string;
+  /** @format uuid */
+  id: string;
+  username: string;
+}
+
+export interface PrincipalsOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  groups: PrincipalGroup[];
+  users: PrincipalUser[];
+}
+
 export interface Progress {
   /** The file it's on */
   current?: string;
@@ -1655,6 +2040,12 @@ export interface RenameTerminalRequest {
    * @maxLength 64
    */
   title: string;
+}
+
+export interface ResourceAccess {
+  /** @format uuid */
+  id: string;
+  level: string;
 }
 
 export interface Rule {
@@ -1773,6 +2164,8 @@ export interface Server {
   /** @format date-time */
   updated_at: string;
   username: string;
+  /** @format uuid */
+  workspace_id: string;
 }
 
 export interface ServerBody {
@@ -2330,6 +2723,8 @@ export interface Storage {
   updated_at: string;
   /** Access key for S3 */
   username: string;
+  /** @format uuid */
+  workspace_id: string;
 }
 
 export interface StorageAffectedOutputBody {
@@ -3028,6 +3423,91 @@ export interface UsersOverview {
   warnings: string[];
 }
 
+export interface WorkspaceAccess {
+  can_create: boolean;
+  /** @format uuid */
+  id: string;
+  level: string;
+}
+
+export interface WorkspaceAssignBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  server_ids?: string[];
+  storage_ids?: string[];
+}
+
+export interface WorkspaceBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 500 */
+  description?: string;
+  /**
+   * @minLength 1
+   * @maxLength 64
+   */
+  name: string;
+}
+
+export interface WorkspaceDetail {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** You can add servers and storages here. */
+  can_create: boolean;
+  description: string;
+  /** @format uuid */
+  id: string;
+  /** Your level on the whole workspace; none if you only reach some servers or storages in it. */
+  level: string;
+  name: string;
+  /** You only reach some servers or storages in it. */
+  partial: boolean;
+  /**
+   * Servers you can reach here.
+   * @format int32
+   */
+  server_count: number;
+  servers: WorkspaceServer[];
+  /**
+   * Storages you can reach here.
+   * @format int32
+   */
+  storage_count: number;
+  storages: WorkspaceStorage[];
+}
+
+export interface WorkspaceListOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: PanelWorkspace[];
+}
+
+export interface WorkspaceServer {
+  host: string;
+  /** @format uuid */
+  id: string;
+  name: string;
+}
+
+export interface WorkspaceStorage {
+  /** @format uuid */
+  id: string;
+  name: string;
+  protocol: string;
+}
+
 export interface WriteFileRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -3318,6 +3798,693 @@ export class HttpClient<SecurityDataType = unknown> {
 export class Api<
   SecurityDataType extends unknown,
 > extends HttpClient<SecurityDataType> {
+  workspaces = {
+    /**
+     * @description Moved servers leave their folder, which belongs to the old workspace.
+     *
+     * @tags Workspaces
+     * @name AssignWorkspace
+     * @summary Move servers and storages into a workspace
+     * @request POST:/workspaces/{id}/assign
+     */
+    assignWorkspace: (
+      id: string,
+      data: WorkspaceAssignBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, ErrorModel>({
+        path: `/workspaces/${id}/assign`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Workspaces
+     * @name CreateWorkspace
+     * @summary Create a workspace
+     * @request POST:/workspaces
+     */
+    createWorkspace: (data: WorkspaceBody, params: RequestParams = {}) =>
+      this.request<PanelWorkspace, ErrorModel>({
+        path: `/workspaces`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Workspaces
+     * @name DeleteGrant
+     * @summary Remove access
+     * @request DELETE:/grants/{id}
+     */
+    deleteGrant: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/grants/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Workspaces
+     * @name DeleteWorkspace
+     * @summary Delete an empty workspace
+     * @request DELETE:/workspaces/{id}
+     */
+    deleteWorkspace: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/workspaces/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Workspaces
+     * @name GetWorkspace
+     * @summary Get a workspace and what's in it
+     * @request GET:/workspaces/{id}
+     */
+    getWorkspace: (id: string, params: RequestParams = {}) =>
+      this.request<WorkspaceDetail, ErrorModel>({
+        path: `/workspaces/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Admins can filter by anything. Others must name a workspace, server or storage they own.
+     *
+     * @tags Workspaces
+     * @name ListGrants
+     * @summary List who has access
+     * @request GET:/grants
+     */
+    listGrants: (
+      query?: {
+        /** @format uuid */
+        group_id?: string;
+        /** @format uuid */
+        server_id?: string;
+        /** @format uuid */
+        storage_id?: string;
+        /** @format uuid */
+        user_id?: string;
+        /** @format uuid */
+        workspace_id?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<GrantListOutputBody, ErrorModel>({
+        path: `/grants`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Workspaces
+     * @name ListPrincipals
+     * @summary People and groups you can give access to
+     * @request GET:/access/principals
+     */
+    listPrincipals: (params: RequestParams = {}) =>
+      this.request<PrincipalsOutputBody, ErrorModel>({
+        path: `/access/principals`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Workspaces
+     * @name ListWorkspaces
+     * @summary List the workspaces you can open
+     * @request GET:/workspaces
+     */
+    listWorkspaces: (params: RequestParams = {}) =>
+      this.request<WorkspaceListOutputBody, ErrorModel>({
+        path: `/workspaces`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description One person or group, one workspace, server or storage. Admins and the target's Owners can. Only admins decide who may add servers: an Owner passes on at most what they have themselves.
+     *
+     * @tags Workspaces
+     * @name SetGrant
+     * @summary Give or change access
+     * @request PUT:/grants
+     */
+    setGrant: (data: GrantBody, params: RequestParams = {}) =>
+      this.request<GrantOutputBody, ErrorModel>({
+        path: `/grants`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Workspaces
+     * @name UpdateWorkspace
+     * @summary Rename a workspace
+     * @request PATCH:/workspaces/{id}
+     */
+    updateWorkspace: (
+      id: string,
+      data: WorkspaceBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<PanelWorkspace, ErrorModel>({
+        path: `/workspaces/${id}`,
+        method: "PATCH",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  admin = {
+    /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminApproveUser
+     * @summary Approve someone who signed up
+     * @request POST:/admin/users/{id}/approve
+     */
+    adminApproveUser: (
+      id: string,
+      data: PanelApproveBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<PanelUser, ErrorModel>({
+        path: `/admin/users/${id}/approve`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Signs them out at once, closes their terminals and streams, and cancels their running jobs.
+     *
+     * @tags Admin
+     * @name AdminBlockUser
+     * @summary Block a panel user
+     * @request POST:/admin/users/{id}/block
+     */
+    adminBlockUser: (id: string, params: RequestParams = {}) =>
+      this.request<PanelUser, ErrorModel>({
+        path: `/admin/users/${id}/block`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminCreateGroup
+     * @summary Create a group
+     * @request POST:/admin/groups
+     */
+    adminCreateGroup: (data: PanelGroupBody, params: RequestParams = {}) =>
+      this.request<PanelGroup, ErrorModel>({
+        path: `/admin/groups`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The password is temporary: they must change it when they first sign in.
+     *
+     * @tags Admin
+     * @name AdminCreateUser
+     * @summary Add a panel user
+     * @request POST:/admin/users
+     */
+    adminCreateUser: (data: PanelUserCreateBody, params: RequestParams = {}) =>
+      this.request<PanelUser, ErrorModel>({
+        path: `/admin/users`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Its members lose the access it gave them.
+     *
+     * @tags Admin
+     * @name AdminDeleteGroup
+     * @summary Delete a group
+     * @request DELETE:/admin/groups/{id}
+     */
+    adminDeleteGroup: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/admin/groups/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminDeleteUser
+     * @summary Delete a panel user
+     * @request DELETE:/admin/users/{id}
+     */
+    adminDeleteUser: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/admin/users/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminGetSettings
+     * @summary Get panel settings
+     * @request GET:/admin/settings
+     */
+    adminGetSettings: (params: RequestParams = {}) =>
+      this.request<PanelSettings, ErrorModel>({
+        path: `/admin/settings`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminGetUser
+     * @summary Get a panel user
+     * @request GET:/admin/users/{id}
+     */
+    adminGetUser: (id: string, params: RequestParams = {}) =>
+      this.request<PanelUser, ErrorModel>({
+        path: `/admin/users/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminListGroups
+     * @summary List groups
+     * @request GET:/admin/groups
+     */
+    adminListGroups: (params: RequestParams = {}) =>
+      this.request<PanelGroupListOutputBody, ErrorModel>({
+        path: `/admin/groups`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminListUsers
+     * @summary List panel users
+     * @request GET:/admin/users
+     */
+    adminListUsers: (
+      query?: {
+        /** @maxLength 128 */
+        q?: string;
+        status?: "pending" | "active" | "blocked";
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<PanelUserListOutputBody, ErrorModel>({
+        path: `/admin/users`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Deletes the account; they can sign up again while registration is open.
+     *
+     * @tags Admin
+     * @name AdminRejectUser
+     * @summary Reject someone who signed up
+     * @request POST:/admin/users/{id}/reject
+     */
+    adminRejectUser: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/admin/users/${id}/reject`,
+        method: "POST",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminRevokeSessions
+     * @summary Sign someone out everywhere
+     * @request POST:/admin/users/{id}/revoke-sessions
+     */
+    adminRevokeSessions: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/admin/users/${id}/revoke-sessions`,
+        method: "POST",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminSetGroupMembers
+     * @summary Set a group's members
+     * @request PUT:/admin/groups/{id}/members
+     */
+    adminSetGroupMembers: (
+      id: string,
+      data: PanelGroupMembersBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<PanelGroup, ErrorModel>({
+        path: `/admin/groups/${id}/members`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Signs them out everywhere and closes their terminals; they must pick a new password at next sign-in.
+     *
+     * @tags Admin
+     * @name AdminSetPassword
+     * @summary Set a temporary password
+     * @request POST:/admin/users/{id}/password
+     */
+    adminSetPassword: (
+      id: string,
+      data: PanelPasswordBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<PanelUser, ErrorModel>({
+        path: `/admin/users/${id}/password`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminUnblockUser
+     * @summary Unblock a panel user
+     * @request POST:/admin/users/{id}/unblock
+     */
+    adminUnblockUser: (id: string, params: RequestParams = {}) =>
+      this.request<PanelUser, ErrorModel>({
+        path: `/admin/users/${id}/unblock`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminUpdateGroup
+     * @summary Rename a group
+     * @request PATCH:/admin/groups/{id}
+     */
+    adminUpdateGroup: (
+      id: string,
+      data: PanelGroupBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<PanelGroup, ErrorModel>({
+        path: `/admin/groups/${id}`,
+        method: "PATCH",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminUpdateSettings
+     * @summary Change panel settings
+     * @request PATCH:/admin/settings
+     */
+    adminUpdateSettings: (data: PanelSettings, params: RequestParams = {}) =>
+      this.request<PanelSettings, ErrorModel>({
+        path: `/admin/settings`,
+        method: "PATCH",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminUpdateUser
+     * @summary Edit a panel user
+     * @request PATCH:/admin/users/{id}
+     */
+    adminUpdateUser: (
+      id: string,
+      data: PanelUserUpdateBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<PanelUser, ErrorModel>({
+        path: `/admin/users/${id}`,
+        method: "PATCH",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  auth = {
+    /**
+     * No description
+     *
+     * @tags Auth
+     * @name AuthLogin
+     * @summary Sign in
+     * @request POST:/auth/login
+     */
+    authLogin: (data: AuthLoginBody, params: RequestParams = {}) =>
+      this.request<PanelUser, ErrorModel>({
+        path: `/auth/login`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Auth
+     * @name AuthLogout
+     * @summary Sign out
+     * @request POST:/auth/logout
+     */
+    authLogout: (params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/auth/logout`,
+        method: "POST",
+        ...params,
+      }),
+
+    /**
+     * @description Ends every session of this user and closes their terminals.
+     *
+     * @tags Auth
+     * @name AuthLogoutAll
+     * @summary Sign out everywhere
+     * @request POST:/auth/logout-all
+     */
+    authLogoutAll: (params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/auth/logout-all`,
+        method: "POST",
+        ...params,
+      }),
+
+    /**
+     * @description Only while an admin has registration open. The account can do nothing until approved.
+     *
+     * @tags Auth
+     * @name AuthRegister
+     * @summary Sign up
+     * @request POST:/auth/register
+     */
+    authRegister: (data: PanelSignup, params: RequestParams = {}) =>
+      this.request<PanelUser, ErrorModel>({
+        path: `/auth/register`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Works only while no user exists.
+     *
+     * @tags Auth
+     * @name AuthSetup
+     * @summary Create the first admin
+     * @request POST:/auth/setup
+     */
+    authSetup: (data: AuthSetupBody, params: RequestParams = {}) =>
+      this.request<PanelUser, ErrorModel>({
+        path: `/auth/setup`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Ends your other sessions and closes your terminals: if the old password leaked, whoever had it is out.
+     *
+     * @tags Auth
+     * @name ChangePassword
+     * @summary Change your password
+     * @request POST:/auth/password
+     */
+    changePassword: (data: ChangePasswordBody, params: RequestParams = {}) =>
+      this.request<PanelUser, ErrorModel>({
+        path: `/auth/password`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Auth
+     * @name GetAuthState
+     * @summary What the sign-in page should offer
+     * @request GET:/auth/state
+     */
+    getAuthState: (params: RequestParams = {}) =>
+      this.request<AuthState, ErrorModel>({
+        path: `/auth/state`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Auth
+     * @name GetMe
+     * @summary The signed-in user
+     * @request GET:/auth/me
+     */
+    getMe: (params: RequestParams = {}) =>
+      this.request<PanelUser, ErrorModel>({
+        path: `/auth/me`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Auth
+     * @name GetMyAccess
+     * @summary What the signed-in user can reach
+     * @request GET:/auth/access
+     */
+    getMyAccess: (params: RequestParams = {}) =>
+      this.request<MyAccess, ErrorModel>({
+        path: `/auth/access`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Auth
+     * @name UpdateMe
+     * @summary Edit your profile
+     * @request PATCH:/auth/me
+     */
+    updateMe: (data: PanelProfile, params: RequestParams = {}) =>
+      this.request<PanelUser, ErrorModel>({
+        path: `/auth/me`,
+        method: "PATCH",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
   folders = {
     /**
      * No description

@@ -15,11 +15,19 @@ import {
   sectionFor,
   sectionGroups,
   sectionHref,
+  sectionMin,
   settingsSection,
 } from "@/app/(panel)/servers/[id]/components/sections"
 import { serversHref } from "@/app/(panel)/servers/components/use-filters"
+import { atLeast } from "@/components/auth/level"
 import { guideForPath, guideHref, guides } from "@/components/help/guides"
-import { helpItem, navGroups, settingsItem } from "../nav"
+import {
+  accountItem,
+  helpItem,
+  type NavItem,
+  navGroups,
+  settingsItem,
+} from "../nav"
 
 // What the command palette offers before anything is typed, and the static
 // half of what it searches (servers and storages come from the API).
@@ -44,6 +52,7 @@ export type Command = {
 export const pages: Command[] = [
   ...navGroups.flatMap((g) => g.items),
   settingsItem,
+  accountItem,
   helpItem,
 ].flatMap((item) => [
   {
@@ -67,15 +76,27 @@ export const pages: Command[] = [
     })),
 ])
 
+// Settings pages this person can't open stay out of the results.
+export function visiblePages(settings: NavItem | null) {
+  const open = new Set([
+    settings?.href,
+    ...(settings?.children ?? []).map((c) => c.href),
+  ])
+  return pages.filter(
+    (p) => !p.href?.startsWith("/settings") || open.has(p.href),
+  )
+}
+
 const topPages = new Set(["/home", "/servers", "/storage", "/help"])
 export const shortcutPages = pages.filter((p) => topPages.has(p.href ?? ""))
 
 export function actions(
   pathname: string,
   toggleSidebar: () => void,
+  canAdd: boolean,
 ): Command[] {
   const guide = guideForPath(pathname)
-  return [
+  const add: Command[] = [
     {
       key: "action:add-server",
       label: "Add server",
@@ -94,6 +115,9 @@ export function actions(
       intent: "add-storage",
       keywords: "new create s3 ftp sftp webdav bucket",
     },
+  ]
+  return [
+    ...(canAdd ? add : []),
     {
       key: "action:guide",
       label: guide ? `How ${guide.guide.title} works` : "Open help",
@@ -129,8 +153,13 @@ const serverSections = [
 ].filter((s) => s.ready)
 
 // The current server's built sections, when a server page is open.
-export function sectionsOf(serverId: string, serverName: string): Command[] {
-  return serverSections.map((s) => ({
+export function sectionsOf(
+  serverId: string,
+  serverName: string,
+  level: string,
+): Command[] {
+  const open = serverSections.filter((s) => atLeast(level, sectionMin(s)))
+  return open.map((s) => ({
     key: `section:${serverId}:${s.slug}`,
     label: s.label,
     hint: serverName,

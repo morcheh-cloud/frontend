@@ -104,7 +104,7 @@ export function Fail2banView() {
 }
 
 function NotInstalled({ refresh }: { refresh: ReactNode }) {
-  const { phone } = useServerPage()
+  const { phone, can } = useServerPage()
   const a = useF2bActions()
   const o = a.overview
   const [protect, setProtect] = useState(true)
@@ -155,7 +155,8 @@ function NotInstalled({ refresh }: { refresh: ReactNode }) {
             </>
           }
           action={
-            !blocker && (
+            !blocker &&
+            can("engineer") && (
               <div className="flex flex-col gap-4">
                 {/* biome-ignore lint/a11y/noLabelWithoutControl: the Base UI checkbox inside is the control */}
                 <label className="flex min-h-11 cursor-pointer items-start gap-3 text-start text-body-sm">
@@ -218,7 +219,9 @@ function PackageProgress({ job }: { job: Job }) {
 // Start/stop, boot, text editing, testing and removal, in one menu.
 function useManageItems(): Item[][] {
   const a = useF2bActions()
+  const { can } = useServerPage()
   const o = a.overview
+  if (!can("engineer")) return []
   const service: Item[] = o.running
     ? [
         {
@@ -305,6 +308,7 @@ function Manage() {
   const items = useManageItems()
   const [open, setOpen] = useOpen("f2b-manage")
 
+  if (items.length === 0) return null
   if (!phone) {
     return (
       <ItemMenu
@@ -341,6 +345,7 @@ function Manage() {
 }
 
 function Content({ refresh }: { refresh: ReactNode }) {
+  const { can } = useServerPage()
   const a = useF2bActions()
   const jobs = useJobActions()
   const o = a.overview
@@ -350,14 +355,14 @@ function Content({ refresh }: { refresh: ReactNode }) {
   let body: ReactNode
   if (filters.tab === "bans") body = <BansTab rows={bans} />
   else if (filters.tab === "settings") body = <SettingsTab />
-  else if (filters.tab === "activity") body = <ActivityTab />
+  else if (filters.tab === "activity" && can("operator")) body = <ActivityTab />
   else body = <JailsTab />
 
   return (
     <BarSlots>
       <div className="flex flex-col gap-4 max-md:gap-0 max-md:pb-6">
         <Bar refresh={refresh} bans={bans.length} />
-        <Notices notes={notes(o, a, jobs)} />
+        <Notices notes={notes(o, a, jobs, can("engineer"))} />
         {body}
       </div>
     </BarSlots>
@@ -369,7 +374,7 @@ function Content({ refresh }: { refresh: ReactNode }) {
 // quiet text, Refresh and Manage. Phones stack it: search + buttons, then
 // scrolling chips.
 function Bar({ refresh, bans }: { refresh: ReactNode; bans: number }) {
-  const { phone } = useServerPage()
+  const { phone, can } = useServerPage()
   const o = useF2bActions().overview
   const { filters, setFilters } = useF2bFilters()
   const searching = useSlotFilled("search")
@@ -381,7 +386,9 @@ function Bar({ refresh, bans }: { refresh: ReactNode; bans: number }) {
         { value: "jails", label: `Jails · ${o.jails.length}` },
         { value: "bans", label: `Bans · ${o.responding ? bans : "—"}` },
         { value: "settings", label: "Settings" },
-        { value: "activity", label: "Activity" },
+        ...(can("operator")
+          ? [{ value: "activity" as const, label: "Activity" }]
+          : []),
       ]}
       value={filters.tab}
       onChange={(t: Tab) =>
@@ -494,6 +501,7 @@ function notes(
   o: Fail2BanOverview,
   a: ReturnType<typeof useF2bActions>,
   jobs: ReturnType<typeof useJobActions>,
+  engineer: boolean,
 ) {
   const out: Note[] = o.warnings.map((w) => ({
     key: w,
@@ -514,7 +522,7 @@ function notes(
       title: "Fail2ban isn't running",
       body: "Nothing is banned while it's stopped.",
       warn: true,
-      action: (
+      action: engineer && (
         <Button
           size="sm"
           disabled={a.busy}

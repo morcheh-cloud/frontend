@@ -3,6 +3,7 @@ import {
   Bell,
   Boxes,
   CircleHelp,
+  CircleUser,
   HardDrive,
   House,
   KeyRound,
@@ -80,8 +81,15 @@ export const settingsItem: NavItem = {
   children: [
     { href: "/settings", label: "General" },
     { href: "/settings/members", label: "Members" },
+    { href: "/settings/groups", label: "Groups" },
     { href: "/settings/workspaces", label: "Workspaces" },
   ],
+}
+
+export const accountItem: NavItem = {
+  href: "/account",
+  label: "Account",
+  icon: CircleUser,
 }
 
 export const helpItem: NavItem = {
@@ -100,7 +108,20 @@ export const navGroups: NavGroup[] = [
   { label: "Observability", items: [monitoringItem, alertsItem] },
 ]
 
-const allItems = [...navGroups.flatMap((g) => g.items), helpItem, settingsItem]
+const allItems = [
+  ...navGroups.flatMap((g) => g.items),
+  helpItem,
+  settingsItem,
+  accountItem,
+]
+
+// An admin sees all of Settings; someone who owns a workspace manages that
+// workspace; nobody else has anything there.
+export function settingsFor(admin: boolean, ownsWorkspace: boolean) {
+  if (admin) return settingsItem
+  if (!ownsWorkspace) return null
+  return { ...settingsItem, href: "/settings/workspaces", children: undefined }
+}
 
 export function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`)

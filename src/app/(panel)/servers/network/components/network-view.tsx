@@ -16,6 +16,7 @@ import {
   Segmented,
 } from "@/app/(panel)/servers/[id]/components/parts"
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
+import { useAccess } from "@/components/auth/auth"
 import { guideHref } from "@/components/help/guides"
 import { HelpButton } from "@/components/help/help-link"
 import { Button } from "@/components/ui/button"
@@ -75,6 +76,7 @@ export function NetworkView() {
 function Page({ phone }: { phone: boolean }) {
   const query = useNetworkMap()
   const rescan = useRescan()
+  const canRescan = useAccess().highest("operator")
   const [filters, setFilters] = useNetworkFilters()
   const [selection, setSelection] = useState<Selection | null>(null)
   const [open, setOpen] = useOpen("network-details")
@@ -101,7 +103,7 @@ function Page({ phone }: { phone: boolean }) {
     filters,
     setFilters,
     scanning: rescan.isPending || query.isPending,
-    onRescan: () => rescan.mutate(),
+    onRescan: canRescan ? () => rescan.mutate() : undefined,
     onSelect: select,
   }
 
@@ -224,7 +226,8 @@ type PageProps = {
   filters: Filters
   setFilters: ReturnType<typeof useNetworkFilters>[1]
   scanning: boolean
-  onRescan: () => void
+  // Missing when this person may read the map but not scan again.
+  onRescan?: () => void
   onSelect: (selection: Selection) => void
   children: ReactNode
 }
@@ -250,17 +253,19 @@ function DesktopPage({ children, ...props }: PageProps) {
         <Chips filters={filters} setFilters={setFilters} />
         <div className="ms-auto flex items-center gap-3">
           <ScanStatus map={map} scanning={scanning} onSelect={onSelect} />
-          <Button
-            variant="outline"
-            size="icon"
-            className="md:size-9"
-            aria-label="Scan again"
-            title="Scan again"
-            disabled={scanning}
-            onClick={onRescan}
-          >
-            <RefreshCw className={cn(scanning && "animate-spin")} />
-          </Button>
+          {onRescan && (
+            <Button
+              variant="outline"
+              size="icon"
+              className="md:size-9"
+              aria-label="Scan again"
+              title="Scan again"
+              disabled={scanning}
+              onClick={onRescan}
+            >
+              <RefreshCw className={cn(scanning && "animate-spin")} />
+            </Button>
+          )}
         </div>
       </div>
       <div className="relative min-h-0 flex-1">{children}</div>
@@ -303,15 +308,17 @@ function PhonePage({ children, ...props }: PageProps) {
           >
             <Search className="size-5" />
           </button>
-          <button
-            type="button"
-            aria-label="Scan again"
-            disabled={scanning}
-            onClick={onRescan}
-            className={barButton}
-          >
-            <RefreshCw className={cn("size-5", scanning && "animate-spin")} />
-          </button>
+          {onRescan && (
+            <button
+              type="button"
+              aria-label="Scan again"
+              disabled={scanning}
+              onClick={onRescan}
+              className={barButton}
+            >
+              <RefreshCw className={cn("size-5", scanning && "animate-spin")} />
+            </button>
+          )}
         </div>
         {searching && (
           <div className="px-4 pb-2">

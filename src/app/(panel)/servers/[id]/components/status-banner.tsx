@@ -11,7 +11,7 @@ import { useServerPage } from "./server-page"
 // A failed last check affects every section (none can reach the server), so
 // it's shown above all of them, with the one action that fixes it.
 export function StatusBanner({ className }: { className?: string }) {
-  const { server, checking } = useServerPage()
+  const { server, checking, can } = useServerPage()
   const actions = useServerActions()
   const { status } = server
   if (status === "online" || status === "unknown") return null
@@ -21,17 +21,20 @@ export function StatusBanner({ className }: { className?: string }) {
       ? {
           title: "The host key changed since it was trusted",
           label: "Review key…",
+          min: "owner" as const,
           run: () => actions.trustHostKey(server),
         }
       : status === "auth_failed"
         ? {
             title: "Morcheh couldn't log in with the saved credentials",
             label: "Edit credentials",
+            min: "owner" as const,
             run: () => actions.editServer(server),
           }
         : {
             title: `${statusMeta[status].label} on the last check`,
             label: checking ? "Checking…" : "Check again",
+            min: "operator" as const,
             run: () => actions.check(server),
           }
   const Icon = status === "host_key_mismatch" ? KeyRound : TriangleAlert
@@ -59,15 +62,17 @@ export function StatusBanner({ className }: { className?: string }) {
           <p className="text-muted-foreground">{server.status_message}</p>
         )}
       </div>
-      <Button
-        variant="outline"
-        size="sm"
-        className="shrink-0 max-md:h-9"
-        disabled={checking}
-        onClick={fix.run}
-      >
-        {fix.label}
-      </Button>
+      {can(fix.min) && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="shrink-0 max-md:h-9"
+          disabled={checking}
+          onClick={fix.run}
+        >
+          {fix.label}
+        </Button>
+      )}
     </div>
   )
 }

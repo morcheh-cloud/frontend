@@ -5,6 +5,7 @@ import type { ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
 import { useFacets } from "../api"
+import { useWorkspaceCan } from "./permissions"
 import { useServerActions } from "./server-actions"
 import { useFilters } from "./use-filters"
 
@@ -14,8 +15,18 @@ export function EmptyState() {
   const { filters, narrowed, clearFilters, setFilters } = useFilters()
   const facets = useFacets()
   const actions = useServerActions()
+  const { addServer } = useWorkspaceCan()
 
   if (facets.data?.total === 0) {
+    if (!addServer) {
+      return (
+        <Empty
+          icon={<Server />}
+          title="No servers for you here"
+          text="Servers show up once an admin gives you access to them."
+        />
+      )
+    }
     return (
       <Empty
         icon={<Server />}
@@ -66,7 +77,11 @@ export function EmptyState() {
         icon={<Server />}
         title="No servers here"
         text="Servers you add show up in this list."
-        action={<Button onClick={() => actions.addServer()}>Add server</Button>}
+        action={
+          addServer && (
+            <Button onClick={() => actions.addServer()}>Add server</Button>
+          )
+        }
       />
     )
   }
@@ -82,9 +97,12 @@ export function EmptyState() {
       text={
         filters.folder === "none"
           ? "Servers outside every folder show up here."
-          : "Add a server here, or move existing ones in from the list."
+          : addServer
+            ? "Add a server here, or move existing ones in from the list."
+            : "Servers moved into this folder show up here."
       }
       action={
+        addServer &&
         folderId && (
           <Button onClick={() => actions.addServer(folderId)}>
             Add server here

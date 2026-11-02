@@ -1,4 +1,5 @@
 import type { GuideSection } from "../components/prose"
+import { access } from "./access"
 import { cron } from "./cron"
 import { fail2ban } from "./fail2ban"
 import { files } from "./files"
@@ -30,4 +31,5 @@ export const content: Record<string, GuideSection[]> = {
   power,
   storage,
   tasks,
+  access,
 }

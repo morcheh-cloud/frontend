@@ -1,8 +1,9 @@
 import type { Metadata } from "next"
+import { Suspense } from "react"
 
 import { Logo } from "@/components/logo"
+import { AuthScreen } from "./components/auth-screen"
 import { ColonyMap } from "./components/colony-map"
-import { LoginForm } from "./components/login-form"
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -19,16 +20,9 @@ export default function LoginPage() {
         <div className="flex w-full flex-1 flex-col gap-10 sm:max-w-sm sm:flex-none sm:gap-8 lg:m-auto">
           <Logo className="lg:hidden" />
 
-          <div className="sm:rounded-2xl sm:border sm:border-border sm:bg-card sm:p-8 sm:shadow-sm lg:rounded-none lg:border-0 lg:p-0 lg:shadow-none">
-            <h1 className="mb-8 text-heading font-light sm:mb-6 lg:mb-8">
-              Sign in
-            </h1>
-            <LoginForm />
-          </div>
-
-          <p className="mt-auto text-center text-body-sm text-muted-foreground sm:mt-0 sm:text-start">
-            Forgot your password? Ask your Morcheh admin to reset it.
-          </p>
+          <Suspense>
+            <AuthScreen />
+          </Suspense>
         </div>
       </section>
 

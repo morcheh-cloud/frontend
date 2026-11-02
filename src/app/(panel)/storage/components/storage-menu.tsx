@@ -9,6 +9,7 @@ import {
   Star,
   StarOff,
   Trash2,
+  UsersRound,
 } from "lucide-react"
 import type { ReactNode } from "react"
 
@@ -20,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import type { Storage } from "@/lib/services"
 import { endpointLabel, ProtocolTile, providerLabel } from "./meta"
+import { useStorageCan } from "./permissions"
 import { useStorageActions } from "./storage-actions"
 
 type Item = {
@@ -38,33 +40,54 @@ function useItems(
   onDeleted?: () => void,
 ): Item[][] {
   const a = useStorageActions()
+  const can = useStorageCan()
+  const operator = can(storage, "operator")
+  const owner = can(storage, "owner")
   const primary: Item[] = [
-    {
-      key: "check",
-      icon: <Activity />,
-      label: checking ? "Checking…" : "Check connection",
-      onSelect: () => a.check(storage),
-    },
-    {
-      key: "edit",
-      icon: <Pencil />,
-      label: "Edit",
-      onSelect: () => a.editStorage(storage),
-    },
+    ...(operator
+      ? [
+          {
+            key: "check",
+            icon: <Activity />,
+            label: checking ? "Checking…" : "Check connection",
+            onSelect: () => a.check(storage),
+          },
+        ]
+      : []),
+    ...(owner
+      ? [
+          {
+            key: "edit",
+            icon: <Pencil />,
+            label: "Edit",
+            onSelect: () => a.editStorage(storage),
+          },
+        ]
+      : []),
     {
       key: "copy",
       icon: <Copy />,
       label: "Copy address",
       onSelect: () => a.copyEndpoint(storage),
     },
-    {
-      key: "credentials",
-      icon: <KeySquare />,
-      label: "Show credentials…",
-      onSelect: () => a.showCredentials(storage),
-    },
+    ...(owner
+      ? [
+          {
+            key: "credentials",
+            icon: <KeySquare />,
+            label: "Show credentials…",
+            onSelect: () => a.showCredentials(storage),
+          },
+          {
+            key: "access",
+            icon: <UsersRound />,
+            label: "Manage access…",
+            onSelect: () => a.manageAccess(storage),
+          },
+        ]
+      : []),
   ]
-  if (storage.status === "host_key_mismatch") {
+  if (owner && storage.status === "host_key_mismatch") {
     primary.push({
       key: "trust",
       icon: <KeyRound />,
@@ -72,17 +95,19 @@ function useItems(
       onSelect: () => a.trustHostKey(storage),
     })
   }
-  return [
-    primary,
-    [
+  const groups: Item[][] = [primary]
+  if (operator) {
+    groups.push([
       {
         key: "favorite",
         icon: storage.favorite ? <StarOff /> : <Star />,
         label: storage.favorite ? "Remove from favorites" : "Add to favorites",
         onSelect: () => a.toggleFavorite(storage),
       },
-    ],
-    [
+    ])
+  }
+  if (owner) {
+    groups.push([
       {
         key: "delete",
         icon: <Trash2 />,
@@ -90,8 +115,9 @@ function useItems(
         destructive: true,
         onSelect: () => a.deleteStorage(storage, onDeleted),
       },
-    ],
-  ]
+    ])
+  }
+  return groups
 }
 
 export function StorageMenuItems({

@@ -55,6 +55,7 @@ export function useEntryMenu() {
   const actions = useFileActions()
   const source = useSource()
   const write = !source.readOnly
+  const reads = !source.listOnly
 
   return (entry: FileEntry): { targets: FileEntry[]; groups: MenuItem[][] } => {
     const targets =
@@ -67,7 +68,7 @@ export function useEntryMenu() {
     const fixed = targets.some((e) => e.bucket)
 
     const openGroup: MenuItem[] = []
-    if (one) {
+    if (one && (dir || reads)) {
       openGroup.push(
         dir
           ? {
@@ -114,12 +115,13 @@ export function useEntryMenu() {
           onSelect: () => actions.share(entry),
         })
     }
-    openGroup.push({
-      key: "download",
-      label: one && !dir ? "Download" : "Download as zip",
-      icon: Download,
-      onSelect: () => actions.download(targets),
-    })
+    if (reads)
+      openGroup.push({
+        key: "download",
+        label: one && !dir ? "Download" : "Download as zip",
+        icon: Download,
+        onSelect: () => actions.download(targets),
+      })
 
     const editGroup: MenuItem[] = []
     if (one && write && !fixed)
@@ -159,12 +161,13 @@ export function useEntryMenu() {
           onSelect: () => actions.moveTo(targets),
         },
       )
-    editGroup.push({
-      key: "transfer",
-      label: "Send to…",
-      icon: Send,
-      onSelect: () => actions.transfer(targets),
-    })
+    if (reads)
+      editGroup.push({
+        key: "transfer",
+        label: "Send to…",
+        icon: Send,
+        onSelect: () => actions.transfer(targets),
+      })
 
     const moreGroup: MenuItem[] = []
     if (write && source.compress)

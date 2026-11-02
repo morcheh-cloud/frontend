@@ -223,6 +223,7 @@ function TimersTable({ timers }: { timers: CronTimer[] }) {
 function TimersList({ timers }: { timers: CronTimer[] }) {
   const { clock } = useCronActions()
   const { act, allowed } = useTimer()
+  const { can } = useServerPage()
   const [open, setOpen] = useOpen("cron-timer-sheet")
   const [unit, setUnit] = useState<string | null>(null)
   const current = timers.find((t) => t.unit === unit)
@@ -323,9 +324,11 @@ function TimersList({ timers }: { timers: CronTimer[] }) {
               ))}
             </ul>
           ) : (
-            <p className="px-2 pb-2 text-body-sm text-muted-foreground">
-              Starting or changing timers needs root or sudo.
-            </p>
+            can("engineer") && (
+              <p className="px-2 pb-2 text-body-sm text-muted-foreground">
+                Starting or changing timers needs root or sudo.
+              </p>
+            )
           )}
         </BottomSheet>
       )}

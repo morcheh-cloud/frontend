@@ -1,55 +1,133 @@
 "use client"
 
-import { createContext, type ReactNode, use, useEffect, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { LoaderCircle, RefreshCw } from "lucide-react"
+import { useRouter } from "next/navigation"
+import {
+  createContext,
+  type ReactNode,
+  use,
+  useCallback,
+  useEffect,
+  useState,
+} from "react"
 
+import { Button } from "@/components/ui/button"
+import { api, setActiveWorkspace } from "@/lib/api"
+import type { PanelWorkspace } from "@/lib/services"
 import { cn } from "@/lib/utils"
 
-export type Workspace = { id: string; name: string }
-
-// Placeholder list until the backend serves the user's workspaces.
-export const workspaces: Workspace[] = [
-  { id: "main", name: "Main workspace" },
-  { id: "staging", name: "Staging" },
-  { id: "lab", name: "Home lab" },
-]
+export type Workspace = PanelWorkspace
 
 const storageKey = "morcheh.workspace"
+export const workspacesKey = ["workspaces"] as const
 
 type WorkspaceState = {
-  workspace: Workspace
+  workspaces: Workspace[]
+  // Null when this person has been given access to nothing yet.
+  workspace: Workspace | null
   setWorkspaceId: (id: string) => void
 }
 
 const WorkspaceContext = createContext<WorkspaceState | null>(null)
 
+function readSaved() {
+  try {
+    return localStorage.getItem(storageKey)
+  } catch {
+    return null
+  }
+}
+
 // Holds the selected workspace for the whole panel and remembers it per
-// browser.
+// browser. Nothing below it renders until the list is in, so every request
+// from the panel already carries the right workspace.
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const [id, setId] = useState(workspaces[0].id)
+  const router = useRouter()
+  const queryClient = useQueryClient()
+  const query = useQuery({
+    queryKey: workspacesKey,
+    queryFn: () => api.workspaces.listWorkspaces(),
+    select: (data) => data.items,
+    refetchOnWindowFocus: true,
+  })
+  const [picked, setPicked] = useState<string | null>(null)
 
-  // Storage is read after mount so the server render and hydration agree.
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(storageKey)
-      if (saved && workspaces.some((w) => w.id === saved)) setId(saved)
-    } catch {}
-  }, [])
+  const select = useCallback(
+    (id: string, leave: boolean) => {
+      setPicked(id)
+      setActiveWorkspace(id)
+      try {
+        localStorage.setItem(storageKey, id)
+      } catch {}
+      const scoped = ({ queryKey: [key] }: { queryKey: readonly unknown[] }) =>
+        !["auth", "workspaces", "jobs", "server-stats"].includes(key as string)
+      if (!leave) {
+        queryClient.removeQueries({ type: "inactive", predicate: scoped })
+        return
+      }
+      // What's on screen belongs to the workspace we just left.
+      queryClient.resetQueries({ predicate: scoped })
+      const { pathname } = window.location
+      for (const root of ["/servers", "/storage"]) {
+        if (pathname === root || pathname.startsWith(`${root}/`)) {
+          router.push(root)
+        }
+      }
+    },
+    [queryClient, router],
+  )
 
-  function setWorkspaceId(next: string) {
-    setId(next)
-    try {
-      localStorage.setItem(storageKey, next)
-    } catch {}
+  const list = query.data
+  if (!list) {
+    if (!query.error) return null
+    return (
+      <div className="flex min-h-svh flex-col items-center justify-center gap-3 p-6 text-center">
+        <p className="text-body-sm text-muted-foreground">
+          {query.error.message}
+        </p>
+        <Button
+          variant="outline"
+          disabled={query.isFetching}
+          onClick={() => query.refetch()}
+        >
+          {query.isFetching ? (
+            <LoaderCircle className="animate-spin" />
+          ) : (
+            <RefreshCw />
+          )}
+          Try again
+        </Button>
+      </div>
+    )
   }
 
-  const workspace = workspaces.find((w) => w.id === id) ?? workspaces[0]
+  const wanted = picked ?? readSaved()
+  const workspace =
+    list.find((w) => w.id === wanted) ??
+    // Prefer a whole workspace over one reached through a single server.
+    list.find((w) => !w.partial) ??
+    list[0] ??
+    null
+  // During render on purpose: the children's first requests need it.
+  setActiveWorkspace(workspace?.id ?? null)
 
   return (
-    <WorkspaceContext value={{ workspace, setWorkspaceId }}>
-      {children}
+    <WorkspaceContext
+      value={{
+        workspaces: list,
+        workspace,
+        setWorkspaceId: (id) => select(id, true),
+      }}
+    >
+      <WorkspaceSyncContext value={select}>{children}</WorkspaceSyncContext>
     </WorkspaceContext>
   )
 }
+
+const WorkspaceSyncContext = createContext<
+  ((id: string, leave: boolean) => void) | null
+>(null)
 
 export function useWorkspace() {
   const state = use(WorkspaceContext)
@@ -57,12 +135,24 @@ export function useWorkspace() {
   return state
 }
 
+// A server or storage opened from a link can be in another workspace: move the
+// selection to it, staying on the page.
+export function useFollowWorkspace(id: string | undefined) {
+  const { workspace, workspaces } = useWorkspace()
+  const select = use(WorkspaceSyncContext)
+  const current = workspace?.id
+  const known = workspaces.some((w) => w.id === id)
+  useEffect(() => {
+    if (id && known && id !== current) select?.(id, false)
+  }, [id, known, current, select])
+}
+
 // The workspace's initial on a tinted tile.
 export function WorkspaceAvatar({
   workspace,
   className,
 }: {
-  workspace: Workspace
+  workspace: Pick<Workspace, "name"> | null
   className?: string
 }) {
   return (
@@ -73,7 +163,7 @@ export function WorkspaceAvatar({
         className,
       )}
     >
-      {workspace.name.charAt(0).toUpperCase()}
+      {workspace?.name.charAt(0).toUpperCase() ?? "–"}
     </span>
   )
 }

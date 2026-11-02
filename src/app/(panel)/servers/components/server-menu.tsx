@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import type { Server } from "@/lib/services"
 import { address, OsTile, osLabel, StatusDot, statusMeta } from "./meta"
+import { useServerCan } from "./permissions"
 import { useServerActions } from "./server-actions"
 
 export type Item = {
@@ -43,33 +44,48 @@ function useItems(
   onDeleted?: () => void,
 ): Item[][] {
   const a = useServerActions()
+  const can = useServerCan()
+  const operator = can(server, "operator")
+  const owner = can(server, "owner")
   const primary: Item[] = [
-    {
-      key: "check",
-      icon: <Activity />,
-      label: checking ? "Checking…" : "Check connection",
-      onSelect: () => a.check(server),
-    },
-    {
-      key: "edit",
-      icon: <Pencil />,
-      label: "Edit",
-      onSelect: () => a.editServer(server),
-    },
+    ...(operator
+      ? [
+          {
+            key: "check",
+            icon: <Activity />,
+            label: checking ? "Checking…" : "Check connection",
+            onSelect: () => a.check(server),
+          },
+        ]
+      : []),
+    ...(owner
+      ? [
+          {
+            key: "edit",
+            icon: <Pencil />,
+            label: "Edit",
+            onSelect: () => a.editServer(server),
+          },
+        ]
+      : []),
     {
       key: "copy",
       icon: <Terminal />,
       label: "Copy SSH command",
       onSelect: () => a.copySsh(server),
     },
-    {
-      key: "credentials",
-      icon: <KeySquare />,
-      label: "Show SSH credentials…",
-      onSelect: () => a.showCredentials(server),
-    },
+    ...(owner
+      ? [
+          {
+            key: "credentials",
+            icon: <KeySquare />,
+            label: "Show SSH credentials…",
+            onSelect: () => a.showCredentials(server),
+          },
+        ]
+      : []),
   ]
-  if (server.status === "host_key_mismatch") {
+  if (owner && server.status === "host_key_mismatch") {
     primary.push({
       key: "trust",
       icon: <KeyRound />,
@@ -77,44 +93,54 @@ function useItems(
       onSelect: () => a.trustHostKey(server),
     })
   }
-  return [
-    primary,
-    [
-      {
-        key: "favorite",
-        icon: server.favorite ? <StarOff /> : <Star />,
-        label: server.favorite ? "Remove from favorites" : "Add to favorites",
-        onSelect: () => a.toggleFavorite(server),
-      },
-      {
-        key: "move",
-        icon: <FolderInput />,
-        label: "Move to folder…",
-        onSelect: () => a.moveServers([server.id]),
-      },
-      {
-        key: "tags",
-        icon: <Tags />,
-        label: "Edit tags…",
-        onSelect: () => a.tagServers([server]),
-      },
-      {
-        key: "duplicate",
-        icon: <CopyPlus />,
-        label: "Duplicate",
-        onSelect: () => a.duplicate(server),
-      },
-    ],
-    [
-      {
-        key: "delete",
-        icon: <Trash2 />,
-        label: "Delete…",
-        destructive: true,
-        onSelect: () => a.deleteServers([server], onDeleted),
-      },
-    ],
+  const organize: Item[] = [
+    ...(operator
+      ? [
+          {
+            key: "favorite",
+            icon: server.favorite ? <StarOff /> : <Star />,
+            label: server.favorite
+              ? "Remove from favorites"
+              : "Add to favorites",
+            onSelect: () => a.toggleFavorite(server),
+          },
+        ]
+      : []),
+    ...(owner
+      ? [
+          {
+            key: "move",
+            icon: <FolderInput />,
+            label: "Move to folder…",
+            onSelect: () => a.moveServers([server.id]),
+          },
+          {
+            key: "tags",
+            icon: <Tags />,
+            label: "Edit tags…",
+            onSelect: () => a.tagServers([server]),
+          },
+          {
+            key: "duplicate",
+            icon: <CopyPlus />,
+            label: "Duplicate",
+            onSelect: () => a.duplicate(server),
+          },
+        ]
+      : []),
   ]
+  const danger: Item[] = owner
+    ? [
+        {
+          key: "delete",
+          icon: <Trash2 />,
+          label: "Delete…",
+          destructive: true,
+          onSelect: () => a.deleteServers([server], onDeleted),
+        },
+      ]
+    : []
+  return [primary, organize, danger].filter((group) => group.length > 0)
 }
 
 export function ServerMenuItems({
@@ -163,9 +189,12 @@ export function ServerSheet({
   extra?: Item[]
 }) {
   const items = useItems(server, checking, onDeleted)
-  const groups = extra
-    ? [...items.slice(0, -1), extra, ...items.slice(-1)]
-    : items
+  const groups =
+    extra && extra.length > 0
+      ? items.at(-1)?.[0]?.destructive
+        ? [...items.slice(0, -1), extra, ...items.slice(-1)]
+        : [...items, extra]
+      : items
 
   // Close first, then act once the sheet's history entry is gone, so a layer
   // the action opens gets its own Back entry.

@@ -129,14 +129,16 @@ function People({ users }: { users: User[] }) {
                 {guard ? (
                   <span className="text-caption text-ash">{guard}</span>
                 ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!a.canManage}
-                    onClick={() => a.sudo(u)}
-                  >
-                    Change
-                  </Button>
+                  a.engineer && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!a.canManage}
+                      onClick={() => a.sudo(u)}
+                    >
+                      Change
+                    </Button>
+                  )
                 )}
               </div>
             )}

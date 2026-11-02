@@ -1,5 +1,6 @@
 import { Suspense } from "react"
 
+import { AuthGate } from "@/components/auth/auth"
 import { RouteHistory } from "@/hooks/useBack"
 import { HelpHeader } from "./components/help-header"
 import { HelpSearchProvider } from "./components/search"
@@ -10,14 +11,16 @@ import { helpIndex } from "./search-index"
 // here once, on the server, from the guide content.
 export default function HelpLayout({ children }: LayoutProps<"/help">) {
   return (
-    <HelpSearchProvider index={helpIndex}>
-      <div className="flex min-h-dvh flex-col bg-background">
-        <HelpHeader />
-        {children}
-      </div>
-      <Suspense>
-        <RouteHistory />
-      </Suspense>
-    </HelpSearchProvider>
+    <AuthGate>
+      <HelpSearchProvider index={helpIndex}>
+        <div className="flex min-h-dvh flex-col bg-background">
+          <HelpHeader />
+          {children}
+        </div>
+        <Suspense>
+          <RouteHistory />
+        </Suspense>
+      </HelpSearchProvider>
+    </AuthGate>
   )
 }

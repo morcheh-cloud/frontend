@@ -22,6 +22,7 @@ import type { FileSource } from "@/components/files/source"
 import { guideForPath } from "@/components/help/guides"
 import { HelpButton } from "@/components/help/help-link"
 import { usePageCrumbs } from "@/components/panel/breadcrumbs"
+import { useFollowWorkspace } from "@/components/panel/workspace"
 import { Button, buttonVariants } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -41,6 +42,7 @@ import {
   ProtocolTile,
   providerLabel,
 } from "../../components/meta"
+import { useStorageCan } from "../../components/permissions"
 import { useStorageActions } from "../../components/storage-actions"
 import { StorageMenuItems, StorageSheet } from "../../components/storage-menu"
 import { ReadOnlyBadge } from "../../components/storage-view"
@@ -96,6 +98,8 @@ type PageProps = {
 
 function DesktopPage({ storage: s, checking, onDeleted }: PageProps) {
   const actions = useStorageActions()
+  const can = useStorageCan()
+  useFollowWorkspace(s.workspace_id)
   const source = useStorageSource(s)
 
   return (
@@ -133,22 +137,31 @@ function DesktopPage({ storage: s, checking, onDeleted }: PageProps) {
           </p>
         </div>
         <div className="flex shrink-0 gap-2">
-          <Button
-            variant="outline"
-            disabled={checking}
-            onClick={() => actions.check(s)}
-          >
-            <Activity />
-            {checking ? "Checking…" : "Check"}
-          </Button>
-          <Button variant="outline" onClick={() => actions.showCredentials(s)}>
-            <KeySquare />
-            Credentials
-          </Button>
-          <Button variant="outline" onClick={() => actions.editStorage(s)}>
-            <Pencil />
-            Edit
-          </Button>
+          {can(s, "operator") && (
+            <Button
+              variant="outline"
+              disabled={checking}
+              onClick={() => actions.check(s)}
+            >
+              <Activity />
+              {checking ? "Checking…" : "Check"}
+            </Button>
+          )}
+          {can(s, "owner") && (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => actions.showCredentials(s)}
+              >
+                <KeySquare />
+                Credentials
+              </Button>
+              <Button variant="outline" onClick={() => actions.editStorage(s)}>
+                <Pencil />
+                Edit
+              </Button>
+            </>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -246,6 +259,7 @@ function Banner({
   className?: string
 }) {
   const actions = useStorageActions()
+  const can = useStorageCan()
   if (s.status === "online" || s.status === "unknown") return null
 
   const fix =
@@ -253,17 +267,20 @@ function Banner({
       ? {
           title: "The host key changed since it was trusted",
           label: "Review key…",
+          min: "owner" as const,
           run: () => actions.trustHostKey(s),
         }
       : s.status === "auth_failed"
         ? {
             title: "The storage refused the saved credentials",
             label: "Edit credentials",
+            min: "owner" as const,
             run: () => actions.editStorage(s),
           }
         : {
             title: `${statusMeta[s.status].label} on the last check`,
             label: checking ? "Checking…" : "Check again",
+            min: "operator" as const,
             run: () => actions.check(s),
           }
   const Icon = s.status === "host_key_mismatch" ? KeyRound : TriangleAlert
@@ -291,15 +308,17 @@ function Banner({
           <p className="text-muted-foreground">{s.status_message}</p>
         )}
       </div>
-      <Button
-        variant="outline"
-        size="sm"
-        className="shrink-0 max-md:h-9"
-        disabled={checking}
-        onClick={fix.run}
-      >
-        {fix.label}
-      </Button>
+      {can(s, fix.min) && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="shrink-0 max-md:h-9"
+          disabled={checking}
+          onClick={fix.run}
+        >
+          {fix.label}
+        </Button>
+      )}
     </div>
   )
 }
@@ -307,9 +326,18 @@ function Banner({
 function useStorageSource(s: Storage) {
   const { id, read_only, capabilities } = s
   const { buckets, share_links } = capabilities
+  const can = useStorageCan()
+  const write = can(s, "engineer")
+  const reads = can(s, "operator")
   return useMemo(
-    () => storageSource(id, { readOnly: read_only, buckets, share_links }),
-    [id, read_only, buckets, share_links],
+    () =>
+      storageSource(id, {
+        readOnly: read_only || !write,
+        listOnly: !reads,
+        buckets,
+        share_links: share_links && write,
+      }),
+    [id, read_only, write, reads, buckets, share_links],
   )
 }
 
@@ -317,7 +345,12 @@ const basename = (path: string) => path.slice(path.lastIndexOf("/") + 1)
 
 function storageSource(
   id: string,
-  opts: { readOnly: boolean; buckets: boolean; share_links: boolean },
+  opts: {
+    readOnly: boolean
+    listOnly: boolean
+    buckets: boolean
+    share_links: boolean
+  },
 ): FileSource {
   const f = api.storageFiles
   return {
@@ -325,6 +358,7 @@ function storageSource(
     noun: "storage",
     endpoint: { storage_id: id },
     readOnly: opts.readOnly,
+    listOnly: opts.listOnly,
     buckets: opts.buckets,
     list: storageLister(id).list,
     read: (path) => f.readStorageFile(id, { path }),

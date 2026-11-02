@@ -23,8 +23,10 @@ import { useIsPhone } from "@/hooks/useIsPhone"
 import { useOpen } from "@/hooks/useOpen"
 import type { Storage } from "@/lib/services"
 import { cn } from "@/lib/utils"
+import { useWorkspaceCan } from "../../servers/components/permissions"
 import { useCheckingStorages, useStorages } from "../api"
 import { endpointLabel, ProtocolTile, providerLabel } from "./meta"
+import { useStorageCan } from "./permissions"
 import { useStorageActions } from "./storage-actions"
 import { StorageMenuItems, StorageSheet } from "./storage-menu"
 
@@ -43,6 +45,7 @@ export function StorageView() {
 
 function StorageDesktop() {
   const actions = useStorageActions()
+  const canAdd = useWorkspaceCan().addServer
   const list = useStorages()
   const checking = useCheckingStorages()
   const items = sorted(list.data?.items ?? [])
@@ -54,10 +57,12 @@ function StorageDesktop() {
         description="S3 buckets, FTP, SFTP and WebDAV shares: browse them and move files between them and your servers."
         guide="storage"
         actions={
-          <Button onClick={() => actions.addStorage()}>
-            <Plus />
-            Add storage
-          </Button>
+          canAdd && (
+            <Button onClick={() => actions.addStorage()}>
+              <Plus />
+              Add storage
+            </Button>
+          )
         }
       />
       <div className="px-6 pt-5 pb-24">
@@ -81,7 +86,7 @@ function StorageDesktop() {
           </div>
         ) : items.length === 0 ? (
           <div className="rounded-2xl border border-border">
-            <NoStorage onAdd={() => actions.addStorage()} />
+            <NoStorage onAdd={canAdd ? actions.addStorage : undefined} />
           </div>
         ) : (
           <div className="@container overflow-x-auto rounded-2xl border border-border">
@@ -139,6 +144,7 @@ function Row({
   checking: boolean
 }) {
   const actions = useStorageActions()
+  const can = useStorageCan()
   return (
     <tr className="group/row h-14 hover:bg-subtle">
       <td className="ps-3">
@@ -146,9 +152,10 @@ function Row({
           type="button"
           aria-label={s.favorite ? "Remove from favorites" : "Add to favorites"}
           aria-pressed={s.favorite}
+          disabled={!can(s, "operator")}
           onClick={() => actions.toggleFavorite(s)}
           className={cn(
-            "flex size-7 items-center justify-center rounded-lg text-ash hover:bg-muted hover:text-foreground",
+            "flex size-7 items-center justify-center rounded-lg text-ash enabled:hover:bg-muted enabled:hover:text-foreground",
             !s.favorite &&
               "opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100",
           )}
@@ -231,6 +238,7 @@ export function ReadOnlyBadge() {
 
 function StorageMobile() {
   const actions = useStorageActions()
+  const canAdd = useWorkspaceCan().addServer
   const list = useStorages()
   const checking = useCheckingStorages()
   const items = sorted(list.data?.items ?? [])
@@ -250,14 +258,16 @@ function StorageMobile() {
           label="Storage guide"
           className="ms-auto"
         />
-        <Button
-          size="icon-lg"
-          aria-label="Add storage"
-          className="rounded-full"
-          onClick={() => actions.addStorage()}
-        >
-          <Plus className="size-5" />
-        </Button>
+        {canAdd && (
+          <Button
+            size="icon-lg"
+            aria-label="Add storage"
+            className="rounded-full"
+            onClick={() => actions.addStorage()}
+          >
+            <Plus className="size-5" />
+          </Button>
+        )}
       </header>
 
       <div className="pt-4 pb-24">
@@ -277,7 +287,7 @@ function StorageMobile() {
         ) : list.isError && !list.data ? (
           <Failed error={list.error} onRetry={() => list.refetch()} />
         ) : items.length === 0 ? (
-          <NoStorage onAdd={() => actions.addStorage()} />
+          <NoStorage onAdd={canAdd ? actions.addStorage : undefined} />
         ) : (
           <ul className="divide-y divide-border border-y border-border">
             {items.map((s) => (
@@ -344,7 +354,16 @@ function StorageMobile() {
   )
 }
 
-function NoStorage({ onAdd }: { onAdd: () => void }) {
+function NoStorage({ onAdd }: { onAdd?: () => void }) {
+  if (!onAdd) {
+    return (
+      <Empty
+        icon={<HardDrive />}
+        title="No storage to show"
+        text="Nothing here is shared with you yet. Ask an admin or the workspace owner for access."
+      />
+    )
+  }
   return (
     <Empty
       icon={<HardDrive />}

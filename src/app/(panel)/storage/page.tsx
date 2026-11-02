@@ -7,6 +7,9 @@ export const metadata: Metadata = {
   title: "Storage",
 }
 
+// Waits on data loaded in the browser: skip instant-navigation checks.
+export const instant = false
+
 export default function StoragePage() {
   return (
     <Suspense>

@@ -48,6 +48,8 @@ export type FileSource = {
   endpoint: Endpoint
   // Every write is refused: hide the write actions.
   readOnly?: boolean
+  // Folders can be listed, but files can't be opened or downloaded.
+  listOnly?: boolean
   // Top-level folders are buckets: files can't go at "/".
   buckets?: boolean
   // Unix permissions, owners and symlinks are real.

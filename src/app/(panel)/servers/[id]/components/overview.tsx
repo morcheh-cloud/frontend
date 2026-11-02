@@ -26,8 +26,9 @@ import { Copyable, type Fact, useFacts } from "./facts"
 import { DesktopResources, DiskList, MobileResources } from "./resources"
 import {
   type Section,
-  sectionGroups,
   sectionHref,
+  sectionMin,
+  sectionsFor,
   settingsSection,
 } from "./sections"
 import { useServerPage } from "./server-page"
@@ -39,7 +40,7 @@ export function Overview() {
 
 // Desktop: a card per group, two or three across as the content widens.
 function DesktopOverview() {
-  const { server, checking } = useServerPage()
+  const { server, checking, can } = useServerPage()
   const actions = useServerActions()
   const facts = useFacts(server, checking)
 
@@ -51,15 +52,17 @@ function DesktopOverview() {
         <Card
           title="Health"
           action={
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={checking}
-              onClick={() => actions.check(server)}
-            >
-              <Activity />
-              {checking ? "Checking…" : "Check now"}
-            </Button>
+            can("operator") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={checking}
+                onClick={() => actions.check(server)}
+              >
+                <Activity />
+                {checking ? "Checking…" : "Check now"}
+              </Button>
+            )
           }
         >
           <Facts facts={facts.health} />
@@ -75,24 +78,26 @@ function DesktopOverview() {
         <Card
           title="Connection"
           action={
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => actions.showCredentials(server)}
-              >
-                <KeySquare />
-                Credentials
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => actions.editServer(server)}
-              >
-                <Pencil />
-                Edit
-              </Button>
-            </>
+            can("owner") && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => actions.showCredentials(server)}
+                >
+                  <KeySquare />
+                  Credentials
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => actions.editServer(server)}
+                >
+                  <Pencil />
+                  Edit
+                </Button>
+              </>
+            )
           }
         >
           <Facts facts={facts.connection} />
@@ -185,7 +190,7 @@ function Facts({ facts }: { facts: Fact[] }) {
 // Phone: who the server is and its quick actions on top, then plain grouped
 // lists (details, then every section), like a native settings screen.
 function MobileOverview() {
-  const { server, checking } = useServerPage()
+  const { server, checking, level, can } = useServerPage()
   const actions = useServerActions()
   const facts = useFacts(server, checking)
   const stats = useServerStats(server)
@@ -213,29 +218,35 @@ function MobileOverview() {
         </p>
       </div>
 
-      <div className="grid grid-cols-4 gap-2 px-4 pb-5">
-        <QuickAction
-          icon={<Activity />}
-          label={checking ? "Checking" : "Check"}
-          disabled={checking}
-          onClick={() => actions.check(server)}
-        />
+      <div className="grid auto-cols-fr grid-flow-col gap-2 px-4 pb-5">
+        {can("operator") && (
+          <QuickAction
+            icon={<Activity />}
+            label={checking ? "Checking" : "Check"}
+            disabled={checking}
+            onClick={() => actions.check(server)}
+          />
+        )}
         <QuickAction
           icon={<Terminal />}
           label="SSH"
           onClick={() => actions.copySsh(server)}
         />
-        <QuickAction
-          icon={<Pencil />}
-          label="Edit"
-          onClick={() => actions.editServer(server)}
-        />
-        <QuickAction
-          icon={<Star className={cn(server.favorite && "fill-brand")} />}
-          label={server.favorite ? "Starred" : "Star"}
-          pressed={server.favorite}
-          onClick={() => actions.toggleFavorite(server)}
-        />
+        {can("owner") && (
+          <QuickAction
+            icon={<Pencil />}
+            label="Edit"
+            onClick={() => actions.editServer(server)}
+          />
+        )}
+        {can("operator") && (
+          <QuickAction
+            icon={<Star className={cn(server.favorite && "fill-brand")} />}
+            label={server.favorite ? "Starred" : "Star"}
+            pressed={server.favorite}
+            onClick={() => actions.toggleFavorite(server)}
+          />
+        )}
       </div>
 
       <StatusBanner />
@@ -253,21 +264,23 @@ function MobileOverview() {
       </Group>
       <Group title="Connection">
         <FactRows facts={facts.connection} />
-        <li>
-          <button
-            type="button"
-            onClick={() => actions.showCredentials(server)}
-            className="flex min-h-12 w-full items-center gap-3 px-4 py-2 text-start outline-none active:bg-muted"
-          >
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-strong">
-              <KeySquare className="size-4" />
-            </span>
-            <span className="min-w-0 flex-1 truncate text-body">
-              Show SSH credentials
-            </span>
-            <ChevronRight className="size-4 shrink-0 text-ash rtl:rotate-180" />
-          </button>
-        </li>
+        {can("owner") && (
+          <li>
+            <button
+              type="button"
+              onClick={() => actions.showCredentials(server)}
+              className="flex min-h-12 w-full items-center gap-3 px-4 py-2 text-start outline-none active:bg-muted"
+            >
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-strong">
+                <KeySquare className="size-4" />
+              </span>
+              <span className="min-w-0 flex-1 truncate text-body">
+                Show SSH credentials
+              </span>
+              <ChevronRight className="size-4 shrink-0 text-ash rtl:rotate-180" />
+            </button>
+          </li>
+        )}
       </Group>
       <Group title="Organization">
         <FactRows facts={facts.organization} />
@@ -280,7 +293,7 @@ function MobileOverview() {
         </Group>
       )}
 
-      {sectionGroups.map((group) => {
+      {sectionsFor(level).map((group) => {
         const sections = group.sections.filter((s) => s.slug)
         if (sections.length === 0) return null
         return (
@@ -291,9 +304,11 @@ function MobileOverview() {
           </Group>
         )
       })}
-      <Group>
-        <SectionRow section={settingsSection} />
-      </Group>
+      {can(sectionMin(settingsSection)) && (
+        <Group>
+          <SectionRow section={settingsSection} />
+        </Group>
+      )}
     </div>
   )
 }

@@ -42,8 +42,9 @@ import { UserEditor } from "./user-editor"
 
 type UsersActions = {
   overview: UsersOverview
-  // Changes need root or sudo without a password.
+  // Changes need engineer access, and root or sudo without a password.
   canManage: boolean
+  engineer: boolean
   pending: boolean
   details: (u: User) => void
   addUser: () => void
@@ -75,7 +76,8 @@ export function UsersActionsProvider({
   overview: UsersOverview
   children: ReactNode
 }) {
-  const { server } = useServerPage()
+  const { server, can } = useServerPage()
+  const engineer = can("engineer")
   const router = useRouter()
   const change = useChange(server.id)
   const { mutate } = change
@@ -122,7 +124,8 @@ export function UsersActionsProvider({
   const value = useMemo<UsersActions>(
     () => ({
       overview,
-      canManage: overview.access !== "user",
+      canManage: overview.access !== "user" && engineer,
+      engineer,
       pending: change.isPending,
       details: (u) => openFor(setDetailsOpen, u.name),
       addUser: () => openFor(setEditorOpen, null),
@@ -168,6 +171,7 @@ export function UsersActionsProvider({
       setRemoveOpen,
       setGroupOpen,
       setRemoveGroupOpen,
+      engineer,
     ],
   )
 
@@ -287,9 +291,18 @@ export function UsersActionsProvider({
 // What can be done with an account, for its ⋯ menu and its phone sheet.
 export function useUserMenu(u: User): Item[][] {
   const a = useUsersActions()
+  const { can } = useServerPage()
   const o = a.overview
   const guard = guarded(o, u)
   const off = !a.canManage
+  const home = {
+    key: "home",
+    label: "Open home folder",
+    icon: <FolderOpen />,
+    onSelect: () => a.browseHome(u),
+  }
+  const browse = u.home_exists && can("operator") ? [home] : []
+  if (!a.engineer) return [browse]
   return [
     [
       {
@@ -349,16 +362,7 @@ export function useUserMenu(u: User): Item[][] {
               onSelect: () => a.logout(u),
             },
           ]),
-      ...(u.home_exists
-        ? [
-            {
-              key: "home",
-              label: "Open home folder",
-              icon: <FolderOpen />,
-              onSelect: () => a.browseHome(u),
-            },
-          ]
-        : []),
+      ...browse,
     ],
     guard
       ? []
@@ -378,6 +382,7 @@ export function useUserMenu(u: User): Item[][] {
 export function useGroupMenu(g: Group): Item[][] {
   const a = useUsersActions()
   const off = !a.canManage
+  if (!a.engineer) return []
   return [
     [
       {

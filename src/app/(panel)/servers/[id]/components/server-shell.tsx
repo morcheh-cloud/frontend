@@ -1,11 +1,14 @@
 "use client"
 
-import { ServerOff } from "lucide-react"
+import { Lock, ServerOff } from "lucide-react"
 import Link from "next/link"
 import { useParams, usePathname, useRouter } from "next/navigation"
 import type { ReactNode } from "react"
 
+import { useAccess } from "@/components/auth/auth"
+import { atLeast, type Level, levelLabel } from "@/components/auth/level"
 import { usePageCrumbs } from "@/components/panel/breadcrumbs"
+import { useFollowWorkspace } from "@/components/panel/workspace"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useIsPhone } from "@/hooks/useIsPhone"
@@ -15,7 +18,12 @@ import { DesktopChrome } from "./desktop-chrome"
 import { MobileChrome } from "./mobile-chrome"
 import { useWatchPower } from "./power/api"
 import { PowerProvider } from "./power/power"
-import { sectionFor, sectionHref, settingsSection } from "./sections"
+import {
+  sectionFor,
+  sectionHref,
+  sectionMin,
+  settingsSection,
+} from "./sections"
 import { ServerPageContext } from "./server-page"
 
 // Everything under /servers/[id]: loads the server once, then frames the
@@ -31,6 +39,8 @@ export function ServerShell({ children }: { children: ReactNode }) {
   const isPhone = useIsPhone()
   const router = useRouter()
   const server = query.data
+  const { serverLevel } = useAccess()
+  useFollowWorkspace(server?.workspace_id)
 
   usePageCrumbs(
     server
@@ -61,20 +71,50 @@ export function ServerShell({ children }: { children: ReactNode }) {
     return <Loading />
   }
 
+  const level = serverLevel(server.id, server.workspace_id)
   const page = {
     server,
     checking,
     section,
     phone: isPhone,
+    level,
+    can: (min: Level) => atLeast(level, min),
     onDeleted: () => router.replace("/servers"),
   }
   const Chrome = isPhone ? MobileChrome : DesktopChrome
   return (
     <ServerPageContext.Provider value={page}>
       <PowerProvider>
-        <Chrome>{children}</Chrome>
+        <Chrome>
+          {atLeast(level, sectionMin(section)) ? (
+            children
+          ) : (
+            <NoSectionAccess min={sectionMin(section)} level={level} />
+          )}
+        </Chrome>
       </PowerProvider>
     </ServerPageContext.Provider>
+  )
+}
+
+// A link into a section this person's level doesn't reach. The backend refuses
+// its data anyway; this says why instead of showing errors.
+function NoSectionAccess({ min, level }: { min: Level; level: string }) {
+  return (
+    <div className="flex min-h-[50svh] flex-col items-center justify-center gap-3 px-6 text-center">
+      <span className="flex size-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
+        <Lock className="size-5" />
+      </span>
+      <div>
+        <h2 className="text-body font-medium">
+          You need {levelLabel(min)} access for this
+        </h2>
+        <p className="mt-1 max-w-sm text-body-sm text-muted-foreground">
+          Your level on this server is {levelLabel(level)}. Ask an admin or the
+          server's owner if you need more.
+        </p>
+      </div>
+    </div>
   )
 }
 

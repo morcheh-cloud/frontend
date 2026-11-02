@@ -35,12 +35,15 @@ import {
   OsTile,
   StatusDot,
 } from "@/app/(panel)/servers/components/meta"
+import { useWorkspaceCan } from "@/app/(panel)/servers/components/permissions"
 import { useStorages } from "@/app/(panel)/storage/api"
 import {
   endpointLabel,
   ProtocolTile,
 } from "@/app/(panel)/storage/components/meta"
 import { Highlight } from "@/app/help/components/search"
+import { useAccess } from "@/components/auth/auth"
+import { useSettingsItem } from "@/components/panel/app-sidebar"
 import { Kbd } from "@/components/ui/kbd"
 import { useSidebar } from "@/components/ui/sidebar"
 import { queueIntent } from "@/hooks/useIntent"
@@ -56,7 +59,6 @@ import {
   forget,
   guideCommands,
   iconOf,
-  pages,
   type Recent,
   remember,
   searchAll,
@@ -65,6 +67,7 @@ import {
   shortcutPages,
   type Tile,
   useRecent,
+  visiblePages,
   words,
 } from "./commands"
 
@@ -207,15 +210,21 @@ function Palette({ phone, close }: { phone: boolean; close: () => void }) {
     placeholderData: keepPreviousData,
   })
   const storages = useStorages()
+  const { serverLevel } = useAccess()
+  const canAdd = useWorkspaceCan().addServer
+  const settings = useSettingsItem()
 
   // The server page already loaded it.
   const queryClient = useQueryClient()
   const serverId = serverIdOf(pathname)
+  const hereServer = serverId
+    ? queryClient.getQueryData<Server>(serverKeys.detail(serverId))
+    : undefined
   const here = serverId
     ? sectionsOf(
         serverId,
-        queryClient.getQueryData<Server>(serverKeys.detail(serverId))?.name ??
-          "This server",
+        hereServer?.name ?? "This server",
+        serverLevel(serverId, hereServer?.workspace_id),
       )
     : []
 
@@ -309,7 +318,7 @@ function Palette({ phone, close }: { phone: boolean; close: () => void }) {
     forget: () => forget(r.key),
   })
 
-  const allActions = actions(pathname, toggleSidebar)
+  const allActions = actions(pathname, toggleSidebar, canAdd)
 
   const groups: Group[] = q
     ? [
@@ -336,7 +345,7 @@ function Palette({ phone, close }: { phone: boolean; close: () => void }) {
         },
         {
           label: "Pages",
-          rows: filter(pages, terms).map((c) => commandRow(c)),
+          rows: filter(visiblePages(settings), terms).map((c) => commandRow(c)),
         },
         {
           label: "Actions",

@@ -25,6 +25,7 @@ import {
 } from "../api"
 import { FolderRail } from "./folder-rail"
 import { buildTree, folderPath } from "./folder-tree"
+import { useServerCan, useWorkspaceCan } from "./permissions"
 import { useServerActions } from "./server-actions"
 import { type Selection, ServersTable } from "./servers-table"
 import { ActiveFilters, Toolbar } from "./toolbar"
@@ -55,6 +56,7 @@ export function ServersDesktop() {
 
   const folderId =
     filters.folder && filters.folder !== "none" ? filters.folder : null
+  const can = useWorkspaceCan()
 
   return (
     <>
@@ -63,17 +65,21 @@ export function ServersDesktop() {
         description="Every machine Morcheh reaches over SSH."
         actions={
           <>
-            <Button
-              variant="outline"
-              onClick={() => actions.newFolder(folderId)}
-            >
-              <FolderPlus />
-              New folder
-            </Button>
-            <Button onClick={() => actions.addServer(folderId)}>
-              <Plus />
-              Add server
-            </Button>
+            {can.folders && (
+              <Button
+                variant="outline"
+                onClick={() => actions.newFolder(folderId)}
+              >
+                <FolderPlus />
+                New folder
+              </Button>
+            )}
+            {can.addServer && (
+              <Button onClick={() => actions.addServer(folderId)}>
+                <Plus />
+                Add server
+              </Button>
+            )}
           </>
         }
       />
@@ -196,6 +202,10 @@ function BulkBar({
   const servers = [...selection.values()]
   const ids = [...selection.keys()]
   const anyChecking = ids.some((id) => checking.has(id))
+  // A bulk action is all or nothing, so it needs the level on every server.
+  const serverCan = useServerCan()
+  const operator = servers.every((s) => serverCan(s, "operator"))
+  const owner = servers.every((s) => serverCan(s, "owner"))
 
   function check() {
     bulkCheck.mutate(ids, {
@@ -219,35 +229,46 @@ function BulkBar({
       <span className="px-3 text-body-sm font-medium tabular-nums">
         {selection.size} selected
       </span>
-      <Button variant="ghost" size="sm" disabled={anyChecking} onClick={check}>
-        <Activity />
-        {anyChecking ? "Checking…" : "Check"}
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => actions.moveServers(ids, onClear)}
-      >
-        <FolderInput />
-        Move
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => actions.tagServers(servers, onClear)}
-      >
-        <Tags />
-        Tags
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-        onClick={() => actions.deleteServers(servers, onClear)}
-      >
-        <Trash2 />
-        Delete
-      </Button>
+      {operator && (
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={anyChecking}
+          onClick={check}
+        >
+          <Activity />
+          {anyChecking ? "Checking…" : "Check"}
+        </Button>
+      )}
+      {owner && (
+        <>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => actions.moveServers(ids, onClear)}
+          >
+            <FolderInput />
+            Move
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => actions.tagServers(servers, onClear)}
+          >
+            <Tags />
+            Tags
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => actions.deleteServers(servers, onClear)}
+          >
+            <Trash2 />
+            Delete
+          </Button>
+        </>
+      )}
       <span aria-hidden className="mx-1 h-5 w-px bg-border" />
       <Button
         variant="ghost"

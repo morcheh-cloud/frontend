@@ -31,7 +31,7 @@ import { type BanRow, banLeft, useF2bFilters } from "./meta"
 const when = (t?: string) => (t ? t.replace(/:\d\d$/, "") : "—")
 
 export function BansTab({ rows }: { rows: BanRow[] }) {
-  const { phone } = useServerPage()
+  const { phone, can } = useServerPage()
   const a = useF2bActions()
   const o = a.overview
   const { filters, setFilters } = useF2bFilters()
@@ -41,7 +41,8 @@ export function BansTab({ rows }: { rows: BanRow[] }) {
         (r) => r.ip.toLowerCase().includes(needle) || r.jail.includes(needle),
       )
     : rows
-  const canBan = o.jails.some((j) => j.active) && o.access !== "user"
+  const canBan =
+    o.jails.some((j) => j.active) && o.access !== "user" && can("engineer")
 
   const toolbar = (
     <>
@@ -119,7 +120,15 @@ export function BansTab({ rows }: { rows: BanRow[] }) {
 
 function useBanMenu(r: BanRow, all: BanRow[]): Item[][] {
   const a = useF2bActions()
+  const { can } = useServerPage()
   const elsewhere = all.filter((x) => x.ip === r.ip).length > 1
+  const copy = {
+    key: "copy",
+    label: "Copy address",
+    icon: <Copy />,
+    onSelect: () => a.copy(r.ip, "Address"),
+  }
+  if (!can("engineer")) return [[copy]]
   return [
     [
       {
@@ -139,14 +148,7 @@ function useBanMenu(r: BanRow, all: BanRow[]): Item[][] {
           ]
         : []),
     ],
-    [
-      {
-        key: "copy",
-        label: "Copy address",
-        icon: <Copy />,
-        onSelect: () => a.copy(r.ip, "Address"),
-      },
-    ],
+    [copy],
   ]
 }
 
@@ -182,6 +184,7 @@ function BansTable({ rows }: { rows: BanRow[] }) {
 
 function BanTableRow({ row: r, all }: { row: BanRow; all: BanRow[] }) {
   const a = useF2bActions()
+  const { can } = useServerPage()
   const menu = useBanMenu(r, all)
   return (
     <tr className="h-14 hover:bg-subtle">
@@ -198,14 +201,16 @@ function BanTableRow({ row: r, all }: { row: BanRow; all: BanRow[] }) {
       </td>
       <td className="pe-3">
         <span className="flex items-center justify-end gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={a.overview.access === "user"}
-            onClick={() => a.unban(r.ip, r.jail)}
-          >
-            Unban
-          </Button>
+          {can("engineer") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={a.overview.access === "user"}
+              onClick={() => a.unban(r.ip, r.jail)}
+            >
+              Unban
+            </Button>
+          )}
           <ItemMenu groups={menu} label={`Actions for ${r.ip}`} />
         </span>
       </td>

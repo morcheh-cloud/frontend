@@ -715,9 +715,10 @@ function SelectionActions({
       aria-label="Selection actions"
       className="fixed inset-x-0 bottom-0 z-[45] flex border-t border-border bg-background pb-[env(safe-area-inset-bottom)]"
     >
-      {item("Download", <Download />, () =>
-        afterAction(() => actions.download(sel)),
-      )}
+      {!files.source.listOnly &&
+        item("Download", <Download />, () =>
+          afterAction(() => actions.download(sel)),
+        )}
       {movable &&
         item("Copy", <Copy />, () =>
           afterAction(() => {
@@ -737,6 +738,7 @@ function SelectionActions({
           }),
         )}
       {!movable &&
+        !files.source.listOnly &&
         item("Send to", <Send />, () =>
           afterAction(() => actions.transfer(sel)),
         )}

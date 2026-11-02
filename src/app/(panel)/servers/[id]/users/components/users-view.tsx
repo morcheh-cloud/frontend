@@ -151,7 +151,7 @@ function Bar({ refresh }: { refresh: ReactNode }) {
     />
   )
 
-  const add = (
+  const add = a.engineer && (
     <Button
       size={phone ? "icon-lg" : "default"}
       className="md:h-9"

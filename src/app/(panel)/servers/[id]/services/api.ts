@@ -196,7 +196,9 @@ export function useLogStream(
     let es: EventSource | null = null
     let closed = false
     const open = () => {
-      es = new EventSource(streamUrl(serverId, unit, cursor, priority))
+      es = new EventSource(streamUrl(serverId, unit, cursor, priority), {
+        withCredentials: true,
+      })
       es.onopen = () => setLive(true)
       es.addEventListener("entry", (ev) => {
         const e = JSON.parse((ev as MessageEvent).data) as LogEntry

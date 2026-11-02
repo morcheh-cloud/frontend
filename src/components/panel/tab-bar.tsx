@@ -1,14 +1,17 @@
 "use client"
 
 import { Drawer } from "@base-ui/react/drawer"
-import { Check, ChevronRight, Ellipsis } from "lucide-react"
+import { Check, ChevronRight, Ellipsis, LogOut } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
+import { useAuth } from "@/components/auth/auth"
 import { TasksStrip, useActiveJobs } from "@/components/jobs/tasks-button"
 import { useOpen } from "@/hooks/useOpen"
 import { cn } from "@/lib/utils"
+import { useSettingsItem } from "./app-sidebar"
 import {
+  accountItem,
   alertsItem,
   helpItem,
   homeItem,
@@ -18,23 +21,15 @@ import {
   type NavItem,
   serversItem,
   servicesItem,
-  settingsItem,
   storageItem,
   tasksItem,
 } from "./nav"
 import { WithPathname } from "./with-pathname"
-import { useWorkspace, WorkspaceAvatar, workspaces } from "./workspace"
+import { useWorkspace, WorkspaceAvatar } from "./workspace"
 
 // A native tab bar fits four tabs plus "More"; the rest live in a sheet.
 const tabItems = [homeItem, serversItem, servicesItem, alertsItem]
-const moreItems = [
-  tasksItem,
-  storageItem,
-  monitoringItem,
-  keysItem,
-  settingsItem,
-  helpItem,
-]
+const moreItems = [tasksItem, storageItem, monitoringItem, keysItem]
 
 const tabClass =
   "flex min-h-11 flex-1 flex-col items-center justify-center gap-1 text-caption font-medium outline-none select-none focus-visible:bg-muted"
@@ -49,9 +44,17 @@ export function TabBar() {
 function Tabs({ pathname }: { pathname: string }) {
   const router = useRouter()
   const [moreOpen, setMoreOpen] = useOpen("panel-more")
-  const { workspace, setWorkspaceId } = useWorkspace()
+  const { workspace, workspaces, setWorkspaceId } = useWorkspace()
+  const { signOut } = useAuth()
+  const settings = useSettingsItem()
   const running = useActiveJobs().length
-  const moreActive = moreItems.some((item) => isActive(pathname, item.href))
+  const sheetItems = [
+    ...moreItems,
+    ...(settings ? [settings] : []),
+    accountItem,
+    helpItem,
+  ]
+  const moreActive = sheetItems.some((item) => isActive(pathname, item.href))
 
   // Closing the sheet pops its history entry asynchronously; navigating
   // before that pop lands would let the pop undo the navigation. So wait for
@@ -122,12 +125,17 @@ function Tabs({ pathname }: { pathname: string }) {
                 <p className="mb-1 px-2 font-label text-caption tracking-label text-ash uppercase">
                   Workspace
                 </p>
-                <ul className="mb-5 divide-y divide-border">
+                {workspaces.length === 0 && (
+                  <p className="mb-5 p-2 text-body-sm text-muted-foreground">
+                    No workspace yet. Ask an admin to give you access.
+                  </p>
+                )}
+                <ul className="mb-5 divide-y divide-border empty:hidden">
                   {workspaces.map((w) => (
                     <li key={w.id}>
                       <button
                         type="button"
-                        aria-pressed={w.id === workspace.id}
+                        aria-pressed={w.id === workspace?.id}
                         onClick={() => {
                           setWorkspaceId(w.id)
                           setMoreOpen(false)
@@ -141,7 +149,7 @@ function Tabs({ pathname }: { pathname: string }) {
                         <span className="flex-1 truncate text-start">
                           {w.name}
                         </span>
-                        {w.id === workspace.id && (
+                        {w.id === workspace?.id && (
                           <Check className="size-5 text-brand" />
                         )}
                       </button>
@@ -153,7 +161,7 @@ function Tabs({ pathname }: { pathname: string }) {
                   More
                 </p>
                 <ul className="divide-y divide-border">
-                  {moreItems.map((item) => (
+                  {sheetItems.map((item) => (
                     <li key={item.href}>
                       <SheetRow
                         item={item}
@@ -163,6 +171,18 @@ function Tabs({ pathname }: { pathname: string }) {
                       />
                     </li>
                   ))}
+                  <li>
+                    <button
+                      type="button"
+                      onClick={signOut}
+                      className="flex h-14 w-full items-center gap-4 px-2 text-body font-medium outline-none active:bg-muted"
+                    >
+                      <span className="flex size-9 items-center justify-center rounded-lg bg-muted">
+                        <LogOut className="size-5" strokeWidth={1.75} />
+                      </span>
+                      Sign out
+                    </button>
+                  </li>
                 </ul>
               </Drawer.Content>
             </Drawer.Popup>

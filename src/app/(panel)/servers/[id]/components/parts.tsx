@@ -1,7 +1,7 @@
 "use client"
 
 import { Ellipsis, Info, Search, TriangleAlert, X } from "lucide-react"
-import type { ReactElement, ReactNode } from "react"
+import type { KeyboardEvent, ReactElement, ReactNode, Ref } from "react"
 
 import { SheetAction } from "@/components/bottom-sheet"
 import { Button } from "@/components/ui/button"
@@ -50,21 +50,27 @@ export function SearchBox({
   placeholder,
   label,
   className,
+  inputRef,
+  onKeyDown,
 }: {
   value: string
   onChange: (value: string) => void
   placeholder: string
   label: string
   className?: string
+  inputRef?: Ref<HTMLInputElement>
+  onKeyDown?: (e: KeyboardEvent<HTMLInputElement>) => void
 }) {
   return (
     <div className={cn("relative md:w-72", className)}>
       <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-ash" />
       <input
+        ref={inputRef}
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
+          onKeyDown?.(e)
           if (e.key === "Escape") {
             onChange("")
             e.currentTarget.blur()
@@ -224,6 +230,7 @@ export function ItemMenu({
   trigger?: ReactElement
 }) {
   const shown = groups.filter((g) => g.length > 0)
+  if (shown.length === 0) return null
   return (
     <DropdownMenu>
       <DropdownMenuTrigger

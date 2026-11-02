@@ -30,6 +30,7 @@ import {
   statusMeta,
   timeAgo,
 } from "./meta"
+import { useServerCan } from "./permissions"
 import { useServerActions } from "./server-actions"
 import { ServerMenuItems } from "./server-menu"
 import { type SortField, useFilters } from "./use-filters"
@@ -211,6 +212,7 @@ function Row({
   onTag: (tag: string) => void
   onFolder: () => void
 }) {
+  const can = useServerCan()
   const shownTags = server.tags.slice(0, 2)
   const moreTags = server.tags.length - shownTags.length
 
@@ -227,23 +229,28 @@ function Row({
         />
       </td>
       <td>
-        <button
-          type="button"
-          aria-label={
-            server.favorite ? "Remove from favorites" : "Add to favorites"
-          }
-          aria-pressed={server.favorite}
-          onClick={onFavorite}
-          className={cn(
-            "flex size-7 items-center justify-center rounded-lg text-ash hover:bg-muted hover:text-foreground",
-            !server.favorite &&
-              "opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100",
-          )}
-        >
-          <Star
-            className={cn("size-4", server.favorite && "fill-brand text-brand")}
-          />
-        </button>
+        {can(server, "operator") && (
+          <button
+            type="button"
+            aria-label={
+              server.favorite ? "Remove from favorites" : "Add to favorites"
+            }
+            aria-pressed={server.favorite}
+            onClick={onFavorite}
+            className={cn(
+              "flex size-7 items-center justify-center rounded-lg text-ash hover:bg-muted hover:text-foreground",
+              !server.favorite &&
+                "opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100",
+            )}
+          >
+            <Star
+              className={cn(
+                "size-4",
+                server.favorite && "fill-brand text-brand",
+              )}
+            />
+          </button>
+        )}
       </td>
       <td className="max-w-64 ps-1 pe-3">
         <Link

@@ -16,6 +16,7 @@ import {
   type ReactElement,
   type ReactNode,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react"
@@ -50,8 +51,9 @@ import { PowerMenu } from "./power/power"
 import { PowerBanner } from "./power/power-banner"
 import {
   type Section,
-  sectionGroups,
   sectionHref,
+  sectionMin,
+  sectionsFor,
   settingsSection,
 } from "./sections"
 import { useServerPage } from "./server-page"
@@ -87,7 +89,7 @@ export function DesktopChrome({ children }: { children: ReactNode }) {
 }
 
 function ServerHeader() {
-  const { server, checking, onDeleted } = useServerPage()
+  const { server, checking, onDeleted, can } = useServerPage()
   const actions = useServerActions()
 
   return (
@@ -98,22 +100,24 @@ function ServerHeader() {
           <h1 className="truncate text-subheading font-medium">
             {server.name}
           </h1>
-          <button
-            type="button"
-            aria-label={
-              server.favorite ? "Remove from favorites" : "Add to favorites"
-            }
-            aria-pressed={server.favorite}
-            onClick={() => actions.toggleFavorite(server)}
-            className="flex size-7 items-center justify-center rounded-lg text-ash hover:bg-muted hover:text-foreground"
-          >
-            <Star
-              className={cn(
-                "size-4",
-                server.favorite && "fill-brand text-brand",
-              )}
-            />
-          </button>
+          {can("operator") && (
+            <button
+              type="button"
+              aria-label={
+                server.favorite ? "Remove from favorites" : "Add to favorites"
+              }
+              aria-pressed={server.favorite}
+              onClick={() => actions.toggleFavorite(server)}
+              className="flex size-7 items-center justify-center rounded-lg text-ash hover:bg-muted hover:text-foreground"
+            >
+              <Star
+                className={cn(
+                  "size-4",
+                  server.favorite && "fill-brand text-brand",
+                )}
+              />
+            </button>
+          )}
         </div>
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body-sm text-muted-foreground">
           <span className="flex items-center gap-1.5 text-foreground">
@@ -145,19 +149,25 @@ function ServerHeader() {
         </p>
       </div>
       <div className="flex shrink-0 gap-2">
-        <HeaderIcon
-          label={checking ? "Checking…" : "Check connection"}
-          render={
-            <Button
-              variant="outline"
-              size="icon"
-              disabled={checking}
-              onClick={() => actions.check(server)}
-            />
-          }
-        >
-          {checking ? <LoaderCircle className="animate-spin" /> : <Activity />}
-        </HeaderIcon>
+        {can("operator") && (
+          <HeaderIcon
+            label={checking ? "Checking…" : "Check connection"}
+            render={
+              <Button
+                variant="outline"
+                size="icon"
+                disabled={checking}
+                onClick={() => actions.check(server)}
+              />
+            }
+          >
+            {checking ? (
+              <LoaderCircle className="animate-spin" />
+            ) : (
+              <Activity />
+            )}
+          </HeaderIcon>
+        )}
         <HeaderIcon
           label="Copy SSH command"
           render={
@@ -170,30 +180,34 @@ function ServerHeader() {
         >
           <Terminal />
         </HeaderIcon>
-        <HeaderIcon
-          label="Edit"
-          render={
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => actions.editServer(server)}
-            />
-          }
-        >
-          <Pencil />
-        </HeaderIcon>
-        <PowerMenu />
-        <HeaderIcon
-          label="Open terminal"
-          render={
-            <Link
-              href={sectionHref(server.id, "terminal")}
-              className={buttonVariants({ size: "icon" })}
-            />
-          }
-        >
-          <SquareTerminal />
-        </HeaderIcon>
+        {can("owner") && (
+          <HeaderIcon
+            label="Edit"
+            render={
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => actions.editServer(server)}
+              />
+            }
+          >
+            <Pencil />
+          </HeaderIcon>
+        )}
+        {can("operator") && <PowerMenu />}
+        {can("engineer") && (
+          <HeaderIcon
+            label="Open terminal"
+            render={
+              <Link
+                href={sectionHref(server.id, "terminal")}
+                className={buttonVariants({ size: "icon" })}
+              />
+            }
+          >
+            <SquareTerminal />
+          </HeaderIcon>
+        )}
         <DropdownMenu>
           <Tooltip>
             <TooltipTrigger
@@ -258,7 +272,10 @@ const DIVIDER = 13
 // What doesn't fit goes into "More": unbuilt sections first, so the built
 // ones (and the current one) stay in view. Settings is pinned at the end.
 function SectionTabs() {
-  const { section: current } = useServerPage()
+  const { section: current, level, can } = useServerPage()
+  const groups = useMemo(() => sectionsFor(level), [level])
+  const tabSections = useMemo(() => groups.flatMap((g) => g.sections), [groups])
+  const showSettings = can(sectionMin(settingsSection))
   const rowRef = useRef<HTMLDivElement>(null)
   const measureRef = useRef<HTMLDivElement>(null)
   // Slugs that fit in the bar; null until measured (then everything shows).
@@ -278,14 +295,14 @@ function SectionTabs() {
       const settings = widths.get(settingsSection.slug) ?? 0
       const width = (slugs: Set<string>) => {
         let total = 0
-        let groups = 0
-        for (const group of sectionGroups) {
+        let used = 0
+        for (const group of groups) {
           const visible = group.sections.filter((s) => slugs.has(s.slug))
           if (!visible.length) continue
-          groups++
+          used++
           for (const s of visible) total += (widths.get(s.slug) ?? 0) + GAP
         }
-        return total + Math.max(0, groups - 1) * DIVIDER
+        return total + Math.max(0, used - 1) * DIVIDER
       }
 
       const room = row.clientWidth - settings - 8
@@ -314,7 +331,7 @@ function SectionTabs() {
     observer.observe(row)
     observer.observe(measure)
     return () => observer.disconnect()
-  }, [current.slug])
+  }, [current.slug, groups, tabSections])
 
   const hidden = shown ? tabSections.filter((s) => !shown.has(s.slug)) : []
   let rendered = 0
@@ -325,7 +342,7 @@ function SectionTabs() {
       className="sticky top-[calc(3rem+1px)] z-20 border-b border-border bg-background/90 px-4 backdrop-blur-md"
     >
       <div ref={rowRef} className="relative flex items-center gap-1">
-        {sectionGroups.map((group) => {
+        {groups.map((group) => {
           const visible = group.sections.filter(
             (s) => !shown || shown.has(s.slug),
           )
@@ -343,9 +360,11 @@ function SectionTabs() {
           )
         })}
         {hidden.length > 0 && <MoreSections sections={hidden} />}
-        <span className="ms-auto">
-          <SectionTab section={settingsSection} />
-        </span>
+        {showSettings && (
+          <span className="ms-auto">
+            <SectionTab section={settingsSection} />
+          </span>
+        )}
 
         {/* Every tab at its widest (font-medium), for measuring only;
             clipped so it can't widen the page. */}
@@ -375,8 +394,6 @@ function SectionTabs() {
   )
 }
 
-const tabSections = sectionGroups.flatMap((g) => g.sections)
-
 function SectionTab({ section }: { section: Section }) {
   const { server, section: current } = useServerPage()
   const Icon = section.icon
@@ -395,8 +412,8 @@ function SectionTab({ section }: { section: Section }) {
 }
 
 function MoreSections({ sections }: { sections: Section[] }) {
-  const { server } = useServerPage()
-  const groups = sectionGroups
+  const { server, level } = useServerPage()
+  const groups = sectionsFor(level)
     .map((g) => ({
       label: g.label,
       sections: g.sections.filter((s) => sections.includes(s)),

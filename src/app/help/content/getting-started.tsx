@@ -113,7 +113,9 @@ export const gettingStarted: GuideSection[] = [
           A workspace keeps one team's or one customer's servers apart from the
           rest. Switch workspace from the top of the sidebar, or on a phone from{" "}
           <UI>More</UI> in the tab bar. Morcheh remembers the last one you used
-          on this browser.
+          on this browser. Admins create them; you only see those you have
+          access to (see <See guide="access" section="workspaces" />
+          ).
         </P>
         <Tip>
           Use workspaces for things that should never mix (different companies,
