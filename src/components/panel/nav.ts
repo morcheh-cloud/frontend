@@ -4,6 +4,7 @@ import {
   Boxes,
   CircleHelp,
   CircleUser,
+  Database,
   HardDrive,
   House,
   KeyRound,
@@ -33,6 +34,11 @@ export const storageItem: NavItem = {
   href: "/storage",
   label: "Storage",
   icon: HardDrive,
+}
+export const databasesItem: NavItem = {
+  href: "/databases",
+  label: "Databases",
+  icon: Database,
 }
 export const tasksItem: NavItem = {
   href: "/tasks",
@@ -103,7 +109,7 @@ export const navGroups: NavGroup[] = [
   { label: "Platform", items: [homeItem, tasksItem] },
   {
     label: "Infrastructure",
-    items: [serversItem, storageItem, servicesItem, keysItem],
+    items: [serversItem, databasesItem, storageItem, servicesItem, keysItem],
   },
   { label: "Observability", items: [monitoringItem, alertsItem] },
 ]

@@ -69,7 +69,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       // What's on screen belongs to the workspace we just left.
       queryClient.resetQueries({ predicate: scoped })
       const { pathname } = window.location
-      for (const root of ["/servers", "/storage"]) {
+      for (const root of ["/servers", "/databases", "/storage"]) {
         if (pathname === root || pathname.startsWith(`${root}/`)) {
           router.push(root)
         }

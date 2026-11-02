@@ -512,6 +512,937 @@ export interface CronUser {
   uid: number;
 }
 
+export interface Database {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  alerts_enabled: boolean;
+  allow_internal: boolean;
+  /** PEM the certificate is checked against (verify); empty = the system's CAs */
+  ca_cert: string;
+  checks: DatabaseCheck[];
+  /** @format int32 */
+  connections: number | null;
+  /** Docker container it runs in, on the server */
+  container: string;
+  /** @format date-time */
+  created_at: string;
+  /** Database it signs in to */
+  dbname: string;
+  description: string;
+  engine: "postgres" | "mysql" | "mssql" | "redis" | "mongodb";
+  favorite: boolean;
+  flavor: string;
+  has_password: boolean;
+  /** The worst check that isn't muted */
+  health: "unknown" | "ok" | "warning" | "critical";
+  /** As the server sees it (mode server), or its public address */
+  host: string;
+  /** @format uuid */
+  id: string;
+  /** @format int32 */
+  interval_seconds: number;
+  /** @format date-time */
+  last_checked_at: string | null;
+  /** @format date-time */
+  last_online_at: string | null;
+  /** @format int32 */
+  latency_ms: number | null;
+  /** @format int32 */
+  max_connections: number | null;
+  /** server: reached through one of your servers over SSH; direct: Morcheh connects itself */
+  mode: "server" | "direct";
+  muted_checks: string[];
+  name: string;
+  /** Monitoring stopped */
+  paused: boolean;
+  /** @format int32 */
+  port: number;
+  /** primary, replica or standalone; empty until known */
+  role: string;
+  /**
+   * The server it's reached through; null when direct, or when that server was removed
+   * @format uuid
+   */
+  server_id: string | null;
+  /** @format int64 */
+  size_bytes: number | null;
+  status:
+    | "unknown"
+    | "online"
+    | "unreachable"
+    | "auth_failed"
+    | "tls_error"
+    | "blocked"
+    | "error";
+  status_message: string;
+  /** Limits changed from the defaults, by check id */
+  thresholds: Record<string, DatabaseLimit>;
+  tls: "disable" | "require" | "verify";
+  /** @format date-time */
+  updated_at: string;
+  username: string;
+  version: string;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface DatabaseActivity {
+  app: string;
+  /** Who it waits for */
+  blocked_by: string[];
+  client: string;
+  database: string;
+  /** What Kill takes: pid, thread id, session id, client id or opid */
+  id: string;
+  /** Morcheh's own monitoring connection */
+  ours?: boolean;
+  /** Empty below Engineer access, and when the login can't see it */
+  query: string;
+  /**
+   * How long the current statement has run
+   * @format double
+   */
+  seconds: number | null;
+  state: string;
+  /**
+   * How long its transaction has been open
+   * @format double
+   */
+  tx_seconds: number | null;
+  user: string;
+  wait?: string;
+}
+
+export interface DatabaseBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** direct only: allow private, loopback and link-local addresses. System admins only */
+  allow_internal?: boolean;
+  /**
+   * verify only: PEM of the CA that signed the database's certificate
+   * @maxLength 65536
+   */
+  ca_cert?: string;
+  clear_password?: boolean;
+  /**
+   * mode server: the Docker container it runs in. Disk is then read inside it
+   * @maxLength 128
+   */
+  container?: string;
+  /**
+   * Database to sign in to (MongoDB: the auth database; Redis: the db number). Empty = the engine's usual one
+   * @maxLength 128
+   */
+  dbname?: string;
+  /** @maxLength 500 */
+  description?: string;
+  engine: "postgres" | "mysql" | "mssql" | "redis" | "mongodb";
+  favorite?: boolean;
+  /**
+   * mode server: as that server sees it (empty = 127.0.0.1, or the container's own address when a container is set). direct: public IP or domain
+   * @maxLength 255
+   */
+  host?: string;
+  /**
+   * How often it's checked; 0 or left out = 60. At least 15
+   * @format int32
+   * @min 0
+   * @max 3600
+   */
+  interval_seconds?: number;
+  /** server: through one of your servers over SSH (the database may run on it, in Docker on it, or behind it); direct: Morcheh connects to a public address itself */
+  mode: "server" | "direct";
+  /**
+   * @minLength 1
+   * @maxLength 64
+   */
+  name: string;
+  /**
+   * On update, leave out to keep the stored one
+   * @maxLength 1024
+   */
+  password?: string;
+  /**
+   * 0 or left out = the engine's default
+   * @format int32
+   * @min 0
+   * @max 65535
+   */
+  port?: number;
+  /**
+   * mode server: the server it's reached through
+   * @format uuid
+   */
+  server_id?: string;
+  /** require: encrypted, the certificate isn't checked; verify: also checks it (against ca_cert, or the system's CAs). Default: require when direct, disable through a server (SSH already encrypts) */
+  tls?: "disable" | "require" | "verify";
+  /** @maxLength 128 */
+  username?: string;
+}
+
+export interface DatabaseCheck {
+  /** What to do about it */
+  action?: string;
+  area:
+    | "availability"
+    | "capacity"
+    | "performance"
+    | "replication"
+    | "backup"
+    | "security";
+  id: string;
+  level: "ok" | "warning" | "critical" | "unknown";
+  /** Left out of health and alerts */
+  muted?: boolean;
+  pending?: string;
+  /** What was found */
+  reason: string;
+  /** @format date-time */
+  since: string | null;
+  title: string;
+  /**
+   * The measured number the limits apply to
+   * @format double
+   */
+  value: number | null;
+}
+
+export interface DatabaseCheckInfo {
+  about: string;
+  area: string;
+  id: string;
+  /** Default limits; absent = not adjustable */
+  limit?: DatabaseLimit;
+  /** Lower values are worse */
+  lower?: boolean;
+  title: string;
+  /** ratio (0–1), seconds, hours, ms, count, bytes */
+  unit?: string;
+}
+
+export interface DatabaseCheckList {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: DatabaseCheckInfo[];
+}
+
+export interface DatabaseClient {
+  /** @format int32 */
+  active: number;
+  /** IP, or local socket */
+  address: string;
+  apps: string[];
+  databases: string[];
+  /** Not seen before the last day */
+  new: boolean;
+  /** @format int32 */
+  total: number;
+  users: string[];
+}
+
+export interface DatabaseConnections {
+  /**
+   * Running something right now
+   * @format int32
+   */
+  active: number;
+  /**
+   * Waiting on another connection's lock
+   * @format int32
+   */
+  blocked: number;
+  /** @format int32 */
+  idle: number;
+  /**
+   * Idle inside an open transaction (holds locks)
+   * @format int32
+   */
+  idle_in_tx: number;
+  /**
+   * Most the server accepts
+   * @format int32
+   */
+  max: number | null;
+  /**
+   * Kept back for admins
+   * @format int32
+   */
+  reserved: number;
+  /**
+   * Client connections, ours included
+   * @format int32
+   */
+  total: number;
+}
+
+export interface DatabaseCredentials {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  dbname: string;
+  engine: "postgres" | "mysql" | "mssql" | "redis" | "mongodb";
+  /** As the server it goes through sees it, when mode is server */
+  host: string;
+  password: string;
+  /** @format int32 */
+  port: number;
+  tls: "disable" | "require" | "verify";
+  username: string;
+}
+
+export interface DatabaseDisk {
+  /** @format int64 */
+  free_bytes: number;
+  path: string;
+  /** engine: the database reported it; server: df on its server */
+  source: "engine" | "server";
+  /** @format int64 */
+  total_bytes: number;
+}
+
+export interface DatabaseEvent {
+  /** @format date-time */
+  at: string;
+  /** The check that changed (kind check) */
+  check_id: string;
+  detail: string;
+  /** @format uuid */
+  id: string;
+  /** check, version, restart, user, admin, address, setting, backup */
+  kind: string;
+  severity: "info" | "ok" | "warning" | "critical";
+  title: string;
+}
+
+export interface DatabaseEventList {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: DatabaseEvent[];
+}
+
+export interface DatabaseFact {
+  group: string;
+  label: string;
+  value: string;
+}
+
+export interface DatabaseGrowth {
+  /**
+   * Days until the disk is full at this pace; null when it isn't filling up
+   * @format double
+   */
+  disk_full_days: number | null;
+  /** @format double */
+  size_bytes_per_day: number | null;
+}
+
+export interface DatabaseHistory {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format int32 */
+  bucket_seconds: number;
+  growth: DatabaseGrowth;
+  points: DatabaseHistoryPoint[];
+  range: "1h" | "6h" | "24h" | "7d" | "30d";
+  usual: DatabaseHourAverages;
+  yesterday: DatabaseHourAverages;
+}
+
+export interface DatabaseHistoryPoint {
+  /** @format double */
+  active: number | null;
+  /** @format date-time */
+  at: string;
+  /**
+   * Peak
+   * @format double
+   */
+  blocked: number | null;
+  /** @format double */
+  cache_hit: number | null;
+  /**
+   * Peak
+   * @format double
+   */
+  connections: number | null;
+  /**
+   * Sum
+   * @format double
+   */
+  deadlocks: number | null;
+  /**
+   * Lowest
+   * @format double
+   */
+  disk_free_bytes: number | null;
+  /** @format double */
+  disk_total_bytes: number | null;
+  /** @format double */
+  latency_ms: number | null;
+  /** @format double */
+  max_connections: number | null;
+  /** @format double */
+  memory_bytes: number | null;
+  /**
+   * Share of looks that got in, 0–1
+   * @format double
+   */
+  online: number | null;
+  /** @format double */
+  qps: number | null;
+  /**
+   * Peak, seconds
+   * @format double
+   */
+  replication_lag: number | null;
+  /** @format double */
+  size_bytes: number | null;
+  /** @format double */
+  tps: number | null;
+}
+
+export interface DatabaseHourAverages {
+  /** @format double */
+  active: number | null;
+  /** @format double */
+  connections: number | null;
+  /** @format double */
+  latency_ms: number | null;
+  /** @format double */
+  qps: number | null;
+  /**
+   * 0 = no data to compare with
+   * @format int32
+   */
+  samples: number;
+}
+
+export interface DatabaseIDColumn {
+  column: string;
+  /** @format double */
+  current: number;
+  database?: string;
+  /** @format double */
+  max: number;
+  /**
+   * Current / max
+   * @format double
+   */
+  ratio: number;
+  table: string;
+  type: string;
+}
+
+export interface DatabaseIndex {
+  database?: string;
+  name: string;
+  /** @format int64 */
+  size_bytes: number | null;
+  table: string;
+  /**
+   * Updates it cost (SQL Server)
+   * @format int64
+   */
+  writes: number | null;
+}
+
+export interface DatabaseInfo {
+  /** @format int32 */
+  connections: number;
+  /**
+   * SQL Server: last full backup msdb knows of
+   * @format date-time
+   */
+  last_backup: string | null;
+  /** @format int64 */
+  log_bytes: number | null;
+  /** @format double */
+  log_used: number | null;
+  /** SQL Server: what keeps the log from being reused */
+  log_wait?: string;
+  name: string;
+  /** SQL Server recovery model */
+  recovery?: string;
+  /** @format int64 */
+  size_bytes: number | null;
+  /** SQL Server: ONLINE, RESTORING… */
+  state?: string;
+  /**
+   * Tables, collections or keys
+   * @format int64
+   */
+  tables: number | null;
+}
+
+export interface DatabaseLimit {
+  /** @format double */
+  crit: number;
+  /** @format double */
+  warn: number;
+}
+
+export interface DatabaseList {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: Database[];
+}
+
+export interface DatabaseLive {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  message: string;
+  /** Absent when the database couldn't be reached */
+  snapshot?: DatabaseSnapshot;
+  status:
+    | "online"
+    | "unreachable"
+    | "auth_failed"
+    | "tls_error"
+    | "blocked"
+    | "error";
+}
+
+export interface DatabaseLog {
+  held_by?: string;
+  kind: string;
+  /** @format int64 */
+  size_bytes: number | null;
+  /**
+   * SQL Server: share of the log in use
+   * @format double
+   */
+  used_ratio: number | null;
+  /**
+   * MongoDB: hours of changes the oplog holds
+   * @format double
+   */
+  window_hours: number | null;
+}
+
+export interface DatabaseMemory {
+  /**
+   * Redis: keys pushed out to make room, since start
+   * @format int64
+   */
+  evicted: number | null;
+  /**
+   * 0 = no limit set
+   * @format int64
+   */
+  limit_bytes: number;
+  /** @format int64 */
+  used_bytes: number;
+}
+
+export interface DatabaseNote {
+  area: string;
+  message: string;
+}
+
+export interface DatabaseOutboundIP {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Empty when it couldn't be found out */
+  ip: string;
+}
+
+export interface DatabasePersist {
+  aof_enabled: boolean;
+  aof_status: string;
+  /**
+   * Writes since the last snapshot
+   * @format int64
+   */
+  rdb_changes: number;
+  /** @format date-time */
+  rdb_last_save: string | null;
+  /** ok or err */
+  rdb_status: string;
+  /** The save setting; empty = snapshots off */
+  save_schedule: string;
+}
+
+export interface DatabasePlan {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format double */
+  cost: number | null;
+  /** text: the engine's own tree; json: its JSON plan, pretty-printed */
+  format: "text" | "json";
+  plan: string;
+  /** @format double */
+  rows: number | null;
+  /** What in the plan is usually slow, e.g. a full scan of a big table */
+  warnings: string[];
+}
+
+export interface DatabaseQuery {
+  /**
+   * Redis slow log: when it ran
+   * @format date-time
+   */
+  at?: string | null;
+  /** @format int64 */
+  calls: number;
+  database?: string;
+  /** @format double */
+  mean_ms: number;
+  query: string;
+  /** @format int64 */
+  rows: number | null;
+  /** @format double */
+  total_ms: number;
+}
+
+export interface DatabaseRates {
+  /**
+   * New deadlocks since the previous look
+   * @format int64
+   */
+  deadlocks: number | null;
+  /**
+   * Failed sign-ins since the previous look
+   * @format int64
+   */
+  failed_logins: number | null;
+  /**
+   * Statements (or commands) per second
+   * @format double
+   */
+  queries: number | null;
+  /**
+   * Rows (or documents) read per second
+   * @format double
+   */
+  reads: number | null;
+  /**
+   * Time between the two looks
+   * @format double
+   */
+  seconds: number;
+  /** @format double */
+  transactions: number | null;
+  /**
+   * Rows written per second
+   * @format double
+   */
+  writes: number | null;
+}
+
+export interface DatabaseReplica {
+  address: string;
+  healthy: boolean;
+  /** @format int64 */
+  lag_bytes: number | null;
+  /** @format double */
+  lag_seconds: number | null;
+  name: string;
+  state: string;
+  sync?: string;
+}
+
+export interface DatabaseReplication {
+  /** Primary: who copies from it. Cluster: every member */
+  replicas: DatabaseReplica[];
+  /** Replica set or availability group */
+  set?: string;
+  /** PostgreSQL replication slots */
+  slots: DatabaseSlot[];
+  /** Replica: where it copies from */
+  source?: DatabaseSource;
+}
+
+export interface DatabaseSecurity {
+  /** @format int32 */
+  admins: number | null;
+  /** Anyone who reaches the port gets in */
+  auth_disabled: boolean;
+  /** Our own connection is encrypted */
+  encrypted: boolean | null;
+  /**
+   * Since start
+   * @format int64
+   */
+  failed_logins: number | null;
+  /** Addresses it accepts connections on */
+  listens_on?: string;
+  /**
+   * Logins without a password
+   * @format int32
+   */
+  no_password: number | null;
+  /**
+   * Other connections from the network without TLS
+   * @format int32
+   */
+  plain_clients: number | null;
+  /** Settings that open a door, e.g. xp_cmdshell */
+  risks: string[];
+}
+
+export interface DatabaseSetting {
+  name: string;
+  value: string;
+}
+
+export interface DatabaseSlot {
+  active: boolean;
+  name: string;
+  /**
+   * WAL kept for it
+   * @format int64
+   */
+  retained_bytes: number | null;
+}
+
+export interface DatabaseSnapshot {
+  /**
+   * Share of reads served from memory, 0–1
+   * @format double
+   */
+  cache_hit: number | null;
+  /** Connections grouped by address */
+  clients: DatabaseClient[];
+  /** @format date-time */
+  collected_at: string;
+  connections: DatabaseConnections;
+  /** Where the data lives on its server */
+  data_dir?: string;
+  databases: DatabaseInfo[];
+  /** @format date-time */
+  details_at: string | null;
+  /** The disk holding the data */
+  disk?: DatabaseDisk;
+  /** SQL Server edition, managed-service hints */
+  edition?: string;
+  engine: "postgres" | "mysql" | "mssql" | "redis" | "mongodb";
+  /** Engine-specific numbers */
+  facts: DatabaseFact[];
+  /** What it really is: PostgreSQL, MySQL, MariaDB, SQL Server, Redis, Valkey, MongoDB */
+  flavor: string;
+  /** Auto-increment columns, fullest first */
+  id_columns: DatabaseIDColumn[];
+  /** Indexes nothing has used since statistics were reset */
+  indexes: DatabaseIndex[];
+  /**
+   * Round trip of a trivial query
+   * @format int32
+   */
+  latency_ms: number;
+  /** Write-ahead log, binary log, transaction log or oplog */
+  log?: DatabaseLog;
+  memory?: DatabaseMemory;
+  /** What couldn't be read, and why */
+  notes: DatabaseNote[];
+  /** Redis: snapshots and the append-only file */
+  persistence?: DatabasePersist;
+  /** Statements that took the most time in all */
+  queries: DatabaseQuery[];
+  /** Where Queries came from; empty when nothing could tell */
+  queries_source: string;
+  /** Per second since the previous look; absent on the first one */
+  rates?: DatabaseRates;
+  read_only: boolean;
+  replication: DatabaseReplication;
+  role: "primary" | "replica" | "standalone";
+  security: DatabaseSecurity;
+  /** Connections that are doing something, holding a transaction or blocked; longest first */
+  sessions: DatabaseActivity[];
+  /** Settings worth knowing (and watching for changes) */
+  settings: DatabaseSetting[];
+  /**
+   * Everything stored, all databases together
+   * @format int64
+   */
+  size_bytes: number | null;
+  /**
+   * When the server process started
+   * @format date-time
+   */
+  started_at: string | null;
+  /** Largest tables (collections, keys) */
+  tables: DatabaseTable[];
+  /** Which database Tables covers when it can't be all of them */
+  tables_scope?: string;
+  users: DatabaseUser[];
+  version: string;
+  /** What busy connections wait on right now */
+  waits: DatabaseWait[];
+}
+
+export interface DatabaseSource {
+  address: string;
+  error?: string;
+  /** @format double */
+  lag_seconds: number | null;
+  /** Receiving and applying changes */
+  running: boolean;
+}
+
+export interface DatabaseTable {
+  database?: string;
+  /**
+   * PostgreSQL: rows waiting for vacuum
+   * @format int64
+   */
+  dead_rows: number | null;
+  /**
+   * MySQL: allocated but unused
+   * @format int64
+   */
+  free_bytes: number | null;
+  /** @format int64 */
+  index_bytes: number | null;
+  /** Redis: the key's type */
+  kind?: string;
+  /** @format date-time */
+  last_vacuum: string | null;
+  name: string;
+  /**
+   * Estimated
+   * @format int64
+   */
+  rows: number | null;
+  schema?: string;
+  /** @format int64 */
+  size_bytes: number;
+}
+
+export interface DatabaseTest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  flavor?: string;
+  message: string;
+  status:
+    | "online"
+    | "unreachable"
+    | "auth_failed"
+    | "tls_error"
+    | "blocked"
+    | "error";
+  steps: DatabaseTestStep[];
+  version?: string;
+}
+
+export interface DatabaseTestBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** direct only: allow private, loopback and link-local addresses. System admins only */
+  allow_internal?: boolean;
+  /**
+   * verify only: PEM of the CA that signed the database's certificate
+   * @maxLength 65536
+   */
+  ca_cert?: string;
+  clear_password?: boolean;
+  /**
+   * mode server: the Docker container it runs in. Disk is then read inside it
+   * @maxLength 128
+   */
+  container?: string;
+  /**
+   * When editing a saved database: reuse its stored password for a field left out
+   * @format uuid
+   */
+  database_id?: string;
+  /**
+   * Database to sign in to (MongoDB: the auth database; Redis: the db number). Empty = the engine's usual one
+   * @maxLength 128
+   */
+  dbname?: string;
+  engine: "postgres" | "mysql" | "mssql" | "redis" | "mongodb";
+  /**
+   * mode server: as that server sees it (empty = 127.0.0.1, or the container's own address when a container is set). direct: public IP or domain
+   * @maxLength 255
+   */
+  host?: string;
+  /** server: through one of your servers over SSH (the database may run on it, in Docker on it, or behind it); direct: Morcheh connects to a public address itself */
+  mode: "server" | "direct";
+  /**
+   * On update, leave out to keep the stored one
+   * @maxLength 1024
+   */
+  password?: string;
+  /**
+   * 0 or left out = the engine's default
+   * @format int32
+   * @min 0
+   * @max 65535
+   */
+  port?: number;
+  /**
+   * mode server: the server it's reached through
+   * @format uuid
+   */
+  server_id?: string;
+  /** require: encrypted, the certificate isn't checked; verify: also checks it (against ca_cert, or the system's CAs). Default: require when direct, disable through a server (SSH already encrypts) */
+  tls?: "disable" | "require" | "verify";
+  /** @maxLength 128 */
+  username?: string;
+}
+
+export interface DatabaseTestStep {
+  id: "dns" | "tcp" | "tls" | "auth" | "permissions";
+  message: string;
+  /**
+   * How long the step took
+   * @format int64
+   */
+  ms: number;
+  status: "ok" | "warning" | "failed" | "skipped";
+  title: string;
+}
+
+export interface DatabaseUser {
+  /** Superuser, sysadmin, root-like */
+  admin: boolean;
+  disabled?: boolean;
+  name: string;
+  /** Signs in without a password */
+  no_password?: boolean;
+}
+
+export interface DatabaseWait {
+  /** @format int32 */
+  count: number;
+  event: string;
+}
+
 export interface DeleteCronJobsRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -682,6 +1613,25 @@ export interface Event {
   jail: string;
   /** Server-local time */
   time: string;
+}
+
+export interface ExplainDatabaseQueryRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Database to plan it in
+   * @maxLength 128
+   */
+  database?: string;
+  /**
+   * MongoDB: {"collection": …, "filter": …} as JSON
+   * @minLength 1
+   * @maxLength 100000
+   */
+  query: string;
 }
 
 export interface ExtractArchiveRequest {
@@ -1328,6 +2278,21 @@ export interface JobPlace {
 }
 
 export interface JobRemoved {
+  id: string;
+}
+
+export interface KillDatabaseSessionRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  connection?: boolean;
+  /**
+   * The session's id from the live view
+   * @minLength 1
+   * @maxLength 64
+   */
   id: string;
 }
 
@@ -2584,6 +3549,24 @@ export interface Session {
   user: string;
 }
 
+export interface SetDatabaseFavoriteRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  favorite: boolean;
+}
+
+export interface SetDatabasePausedRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  paused: boolean;
+}
+
 export interface SetServerFavoriteRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -3183,6 +4166,17 @@ export interface UpdateCronJobRequest {
    * @maxLength 300
    */
   table: string;
+}
+
+export interface UpdateDatabaseMonitoringRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  alerts_enabled: boolean;
+  muted_checks: string[];
+  thresholds: Record<string, DatabaseLimit>;
 }
 
 export interface UsageDisk {
@@ -4479,6 +5473,372 @@ export class Api<
       this.request<PanelUser, ErrorModel>({
         path: `/auth/me`,
         method: "PATCH",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  databases = {
+    /**
+     * @description Connects afresh, runs every check and records the result.
+     *
+     * @tags Databases
+     * @name CheckDatabase
+     * @summary Check a database now
+     * @request POST:/databases/{id}/check
+     */
+    checkDatabase: (id: string, params: RequestParams = {}) =>
+      this.request<Database, ErrorModel>({
+        path: `/databases/${id}/check`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Through a server: Engineer on that server; it joins the server's workspace. Direct: Engineer and the right to add in the open workspace. Monitoring starts at once.
+     *
+     * @tags Databases
+     * @name CreateDatabase
+     * @summary Add a database
+     * @request POST:/databases
+     */
+    createDatabase: (data: DatabaseBody, params: RequestParams = {}) =>
+      this.request<Database, ErrorModel>({
+        path: `/databases`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Forgets it in Morcheh with its history and events; nothing on the database itself is touched.
+     *
+     * @tags Databases
+     * @name DeleteDatabase
+     * @summary Remove a database
+     * @request DELETE:/databases/{id}
+     */
+    deleteDatabase: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/databases/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * @description Asks the database how it would run the statement, without running it (EXPLAIN without ANALYZE, SHOWPLAN, explain queryPlanner). Not available for Redis.
+     *
+     * @tags Databases
+     * @name ExplainDatabaseQuery
+     * @summary Show a query's plan
+     * @request POST:/databases/{id}/explain
+     */
+    explainDatabaseQuery: (
+      id: string,
+      data: ExplainDatabaseQueryRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<DatabasePlan, ErrorModel>({
+        path: `/databases/${id}/explain`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Databases
+     * @name GetDatabase
+     * @summary Get a database
+     * @request GET:/databases/{id}
+     */
+    getDatabase: (id: string, params: RequestParams = {}) =>
+      this.request<Database, ErrorModel>({
+        path: `/databases/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Recorded looks in buckets, this hour compared with yesterday and the usual, and how fast it grows. Kept 30 days.
+     *
+     * @tags Databases
+     * @name GetDatabaseHistory
+     * @summary Charts over time
+     * @request GET:/databases/{id}/history
+     */
+    getDatabaseHistory: (
+      id: string,
+      query?: {
+        /** @default "24h" */
+        range?: "1h" | "6h" | "24h" | "7d" | "30d";
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<DatabaseHistory, ErrorModel>({
+        path: `/databases/${id}/history`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description One look (at most a few seconds old): connections, sessions, queries, sizes, replication. Statement text is empty below Engineer access.
+     *
+     * @tags Databases
+     * @name GetDatabaseLive
+     * @summary What the database is doing now
+     * @request GET:/databases/{id}/live
+     */
+    getDatabaseLive: (id: string, params: RequestParams = {}) =>
+      this.request<DatabaseLive, ErrorModel>({
+        path: `/databases/${id}/live`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The public address direct connections come from, to allow in the database's firewall. Asked from api.ipify.org (or ifconfig.me) and cached for 10 minutes.
+     *
+     * @tags Databases
+     * @name GetDatabaseOutboundIp
+     * @summary Morcheh's outbound address
+     * @request GET:/databases/outbound-ip
+     */
+    getDatabaseOutboundIp: (params: RequestParams = {}) =>
+      this.request<DatabaseOutboundIP, ErrorModel>({
+        path: `/databases/outbound-ip`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description connection=false cancels what it runs (where the engine can); true closes the connection and rolls back its transaction.
+     *
+     * @tags Databases
+     * @name KillDatabaseSession
+     * @summary Stop a session's statement, or close it
+     * @request POST:/databases/{id}/kill
+     */
+    killDatabaseSession: (
+      id: string,
+      data: KillDatabaseSessionRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, ErrorModel>({
+        path: `/databases/${id}/kill`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        ...params,
+      }),
+
+    /**
+     * @description Every check with its default limits.
+     *
+     * @tags Databases
+     * @name ListDatabaseChecks
+     * @summary Health checks
+     * @request GET:/databases/checks
+     */
+    listDatabaseChecks: (params: RequestParams = {}) =>
+      this.request<DatabaseCheckList, ErrorModel>({
+        path: `/databases/checks`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Newest first: checks changing state, restarts, new versions, logins, client addresses and settings. Kept 90 days.
+     *
+     * @tags Databases
+     * @name ListDatabaseEvents
+     * @summary What happened to a database
+     * @request GET:/databases/{id}/events
+     */
+    listDatabaseEvents: (
+      id: string,
+      query?: {
+        /**
+         * Older than this (the last item's at), for the next page
+         * @format date-time
+         */
+        before?: string;
+        /**
+         * @format int32
+         * @min 1
+         * @max 200
+         * @default 50
+         */
+        limit?: number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<DatabaseEventList, ErrorModel>({
+        path: `/databases/${id}/events`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Worst health first, then favourites, then by name.
+     *
+     * @tags Databases
+     * @name ListDatabases
+     * @summary List databases
+     * @request GET:/databases
+     */
+    listDatabases: (
+      query?: {
+        /**
+         * Only the ones reached through this server
+         * @format uuid
+         */
+        server_id?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<DatabaseList, ErrorModel>({
+        path: `/databases`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Opens the stored password. POST and `Cache-Control: no-store` so nothing caches it.
+     *
+     * @tags Databases
+     * @name RevealDatabaseCredentials
+     * @summary Reveal a database's sign-in
+     * @request POST:/databases/{id}/credentials
+     */
+    revealDatabaseCredentials: (id: string, params: RequestParams = {}) =>
+      this.request<DatabaseCredentials, ErrorModel>({
+        path: `/databases/${id}/credentials`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Databases
+     * @name SetDatabaseFavorite
+     * @summary Star or unstar a database
+     * @request PUT:/databases/{id}/favorite
+     */
+    setDatabaseFavorite: (
+      id: string,
+      data: SetDatabaseFavoriteRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<Database, ErrorModel>({
+        path: `/databases/${id}/favorite`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description A paused database isn't checked, recorded or alerted on; its live view still works.
+     *
+     * @tags Databases
+     * @name SetDatabasePaused
+     * @summary Pause or resume monitoring
+     * @request PUT:/databases/{id}/paused
+     */
+    setDatabasePaused: (
+      id: string,
+      data: SetDatabasePausedRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<Database, ErrorModel>({
+        path: `/databases/${id}/paused`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Connects step by step (name, port, encryption, sign-in, monitoring permissions) without saving anything. The failure is in the result, not the status code.
+     *
+     * @tags Databases
+     * @name TestDatabaseConnection
+     * @summary Test database settings
+     * @request POST:/databases/test-connection
+     */
+    testDatabaseConnection: (
+      data: DatabaseTestBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<DatabaseTest, ErrorModel>({
+        path: `/databases/test-connection`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Replaces the connection settings. A password left out keeps the stored one. Moving it to another address drops an admin's permission for private addresses unless an admin makes the change.
+     *
+     * @tags Databases
+     * @name UpdateDatabase
+     * @summary Update a database
+     * @request PUT:/databases/{id}
+     */
+    updateDatabase: (
+      id: string,
+      data: DatabaseBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Database, ErrorModel>({
+        path: `/databases/${id}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description thresholds replaces every override; a check left out goes back to its default limits.
+     *
+     * @tags Databases
+     * @name UpdateDatabaseMonitoring
+     * @summary Change limits, muted checks and alerts
+     * @request PUT:/databases/{id}/monitoring
+     */
+    updateDatabaseMonitoring: (
+      id: string,
+      data: UpdateDatabaseMonitoringRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<Database, ErrorModel>({
+        path: `/databases/${id}/monitoring`,
+        method: "PUT",
         body: data,
         type: ContentType.Json,
         format: "json",

@@ -1,6 +1,7 @@
 import type { GuideSection } from "../components/prose"
 import { access } from "./access"
 import { cron } from "./cron"
+import { databases } from "./databases"
 import { fail2ban } from "./fail2ban"
 import { files } from "./files"
 import { gettingStarted } from "./getting-started"
@@ -29,6 +30,7 @@ export const content: Record<string, GuideSection[]> = {
   users,
   services,
   power,
+  databases,
   storage,
   tasks,
   access,

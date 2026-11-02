@@ -87,7 +87,13 @@ export function visiblePages(settings: NavItem | null) {
   )
 }
 
-const topPages = new Set(["/home", "/servers", "/storage", "/help"])
+const topPages = new Set([
+  "/home",
+  "/servers",
+  "/databases",
+  "/storage",
+  "/help",
+])
 export const shortcutPages = pages.filter((p) => topPages.has(p.href ?? ""))
 
 export function actions(
@@ -105,6 +111,16 @@ export function actions(
       href: "/servers",
       intent: "add-server",
       keywords: "new create ssh host",
+    },
+    {
+      key: "action:add-database",
+      label: "Add database",
+      icon: Plus,
+      tile: "brand",
+      href: "/databases",
+      intent: "add-database",
+      keywords:
+        "new create monitor postgres postgresql mysql mariadb sql server mssql redis mongodb",
     },
     {
       key: "action:add-storage",

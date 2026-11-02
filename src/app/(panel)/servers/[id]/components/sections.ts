@@ -2,6 +2,7 @@ import {
   CalendarClock,
   ChartLine,
   Cpu,
+  Database,
   EthernetPort,
   FileCode,
   FolderOpen,
@@ -220,6 +221,13 @@ export const sectionGroups: SectionGroup[] = [
   {
     label: "Monitoring",
     sections: [
+      {
+        slug: "databases",
+        label: "Databases",
+        icon: Database,
+        summary: "Health and live activity of the databases on this server.",
+        ready: true,
+      },
       {
         slug: "metrics",
         label: "Metrics",
