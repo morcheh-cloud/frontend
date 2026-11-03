@@ -10,6 +10,7 @@ import {
   ArrowRight,
   ChevronLeft,
   CornerDownLeft,
+  ExternalLink,
   History,
   Loader2,
   Search,
@@ -36,6 +37,13 @@ import {
   StatusDot,
 } from "@/app/(panel)/servers/components/meta"
 import { useWorkspaceCan } from "@/app/(panel)/servers/components/permissions"
+import { useApps } from "@/app/(panel)/services/api"
+import {
+  AppLogo,
+  appsHref,
+  safeHref,
+  shortAddress,
+} from "@/app/(panel)/services/components/meta"
 import { useStorages } from "@/app/(panel)/storage/api"
 import {
   endpointLabel,
@@ -50,7 +58,7 @@ import { queueIntent } from "@/hooks/useIntent"
 import { useIsPhone } from "@/hooks/useIsPhone"
 import { useOpen } from "@/hooks/useOpen"
 import { api } from "@/lib/api"
-import type { Server, Storage } from "@/lib/services"
+import type { App, Server, Storage } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import {
   actions,
@@ -79,7 +87,8 @@ export function useCommandPalette() {
   return ctx
 }
 
-// The panel-wide search: pages, actions, servers, storages and guides. Opened
+// The panel-wide search: pages, actions, servers, storages, services and
+// guides. Opened
 // from the header, or with ⌘K / Ctrl+K anywhere in the panel (except inside a
 // terminal, where Ctrl+K belongs to the shell).
 export function CommandProvider({ children }: { children: ReactNode }) {
@@ -172,6 +181,8 @@ type Row = {
   lead: ReactNode
   trail?: ReactNode
   href?: string
+  // Opened in a new tab instead (a service's address).
+  external?: string
   intent?: string
   run?: () => void
   // Saved to "Recent" when picked.
@@ -210,6 +221,7 @@ function Palette({ phone, close }: { phone: boolean; close: () => void }) {
     placeholderData: keepPreviousData,
   })
   const storages = useStorages()
+  const apps = useApps()
   const { serverLevel } = useAccess()
   const canAdd = useWorkspaceCan().addServer
   const settings = useSettingsItem()
@@ -230,6 +242,13 @@ function Palette({ phone, close }: { phone: boolean; close: () => void }) {
 
   const pick = (row: Row) => {
     if (row.recent) remember(row.recent)
+    // A new tab has to open inside the key press or click, or the pop-up
+    // blocker steps in; the page under the palette stays as it is.
+    if (row.external) {
+      window.open(row.external, "_blank", "noopener,noreferrer")
+      close()
+      return
+    }
     // Act once the layer's history entry is gone, or Back would land on the
     // palette instead of the page it was opened from.
     window.addEventListener(
@@ -303,6 +322,30 @@ function Palette({ phone, close }: { phone: boolean; close: () => void }) {
     },
   })
 
+  // Opens the service; one without an http(s) address is found on the page.
+  const appRow = (a: App): Row => {
+    const external = safeHref(a.address)
+    return {
+      key: `app:${a.id}`,
+      label: a.name,
+      hint: shortAddress(a.address),
+      lead: <AppLogo app={a} size={32} />,
+      trail: external ? (
+        <ExternalLink className="size-4 shrink-0 text-ash" />
+      ) : undefined,
+      external,
+      href: external ? undefined : appsHref("/services", { q: a.name }),
+      recent: {
+        kind: "app",
+        key: `app:${a.id}`,
+        label: a.name,
+        hint: shortAddress(a.address),
+        href: "/services",
+      },
+    }
+  }
+  const appById = new Map((apps.data?.items ?? []).map((a) => [a.id, a]))
+
   const recentRow = (r: Recent): Row => ({
     key: `recent:${r.key}`,
     label: r.label,
@@ -344,6 +387,19 @@ function Palette({ phone, close }: { phone: boolean; close: () => void }) {
           ).map((x) => storageRow(x.s)),
         },
         {
+          label: "Services",
+          rows: filter(
+            (apps.data?.items ?? []).map((a) => ({
+              a,
+              label: a.name,
+              hint: shortAddress(a.address),
+              keywords: `${a.address} ${a.note ?? ""}`,
+            })),
+            terms,
+            4,
+          ).map((x) => appRow(x.a)),
+        },
+        {
           label: "Pages",
           rows: filter(visiblePages(settings), terms).map((c) => commandRow(c)),
         },
@@ -358,7 +414,22 @@ function Palette({ phone, close }: { phone: boolean; close: () => void }) {
         { label: "", rows: [commandRow(searchAll(q), false)] },
       ]
     : [
-        { label: "Recent", rows: recent.map(recentRow) },
+        {
+          label: "Recent",
+          rows: recent.flatMap((r) => {
+            if (r.kind !== "app") return [recentRow(r)]
+            const app = appById.get(r.key.slice("app:".length))
+            return app
+              ? [
+                  {
+                    ...appRow(app),
+                    key: `recent:${r.key}`,
+                    forget: () => forget(r.key),
+                  },
+                ]
+              : []
+          }),
+        },
         { label: "This server", rows: here.map((c) => commandRow(c)) },
         { label: "Quick actions", rows: allActions.map((c) => commandRow(c)) },
         { label: "Go to", rows: shortcutPages.map((c) => commandRow(c)) },
@@ -653,7 +724,7 @@ function NoResults({ query }: { query: string }) {
       </span>
       <p className="mt-4 text-body font-medium">Nothing for “{query}”</p>
       <p className="mt-1 text-body-sm text-muted-foreground">
-        Try a server name, an address, a tag or a page.
+        Try a server or service name, an address, a tag or a page.
       </p>
     </div>
   )

@@ -38,7 +38,12 @@ import {
   Workflow,
   Wrench,
 } from "lucide-react"
-import { parseAsBoolean, parseAsString, useQueryStates } from "nuqs"
+import {
+  createSerializer,
+  parseAsBoolean,
+  parseAsString,
+  useQueryStates,
+} from "nuqs"
 import { useState } from "react"
 
 import { API_URL } from "@/lib/api"
@@ -122,6 +127,7 @@ export const appIcons: Record<string, LucideIcon> = {
 const logoSizes = {
   40: "size-10 rounded-lg text-body",
   36: "size-9 rounded-lg text-body",
+  32: "size-8 rounded-lg text-body-sm",
   28: "size-7 rounded-md text-body-sm",
 }
 
@@ -133,7 +139,7 @@ export function AppLogo({
   className,
 }: {
   app: App
-  size?: 40 | 36 | 28
+  size?: 40 | 36 | 32 | 28
   className?: string
 }) {
   const [broken, setBroken] = useState<string | null>(null)
@@ -224,6 +230,9 @@ export function suggestName(address: string): string {
 }
 
 // Search, category and the Critical view, kept in the URL.
+// A link into the page's search, for places outside it.
+export const appsHref = createSerializer({ q: parseAsString })
+
 export function useAppFilters() {
   const [filters, setFilters] = useQueryStates(
     {

@@ -30,7 +30,7 @@ import {
 } from "../nav"
 
 // What the command palette offers before anything is typed, and the static
-// half of what it searches (servers and storages come from the API).
+// half of what it searches (servers, storages and services come from the API).
 
 export type Tile = "muted" | "brand" | "outline"
 
@@ -130,6 +130,15 @@ export function actions(
       href: "/storage",
       intent: "add-storage",
       keywords: "new create s3 ftp sftp webdav bucket",
+    },
+    {
+      key: "action:add-service",
+      label: "Add service",
+      icon: Plus,
+      tile: "brand",
+      href: "/services",
+      intent: "add-service",
+      keywords: "new create web app link launcher bookmark login",
     },
   ]
   return [
@@ -256,8 +265,10 @@ export function iconOf(key: string): LucideIcon {
 
 // What was opened from the palette lately, per browser.
 
+// A service is kept by id only: its link is read from the current list, so
+// one this person lost access to drops out.
 export type Recent = {
-  kind: "server" | "storage" | "command"
+  kind: "server" | "storage" | "app" | "command"
   key: string
   label: string
   hint?: string
