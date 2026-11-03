@@ -37,6 +37,222 @@ export interface AffectedOutputBody {
   affected: number;
 }
 
+export interface App {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Empty below Operator. */
+  accounts: AppAccount[];
+  address: string;
+  /** @format uuid */
+  category_id?: string;
+  color: string;
+  /** @format date-time */
+  created_at: string;
+  critical: boolean;
+  /** @format uuid */
+  id: string;
+  logo_icon: string;
+  logo_kind: "auto" | "upload" | "icon";
+  /** Where to load the logo from; missing = draw the first letter or the icon. */
+  logo_url?: string;
+  name: string;
+  note: string;
+  /** @format int32 */
+  position: number;
+  /** @format date-time */
+  updated_at: string;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface AppAccount {
+  has_password: boolean;
+  /** @format uuid */
+  id: string;
+  label: string;
+  username: string;
+}
+
+export interface AppAccountInput {
+  /** An existing account of this service. */
+  id?: string;
+  /** @maxLength 64 */
+  label?: string;
+  /**
+   * Empty keeps the saved one.
+   * @maxLength 4096
+   */
+  password?: string;
+  remove_password?: boolean;
+  /** @maxLength 255 */
+  username?: string;
+}
+
+export interface AppActivityOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: AppSecretView[];
+}
+
+export interface AppCategory {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  color: string;
+  /** @format uuid */
+  id: string;
+  name: string;
+  /** @format int32 */
+  position: number;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface AppCreateBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxItems 20 */
+  accounts?: AppAccountInput[];
+  /**
+   * http(s) URL; https:// is added when there's no scheme.
+   * @maxLength 2048
+   */
+  address: string;
+  /** A category in the same workspace; empty = none. */
+  category_id?: string;
+  /** @default "slate" */
+  color?:
+    | "slate"
+    | "red"
+    | "orange"
+    | "amber"
+    | "green"
+    | "teal"
+    | "blue"
+    | "indigo"
+    | "violet"
+    | "pink";
+  critical?: boolean;
+  /**
+   * @maxLength 40
+   * @pattern ^[a-z0-9-]*$
+   */
+  logo_icon?: string;
+  /** @default "auto" */
+  logo_kind?: "auto" | "icon";
+  /**
+   * @minLength 1
+   * @maxLength 128
+   */
+  name: string;
+  /** @maxLength 4000 */
+  note?: string;
+}
+
+export interface AppLayoutBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Category order. */
+  categories: string[];
+  groups: AppLayoutGroup[];
+}
+
+export interface AppLayoutGroup {
+  /** In order. Services of other workspaces or already removed are skipped. */
+  app_ids: string[];
+  /** null = uncategorized. */
+  category_id?: string | null;
+}
+
+export interface AppList {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** The categories this person may see or place services in, empty ones included when they can. */
+  categories: AppCategory[];
+  items: App[];
+}
+
+export interface AppSecretOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  password: string;
+  username: string;
+}
+
+export interface AppSecretView {
+  /** As it was then; kept after the account is removed. */
+  account_label: string;
+  /** @format date-time */
+  created_at: string;
+  /** @format uuid */
+  id: string;
+  ip: string;
+  user_name: string;
+}
+
+export interface AppUpdateBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * The whole list, in order.
+   * @maxItems 20
+   */
+  accounts?: AppAccountInput[];
+  /** @maxLength 2048 */
+  address?: string;
+  /** Moving it puts the service at the end of the new category; empty = none. */
+  category_id?: string;
+  color?:
+    | "slate"
+    | "red"
+    | "orange"
+    | "amber"
+    | "green"
+    | "teal"
+    | "blue"
+    | "indigo"
+    | "violet"
+    | "pink";
+  critical?: boolean;
+  /**
+   * @maxLength 40
+   * @pattern ^[a-z0-9-]*$
+   */
+  logo_icon?: string;
+  /** auto drops an uploaded logo; upload needs one. */
+  logo_kind?: "auto" | "upload" | "icon";
+  /**
+   * @minLength 1
+   * @maxLength 128
+   */
+  name?: string;
+  /** @maxLength 4000 */
+  note?: string;
+}
+
 export interface AuthLoginBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -297,6 +513,31 @@ export interface ConnectionTestOutputBody {
     | "auth_failed"
     | "host_key_mismatch"
     | "error";
+}
+
+export interface CreateAppCategoryRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @default "slate" */
+  color?:
+    | "slate"
+    | "red"
+    | "orange"
+    | "amber"
+    | "green"
+    | "teal"
+    | "blue"
+    | "indigo"
+    | "violet"
+    | "pink";
+  /**
+   * @minLength 1
+   * @maxLength 64
+   */
+  name: string;
 }
 
 export interface CronEnv {
@@ -742,7 +983,7 @@ export interface DatabaseClient {
   address: string;
   apps: string[];
   databases: string[];
-  /** Not seen before the last day */
+  /** First showed up in the last day */
   new: boolean;
   /** @format int32 */
   total: number;
@@ -2078,6 +2319,11 @@ export interface GrantBody {
    * @format uri
    */
   $schema?: string;
+  /**
+   * A service on the Services page.
+   * @format uuid
+   */
+  app_id?: string;
   /** Add servers and storages to the workspace. Defaults to on for Owner. */
   can_create?: boolean;
   /** @format uuid */
@@ -2113,6 +2359,11 @@ export interface GrantOutputBody {
 }
 
 export interface GrantSpec {
+  /**
+   * A service on the Services page.
+   * @format uuid
+   */
+  app_id?: string;
   /** Add servers and storages to the workspace. Defaults to on for Owner. */
   can_create?: boolean;
   level: "viewer" | "operator" | "engineer" | "owner";
@@ -2389,6 +2640,8 @@ export interface MyAccess {
    */
   $schema?: string;
   admin: boolean;
+  /** Services on the Services page. */
+  apps: ResourceAccess[];
   /** Can add servers and storages somewhere. */
   can_create: boolean;
   servers: ResourceAccess[];
@@ -2523,6 +2776,9 @@ export interface PanelApproveBody {
 }
 
 export interface PanelGrant {
+  /** @format uuid */
+  app_id?: string;
+  app_name?: string;
   can_create: boolean;
   /** @format date-time */
   created_at: string;
@@ -2727,15 +2983,20 @@ export interface PanelWorkspace {
    * @format uri
    */
   $schema?: string;
-  /** You can add servers and storages here. */
+  /**
+   * Services you can reach here.
+   * @format int32
+   */
+  app_count: number;
+  /** You can add servers, storages and services here. */
   can_create: boolean;
   description: string;
   /** @format uuid */
   id: string;
-  /** Your level on the whole workspace; none if you only reach some servers or storages in it. */
+  /** Your level on the whole workspace; none if you only reach some servers, storages or services in it. */
   level: string;
   name: string;
-  /** You only reach some servers or storages in it. */
+  /** You only reach some servers, storages or services in it. */
   partial: boolean;
   /**
    * Servers you can reach here.
@@ -4147,6 +4408,30 @@ export interface UnitFile {
   path: string;
 }
 
+export interface UpdateAppCategoryRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  color?:
+    | "slate"
+    | "red"
+    | "orange"
+    | "amber"
+    | "green"
+    | "teal"
+    | "blue"
+    | "indigo"
+    | "violet"
+    | "pink";
+  /**
+   * @minLength 1
+   * @maxLength 64
+   */
+  name?: string;
+}
+
 export interface UpdateCronJobRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -4424,12 +4709,21 @@ export interface WorkspaceAccess {
   level: string;
 }
 
+export interface WorkspaceApp {
+  address: string;
+  /** @format uuid */
+  id: string;
+  name: string;
+}
+
 export interface WorkspaceAssignBody {
   /**
    * A URL to the JSON Schema for this object.
    * @format uri
    */
   $schema?: string;
+  /** Services; they leave their category, which belongs to the old workspace. */
+  app_ids?: string[];
   server_ids?: string[];
   storage_ids?: string[];
 }
@@ -4455,15 +4749,21 @@ export interface WorkspaceDetail {
    * @format uri
    */
   $schema?: string;
-  /** You can add servers and storages here. */
+  /**
+   * Services you can reach here.
+   * @format int32
+   */
+  app_count: number;
+  apps: WorkspaceApp[];
+  /** You can add servers, storages and services here. */
   can_create: boolean;
   description: string;
   /** @format uuid */
   id: string;
-  /** Your level on the whole workspace; none if you only reach some servers or storages in it. */
+  /** Your level on the whole workspace; none if you only reach some servers, storages or services in it. */
   level: string;
   name: string;
-  /** You only reach some servers or storages in it. */
+  /** You only reach some servers, storages or services in it. */
   partial: boolean;
   /**
    * Servers you can reach here.
@@ -4794,11 +5094,11 @@ export class Api<
 > extends HttpClient<SecurityDataType> {
   workspaces = {
     /**
-     * @description Moved servers leave their folder, which belongs to the old workspace.
+     * @description Moved servers leave their folder and moved services their category; both belong to the old workspace.
      *
      * @tags Workspaces
      * @name AssignWorkspace
-     * @summary Move servers and storages into a workspace
+     * @summary Move servers, storages and services into a workspace
      * @request POST:/workspaces/{id}/assign
      */
     assignWorkspace: (
@@ -4879,7 +5179,7 @@ export class Api<
       }),
 
     /**
-     * @description Admins can filter by anything. Others must name a workspace, server or storage they own.
+     * @description Admins can filter by anything. Others must name a workspace, server, storage or service they own.
      *
      * @tags Workspaces
      * @name ListGrants
@@ -4888,6 +5188,8 @@ export class Api<
      */
     listGrants: (
       query?: {
+        /** @format uuid */
+        app_id?: string;
         /** @format uuid */
         group_id?: string;
         /** @format uuid */
@@ -4942,7 +5244,7 @@ export class Api<
       }),
 
     /**
-     * @description One person or group, one workspace, server or storage. Admins and the target's Owners can. Only admins decide who may add servers: an Owner passes on at most what they have themselves.
+     * @description One person or group, one workspace, server, storage or service. Admins and the target's Owners can. Only admins decide who may add servers: an Owner passes on at most what they have themselves.
      *
      * @tags Workspaces
      * @name SetGrant
@@ -5303,6 +5605,268 @@ export class Api<
     ) =>
       this.request<PanelUser, ErrorModel>({
         path: `/admin/users/${id}`,
+        method: "PATCH",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  apps = {
+    /**
+     * @description Goes in the open workspace, at the end of its category.
+     *
+     * @tags apps
+     * @name CreateApp
+     * @summary Add a service
+     * @request POST:/apps
+     */
+    createApp: (data: AppCreateBody, params: RequestParams = {}) =>
+      this.request<App, ErrorModel>({
+        path: `/apps`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description It goes last.
+     *
+     * @tags apps
+     * @name CreateAppCategory
+     * @summary Add a service category
+     * @request POST:/workspaces/{id}/app-categories
+     */
+    createAppCategory: (
+      id: string,
+      data: CreateAppCategoryRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<AppCategory, ErrorModel>({
+        path: `/workspaces/${id}/app-categories`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags apps
+     * @name DeleteApp
+     * @summary Remove a service
+     * @request DELETE:/apps/{id}
+     */
+    deleteApp: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/apps/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * @description Its services stay, uncategorized.
+     *
+     * @tags apps
+     * @name DeleteAppCategory
+     * @summary Remove a service category
+     * @request DELETE:/workspaces/{id}/app-categories/{categoryId}
+     */
+    deleteAppCategory: (
+      id: string,
+      categoryId: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, ErrorModel>({
+        path: `/workspaces/${id}/app-categories/${categoryId}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags apps
+     * @name GetApp
+     * @summary Get a service
+     * @request GET:/apps/{id}
+     */
+    getApp: (id: string, params: RequestParams = {}) =>
+      this.request<App, ErrorModel>({
+        path: `/apps/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The image its logo_kind picks. Use logo_url from the service, which changes with the image.
+     *
+     * @tags apps
+     * @name GetAppLogo
+     * @summary A service's logo image
+     * @request GET:/apps/{id}/logo
+     */
+    getAppLogo: (id: string, params: RequestParams = {}) =>
+      this.request<Blob, ErrorModel>({
+        path: `/apps/${id}/logo`,
+        method: "GET",
+        format: "blob",
+        ...params,
+      }),
+
+    /**
+     * @description The last 200 reveals, newest first.
+     *
+     * @tags apps
+     * @name ListAppActivity
+     * @summary Who revealed this service's passwords
+     * @request GET:/apps/{id}/activity
+     */
+    listAppActivity: (id: string, params: RequestParams = {}) =>
+      this.request<AppActivityOutputBody, ErrorModel>({
+        path: `/apps/${id}/activity`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description By category, then the order inside it; uncategorized last. q matches the name, address and note.
+     *
+     * @tags apps
+     * @name ListApps
+     * @summary List services
+     * @request GET:/apps
+     */
+    listApps: (
+      query?: {
+        /** @maxLength 200 */
+        q?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<AppList, ErrorModel>({
+        path: `/apps`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The raw image (PNG, JPEG, GIF, WebP, ICO or SVG, up to 1 MB); its type is read from the bytes. The service switches to it (logo_kind = upload).
+     *
+     * @tags apps
+     * @name PutAppLogo
+     * @summary Upload a service's logo
+     * @request PUT:/apps/{id}/logo
+     */
+    putAppLogo: (id: string, data: File, params: RequestParams = {}) =>
+      this.request<App, ErrorModel>({
+        path: `/apps/${id}/logo`,
+        method: "PUT",
+        body: data,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Waits for it. Only the stored favicon changes; logo_kind stays as it is.
+     *
+     * @tags apps
+     * @name RefetchAppIcon
+     * @summary Fetch a service's favicon again
+     * @request POST:/apps/{id}/refetch-icon
+     */
+    refetchAppIcon: (id: string, params: RequestParams = {}) =>
+      this.request<App, ErrorModel>({
+        path: `/apps/${id}/refetch-icon`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Logged in the service's activity. POST and `Cache-Control: no-store` so nothing caches it.
+     *
+     * @tags apps
+     * @name RevealAppAccount
+     * @summary Reveal a service account's password
+     * @request POST:/apps/{id}/accounts/{accountId}/reveal
+     */
+    revealAppAccount: (
+      id: string,
+      accountId: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<AppSecretOutputBody, ErrorModel>({
+        path: `/apps/${id}/accounts/${accountId}/reveal`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Sets the category order and which category each service is in, in what order (position = index). Answers the page as list-apps does.
+     *
+     * @tags apps
+     * @name SetAppsLayout
+     * @summary Arrange the Services page
+     * @request PUT:/workspaces/{id}/apps/layout
+     */
+    setAppsLayout: (
+      id: string,
+      data: AppLayoutBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<AppList, ErrorModel>({
+        path: `/workspaces/${id}/apps/layout`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Fields left out stay as they are.
+     *
+     * @tags apps
+     * @name UpdateApp
+     * @summary Change a service
+     * @request PATCH:/apps/{id}
+     */
+    updateApp: (id: string, data: AppUpdateBody, params: RequestParams = {}) =>
+      this.request<App, ErrorModel>({
+        path: `/apps/${id}`,
+        method: "PATCH",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags apps
+     * @name UpdateAppCategory
+     * @summary Rename or recolor a service category
+     * @request PATCH:/workspaces/{id}/app-categories/{categoryId}
+     */
+    updateAppCategory: (
+      id: string,
+      categoryId: string,
+      data: UpdateAppCategoryRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<AppCategory, ErrorModel>({
+        path: `/workspaces/${id}/app-categories/${categoryId}`,
         method: "PATCH",
         body: data,
         type: ContentType.Json,

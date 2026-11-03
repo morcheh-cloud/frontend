@@ -42,9 +42,10 @@ export function useAccess() {
     const workspace = new Map(access.workspaces.map((w) => [w.id, w]))
     const server = new Map(access.servers.map((s) => [s.id, s.level]))
     const storage = new Map(access.storages.map((s) => [s.id, s.level]))
+    const app = new Map(access.apps.map((a) => [a.id, a.level]))
     return {
       admin: access.admin,
-      // Can add a server or storage somewhere.
+      // Can add a server, storage or service somewhere.
       canCreateAnywhere: access.admin || access.can_create,
       canCreateIn: (id: string | null | undefined) =>
         access.admin || (!!id && !!workspace.get(id)?.can_create),
@@ -62,6 +63,13 @@ export function useAccess() {
               storage.get(id),
               workspaceId ? workspace.get(workspaceId)?.level : undefined,
             ),
+      appLevel: (id: string, workspaceId?: string): string =>
+        access.admin
+          ? "owner"
+          : higher(
+              app.get(id),
+              workspaceId ? workspace.get(workspaceId)?.level : undefined,
+            ),
       workspaceLevel: (id: string): string =>
         access.admin ? "owner" : (workspace.get(id)?.level ?? "none"),
       // Their best level anywhere: gates pages that aren't about one resource.
@@ -69,7 +77,8 @@ export function useAccess() {
         access.admin ||
         access.workspaces.some((w) => atLeast(w.level, min)) ||
         access.servers.some((s) => atLeast(s.level, min)) ||
-        access.storages.some((s) => atLeast(s.level, min)),
+        access.storages.some((s) => atLeast(s.level, min)) ||
+        access.apps.some((a) => atLeast(a.level, min)),
     }
   }, [access])
 }

@@ -1,6 +1,7 @@
 "use client"
 
 import {
+  AppWindow,
   Boxes,
   HardDrive,
   type LucideIcon,
@@ -16,6 +17,7 @@ import { toast } from "sonner"
 
 import { useAccess, useAuth } from "@/components/auth/auth"
 import {
+  appLevelHints,
   LEVELS,
   type Level,
   levelHints,
@@ -47,7 +49,7 @@ import {
 } from "./api"
 import { Choice } from "./choice"
 
-export type ResourceKind = "workspace" | "server" | "storage"
+export type ResourceKind = "workspace" | "server" | "storage" | "app"
 
 const levelItems = LEVELS.map((l) => ({ value: l, label: levelLabels[l] }))
 
@@ -55,10 +57,13 @@ export const kindIcon: Record<ResourceKind, LucideIcon> = {
   workspace: Boxes,
   server: Server,
   storage: HardDrive,
+  app: AppWindow,
 }
 
 export function hintsFor(kind: ResourceKind) {
-  return kind === "storage" ? storageLevelHints : levelHints
+  if (kind === "storage") return storageLevelHints
+  if (kind === "app") return appLevelHints
+  return levelHints
 }
 
 function bodyOf(g: PanelGrant): GrantBody {
@@ -69,6 +74,7 @@ function bodyOf(g: PanelGrant): GrantBody {
     workspace_id: g.workspace_id,
     server_id: g.server_id,
     storage_id: g.storage_id,
+    app_id: g.app_id,
   }
 }
 
@@ -77,6 +83,7 @@ export function targetOf(g: PanelGrant): { kind: ResourceKind; name: string } {
   if (g.storage_id) {
     return { kind: "storage", name: g.storage_name ?? "Storage" }
   }
+  if (g.app_id) return { kind: "app", name: g.app_name ?? "Service" }
   return { kind: "workspace", name: g.workspace_name ?? "Workspace" }
 }
 
@@ -177,7 +184,7 @@ function GrantRow({
       {kind === "workspace" && admin && !readOnly && (
         // biome-ignore lint/a11y/noLabelWithoutControl: the Base UI switch renders the control inside
         <label className="flex items-center justify-between gap-3 ps-7 text-body-sm text-muted-foreground max-md:min-h-11">
-          Can add servers and storage
+          Can add servers, storage and services
           <Switch
             checked={grant.can_create}
             disabled={busy}
@@ -243,7 +250,7 @@ export function CreateSwitch({
   return (
     // biome-ignore lint/a11y/noLabelWithoutControl: the Base UI switch renders the control inside
     <label className="flex items-center justify-between gap-3 text-body-sm max-md:min-h-11">
-      Can add servers and storage
+      Can add servers, storage and services
       <Switch checked={checked} onCheckedChange={onChange} />
     </label>
   )
@@ -364,7 +371,7 @@ function AddPrincipalForm({
   )
 }
 
-// Who can reach one workspace, server or storage. A person who owns it can
+// Who can reach one workspace, server, storage or service. A person who owns it can
 // change the grants, except their own.
 export function ResourceAccess({
   scope,

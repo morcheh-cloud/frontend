@@ -32,6 +32,7 @@ export type MoveTarget = {
   title: string
   server_ids: string[]
   storage_ids: string[]
+  app_ids: string[]
 }
 
 type WorkspacesActions = {
@@ -238,7 +239,7 @@ function MoveDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={target.title}
-      description="Access given on the old workspace stops covering it. Access given directly on a server or storage stays."
+      description="Access given on the old workspace stops covering it. Access given directly on a server, storage or service stays. Services leave their category."
       footer={
         <>
           <Button
@@ -257,6 +258,7 @@ function MoveDialog({
                   id: to,
                   server_ids: target.server_ids,
                   storage_ids: target.storage_ids,
+                  app_ids: target.app_ids,
                 },
                 {
                   onSuccess: () => {

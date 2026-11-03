@@ -50,3 +50,10 @@ export const storageLevelHints: Record<Level, string> = {
   engineer: "Operator, plus upload, change and delete.",
   owner: "Engineer, plus keys, editing, deleting and sharing.",
 }
+
+export const appLevelHints: Record<Level, string> = {
+  viewer: "Sees the service, its link and note. No usernames or passwords.",
+  operator: "Also sees usernames and can reveal passwords.",
+  engineer: "Operator, plus editing the service and its accounts.",
+  owner: "Engineer, plus deleting, sharing and the password log.",
+}

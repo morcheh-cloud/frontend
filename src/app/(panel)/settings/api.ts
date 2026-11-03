@@ -160,6 +160,7 @@ function useRefreshWorkspaces() {
     queryClient.invalidateQueries({ queryKey: ["grants"] })
     queryClient.invalidateQueries({ queryKey: ["servers"] })
     queryClient.invalidateQueries({ queryKey: ["storages"] })
+    queryClient.invalidateQueries({ queryKey: ["apps"] })
   }
 }
 

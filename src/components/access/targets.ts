@@ -5,7 +5,7 @@ import { useQueries } from "@tanstack/react-query"
 import { useWorkspace, workspacesKey } from "@/components/panel/workspace"
 import { api } from "@/lib/api"
 
-export type TargetKind = "workspace" | "server" | "storage"
+export type TargetKind = "workspace" | "server" | "storage" | "app"
 
 export type Target = {
   key: string
@@ -53,12 +53,13 @@ export function useAccessTargets() {
     if (!w) return
     const servers = w.servers ?? []
     const storages = w.storages ?? []
+    const apps = w.apps ?? []
     groups.push({
       workspace: {
         key: `workspace:${workspaces[i].id}`,
         kind: "workspace",
         name: w.name,
-        detail: `Whole workspace · ${count(servers.length, "server")} · ${count(storages.length, "storage", "storages")}`,
+        detail: `Whole workspace · ${count(servers.length, "server")} · ${count(storages.length, "storage", "storages")} · ${count(apps.length, "service")}`,
         tags: [],
       },
       items: [
@@ -77,6 +78,15 @@ export function useAccessTargets() {
             kind: "storage",
             name: s.name,
             detail: s.protocol,
+            tags: [],
+          }),
+        ),
+        ...apps.map(
+          (a): Target => ({
+            key: `app:${a.id}`,
+            kind: "app",
+            name: a.name,
+            detail: a.address,
             tags: [],
           }),
         ),

@@ -401,7 +401,7 @@ function Picker({
       onChange={setQ}
       inputRef={searchRef}
       onKeyDown={onSearchKey}
-      placeholder="Search workspaces, servers, storage, tags…"
+      placeholder="Search workspaces, servers, storage, services, tags…"
       label="Search what to give access to"
       className="min-w-0 flex-1 md:w-auto"
     />

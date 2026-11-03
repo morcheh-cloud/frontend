@@ -62,7 +62,7 @@ export function WorkspacesView() {
         guide="access"
         description={
           admin
-            ? "Every server and storage belongs to one workspace."
+            ? "Every server, storage and service belongs to one workspace."
             : "The workspaces you own."
         }
         actions={
@@ -78,7 +78,7 @@ export function WorkspacesView() {
         <Empty
           icon={Boxes}
           title="No workspaces"
-          body="Add one to start grouping servers and storage."
+          body="Add one to start grouping servers, storage and services."
         />
       ) : phone ? (
         <ul className="divide-y divide-border border-b border-border">
@@ -91,7 +91,8 @@ export function WorkspacesView() {
                 <span className="truncate font-medium">{w.name}</span>
                 <span className="truncate text-body-sm text-muted-foreground">
                   {w.server_count} {w.server_count === 1 ? "server" : "servers"}{" "}
-                  · {w.storage_count} storage
+                  · {w.storage_count} storage · {w.app_count}{" "}
+                  {w.app_count === 1 ? "service" : "services"}
                   {!admin && ` · ${levelLabel(w.level)}`}
                 </span>
               </Link>
@@ -113,6 +114,9 @@ export function WorkspacesView() {
                   </th>
                   <th className="px-4 py-2.5 text-start font-normal">
                     Storage
+                  </th>
+                  <th className="px-4 py-2.5 text-start font-normal">
+                    Services
                   </th>
                   <th className="w-12" />
                 </tr>
@@ -136,6 +140,9 @@ export function WorkspacesView() {
                     </td>
                     <td className="px-4 text-muted-foreground">
                       {w.storage_count}
+                    </td>
+                    <td className="px-4 text-muted-foreground">
+                      {w.app_count}
                     </td>
                     <td className="pe-2 text-end">
                       <ItemMenu

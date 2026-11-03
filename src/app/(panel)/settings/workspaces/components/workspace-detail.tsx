@@ -1,6 +1,7 @@
 "use client"
 
 import {
+  AppWindow,
   ArrowRightLeft,
   ChevronLeft,
   HardDrive,
@@ -78,11 +79,14 @@ function Detail({ id }: { id: string }) {
 
   const servers = workspace.servers ?? []
   const storages = workspace.storages ?? []
+  const apps = workspace.apps ?? []
+  const total = servers.length + storages.length + apps.length
   const everything = {
     from: id,
     title: `Move everything out of ${workspace.name}`,
     server_ids: servers.map((s) => s.id),
     storage_ids: storages.map((s) => s.id),
+    app_ids: apps.map((s) => s.id),
   }
 
   return (
@@ -140,7 +144,7 @@ function Detail({ id }: { id: string }) {
         <section className="min-w-0">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h2 className="font-medium">In this workspace</h2>
-            {admin && servers.length + storages.length > 0 && (
+            {admin && total > 0 && (
               <Button
                 variant="outline"
                 size="sm"
@@ -152,11 +156,11 @@ function Detail({ id }: { id: string }) {
               </Button>
             )}
           </div>
-          {servers.length + storages.length === 0 ? (
+          {total === 0 ? (
             <Empty
               icon={Server}
               title="Nothing here yet"
-              body="Servers and storage added while this workspace is selected land here."
+              body="Servers, storage and services added while this workspace is selected land here."
             />
           ) : (
             <ul className="divide-y divide-border border-y border-border md:rounded-2xl md:border">
@@ -175,6 +179,7 @@ function Detail({ id }: { id: string }) {
                             title: `Move ${s.name}`,
                             server_ids: [s.id],
                             storage_ids: [],
+                            app_ids: [],
                           })
                       : undefined
                   }
@@ -195,6 +200,28 @@ function Detail({ id }: { id: string }) {
                             title: `Move ${s.name}`,
                             server_ids: [],
                             storage_ids: [s.id],
+                            app_ids: [],
+                          })
+                      : undefined
+                  }
+                />
+              ))}
+              {apps.map((s) => (
+                <Row
+                  key={s.id}
+                  icon={<AppWindow className="size-4" />}
+                  name={s.name}
+                  detail={s.address}
+                  href="/services"
+                  onMove={
+                    admin
+                      ? () =>
+                          a.move({
+                            from: id,
+                            title: `Move ${s.name}`,
+                            server_ids: [],
+                            storage_ids: [],
+                            app_ids: [s.id],
                           })
                       : undefined
                   }

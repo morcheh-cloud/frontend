@@ -321,10 +321,11 @@ export const access: GuideSection[] = [
     body: (
       <>
         <P>
-          Adding servers and storage is a separate switch on a workspace grant,{" "}
-          <UI>Can add servers and storage</UI>. It's on by default for Owners
-          and off for everyone else, and only an admin can change it, so you can
-          have an Owner who can't add machines or an Engineer who can.
+          Adding servers, storage and services is a separate switch on a
+          workspace grant, <UI>Can add servers, storage and services</UI>. It's
+          on by default for Owners and off for everyone else, and only an admin
+          can change it, so you can have an Owner who can't add machines or an
+          Engineer who can.
         </P>
         <P>
           Workspace Owners also get <UI>Settings › Workspaces</UI>, limited to

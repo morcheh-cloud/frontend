@@ -11,6 +11,7 @@ export type GrantScope = {
   workspace_id?: string
   server_id?: string
   storage_id?: string
+  app_id?: string
 }
 export type GrantPrincipal = { user_id?: string; group_id?: string }
 

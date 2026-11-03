@@ -12,6 +12,7 @@ export type AccessPick = { level: Level; canCreate: boolean }
 export function keyOfGrant(g: PanelGrant) {
   if (g.server_id) return `server:${g.server_id}`
   if (g.storage_id) return `storage:${g.storage_id}`
+  if (g.app_id) return `app:${g.app_id}`
   return `workspace:${g.workspace_id}`
 }
 
@@ -26,6 +27,7 @@ function specOf(key: string, pick: AccessPick): GrantSpec {
   const [kind, id] = key.split(":")
   if (kind === "server") return { server_id: id, level: pick.level }
   if (kind === "storage") return { storage_id: id, level: pick.level }
+  if (kind === "app") return { app_id: id, level: pick.level }
   return { workspace_id: id, level: pick.level, can_create: pick.canCreate }
 }
 
