@@ -18,6 +18,19 @@
   /* Status colors: only for a real status (a server's dot), never for CTAs. */
   --color-success: #30a46c;
   --color-warning: #f76b15;
+  /* Service and category colors (/services): the one exception to the single
+     accent, only behind a service's logo and on a category's dot. All pass AA
+     with white text on top. */
+  --color-svc-slate: #60646c;
+  --color-svc-red: #ce2c31;
+  --color-svc-orange: #cc4e00;
+  --color-svc-amber: #ab6400;
+  --color-svc-green: #218358;
+  --color-svc-teal: #008573;
+  --color-svc-blue: #0d74ce;
+  --color-svc-indigo: #3a5bc7;
+  --color-svc-violet: #6550b9;
+  --color-svc-pink: #c2298a;
 
   /* Type scale */
   --text-caption: 12px;

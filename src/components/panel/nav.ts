@@ -49,10 +49,6 @@ export const servicesItem: NavItem = {
   href: "/services",
   label: "Services",
   icon: Boxes,
-  children: [
-    { href: "/services", label: "Overview" },
-    { href: "/services/checks", label: "Health checks" },
-  ],
 }
 export const monitoringItem: NavItem = {
   href: "/monitoring",
