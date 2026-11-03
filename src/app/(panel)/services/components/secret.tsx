@@ -78,7 +78,7 @@ function useSecret(app: App) {
   }, [shown])
 
   const load = (account: AppAccount) =>
-    reveal.mutateAsync({ appId: app.id, accountId: account.id })
+    reveal.reveal({ appId: app.id, accountId: account.id })
 
   const failed = (err: unknown) =>
     toast.error("Couldn't get the password", {
@@ -87,7 +87,7 @@ function useSecret(app: App) {
 
   return {
     shown,
-    pending: reveal.isPending,
+    pending: reveal.pending,
     hide: () => setShown(undefined),
     show: async (account: AppAccount) => {
       try {

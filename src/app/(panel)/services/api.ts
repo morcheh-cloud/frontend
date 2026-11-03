@@ -123,17 +123,23 @@ export const revealPassword = (appId: string, accountId: string) =>
   api.apps.revealAppAccount(appId, accountId).then((s) => s.password)
 
 // A reveal is a write (it logs a row), so a mutation: refetches never repeat
-// it, and with gcTime 0 the answer leaves the cache with its last user. The
-// value itself lives only in the component that asked for it.
+// it. The value goes only to the caller: the mutation is reset as soon as it
+// settles, so its `data` never keeps a copy for as long as the button lives.
 export function useRevealPassword() {
   const queryClient = useQueryClient()
-  return useMutation({
+  const m = useMutation({
     mutationFn: (v: { appId: string; accountId: string }) =>
       revealPassword(v.appId, v.accountId),
     gcTime: 0,
     onSettled: (_, __, v) =>
       queryClient.invalidateQueries({ queryKey: activityKey(v.appId) }),
   })
+  const { mutateAsync, reset } = m
+  return {
+    pending: m.isPending,
+    reveal: (v: { appId: string; accountId: string }) =>
+      mutateAsync(v).finally(reset),
+  }
 }
 
 const activityKey = (id: string) => [...appKeys.all, id, "activity"] as const
