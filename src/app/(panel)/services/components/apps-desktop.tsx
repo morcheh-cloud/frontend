@@ -17,7 +17,7 @@ import { useApps } from "../api"
 import { useAppActions } from "./app-actions"
 import { CategoryRail } from "./category-rail"
 import { LayoutDnd, useDraggingApp } from "./layout-dnd"
-import { groupApps, matchesApp, useAppFilters, useViewMode } from "./meta"
+import { noApps, useAppFilters, useViewMode, visibleGroups } from "./meta"
 import { useAppLayoutCan } from "./permissions"
 import { TableView } from "./table-view"
 import { TileView } from "./tile-view"
@@ -26,8 +26,6 @@ const views = [
   { value: "tiles", label: "Tiles" },
   { value: "table", label: "Table" },
 ] as const
-
-const nothing: AppList = { items: [], categories: [] }
 
 export function AppsDesktop() {
   const list = useApps()
@@ -58,7 +56,7 @@ export function AppsDesktop() {
           )
         }
       />
-      <LayoutDnd enabled={enabled} list={list.data ?? nothing}>
+      <LayoutDnd enabled={enabled} list={list.data ?? noApps}>
         {(data) => <Body list={list} data={data} enabled={enabled} />}
       </LayoutDnd>
     </>
@@ -84,22 +82,10 @@ function Body({
   const draggingApp = useDraggingApp()
 
   const { items, categories } = data
-  const known = new Set(categories.map((c) => c.id))
-  const shown = items.filter(
-    (a) =>
-      matchesApp(a, q) &&
-      (!critical || a.critical) &&
-      (!cat ||
-        (cat === "none"
-          ? !a.category_id || !known.has(a.category_id)
-          : a.category_id === cat)),
-  )
-  // While it can be rearranged, empty blocks stay as places to drop.
-  const groups = groupApps(shown, categories, draggingApp).filter(
-    (g) =>
-      g.apps.length > 0 ||
-      (enabled &&
-        (!cat || (cat === "none" ? !g.category : g.category?.id === cat))),
+  const { shown, groups } = visibleGroups(
+    data,
+    { q, cat, critical },
+    { enabled, dragging: draggingApp },
   )
 
   return (

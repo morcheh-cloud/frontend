@@ -42,7 +42,7 @@ import { parseAsBoolean, parseAsString, useQueryStates } from "nuqs"
 import { useState } from "react"
 
 import { API_URL } from "@/lib/api"
-import type { App, AppCategory } from "@/lib/services"
+import type { App, AppCategory, AppList } from "@/lib/services"
 import { cn } from "@/lib/utils"
 
 export const appColorKeys = [
@@ -120,6 +120,7 @@ export const appIcons: Record<string, LucideIcon> = {
 }
 
 const logoSizes = {
+  40: "size-10 rounded-lg text-body",
   36: "size-9 rounded-lg text-body",
   28: "size-7 rounded-md text-body-sm",
 }
@@ -132,7 +133,7 @@ export function AppLogo({
   className,
 }: {
   app: App
-  size?: 36 | 28
+  size?: 40 | 36 | 28
   className?: string
 }) {
   const [broken, setBroken] = useState<string | null>(null)
@@ -283,6 +284,34 @@ export function groupApps(
   if (loose.length > 0 || keepLoose)
     groups.push({ category: null, apps: loose })
   return groups
+}
+
+export const noApps: AppList = { items: [], categories: [] }
+
+// What the page lists under the filters. While it can be rearranged, empty
+// blocks stay as places to drop (the uncategorized one only mid-drag).
+export function visibleGroups(
+  { items, categories }: AppList,
+  { q, cat, critical }: { q: string; cat: string | null; critical: boolean },
+  { enabled, dragging }: { enabled: boolean; dragging: boolean },
+) {
+  const known = new Set(categories.map((c) => c.id))
+  const shown = items.filter(
+    (a) =>
+      matchesApp(a, q) &&
+      (!critical || a.critical) &&
+      (!cat ||
+        (cat === "none"
+          ? !a.category_id || !known.has(a.category_id)
+          : a.category_id === cat)),
+  )
+  const groups = groupApps(shown, categories, dragging).filter(
+    (g) =>
+      g.apps.length > 0 ||
+      (enabled &&
+        (!cat || (cat === "none" ? !g.category : g.category?.id === cat))),
+  )
+  return { shown, groups }
 }
 
 export type ViewMode = "tiles" | "table"
