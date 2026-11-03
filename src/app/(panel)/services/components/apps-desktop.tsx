@@ -15,7 +15,7 @@ import {
 } from "../../servers/[id]/components/parts"
 import { useApps } from "../api"
 import { useAppActions } from "./app-actions"
-import { CategoryRail } from "./category-rail"
+import { CategoryBar } from "./category-bar"
 import { LayoutDnd, useDraggingApp } from "./layout-dnd"
 import { noApps, useAppFilters, useViewMode, visibleGroups } from "./meta"
 import { useAppLayoutCan } from "./permissions"
@@ -89,17 +89,28 @@ function Body({
   )
 
   return (
-    <div className="grid grid-cols-[13.5rem_minmax(0,1fr)] gap-6 px-6 pt-5 pb-24">
-      <aside className="sticky top-[calc(3rem+1px+--spacing(5))] self-start">
-        <CategoryRail items={items} categories={categories} />
-      </aside>
-      <div className="flex min-w-0 flex-col gap-4">
-        <div className="flex items-center gap-3">
+    <div className="flex flex-col gap-4 px-6 pb-24">
+      {/* Stays under the header while the list scrolls. */}
+      <div className="sticky top-[calc(3rem+1px)] z-10 -mx-6 flex items-start gap-3 bg-background px-6 pt-5 pb-1">
+        <CategoryBar
+          items={items}
+          categories={categories}
+          className="min-w-0 flex-1"
+        />
+        <div className="flex shrink-0 items-center gap-3">
+          {list.data && (
+            <span className="text-caption text-ash tabular-nums">
+              {shown.length === items.length
+                ? `${items.length} ${items.length === 1 ? "service" : "services"}`
+                : `${shown.length} of ${items.length}`}
+            </span>
+          )}
           <SearchBox
             value={q}
             onChange={setQ}
             placeholder="Search services"
             label="Search services"
+            className="md:w-60"
           />
           <Segmented
             label="View"
@@ -107,14 +118,9 @@ function Body({
             value={view}
             onChange={setView}
           />
-          {list.data && (
-            <span className="ms-auto text-caption text-ash tabular-nums">
-              {shown.length === items.length
-                ? `${items.length} ${items.length === 1 ? "service" : "services"}`
-                : `${shown.length} of ${items.length}`}
-            </span>
-          )}
         </div>
+      </div>
+      <div className="flex min-w-0 flex-col gap-4">
         {list.isPending ? (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-3">
             {Array.from({ length: 8 }, (_, i) => (

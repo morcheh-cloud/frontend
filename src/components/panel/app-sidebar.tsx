@@ -43,6 +43,7 @@ import {
   SidebarMenuSubItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
+import { cn } from "@/lib/utils"
 import {
   currentChild,
   helpItem,
@@ -51,6 +52,7 @@ import {
   navGroups,
   settingsFor,
 } from "./nav"
+import { type NavAlert, useNavAlerts } from "./problems"
 import { WithPathname } from "./with-pathname"
 import { useWorkspace, WorkspaceAvatar } from "./workspace"
 
@@ -58,6 +60,7 @@ import { useWorkspace, WorkspaceAvatar } from "./workspace"
 // to an icon rail. Phones get the bottom tab bar instead.
 export function AppSidebar() {
   const settings = useSettingsItem()
+  const alerts = useNavAlerts()
 
   return (
     <Sidebar collapsible="icon">
@@ -73,7 +76,12 @@ export function AppSidebar() {
                 <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
                 <SidebarMenu>
                   {group.items.map((item) => (
-                    <NavEntry key={item.href} item={item} pathname={pathname} />
+                    <NavEntry
+                      key={item.href}
+                      item={item}
+                      pathname={pathname}
+                      alert={alerts.get(item.href)}
+                    />
                   ))}
                 </SidebarMenu>
               </SidebarGroup>
@@ -168,12 +176,27 @@ function WorkspaceSwitcher() {
   )
 }
 
-function NavEntry({ item, pathname }: { item: NavItem; pathname: string }) {
+function NavEntry({
+  item,
+  pathname,
+  alert,
+}: {
+  item: NavItem
+  pathname: string
+  alert?: NavAlert
+}) {
   const Icon = item.icon
   const active = isActive(pathname, item.href)
 
   if (item.children) {
-    return <NavSection item={item} pathname={pathname} active={active} />
+    return (
+      <NavSection
+        item={item}
+        pathname={pathname}
+        active={active}
+        alert={alert}
+      />
+    )
   }
 
   return (
@@ -181,10 +204,11 @@ function NavEntry({ item, pathname }: { item: NavItem; pathname: string }) {
       <SidebarMenuButton
         render={<Link href={item.href} />}
         isActive={active}
-        tooltip={item.label}
+        tooltip={tooltipFor(item, alert)}
       >
         <Icon />
         <span>{item.label}</span>
+        {alert && <AlertCount alert={alert} />}
       </SidebarMenuButton>
     </SidebarMenuItem>
   )
@@ -196,10 +220,12 @@ function NavSection({
   item,
   pathname,
   active,
+  alert,
 }: {
   item: NavItem
   pathname: string
   active: boolean
+  alert?: NavAlert
 }) {
   const Icon = item.icon
   const [open, setOpen] = useState(active)
@@ -217,10 +243,18 @@ function NavSection({
       className="group/collapsible"
       render={<SidebarMenuItem />}
     >
-      <CollapsibleTrigger render={<SidebarMenuButton tooltip={item.label} />}>
+      <CollapsibleTrigger
+        render={<SidebarMenuButton tooltip={tooltipFor(item, alert)} />}
+      >
         <Icon />
         <span>{item.label}</span>
-        <ChevronRight className="ms-auto transition-transform duration-200 group-data-open/collapsible:rotate-90" />
+        {alert && <AlertCount alert={alert} />}
+        <ChevronRight
+          className={cn(
+            "transition-transform duration-200 group-data-open/collapsible:rotate-90",
+            !alert && "ms-auto",
+          )}
+        />
       </CollapsibleTrigger>
       <CollapsibleContent>
         <SidebarMenuSub>
@@ -237,6 +271,29 @@ function NavSection({
         </SidebarMenuSub>
       </CollapsibleContent>
     </Collapsible>
+  )
+}
+
+const tooltipFor = (item: NavItem, alert?: NavAlert) =>
+  alert ? `${item.label} · ${alert.label}` : item.label
+
+// What's broken in the section (servers or storages that can't be reached…),
+// in red next to it; a dot on the icon when the sidebar is collapsed.
+function AlertCount({ alert: { count, label } }: { alert: NavAlert }) {
+  return (
+    <>
+      <span className="sr-only">, {label}</span>
+      <span
+        aria-hidden
+        className="ms-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive/10 px-1.5 text-caption font-medium text-destructive tabular-nums group-data-[collapsible=icon]:hidden"
+      >
+        {count > 99 ? "99+" : count}
+      </span>
+      <span
+        aria-hidden
+        className="absolute end-1 top-1 hidden size-2 rounded-full bg-destructive ring-2 ring-sidebar group-data-[collapsible=icon]:block"
+      />
+    </>
   )
 }
 

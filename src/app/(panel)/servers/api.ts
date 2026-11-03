@@ -10,6 +10,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query"
 
+import { facetsQuery, STATUS_POLL } from "@/components/panel/problems"
 import { ApiError, api } from "@/lib/api"
 import type {
   BulkTagServersRequest,
@@ -30,7 +31,7 @@ export const keys = {
   list: (query: ListQuery) => ["servers", "list", query] as const,
   infinite: (query: ListQuery) => ["servers", "infinite", query] as const,
   detail: (id: string) => ["servers", "detail", id] as const,
-  facets: ["servers", "facets"] as const,
+  facets: facetsQuery.queryKey,
   folders: ["folders"] as const,
 }
 
@@ -39,6 +40,7 @@ export function useServers(query: ListQuery) {
     queryKey: keys.list(query),
     queryFn: () => api.servers.listServers(query),
     placeholderData: keepPreviousData,
+    refetchInterval: STATUS_POLL,
   })
 }
 
@@ -53,6 +55,7 @@ export function useInfiniteServers(query: Omit<ListQuery, "offset" | "limit">) {
         offset: pageParam,
       }),
     initialPageParam: 0,
+    refetchInterval: STATUS_POLL,
     getNextPageParam: (last, pages) => {
       const loaded = pages.reduce((n, p) => n + p.items.length, 0)
       return loaded < last.total ? loaded : undefined
@@ -86,6 +89,7 @@ export function useServer(id: string) {
     queryKey: keys.detail(id),
     queryFn: () => api.servers.getServer(id),
     placeholderData: () => cachedServer(queryClient, id),
+    refetchInterval: STATUS_POLL,
     retry: (count, error) =>
       !(error instanceof ApiError && error.status === 404) && count < 2,
   })
@@ -113,10 +117,7 @@ export function useRevealCredentials(id?: string) {
 }
 
 export function useFacets() {
-  return useQuery({
-    queryKey: keys.facets,
-    queryFn: () => api.servers.getServerFacets(),
-  })
+  return useQuery(facetsQuery)
 }
 
 export function useFolders() {
@@ -170,23 +171,92 @@ export function useTestConnection() {
   })
 }
 
+// Puts a fresh copy of one server into every cached list and its page, so a
+// check shows up at once without refetching the lists.
+function putServer(queryClient: QueryClient, server: Server) {
+  const patch = (page: ListPage) => ({
+    ...page,
+    items: page.items.map((s) => (s.id === server.id ? server : s)),
+  })
+  queryClient.setQueryData(keys.detail(server.id), server)
+  queryClient.setQueriesData<CachedList>(
+    {
+      queryKey: keys.servers,
+      predicate: (q) =>
+        q.queryKey[1] === "list" || q.queryKey[1] === "infinite",
+    },
+    (data) => {
+      if (!data) return data
+      if ("pages" in data) return { ...data, pages: data.pages.map(patch) }
+      return "items" in data ? patch(data) : data
+    },
+  )
+}
+
 const checkKey = ["check-server"]
 
 export function useCheckServer() {
+  const queryClient = useQueryClient()
   const invalidate = useInvalidate()
   return useMutation({
     mutationKey: checkKey,
     mutationFn: ({ id, trust }: { id: string; trust?: boolean }) =>
       api.servers.checkServer(id, trust ? { trust_new_host_key: true } : {}),
+    onSuccess: (server) => putServer(queryClient, server),
     onSettled: invalidate,
   })
 }
 
+// Checks at once from a bulk check. A browser opens ~6 connections to one
+// host, so leave room for the rest of the page.
+const BULK_CHECKS = 4
+
+// Checks each server on its own, a few at a time, so every status shows as
+// soon as it's known instead of all of them after the slowest one. Each
+// check is its own mutation under checkKey: waiting ones spin too.
 export function useBulkCheck() {
+  const queryClient = useQueryClient()
   const invalidate = useInvalidate()
-  return useMutation({
+  const one = useMutation({
     mutationKey: checkKey,
-    mutationFn: (ids: string[]) => api.servers.bulkCheckServers({ ids }),
+    mutationFn: async ({ id, slot }: { id: string; slot: Promise<void> }) => {
+      await slot
+      return api.servers.checkServer(id, {})
+    },
+    onSuccess: (server) => putServer(queryClient, server),
+  })
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const queue = [...ids]
+      const results: { id: string; server?: Server; error?: unknown }[] = []
+      // Each worker hands the next id a slot that opens when it's free.
+      async function worker() {
+        for (let id = queue.shift(); id; id = queue.shift()) {
+          try {
+            results.push({ id, server: await run(id) })
+          } catch (error) {
+            results.push({ id, error })
+          }
+        }
+      }
+      // Every id becomes a pending mutation right away (so it spins), but
+      // only BULK_CHECKS of them are let through at a time.
+      const gates = new Map<string, () => void>()
+      const runs = new Map(
+        ids.map((id) => {
+          const slot = new Promise<void>((open) => gates.set(id, open))
+          return [id, one.mutateAsync({ id, slot })] as const
+        }),
+      )
+      function run(id: string) {
+        gates.get(id)?.()
+        return runs.get(id) as Promise<Server>
+      }
+      await Promise.all(
+        Array.from({ length: Math.min(BULK_CHECKS, ids.length) }, worker),
+      )
+      return results
+    },
     onSettled: invalidate,
   })
 }

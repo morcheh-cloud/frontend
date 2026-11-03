@@ -2,12 +2,12 @@
 
 import {
   arrayMove,
+  rectSortingStrategy,
   SortableContext,
-  verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
 import {
-  ArrowDown,
-  ArrowUp,
+  ArrowLeft,
+  ArrowRight,
   Inbox,
   Layers,
   Pencil,
@@ -31,16 +31,19 @@ import { useSortableCategory, useUncategorizedDrop } from "./layout-dnd"
 import { colorOf, useAppFilters } from "./meta"
 import { useAppLayoutCan } from "./permissions"
 
-const rowClass =
-  "flex h-8 w-full items-center gap-2 rounded-lg px-2 text-body-sm text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 aria-[current=true]:bg-muted aria-[current=true]:font-medium aria-[current=true]:text-foreground data-target:bg-brand-soft data-target:text-brand-strong"
+const chipClass =
+  "flex h-8 items-center gap-1.5 rounded-full border border-border ps-3 pe-2 text-body-sm font-medium whitespace-nowrap text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 aria-[current=true]:border-brand/30 aria-[current=true]:bg-brand-soft aria-[current=true]:text-brand-strong data-target:border-brand data-target:bg-brand-soft data-target:text-brand-strong"
 
-// Desktop: the views and categories beside the services.
-export function CategoryRail({
+// Desktop: the views and categories as one row of chips above the services,
+// so the services get the page's whole width.
+export function CategoryBar({
   items,
   categories,
+  className,
 }: {
   items: App[]
   categories: AppCategory[]
+  className?: string
 }) {
   const { cat, setCat, critical, setCritical } = useAppFilters()
   const known = new Set(categories.map((c) => c.id))
@@ -75,9 +78,9 @@ export function CategoryRail({
       ...(i > 0
         ? [
             {
-              key: "up",
-              label: "Move up",
-              icon: <ArrowUp />,
+              key: "left",
+              label: "Move left",
+              icon: <ArrowLeft />,
               onSelect: () => move(c.id, -1),
             },
           ]
@@ -85,9 +88,9 @@ export function CategoryRail({
       ...(i < sorted.length - 1
         ? [
             {
-              key: "down",
-              label: "Move down",
-              icon: <ArrowDown />,
+              key: "right",
+              label: "Move right",
+              icon: <ArrowRight />,
               onSelect: () => move(c.id, 1),
             },
           ]
@@ -105,16 +108,19 @@ export function CategoryRail({
   ]
 
   return (
-    <nav aria-label="Categories" className="flex flex-col gap-4">
-      <ul className="flex flex-col gap-0.5">
-        <ViewRow
+    <nav
+      aria-label="Categories"
+      className={cn("flex flex-wrap items-center gap-1.5", className)}
+    >
+      <ul className="contents">
+        <Chip
           icon={<Layers />}
           label="All services"
           count={items.length}
           current={!cat && !critical}
           onClick={() => setCat(null)}
         />
-        <ViewRow
+        <Chip
           icon={<Siren />}
           label="Critical"
           count={items.filter((a) => a.critical).length}
@@ -123,65 +129,60 @@ export function CategoryRail({
         />
       </ul>
       {(sorted.length > 0 || loose > 0 || layoutCan) && (
-        <div className="flex flex-col gap-1">
-          <div className="flex h-7 items-center justify-between ps-2">
-            <h2 className="font-label text-caption tracking-label text-ash uppercase">
-              Categories
-            </h2>
-            {layoutCan && (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="New category"
-                      onClick={a.addCategory}
-                    />
-                  }
-                >
-                  <Plus />
-                </TooltipTrigger>
-                <TooltipContent>New category</TooltipContent>
-              </Tooltip>
-            )}
-          </div>
-          <SortableContext
-            items={sorted.map((c) => `cat:${c.id}`)}
-            strategy={verticalListSortingStrategy}
+        <span aria-hidden className="mx-1.5 h-5 w-px bg-border" />
+      )}
+      <SortableContext
+        items={sorted.map((c) => `cat:${c.id}`)}
+        strategy={rectSortingStrategy}
+      >
+        <ul className="contents">
+          {sorted.map((c, i) => (
+            <CategoryChip
+              key={c.id}
+              category={c}
+              count={items.filter((a) => a.category_id === c.id).length}
+              current={cat === c.id}
+              onClick={() => setCat(c.id)}
+              menu={
+                layoutCan && (
+                  <ItemMenu
+                    label={`Actions for ${c.name}`}
+                    groups={categoryMenu(c, i)}
+                  />
+                )
+              }
+            />
+          ))}
+          {(loose > 0 || none.draggingApp) && (
+            <Chip
+              ref={none.ref}
+              target={none.target}
+              icon={<Inbox />}
+              label="Uncategorized"
+              count={loose}
+              current={cat === "none"}
+              onClick={() => setCat("none")}
+            />
+          )}
+        </ul>
+      </SortableContext>
+      {layoutCan && (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="New category"
+                className="rounded-full border border-dashed border-mist text-muted-foreground"
+                onClick={a.addCategory}
+              />
+            }
           >
-            <ul className="flex flex-col gap-0.5">
-              {sorted.map((c, i) => (
-                <CategoryRow
-                  key={c.id}
-                  category={c}
-                  count={items.filter((a) => a.category_id === c.id).length}
-                  current={cat === c.id}
-                  onClick={() => setCat(c.id)}
-                  menu={
-                    layoutCan && (
-                      <ItemMenu
-                        label={`Actions for ${c.name}`}
-                        groups={categoryMenu(c, i)}
-                      />
-                    )
-                  }
-                />
-              ))}
-              {(loose > 0 || none.draggingApp) && (
-                <ViewRow
-                  ref={none.ref}
-                  target={none.target}
-                  icon={<Inbox />}
-                  label="Uncategorized"
-                  count={loose}
-                  current={cat === "none"}
-                  onClick={() => setCat("none")}
-                />
-              )}
-            </ul>
-          </SortableContext>
-        </div>
+            <Plus />
+          </TooltipTrigger>
+          <TooltipContent>New category</TooltipContent>
+        </Tooltip>
       )}
     </nav>
   )
@@ -189,9 +190,9 @@ export function CategoryRail({
 
 // A category: dragged by mouse or touch to sort, and a place to drop a
 // service.
-function CategoryRow({
+function CategoryChip({
   category,
-  ...row
+  ...chip
 }: {
   category: AppCategory
   count: number
@@ -201,8 +202,8 @@ function CategoryRow({
 }) {
   const s = useSortableCategory(category.id)
   return (
-    <ViewRow
-      {...row}
+    <Chip
+      {...chip}
       ref={s.ref}
       style={s.style}
       pointer={s.pointer}
@@ -211,7 +212,7 @@ function CategoryRow({
       icon={
         <span
           className={cn(
-            "mx-1 size-2 shrink-0 rounded-full",
+            "size-2 shrink-0 rounded-full",
             colorOf(category.color).dot,
           )}
         />
@@ -221,7 +222,7 @@ function CategoryRow({
   )
 }
 
-function ViewRow({
+function Chip({
   icon,
   label,
   count,
@@ -247,29 +248,34 @@ function ViewRow({
   className?: string
 }) {
   return (
-    <li ref={ref} style={style} className={cn("group/row relative", className)}>
+    <li
+      ref={ref}
+      style={style}
+      className={cn("group/chip relative", className)}
+    >
       <button
         type="button"
         aria-current={current}
         data-target={target || undefined}
         onClick={onClick}
         {...pointer}
-        className={cn(rowClass, "[&_svg]:size-4")}
+        className={cn(chipClass, "[&_svg]:size-4")}
       >
         {icon}
-        <span className="flex-1 truncate text-start">{label}</span>
+        <span className="max-w-48 truncate">{label}</span>
+        {/* The menu takes the count's place on hover or focus. */}
         <span
           className={cn(
-            "min-w-6 text-end text-caption text-ash tabular-nums",
+            "min-w-5 text-center text-caption font-normal tabular-nums opacity-70",
             menu &&
-              "group-focus-within/row:invisible group-hover/row:invisible group-has-data-popup-open/row:invisible [@media(hover:none)]:invisible",
+              "group-focus-within/chip:invisible group-hover/chip:invisible group-has-data-popup-open/chip:invisible [@media(hover:none)]:invisible",
           )}
         >
           {count}
         </span>
       </button>
       {menu && (
-        <span className="absolute end-0.5 top-0.5 opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100 has-data-popup-open:opacity-100 [&_button]:size-7 [@media(hover:none)]:opacity-100">
+        <span className="absolute end-1 top-1/2 -translate-y-1/2 opacity-0 group-focus-within/chip:opacity-100 group-hover/chip:opacity-100 has-data-popup-open:opacity-100 [&_button]:size-6 [&_button]:rounded-full [@media(hover:none)]:opacity-100">
           {menu}
         </span>
       )}

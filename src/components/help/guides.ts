@@ -103,7 +103,7 @@ export const guides: GuideMeta[] = [
       "firewall",
       "matrix",
     ],
-    routes: ["/servers/network"],
+    routes: ["/network"],
   },
   {
     slug: "server-overview",

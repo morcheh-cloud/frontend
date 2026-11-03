@@ -12,6 +12,7 @@ import {
   type LucideIcon,
   Server,
   Settings,
+  Waypoints,
 } from "lucide-react"
 
 export type NavLink = { href: string; label: string }
@@ -25,10 +26,11 @@ export const serversItem: NavItem = {
   href: "/servers",
   label: "Servers",
   icon: Server,
-  children: [
-    { href: "/servers", label: "All servers" },
-    { href: "/servers/network", label: "Network map" },
-  ],
+}
+export const networkMapItem: NavItem = {
+  href: "/network",
+  label: "Network map",
+  icon: Waypoints,
 }
 export const storageItem: NavItem = {
   href: "/storage",
@@ -105,7 +107,14 @@ export const navGroups: NavGroup[] = [
   { label: "Platform", items: [homeItem, tasksItem] },
   {
     label: "Infrastructure",
-    items: [serversItem, databasesItem, storageItem, servicesItem, keysItem],
+    items: [
+      serversItem,
+      networkMapItem,
+      databasesItem,
+      storageItem,
+      servicesItem,
+      keysItem,
+    ],
   },
   { label: "Observability", items: [monitoringItem, alertsItem] },
 ]

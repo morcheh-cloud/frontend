@@ -5,6 +5,7 @@ import { ChevronRight, HardDrive, Server } from "lucide-react"
 
 import { useAccess } from "@/components/auth/auth"
 import { atLeast } from "@/components/auth/level"
+import { storagesQuery } from "@/components/panel/problems"
 import { Skeleton } from "@/components/ui/skeleton"
 import { api } from "@/lib/api"
 import { type Endpoint, useSource } from "./source"
@@ -42,10 +43,7 @@ export function useTargets() {
     queryKey: ["servers", "transfer-targets"],
     queryFn: () => api.servers.listServers({ limit: 500 }),
   })
-  const storages = useQuery({
-    queryKey: ["storages"],
-    queryFn: () => api.storage.listStorages(),
-  })
+  const storages = useQuery(storagesQuery)
   const targets: Target[] = [
     ...(storages.data?.items ?? []).map((s) => {
       const level = storageLevel(s.id, s.workspace_id)

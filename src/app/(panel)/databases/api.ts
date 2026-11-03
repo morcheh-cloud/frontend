@@ -8,6 +8,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query"
 
+import { STATUS_POLL } from "@/components/panel/problems"
 import { ApiError, api } from "@/lib/api"
 import type {
   Database,
@@ -30,14 +31,15 @@ export const keys = {
     ["database-history", id, range] as const,
 }
 
-// The list refreshes every half minute: health changes on the backend's own
-// schedule, not because of anything done here.
+// Health changes on the backend's own schedule (each database's interval),
+// so the lists re-read it. The workspace-wide one ("all") is the menu's
+// databasesQuery too.
 export function useDatabases(serverId?: string) {
   return useQuery({
     queryKey: keys.list(serverId),
     queryFn: () =>
       api.databases.listDatabases(serverId ? { server_id: serverId } : {}),
-    refetchInterval: 30_000,
+    refetchInterval: STATUS_POLL,
   })
 }
 
@@ -54,7 +56,7 @@ export function useDatabase(id: string) {
         if (hit) return hit
       }
     },
-    refetchInterval: 30_000,
+    refetchInterval: STATUS_POLL,
     retry: (count, error) =>
       !(error instanceof ApiError && error.status === 404) && count < 2,
   })

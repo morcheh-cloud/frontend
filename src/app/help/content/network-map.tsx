@@ -27,8 +27,9 @@ export const networkMap: GuideSection[] = [
           talk to the database?”.
         </P>
         <P>
-          Find it under <UI>Servers › Network map</UI> in the sidebar. On a
-          phone, tap the network icon at the top of the Servers page.
+          Open <UI>Network map</UI> in the sidebar, right below Servers. On a
+          phone, tap the network icon at the top of the Servers page, or find it
+          under <UI>More</UI>.
         </P>
         <Table
           head={["View", "Answers"]}

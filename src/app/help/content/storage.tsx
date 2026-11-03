@@ -47,6 +47,37 @@ export const storage: GuideSection[] = [
     ),
   },
   {
+    id: "status",
+    title: "Connection status",
+    body: (
+      <>
+        <P>
+          Morcheh re-checks every storage by itself every 30 seconds, even when
+          nobody has the panel open, by signing in afresh. The list and the
+          storage's page pick up new statuses every 10 seconds, so a storage
+          that went away stops showing <UI>Online</UI> within about a minute.
+          Press <UI>Check connection</UI> in its menu to check right now.
+        </P>
+        <P>
+          The red number beside <UI>Storage</UI> in the sidebar (on a phone, in{" "}
+          <UI>More</UI>) counts the storages in this workspace that are{" "}
+          <UI>Unreachable</UI>, <UI>Auth failed</UI>, <UI>Host key changed</UI>{" "}
+          or <UI>Error</UI>. When one comes back online, folders that failed to
+          load while it was down load again by themselves.
+        </P>
+        <Recommended
+          rows={[
+            {
+              setting: <C>STORAGE_CHECK_INTERVAL</C>,
+              value: "30s (the default)",
+              why: "A backend setting (e.g. 1m, 5m; 0 turns background checks off). Each check is a sign-in, plus one list request on S3: on a paid provider, or an FTP server that logs every login, raise it to 5m.",
+            },
+          ]}
+        />
+      </>
+    ),
+  },
+  {
     id: "add",
     title: "Adding a storage",
     body: (

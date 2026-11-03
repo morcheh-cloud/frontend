@@ -227,6 +227,15 @@ db.createUser({
           one slow reply doesn't turn a database red. The overview's{" "}
           <UI>Recent changes</UI> lists when each check changed level.
         </P>
+        <P>
+          Morcheh looks at every database by itself on its schedule (every
+          minute unless you change it), even when nobody has the panel open, and
+          the pages on screen pick up the result every 10 seconds. The red
+          number beside <UI>Databases</UI> in the sidebar (on a phone, in{" "}
+          <UI>More</UI>) counts the databases in this workspace that can't be
+          reached or have a <UI>Critical</UI> check. Paused databases never
+          count. Pick <UI>Needs a look</UI> on the list to see which.
+        </P>
       </>
     ),
   },

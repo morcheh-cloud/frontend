@@ -28,7 +28,11 @@ export const serviceLauncher: GuideSection[] = [
           to dig through a shared sheet to find a link or a password.
         </P>
         <List>
-          <li>One click opens a service in a new tab.</li>
+          <li>
+            A click on a service shows its address and logins, with an{" "}
+            <UI>Open in a new tab</UI> button; the arrow icon on a tile opens it
+            straight away.
+          </li>
           <li>
             Logins sit behind access levels: who can see a password is decided
             per workspace or per service, and every look at a password is
@@ -113,18 +117,18 @@ export const serviceLauncher: GuideSection[] = [
     body: (
       <>
         <P>
-          The rail on the left lists <UI>All services</UI>, <UI>Critical</UI>{" "}
-          and your categories, each with its color and count. Press the{" "}
-          <UI>+</UI> beside <UI>Categories</UI> for a new one; a category's menu
-          has <UI>Edit category</UI> (name and color), <UI>Move up</UI>,{" "}
-          <UI>Move down</UI> and <UI>Delete category</UI>. Deleting one keeps
-          its services: they move to <UI>Uncategorized</UI>.
+          The row of chips above the services holds <UI>All services</UI>,{" "}
+          <UI>Critical</UI> and your categories, each with its color and count.
+          Press the <UI>+</UI> at the end of the row for a new one; a category's{" "}
+          <UI>⋯</UI> (on hover) has <UI>Edit category</UI> (name and color),{" "}
+          <UI>Move left</UI>, <UI>Move right</UI> and <UI>Delete category</UI>.
+          Deleting one keeps its services: they move to <UI>Uncategorized</UI>.
         </P>
         <P>There are three ways to move a service:</P>
         <List>
           <li>
             <UI>Drag</UI> a tile or row to another place or category, or onto a
-            category in the rail. Categories in the rail drag too.
+            category's chip. The chips drag too, to reorder categories.
           </li>
           <li>
             <UI>Move to category</UI> in the service's <UI>⋯</UI> menu. It goes

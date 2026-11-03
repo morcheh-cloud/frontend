@@ -151,7 +151,7 @@ ssh-copy-id -i ~/.ssh/morcheh.pub morcheh@203.0.113.10
             ],
             [
               <UI key="6">Not checked</UI>,
-              "Added but not checked yet. Press Check.",
+              "Added but not checked yet. The background check picks it up within seconds, or press Check.",
             ],
           ]}
         />
@@ -160,6 +160,28 @@ ssh-copy-id -i ~/.ssh/morcheh.pub morcheh@203.0.113.10
           the one action that fixes it: <UI>Check again</UI>,{" "}
           <UI>Edit credentials</UI> or <UI>Review key…</UI>.
         </P>
+        <P>
+          Morcheh re-checks every server by itself every 15 seconds, even when
+          nobody has the panel open, and the list on screen picks up new
+          statuses every 10 seconds. So a server that went down stops showing{" "}
+          <UI>Online</UI> within about half a minute (an unreachable server
+          takes up to 15 seconds to time out).
+        </P>
+        <P>
+          The red number beside <UI>Servers</UI> in the sidebar (on a phone, on
+          the Servers tab) counts the servers in this workspace that are{" "}
+          <UI>Unreachable</UI>, <UI>Auth failed</UI>, <UI>Host key changed</UI>{" "}
+          or <UI>Error</UI>. Filter the list by <UI>Status</UI> to see which.
+        </P>
+        <Recommended
+          rows={[
+            {
+              setting: <C>SERVER_CHECK_INTERVAL</C>,
+              value: "15s (the default)",
+              why: "A backend setting (e.g. 1m, 5m; 0 turns background checks off). Every check is an SSH login that lands in the server's auth log; with many servers, or a strict fail2ban, raise it to 1m–5m.",
+            },
+          ]}
+        />
       </>
     ),
   },
@@ -344,7 +366,9 @@ ssh -i ~/Downloads/web-01.key -p 22 deploy@10.0.0.12
         </P>
         <Steps>
           <div>
-            <UI>Check</UI>: re-check them all, e.g. after a network change.
+            <UI>Check</UI>: re-check them all, e.g. after a network change. Four
+            run at a time and each row shows its status as soon as its own check
+            ends; the button counts how many are done.
           </div>
           <div>
             <UI>Move</UI>: put them in a folder.

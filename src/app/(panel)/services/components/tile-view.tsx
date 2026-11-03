@@ -1,9 +1,16 @@
 "use client"
 
-import { GripVertical } from "lucide-react"
+import { ExternalLink, GripVertical } from "lucide-react"
 
+import { Button } from "@/components/ui/button"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import type { App } from "@/lib/services"
 import { cn } from "@/lib/utils"
+import { useAppActions } from "./app-actions"
 import { AppMenu } from "./app-menu"
 import {
   SortableApps,
@@ -14,8 +21,8 @@ import {
 import { type AppGroup, AppLogo, colorOf, safeHref, shortAddress } from "./meta"
 import { CopyPasswordButton, CopyUsernameButton } from "./secret"
 
-// Services as tiles, one block per category. A tile opens the service in a
-// new tab; an address that isn't plain http(s) stays a dead tile.
+// Services as tiles, one block per category. A tile opens the service's
+// details (logins, Open button); the arrow on hover opens it in a new tab.
 export function TileView({ groups }: { groups: AppGroup[] }) {
   return (
     <div className="flex flex-col gap-8">
@@ -78,6 +85,7 @@ function TileItem({ app }: { app: App }) {
         <span className="flex items-center gap-0.5 opacity-0 group-focus-within/tile:opacity-100 group-hover/tile:opacity-100 focus-within:opacity-100 has-data-popup-open:opacity-100">
           <CopyUsernameButton app={app} />
           <CopyPasswordButton app={app} />
+          <OpenButton app={app} />
         </span>
         <span className="opacity-0 group-hover/tile:opacity-100 focus-within:opacity-100 has-data-popup-open:opacity-100 [@media(hover:none)]:opacity-100">
           <AppMenu app={app} />
@@ -115,50 +123,67 @@ export function GroupHeading({ group }: { group: AppGroup }) {
 }
 
 function Tile({ app }: { app: App }) {
-  const href = safeHref(app.address)
-  const body = (
-    <>
-      <AppLogo app={app} />
+  const a = useAppActions()
+  return (
+    <button
+      type="button"
+      onClick={() => a.details(app)}
+      className={cn(
+        "flex size-full items-center gap-3 rounded-2xl border border-border bg-card p-4 pe-11 text-start shadow-sm transition-shadow outline-none hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50",
+        app.critical && "border-destructive/40",
+      )}
+    >
+      {/* Critical sits on the logo, where the hover buttons never cover it. */}
+      <span className="relative shrink-0">
+        <AppLogo app={app} />
+        {app.critical && (
+          <span
+            role="img"
+            aria-label="Critical"
+            title="Critical"
+            className="absolute -end-1 -top-1 size-3 rounded-full bg-destructive ring-2 ring-card"
+          />
+        )}
+      </span>
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-1.5">
-          <span className="truncate text-body-sm font-medium">{app.name}</span>
-          {app.critical && (
-            <span
-              role="img"
-              aria-label="Critical"
-              title="Critical"
-              className="size-1.5 shrink-0 rounded-full bg-destructive"
-            />
-          )}
+        <span className="block truncate text-body-sm font-medium">
+          {app.name}
         </span>
         <span className="block truncate text-caption text-ash">
           {shortAddress(app.address)}
         </span>
       </span>
-    </>
+    </button>
   )
-  const box =
-    "flex h-full items-center gap-3 rounded-2xl border border-border bg-card p-4 pe-11 shadow-sm outline-none"
+}
 
-  if (!href) {
-    return (
-      <div className={box} title="Not an http(s) address">
-        {body}
-      </div>
-    )
-  }
+// Straight to the service, skipping the details. Only plain http(s).
+function OpenButton({ app }: { app: App }) {
+  const href = safeHref(app.address)
+  if (!href) return null
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      draggable={false}
-      className={cn(
-        box,
-        "transition-shadow hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50",
-      )}
-    >
-      {body}
-    </a>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`Open ${app.name} in a new tab`}
+            nativeButton={false}
+            render={
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                draggable={false}
+              />
+            }
+          />
+        }
+      >
+        <ExternalLink />
+      </TooltipTrigger>
+      <TooltipContent>Open in a new tab</TooltipContent>
+    </Tooltip>
   )
 }

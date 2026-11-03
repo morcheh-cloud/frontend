@@ -20,11 +20,13 @@ import {
   keysItem,
   monitoringItem,
   type NavItem,
+  networkMapItem,
   serversItem,
   servicesItem,
   storageItem,
   tasksItem,
 } from "./nav"
+import { type NavAlert, useNavAlerts } from "./problems"
 import { WithPathname } from "./with-pathname"
 import { useWorkspace, WorkspaceAvatar } from "./workspace"
 
@@ -32,6 +34,7 @@ import { useWorkspace, WorkspaceAvatar } from "./workspace"
 const tabItems = [homeItem, serversItem, servicesItem, alertsItem]
 const moreItems = [
   tasksItem,
+  networkMapItem,
   databasesItem,
   storageItem,
   monitoringItem,
@@ -55,6 +58,7 @@ function Tabs({ pathname }: { pathname: string }) {
   const { signOut } = useAuth()
   const settings = useSettingsItem()
   const running = useActiveJobs().length
+  const alerts = useNavAlerts()
   const sheetItems = [
     ...moreItems,
     ...(settings ? [settings] : []),
@@ -62,6 +66,11 @@ function Tabs({ pathname }: { pathname: string }) {
     helpItem,
   ]
   const moreActive = sheetItems.some((item) => isActive(pathname, item.href))
+  // What's broken behind "More" (storages, databases) shows on its icon.
+  const moreAlerts = sheetItems.reduce(
+    (n, item) => n + (alerts.get(item.href)?.count ?? 0),
+    0,
+  )
 
   // Closing the sheet pops its history entry asynchronously; navigating
   // before that pop lands would let the pop undo the navigation. So wait for
@@ -81,6 +90,7 @@ function Tabs({ pathname }: { pathname: string }) {
           {tabItems.map((item) => {
             const active = isActive(pathname, item.href)
             const Icon = item.icon
+            const alert = alerts.get(item.href)
 
             return (
               <li key={item.href} className="flex flex-1">
@@ -89,8 +99,12 @@ function Tabs({ pathname }: { pathname: string }) {
                   aria-current={active ? "page" : undefined}
                   className={cn(tabClass, active ? "text-brand" : "text-ash")}
                 >
-                  <Icon className="size-6" strokeWidth={active ? 2 : 1.5} />
+                  <span className="relative">
+                    <Icon className="size-6" strokeWidth={active ? 2 : 1.5} />
+                    {alert && <AlertBadge count={alert.count} />}
+                  </span>
                   {item.label}
+                  {alert && <span className="sr-only">, {alert.label}</span>}
                 </Link>
               </li>
             )
@@ -106,13 +120,20 @@ function Tabs({ pathname }: { pathname: string }) {
                   className="size-6"
                   strokeWidth={moreActive ? 2 : 1.5}
                 />
-                {running > 0 && (
-                  <span className="absolute -end-1.5 -top-1 flex size-4 items-center justify-center rounded-full bg-brand text-[10px] leading-none font-medium text-primary-foreground tabular-nums">
-                    {running > 9 ? "9+" : running}
-                  </span>
+                {moreAlerts > 0 ? (
+                  <AlertBadge count={moreAlerts} />
+                ) : (
+                  running > 0 && (
+                    <span className="absolute -end-1.5 -top-1 flex size-4 items-center justify-center rounded-full bg-brand text-[10px] leading-none font-medium text-primary-foreground tabular-nums">
+                      {running > 9 ? "9+" : running}
+                    </span>
+                  )
                 )}
               </span>
               More
+              {moreAlerts > 0 && (
+                <span className="sr-only">, {moreAlerts} with problems</span>
+              )}
             </button>
           </li>
         </ul>
@@ -174,6 +195,7 @@ function Tabs({ pathname }: { pathname: string }) {
                         item={item}
                         active={isActive(pathname, item.href)}
                         count={item === tasksItem ? running : 0}
+                        alert={alerts.get(item.href)}
                         onSelect={openFromSheet}
                       />
                     </li>
@@ -204,11 +226,13 @@ function SheetRow({
   item,
   active,
   count,
+  alert,
   onSelect,
 }: {
   item: NavItem
   active: boolean
   count: number
+  alert?: NavAlert
   onSelect: (href: string) => void
 }) {
   const Icon = item.icon
@@ -227,6 +251,11 @@ function SheetRow({
         <Icon className="size-5" strokeWidth={1.75} />
       </span>
       <span className="flex-1">{item.label}</span>
+      {alert && (
+        <span className="text-body-sm font-normal text-destructive">
+          {alert.label}
+        </span>
+      )}
       {count > 0 && (
         <span className="text-body-sm font-normal text-muted-foreground tabular-nums">
           {count} running
@@ -238,5 +267,14 @@ function SheetRow({
         <ChevronRight className="size-5 text-ash" />
       )}
     </Link>
+  )
+}
+
+// A red count on a tab's icon: things in that section are broken.
+function AlertBadge({ count }: { count: number }) {
+  return (
+    <span className="absolute -end-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] leading-none font-medium text-white tabular-nums">
+      {count > 9 ? "9+" : count}
+    </span>
   )
 }

@@ -20,7 +20,7 @@ import { useAccess } from "@/components/auth/auth"
 import { guideHref } from "@/components/help/guides"
 import { HelpButton } from "@/components/help/help-link"
 import { Button } from "@/components/ui/button"
-import { useBack } from "@/hooks/useBack"
+import { useBackOr } from "@/hooks/useBack"
 import { useIsPhone } from "@/hooks/useIsPhone"
 import { useNow } from "@/hooks/useNow"
 import { useOpen } from "@/hooks/useOpen"
@@ -275,7 +275,7 @@ function DesktopPage({ children, ...props }: PageProps) {
 
 function PhonePage({ children, ...props }: PageProps) {
   const { map, filters, setFilters, scanning, onRescan, onSelect } = props
-  const back = useBack("/servers")
+  const back = useBackOr("/servers")
   const [searching, setSearching] = useState(Boolean(filters.q))
   return (
     <div className="flex h-[calc(100dvh-4rem-1px-env(safe-area-inset-bottom))] flex-col">

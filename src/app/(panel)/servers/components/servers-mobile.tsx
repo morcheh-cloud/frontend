@@ -105,7 +105,7 @@ export function ServersMobile() {
           className="ms-auto"
         />
         <Link
-          href="/servers/network"
+          href="/network"
           aria-label="Network map"
           className="flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none active:bg-muted"
         >

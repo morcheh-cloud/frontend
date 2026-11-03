@@ -7,28 +7,30 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query"
+import { useEffect } from "react"
 
+import { STATUS_POLL, storagesQuery } from "@/components/panel/problems"
 import { ApiError, api } from "@/lib/api"
 import type { Storage, StorageBody, StorageTestBody } from "@/lib/services"
 
 // The list key is shared with the "Send to…" dialog (transfer-dialog.tsx).
 export const keys = {
-  storages: ["storages"] as const,
+  storages: storagesQuery.queryKey,
   detail: (id: string) => ["storages", id] as const,
 }
 
+// Statuses refresh by themselves: the backend re-checks every storage
+// (STORAGE_CHECK_INTERVAL) and this re-reads the list.
 export function useStorages() {
-  return useQuery({
-    queryKey: keys.storages,
-    queryFn: () => api.storage.listStorages(),
-  })
+  return useQuery(storagesQuery)
 }
 
 export function useStorage(id: string) {
   const queryClient = useQueryClient()
-  return useQuery({
+  const query = useQuery({
     queryKey: keys.detail(id),
     queryFn: () => api.storage.getStorage(id),
+    refetchInterval: STATUS_POLL,
     // As the list has it, so the page renders at once when opened from it.
     placeholderData: () =>
       queryClient
@@ -36,6 +38,20 @@ export function useStorage(id: string) {
         ?.items.find((s) => s.id === id),
     retry: (count, error) =>
       !(error instanceof ApiError && error.status === 404) && count < 2,
+  })
+  // Came back online (a background check, or one run here): retry the
+  // folders that failed while it was down.
+  const online = query.data?.status === "online"
+  useEffect(() => {
+    if (online) retryFailedFolders(queryClient, id)
+  }, [online, id, queryClient])
+  return query
+}
+
+function retryFailedFolders(queryClient: QueryClient, id: string) {
+  return queryClient.invalidateQueries({
+    queryKey: ["storage-files", id],
+    predicate: (q) => q.state.status === "error",
   })
 }
 
@@ -136,12 +152,7 @@ export function useCheckStorage() {
     onSuccess: (s) => {
       // Back online (e.g. after trusting a new host key): retry the folders
       // that failed while it was down.
-      if (s.status === "online") {
-        queryClient.invalidateQueries({
-          queryKey: ["storage-files", s.id],
-          predicate: (q) => q.state.status === "error",
-        })
-      }
+      if (s.status === "online") retryFailedFolders(queryClient, s.id)
       return store(queryClient, s)
     },
   })

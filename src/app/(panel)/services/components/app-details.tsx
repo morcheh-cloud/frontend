@@ -6,12 +6,12 @@ import { type ReactNode, useEffect, useState } from "react"
 import { BottomSheet } from "@/components/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet"
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { useIsPhone } from "@/hooks/useIsPhone"
 import type { App, AppCategory } from "@/lib/services"
 import { cn } from "@/lib/utils"
@@ -32,8 +32,9 @@ import { CopyUsernameButton, PasswordCell } from "./secret"
 
 export type AppDetailsTab = "overview" | "activity"
 
-// One service: its address, logins and note, and (for its Owner) who viewed
-// its passwords. Re-found in the list by id, so an edit shows at once and a
+// One service, opened by a click on it: its address, logins and note, an Open
+// button, and (for its Owner) who viewed its passwords. A centred modal on
+// desktop, a full bottom sheet on phones. Re-found in the list by id, so an edit shows at once and a
 // removal closes it.
 export function AppDetails({
   open,
@@ -132,12 +133,9 @@ function Details({
     <span className="flex min-w-0 items-center gap-2">
       <span className="truncate">{app.name}</span>
       {app.critical && (
-        <span
-          role="img"
-          aria-label="Critical"
-          title="Critical"
-          className="size-1.5 shrink-0 rounded-full bg-destructive"
-        />
+        <span className="shrink-0 rounded-full bg-destructive/10 px-2 text-caption font-medium text-destructive">
+          Critical
+        </span>
       )}
     </span>
   )
@@ -181,21 +179,21 @@ function Details({
   const edit = items.flat().find((i) => i.key === "edit")
 
   return (
-    <Sheet open={open} onOpenChange={(next) => onOpenChange(next)}>
-      <SheetContent className="w-full gap-0 data-[side=right]:sm:max-w-xl">
-        <SheetHeader className="gap-2 border-b border-border px-6 py-4">
+    <Dialog open={open} onOpenChange={(next) => onOpenChange(next)}>
+      <DialogContent className="flex max-h-[min(44rem,calc(100dvh-4rem))] flex-col gap-0 overflow-hidden rounded-2xl p-0 shadow-md sm:max-w-xl">
+        <DialogHeader className="gap-2 border-b border-border px-6 py-4 pe-12">
           <div className="flex items-center gap-3">
             <AppLogo app={app} />
             <div className="min-w-0">
-              <SheetTitle className="text-body">{title}</SheetTitle>
-              <SheetDescription className="truncate">
+              <DialogTitle className="leading-normal">{title}</DialogTitle>
+              <DialogDescription className="truncate">
                 {shortAddress(app.address)}
-              </SheetDescription>
+              </DialogDescription>
             </div>
           </div>
           {tabs && <div className="mt-2">{tabs}</div>}
-        </SheetHeader>
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6">
+        </DialogHeader>
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-2">
           {body}
         </div>
         <div className="flex flex-wrap items-center gap-2 border-t border-border px-6 py-4">
@@ -207,7 +205,7 @@ function Details({
               }
             >
               <ExternalLink />
-              Open
+              Open in a new tab
             </Button>
           )}
           {edit && (
@@ -228,8 +226,8 @@ function Details({
             />
           )}
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   )
 }
 

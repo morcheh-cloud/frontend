@@ -201,7 +201,8 @@ function BulkBar({
   const checking = useCheckingIds()
   const servers = [...selection.values()]
   const ids = [...selection.keys()]
-  const anyChecking = ids.some((id) => checking.has(id))
+  const pending = ids.filter((id) => checking.has(id)).length
+  const anyChecking = pending > 0
   // A bulk action is all or nothing, so it needs the level on every server.
   const serverCan = useServerCan()
   const operator = servers.every((s) => serverCan(s, "operator"))
@@ -209,9 +210,11 @@ function BulkBar({
 
   function check() {
     bulkCheck.mutate(ids, {
-      onSuccess: (res) => {
-        const online = res.items.filter((s) => s.status === "online").length
-        const failed = res.items.length - online
+      onSuccess: (results) => {
+        const online = results.filter(
+          (r) => r.server?.status === "online",
+        ).length
+        const failed = results.length - online
         if (failed === 0) toast.success(`All ${online} servers are online`)
         else toast.warning(`${online} online, ${failed} with problems`)
       },
@@ -237,7 +240,9 @@ function BulkBar({
           onClick={check}
         >
           <Activity />
-          {anyChecking ? "Checking…" : "Check"}
+          {anyChecking
+            ? `Checking ${ids.length - pending}/${ids.length}`
+            : "Check"}
         </Button>
       )}
       {owner && (

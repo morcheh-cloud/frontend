@@ -34,7 +34,6 @@ import {
   AppLogo,
   colorOf,
   noApps,
-  safeHref,
   shortAddress,
   useAppFilters,
   visibleGroups,
@@ -315,7 +314,6 @@ function Group({
 function Row({ app, onMore }: { app: App; onMore: (app: App) => void }) {
   const s = useSortableApp(app)
   const a = useAppActions()
-  const href = safeHref(app.address)
   const body = (
     <>
       <AppLogo app={app} size={40} />
@@ -353,21 +351,9 @@ function Row({ app, onMore }: { app: App; onMore: (app: App) => void }) {
         s.dragging && "opacity-40",
       )}
     >
-      {href ? (
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          draggable={false}
-          className={main}
-        >
-          {body}
-        </a>
-      ) : (
-        <button type="button" className={main} onClick={() => a.details(app)}>
-          {body}
-        </button>
-      )}
+      <button type="button" className={main} onClick={() => a.details(app)}>
+        {body}
+      </button>
       <CopyPasswordButton app={app} />
       <button
         type="button"

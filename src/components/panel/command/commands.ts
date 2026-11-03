@@ -216,8 +216,7 @@ export function searchAll(query: string): Command {
 }
 
 export function serverIdOf(pathname: string) {
-  const id = /^\/servers\/([^/]+)/.exec(pathname)?.[1]
-  return id === "network" ? undefined : id
+  return /^\/servers\/([^/]+)/.exec(pathname)?.[1]
 }
 
 // Matching: every word must appear somewhere; a hit at the start of the label

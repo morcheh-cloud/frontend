@@ -178,10 +178,49 @@
     -webkit-tap-highlight-color: transparent;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+    /* Always reserve the scrollbar's room, so the page doesn't shift sideways
+       when content starts/stops overflowing or a menu/dialog locks scrolling
+       (Base UI's lock keeps this gutter). Overlay scrollbars ignore it. */
+    scrollbar-gutter: stable;
   }
   body {
     /* No rubber-band bounce or pull-to-refresh on the app shell. */
     overscroll-behavior-y: none;
+  }
+
+  /* Slim scrollbars: a rounded Mist thumb on a clear track. Chrome ignores
+     the ::-webkit-scrollbar rules once scrollbar-width/-color is set, so the
+     standard properties only go to browsers without them (Firefox). */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 9999px;
+    background-color: var(--color-mist);
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-ash);
+  }
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--color-mist) transparent;
+    }
+  }
+}
+
+/* Scrolls without a visible scrollbar (sidebar, chip rows). */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
   }
 }
 
