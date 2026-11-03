@@ -4,6 +4,7 @@ import type { App } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { AppMenu } from "./app-menu"
 import { type AppGroup, AppLogo, colorOf, safeHref, shortAddress } from "./meta"
+import { CopyPasswordButton, CopyUsernameButton } from "./secret"
 
 // Services as tiles, one block per category. A tile opens the service in a
 // new tab; an address that isn't plain http(s) stays a dead tile.
@@ -20,8 +21,16 @@ export function TileView({ groups }: { groups: AppGroup[] }) {
             {g.apps.map((app) => (
               <li key={app.id} className="group/tile relative">
                 <Tile app={app} />
-                <span className="absolute end-2 top-2 opacity-0 group-hover/tile:opacity-100 focus-within:opacity-100 has-data-popup-open:opacity-100 [@media(hover:none)]:opacity-100">
-                  <AppMenu app={app} />
+                {/* Copy buttons show on hover or focus; the menu stays
+                    reachable where there's no hover. */}
+                <span className="absolute end-2 top-2 flex items-center gap-0.5 rounded-lg bg-card">
+                  <span className="flex items-center gap-0.5 opacity-0 group-focus-within/tile:opacity-100 group-hover/tile:opacity-100 focus-within:opacity-100 has-data-popup-open:opacity-100">
+                    <CopyUsernameButton app={app} />
+                    <CopyPasswordButton app={app} />
+                  </span>
+                  <span className="opacity-0 group-hover/tile:opacity-100 focus-within:opacity-100 has-data-popup-open:opacity-100 [@media(hover:none)]:opacity-100">
+                    <AppMenu app={app} />
+                  </span>
                 </span>
               </li>
             ))}

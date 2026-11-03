@@ -3,6 +3,7 @@
 import {
   ExternalLink,
   FolderInput,
+  Info,
   Pencil,
   Siren,
   Trash2,
@@ -22,17 +23,25 @@ export function useAppMenu(app: App): Item[][] {
   const can = useAppCan(app)
   const href = safeHref(app.address)
 
-  const open: Item[] = href
-    ? [
-        {
-          key: "open",
-          label: "Open",
-          icon: <ExternalLink />,
-          // Synchronous inside the click, so no pop-up blocker steps in.
-          onSelect: () => window.open(href, "_blank", "noopener,noreferrer"),
-        },
-      ]
-    : []
+  const open: Item[] = [
+    ...(href
+      ? [
+          {
+            key: "open",
+            label: "Open",
+            icon: <ExternalLink />,
+            // Synchronous inside the click, so no pop-up blocker steps in.
+            onSelect: () => window.open(href, "_blank", "noopener,noreferrer"),
+          },
+        ]
+      : []),
+    {
+      key: "details",
+      label: "Details",
+      icon: <Info />,
+      onSelect: () => a.details(app),
+    },
+  ]
   const change: Item[] = can.edit
     ? [
         {

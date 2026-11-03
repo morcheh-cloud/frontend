@@ -11,6 +11,7 @@ import { useOpen } from "@/hooks/useOpen"
 import type { App, AppCategory } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { useApps, useCategoryMutations, useDeleteApp, useSaveApp } from "../api"
+import { AppDetails, type AppDetailsTab } from "./app-details"
 import { AppFormLayer } from "./app-form"
 import { CategoryDialog } from "./category-dialog"
 import { colorOf, useAppFilters } from "./meta"
@@ -18,6 +19,7 @@ import { colorOf, useAppFilters } from "./meta"
 type Actions = {
   add: (categoryId?: string) => void
   edit: (app: App) => void
+  details: (app: App, tab?: AppDetailsTab) => void
   moveTo: (app: App) => void
   remove: (app: App) => void
   access: (app: App) => void
@@ -50,6 +52,12 @@ export function AppActionsProvider({ children }: { children: ReactNode }) {
     category?: string
     key: number
   }>({ key: 0 })
+  const [detailsOpen, setDetailsOpen] = useOpen("app-details")
+  const [details, setDetails] = useState<{
+    id?: string
+    tab: AppDetailsTab
+    key: number
+  }>({ tab: "overview", key: 0 })
   const [moveOpen, setMoveOpen] = useOpen("app-move")
   const [toMove, setToMove] = useState<App>()
   const [removeOpen, setRemoveOpen] = useOpen("app-remove")
@@ -76,6 +84,10 @@ export function AppActionsProvider({ children }: { children: ReactNode }) {
     edit: (app) => {
       setForm((f) => ({ app, key: f.key + 1 }))
       setFormOpen(true)
+    },
+    details: (app, tab = "overview") => {
+      setDetails((d) => ({ id: app.id, tab, key: d.key + 1 }))
+      setDetailsOpen(true)
     },
     moveTo: (app) => {
       setToMove(app)
@@ -140,6 +152,16 @@ export function AppActionsProvider({ children }: { children: ReactNode }) {
           toast.success(form.app ? "Changes saved" : `Added ${saved.name}`)
         }}
       />
+
+      {details.id && (
+        <AppDetails
+          key={`details-${details.key}`}
+          open={detailsOpen}
+          onOpenChange={setDetailsOpen}
+          appId={details.id}
+          tab={details.tab}
+        />
+      )}
 
       {toMove && (
         <MoveLayer

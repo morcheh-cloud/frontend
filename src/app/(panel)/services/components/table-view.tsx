@@ -5,8 +5,10 @@ import { Fragment, type ReactNode } from "react"
 
 import type { App } from "@/lib/services"
 import { cn } from "@/lib/utils"
+import { useAppActions } from "./app-actions"
 import { AppMenu } from "./app-menu"
 import { type AppGroup, AppLogo, colorOf, safeHref, shortAddress } from "./meta"
+import { CopyUsernameButton, PasswordCell } from "./secret"
 
 // The same services as the old spreadsheet: one row each, grouped by
 // category.
@@ -76,6 +78,7 @@ function Th({
 
 function Row({ app }: { app: App }) {
   const href = safeHref(app.address)
+  const a = useAppActions()
   const [first, ...rest] = app.accounts
 
   return (
@@ -83,7 +86,13 @@ function Row({ app }: { app: App }) {
       <td className="max-w-72 px-3">
         <span className="flex items-center gap-3">
           <AppLogo app={app} size={28} />
-          <span className="truncate font-medium">{app.name}</span>
+          <button
+            type="button"
+            onClick={() => a.details(app)}
+            className="truncate rounded-sm font-medium outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            {app.name}
+          </button>
           {app.critical && (
             <span
               role="img"
@@ -117,6 +126,7 @@ function Row({ app }: { app: App }) {
             <span className="truncate font-mono text-caption">
               {first.username}
             </span>
+            <CopyUsernameButton app={app} account={first} />
             {rest.length > 0 && (
               <span
                 title={`${app.accounts.length} accounts`}
@@ -128,7 +138,9 @@ function Row({ app }: { app: App }) {
           </span>
         )}
       </td>
-      <td className="px-3" />
+      <td className="w-56 px-3">
+        {first && <PasswordCell app={app} account={first} />}
+      </td>
       <td className="pe-3 text-end">
         <AppMenu app={app} />
       </td>

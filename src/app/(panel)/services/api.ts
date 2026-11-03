@@ -120,6 +120,31 @@ export function useRefetchIcon() {
 export const revealPassword = (appId: string, accountId: string) =>
   api.apps.revealAppAccount(appId, accountId).then((s) => s.password)
 
+// A reveal is a write (it logs a row), so a mutation: refetches never repeat
+// it, and with gcTime 0 the answer leaves the cache with its last user. The
+// value itself lives only in the component that asked for it.
+export function useRevealPassword() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (v: { appId: string; accountId: string }) =>
+      revealPassword(v.appId, v.accountId),
+    gcTime: 0,
+    onSettled: (_, __, v) =>
+      queryClient.invalidateQueries({ queryKey: activityKey(v.appId) }),
+  })
+}
+
+const activityKey = (id: string) => [...appKeys.all, id, "activity"] as const
+
+// Who revealed this service's passwords (Owner only).
+export function useAppActivity(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: activityKey(id),
+    queryFn: () => api.apps.listAppActivity(id).then((r) => r.items),
+    enabled,
+  })
+}
+
 // Categories belong to the current workspace.
 export function useCategoryMutations() {
   const queryClient = useQueryClient()
