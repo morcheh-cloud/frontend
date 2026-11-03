@@ -10,6 +10,7 @@ import { ports } from "./ports"
 import { power } from "./power"
 import { serverOverview } from "./server-overview"
 import { servers } from "./servers"
+import { serviceLauncher } from "./service-launcher"
 import { services } from "./services"
 import { storage } from "./storage"
 import { tasks } from "./tasks"
@@ -31,6 +32,7 @@ export const content: Record<string, GuideSection[]> = {
   services,
   power,
   databases,
+  "service-launcher": serviceLauncher,
   storage,
   tasks,
   access,

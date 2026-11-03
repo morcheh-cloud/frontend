@@ -22,9 +22,9 @@ export const access: GuideSection[] = [
       <>
         <P>
           Nothing in Morcheh opens without signing in. Each person gets their
-          own account, and sees only the servers and storage they were given
-          access to. The rules are enforced on the backend, so a hidden button
-          is never the only thing standing in the way.
+          own account, and sees only the servers, storage and services they were
+          given access to. The rules are enforced on the backend, so a hidden
+          button is never the only thing standing in the way.
         </P>
         <Table
           head={["Who", "What they can do"]}
@@ -100,6 +100,21 @@ export const access: GuideSection[] = [
             ["Owner", "See its keys, edit or delete it, give others access"],
           ]}
         />
+        <Table
+          head={["Level", "On a service"]}
+          rows={[
+            ["Viewer", "See it, open its link, read its note"],
+            ["Operator", "Usernames, and showing or copying passwords"],
+            ["Engineer", "Edit it; on the workspace, categories and order"],
+            ["Owner", "Remove it, give others access, read the password log"],
+          ]}
+        />
+        <Warn>
+          A service's passwords start at Operator, not at Owner as a server's
+          SSH secrets do. That's deliberate, since sharing logins is what{" "}
+          <See guide="service-launcher" /> is for. Give Viewer to someone who
+          should only see the links.
+        </Warn>
         <Tip>
           The terminal starts at Engineer because a shell can do anything the
           SSH account can, whatever the panel's level says.
@@ -114,8 +129,9 @@ export const access: GuideSection[] = [
       <>
         <P>
           A grant gives a person or a group a level on a whole workspace or on
-          one server or storage. If several apply, the highest wins: a Viewer on
-          the workspace who is an Engineer on one server is an Engineer there.
+          one server, storage or service. If several apply, the highest wins: a
+          Viewer on the workspace who is an Engineer on one server is an
+          Engineer there.
         </P>
         <Steps>
           {[
@@ -125,9 +141,9 @@ export const access: GuideSection[] = [
               menu.
             </>,
             <>
-              Choose the level at the top, then tick workspaces, servers and
-              storage. Each one appears as a tag on the side; change its level
-              from the tag, or remove it with its ×.
+              Choose the level at the top, then tick workspaces, servers,
+              storage and services. Each one appears as a tag on the side;
+              change its level from the tag, or remove it with its ×.
             </>,
             <>
               Press <UI>Save changes</UI>. Nothing applies before that, and{" "}
@@ -158,7 +174,8 @@ export const access: GuideSection[] = [
         </List>
         <P>
           For one place instead, open the server's <UI>Access</UI> tab, the
-          storage's <UI>Manage access…</UI> menu item, or the workspace under{" "}
+          storage's <UI>Manage access…</UI> menu item, a service's{" "}
+          <UI>Access</UI> menu item, or the workspace under{" "}
           <UI>Settings › Workspaces</UI>. Those apply immediately.
         </P>
         <P>
@@ -202,8 +219,8 @@ export const access: GuideSection[] = [
             anything else, for a lost laptop for example.
           </li>
           <li>
-            <UI>Delete</UI> removes the account and its grants. Servers and
-            storage stay.
+            <UI>Delete</UI> removes the account and its grants. Servers, storage
+            and services stay.
           </li>
         </List>
         <Tip>
@@ -303,14 +320,16 @@ export const access: GuideSection[] = [
       <>
         <P>
           Admins create workspaces under <UI>Settings › Workspaces</UI>. Every
-          server and storage belongs to exactly one. A new one lands in the
-          workspace selected in the sidebar.
+          server, storage and service belongs to exactly one. A new one lands in
+          the workspace selected in the sidebar.
         </P>
         <P>
           To move something, open the workspace and use{" "}
           <UI>Move to workspace…</UI> on its row, or <UI>Move all…</UI>. Grants
-          on the old workspace stop covering it; grants directly on that server
-          or storage stay. A workspace can only be deleted once it's empty.
+          on the old workspace stop covering it; grants directly on that server,
+          storage or service stay. A moved service leaves its category, since
+          categories belong to a workspace. A workspace can only be deleted once
+          it's empty.
         </P>
       </>
     ),
@@ -420,7 +439,7 @@ export const access: GuideSection[] = [
           ],
           [
             "Can't delete a workspace",
-            "It still holds servers or storage. Move them out first.",
+            "It still holds servers, storage or services. Move them out first.",
           ],
           [
             "Can't block or delete an admin",
@@ -444,7 +463,8 @@ export const access: GuideSection[] = [
     body: (
       <P>
         <See guide="getting-started" section="workspaces" /> ·{" "}
-        <See guide="servers" /> · <See guide="storage" />
+        <See guide="servers" /> · <See guide="storage" /> ·{" "}
+        <See guide="service-launcher" />
       </P>
     ),
   },
