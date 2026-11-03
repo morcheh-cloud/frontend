@@ -264,7 +264,12 @@ export type AppGroup = { category: AppCategory | null; apps: App[] }
 
 // Categories in their order, each with its services in theirs; services
 // outside every category come last.
-export function groupApps(items: App[], categories: AppCategory[]): AppGroup[] {
+// keepLoose: show the uncategorized block even when empty (a place to drop).
+export function groupApps(
+  items: App[],
+  categories: AppCategory[],
+  keepLoose = false,
+): AppGroup[] {
   const byPosition = <T extends { position: number }>(a: T, b: T) =>
     a.position - b.position
   const known = new Set(categories.map((c) => c.id))
@@ -275,7 +280,8 @@ export function groupApps(items: App[], categories: AppCategory[]): AppGroup[] {
   const loose = items
     .filter((a) => !a.category_id || !known.has(a.category_id))
     .sort(byPosition)
-  if (loose.length > 0) groups.push({ category: null, apps: loose })
+  if (loose.length > 0 || keepLoose)
+    groups.push({ category: null, apps: loose })
   return groups
 }
 

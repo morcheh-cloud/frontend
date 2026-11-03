@@ -6,6 +6,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query"
+import { toast } from "sonner"
 
 import { useWorkspace } from "@/components/panel/workspace"
 import { api, apiFetch } from "@/lib/api"
@@ -13,6 +14,7 @@ import type {
   App,
   AppCategory,
   AppCreateBody,
+  AppLayoutBody,
   AppList,
   AppUpdateBody,
   CreateAppCategoryRequest,
@@ -142,6 +144,78 @@ export function useAppActivity(id: string, enabled: boolean) {
     queryKey: activityKey(id),
     queryFn: () => api.apps.listAppActivity(id).then((r) => r.items),
     enabled,
+  })
+}
+
+// The whole page's arrangement: every category in order, and every group
+// (null = uncategorized) with its services in order. Services in a category
+// that's gone count as uncategorized, as the page shows them.
+export function layoutOf(list: AppList): AppLayoutBody {
+  const byPosition = <T extends { position: number }>(a: T, b: T) =>
+    a.position - b.position
+  const categories = [...list.categories].sort(byPosition).map((c) => c.id)
+  const known = new Set(categories)
+  const items = [...list.items].sort(byPosition)
+  return {
+    categories,
+    groups: [
+      ...categories.map((id) => ({
+        category_id: id,
+        app_ids: items.filter((a) => a.category_id === id).map((a) => a.id),
+      })),
+      {
+        category_id: null,
+        app_ids: items
+          .filter((a) => !a.category_id || !known.has(a.category_id))
+          .map((a) => a.id),
+      },
+    ],
+  }
+}
+
+// The list as it looks with this arrangement (position = index).
+export function withLayout(list: AppList, layout: AppLayoutBody): AppList {
+  const place = new Map<string, { category?: string; position: number }>()
+  for (const g of layout.groups) {
+    g.app_ids.forEach((id, position) => {
+      place.set(id, { category: g.category_id ?? undefined, position })
+    })
+  }
+  const order = new Map(layout.categories.map((id, i) => [id, i]))
+  return {
+    ...list,
+    categories: list.categories.map((c) => ({
+      ...c,
+      position: order.get(c.id) ?? c.position,
+    })),
+    items: list.items.map((a) => {
+      const p = place.get(a.id)
+      return p ? { ...a, category_id: p.category, position: p.position } : a
+    }),
+  }
+}
+
+// Saves the whole arrangement at once (even when a filter shows only part of
+// it). Shown straight away; put back as it was if the backend refuses.
+export function useSetLayout() {
+  const queryClient = useQueryClient()
+  const { workspace } = useWorkspace()
+  return useMutation({
+    mutationFn: (layout: AppLayoutBody) =>
+      api.apps.setAppsLayout(workspace?.id ?? "", layout),
+    onMutate: async (layout) => {
+      await queryClient.cancelQueries({ queryKey: appKeys.all })
+      const before = queryClient.getQueryData<AppList>(appKeys.all)
+      if (before) {
+        queryClient.setQueryData(appKeys.all, withLayout(before, layout))
+      }
+      return { before }
+    },
+    onError: (err, _, context) => {
+      if (context?.before) queryClient.setQueryData(appKeys.all, context.before)
+      toast.error("Couldn't save the new order", { description: err.message })
+    },
+    onSuccess: (list) => queryClient.setQueryData(appKeys.all, list),
   })
 }
 
