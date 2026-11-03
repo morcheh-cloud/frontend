@@ -1,8 +1,10 @@
 "use client"
 
-import { AppWindow, CloudOff, SearchX } from "lucide-react"
+import { AppWindow, CloudOff, Plus, SearchX } from "lucide-react"
 
+import { useAccess } from "@/components/auth/auth"
 import { PageHeader } from "@/components/panel/page-header"
+import { useWorkspace } from "@/components/panel/workspace"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -11,6 +13,7 @@ import {
   Segmented,
 } from "../../servers/[id]/components/parts"
 import { useApps } from "../api"
+import { useAppActions } from "./app-actions"
 import { CategoryRail } from "./category-rail"
 import { groupApps, matchesApp, useAppFilters, useViewMode } from "./meta"
 import { TableView } from "./table-view"
@@ -25,6 +28,10 @@ export function AppsDesktop() {
   const list = useApps()
   const { q, setQ, cat, critical, setCat } = useAppFilters()
   const [view, setView] = useViewMode()
+  const a = useAppActions()
+  const { canCreateIn } = useAccess()
+  const { workspace } = useWorkspace()
+  const canAdd = canCreateIn(workspace?.id)
 
   const items = list.data?.items ?? []
   const categories = list.data?.categories ?? []
@@ -46,6 +53,16 @@ export function AppsDesktop() {
         title="Services"
         description="The web services your team uses, with their addresses and logins."
         guide="service-launcher"
+        actions={
+          canAdd && (
+            <Button
+              onClick={() => a.add(cat && cat !== "none" ? cat : undefined)}
+            >
+              <Plus />
+              Add service
+            </Button>
+          )
+        }
       />
       <div className="grid grid-cols-[13.5rem_minmax(0,1fr)] gap-6 px-6 pt-5 pb-24">
         <aside className="sticky top-[calc(3rem+1px+--spacing(5))] self-start">
@@ -107,6 +124,14 @@ export function AppsDesktop() {
               icon={AppWindow}
               title="No services yet"
               body="Keep every web service your team opens here: its address, a logo and the logins, in place of a shared sheet."
+              action={
+                canAdd && (
+                  <Button onClick={() => a.add()}>
+                    <Plus />
+                    Add service
+                  </Button>
+                )
+              }
             />
           ) : groups.length === 0 ? (
             <Empty

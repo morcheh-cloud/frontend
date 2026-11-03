@@ -188,6 +188,15 @@ export function safeHref(address: string): string | undefined {
   }
 }
 
+// A typed address with https:// added when it has no scheme. "localhost:9000"
+// is a host and a port, not a scheme; "javascript:…" keeps its own and fails
+// the http(s) check.
+export function withScheme(address: string) {
+  const text = address.trim()
+  if (!text || /^[a-z][a-z0-9+.-]*:(?!\d|$)/i.test(text)) return text
+  return `https://${text.replace(/^\/+/, "")}`
+}
+
 // The address as people say it: no scheme, no trailing slash.
 export const shortAddress = (address: string) =>
   address.replace(/^https?:\/\//i, "").replace(/\/$/, "")

@@ -5,6 +5,7 @@ import { Fragment, type ReactNode } from "react"
 
 import type { App } from "@/lib/services"
 import { cn } from "@/lib/utils"
+import { AppMenu } from "./app-menu"
 import { type AppGroup, AppLogo, colorOf, safeHref, shortAddress } from "./meta"
 
 // The same services as the old spreadsheet: one row each, grouped by
@@ -128,7 +129,9 @@ function Row({ app }: { app: App }) {
         )}
       </td>
       <td className="px-3" />
-      <td className="pe-3" />
+      <td className="pe-3 text-end">
+        <AppMenu app={app} />
+      </td>
     </tr>
   )
 }

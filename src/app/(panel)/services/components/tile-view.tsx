@@ -2,6 +2,7 @@
 
 import type { App } from "@/lib/services"
 import { cn } from "@/lib/utils"
+import { AppMenu } from "./app-menu"
 import { type AppGroup, AppLogo, colorOf, safeHref, shortAddress } from "./meta"
 
 // Services as tiles, one block per category. A tile opens the service in a
@@ -17,8 +18,11 @@ export function TileView({ groups }: { groups: AppGroup[] }) {
           <GroupHeading group={g} />
           <ul className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-3">
             {g.apps.map((app) => (
-              <li key={app.id}>
+              <li key={app.id} className="group/tile relative">
                 <Tile app={app} />
+                <span className="absolute end-2 top-2 opacity-0 group-hover/tile:opacity-100 focus-within:opacity-100 has-data-popup-open:opacity-100 [@media(hover:none)]:opacity-100">
+                  <AppMenu app={app} />
+                </span>
               </li>
             ))}
           </ul>
@@ -67,7 +71,7 @@ function Tile({ app }: { app: App }) {
     </>
   )
   const box =
-    "flex h-full items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm outline-none"
+    "flex h-full items-center gap-3 rounded-2xl border border-border bg-card p-4 pe-11 shadow-sm outline-none"
 
   if (!href) {
     return (
