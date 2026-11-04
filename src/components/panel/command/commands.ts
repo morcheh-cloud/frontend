@@ -140,6 +140,15 @@ export function actions(
       intent: "add-service",
       keywords: "new create web app link launcher bookmark login",
     },
+    {
+      key: "action:add-cronjob",
+      label: "New cron job",
+      icon: Plus,
+      tile: "brand",
+      href: "/cronjobs/new",
+      keywords:
+        "create schedule sync backup copy mirror snapshot storage server timer",
+    },
   ]
   return [
     ...(canAdd ? add : []),

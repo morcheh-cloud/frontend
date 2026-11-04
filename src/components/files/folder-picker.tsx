@@ -177,7 +177,9 @@ function Node({
       role="treeitem"
       aria-level={level}
       aria-selected={selected}
-      aria-disabled={off || undefined}
+      // No aria-disabled: it would cascade to every folder nested inside (an
+      // S3 root would disable all its buckets). `pick` ignores it instead.
+      data-disabled={off || undefined}
       aria-expanded={leaf ? undefined : open}
       data-path={path}
       tabIndex={tree.focus === path ? 0 : -1}

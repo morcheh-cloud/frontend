@@ -37,6 +37,168 @@ export interface AffectedOutputBody {
   affected: number;
 }
 
+export interface AnsibleHost {
+  host: string;
+  /** What it's called in the playbook's output */
+  inventory_name: string;
+  name: string;
+  /** @format uuid */
+  server_id: string;
+}
+
+export interface AnsibleOptions {
+  /** Dry run: report what would change */
+  check?: boolean;
+  /** Show the changes made to files */
+  diff?: boolean;
+  /**
+   * Extra variables (YAML mapping). Kept with the run and shown to whoever can read it
+   * @maxLength 262144
+   */
+  extra_vars?: string;
+  /**
+   * Hosts worked on at once (default 5)
+   * @format int64
+   * @min 1
+   * @max 100
+   */
+  forks?: number;
+  /**
+   * Narrow the hosts further (Ansible host pattern)
+   * @maxLength 500
+   */
+  limit?: string;
+  skip_tags?: string[];
+  /** Only tasks with these tags */
+  tags?: string[];
+  /**
+   * @format int64
+   * @min 0
+   * @max 4
+   */
+  verbosity?: number;
+}
+
+export interface AnsibleOutputChunk {
+  /**
+   * Bytes printed before it
+   * @format int64
+   */
+  offset: number;
+  text: string;
+}
+
+export interface AnsibleRun {
+  /** @format date-time */
+  created_at: string;
+  created_by_name: string;
+  error: string;
+  /** @format int32 */
+  exit_code?: number;
+  /** @format date-time */
+  finished_at?: string;
+  hosts: AnsibleHost[];
+  /** @format uuid */
+  id: string;
+  /** @format uuid */
+  job_id?: string;
+  options: AnsibleOptions;
+  /** @format uuid */
+  playbook_id?: string;
+  playbook_name: string;
+  /** By inventory host name */
+  recap: Record<string, HostStats>;
+  /** @format date-time */
+  started_at?: string;
+  state:
+    | "queued"
+    | "running"
+    | "succeeded"
+    | "failed"
+    | "canceled"
+    | "interrupted";
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface AnsibleRunDetail {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** The playbook as it ran */
+  content: string;
+  /** @format date-time */
+  created_at: string;
+  created_by_name: string;
+  error: string;
+  /** @format int32 */
+  exit_code?: number;
+  /** @format date-time */
+  finished_at?: string;
+  hosts: AnsibleHost[];
+  /** @format uuid */
+  id: string;
+  /** @format uuid */
+  job_id?: string;
+  options: AnsibleOptions;
+  /** What ansible-playbook printed, ANSI colors included */
+  output: string;
+  /**
+   * Bytes printed so far; output events continue from here
+   * @format int64
+   */
+  output_offset: number;
+  /** The middle was too long and was dropped */
+  output_truncated: boolean;
+  /** @format uuid */
+  playbook_id?: string;
+  playbook_name: string;
+  plays: RunPlay[];
+  /** By inventory host name */
+  recap: Record<string, HostStats>;
+  selection: AnsibleSelection;
+  /** @format date-time */
+  started_at?: string;
+  state:
+    | "queued"
+    | "running"
+    | "succeeded"
+    | "failed"
+    | "canceled"
+    | "interrupted";
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface AnsibleSelection {
+  /** Every server in the workspace */
+  all?: boolean;
+  /** Servers in these folders and their subfolders */
+  folder_ids?: string[];
+  server_ids?: string[];
+  /** Servers with any of these tags */
+  tags?: string[];
+}
+
+export interface AnsibleStatus {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** This person can start a run here (they still need Owner on every server) */
+  can_run: boolean;
+  installed: boolean;
+  /** Why they can't */
+  problem: string;
+  /** Playbooks run in a bubblewrap sandbox on the Morcheh host */
+  sandbox: boolean;
+  /** ansible-core version */
+  version: string;
+}
+
 export interface App {
   /**
    * A URL to the JSON Schema for this object.
@@ -2449,6 +2611,23 @@ export interface HostNet {
   unsupported: boolean;
 }
 
+export interface HostStats {
+  /** @format int64 */
+  changed: number;
+  /** @format int64 */
+  failed: number;
+  /** @format int64 */
+  ignored: number;
+  /** @format int64 */
+  ok: number;
+  /** @format int64 */
+  rescued: number;
+  /** @format int64 */
+  skipped: number;
+  /** @format int64 */
+  unreachable: number;
+}
+
 export interface IDsBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -2461,6 +2640,17 @@ export interface IDsBody {
    * @minItems 1
    */
   ids: string[];
+}
+
+export interface ItemResult {
+  /** The item (any JSON value) */
+  item: any;
+  msg?: string;
+  /** @format int64 */
+  rc?: number;
+  status: "ok" | "changed" | "failed" | "skipped";
+  stderr?: string;
+  stdout?: string;
 }
 
 export interface JailStatus {
@@ -2493,7 +2683,7 @@ export interface Job {
   finished_at?: string;
   /** @format uuid */
   id: string;
-  /** What it does: transfer, copy, move, storage-copy, storage-move, compress, extract, fetch, fail2ban-install or fail2ban-uninstall */
+  /** What it does: transfer, copy, move, storage-copy, storage-move, compress, extract, fetch, fail2ban-install, fail2ban-uninstall, ansible-run or schedule-sync */
   kind: string;
   /** What it printed (newest last); only on GET /jobs/{id} */
   log?: string;
@@ -2522,6 +2712,16 @@ export interface JobPlace {
   /** The server's or storage's name when the job started */
   name?: string;
   path: string;
+  /**
+   * The Ansible or cron job run it belongs to
+   * @format uuid
+   */
+  run_id?: string;
+  /**
+   * The cron job it is a run of
+   * @format uuid
+   */
+  schedule_id?: string;
   /** @format uuid */
   server_id?: string;
   /** @format uuid */
@@ -2554,6 +2754,15 @@ export interface ListJobsResponse {
    */
   $schema?: string;
   items: Job[];
+}
+
+export interface ListPlaybooksResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: Playbook[];
 }
 
 export interface ListStoragesResponse {
@@ -3010,6 +3219,100 @@ export interface PanelWorkspace {
   storage_count: number;
 }
 
+export interface Playbook {
+  /** @format date-time */
+  created_at: string;
+  description: string;
+  /** @format uuid */
+  id: string;
+  /** @format date-time */
+  last_run_at?: string;
+  /** @format uuid */
+  last_run_id?: string;
+  last_run_state?: string;
+  name: string;
+  /**
+   * Length of the YAML
+   * @format int32
+   */
+  size: number;
+  /**
+   * Send it back as revision when saving
+   * @format date-time
+   */
+  updated_at: string;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface PlaybookBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * The playbook (YAML). Saved even if it isn't valid yet; checked when it runs
+   * @maxLength 1048576
+   */
+  content: string;
+  /** @maxLength 2000 */
+  description?: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  /** @maxLength 262144 */
+  variables?: string;
+}
+
+export interface PlaybookDetail {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** The playbook (YAML) */
+  content: string;
+  /** @format date-time */
+  created_at: string;
+  description: string;
+  /** @format uuid */
+  id: string;
+  name: string;
+  /** @format date-time */
+  updated_at: string;
+  /** Extra variables offered when running it (YAML) */
+  variables: string;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface PlaybookUpdate {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 1048576 */
+  content: string;
+  /** @maxLength 2000 */
+  description?: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  /**
+   * Its updated_at when loaded; a different one answers 409
+   * @format date-time
+   */
+  revision?: string;
+  /** @maxLength 262144 */
+  variables?: string;
+}
+
 export interface PortContainer {
   compose_project?: string;
   compose_service?: string;
@@ -3141,6 +3444,70 @@ export interface PowerSchedule {
   at: string;
   /** What logged-in users were told */
   message?: string;
+}
+
+export interface PreviewAnsibleTargetsRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  selection: AnsibleSelection;
+}
+
+export interface PreviewAnsibleTargetsResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  hosts: PreviewHost[];
+}
+
+export interface PreviewHost {
+  /** The Ansible groups it's in: its tags and os_<id> */
+  groups: string[];
+  host: string;
+  /** What it's called in the playbook's output */
+  inventory_name: string;
+  name: string;
+  /** Why it can't be in the run */
+  problem: string;
+  /** @format uuid */
+  server_id: string;
+  /** Its status at the last check */
+  status: string;
+}
+
+export interface PreviewScheduleRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * @format int64
+   * @min 1
+   * @max 20
+   * @default 5
+   */
+  count?: number;
+  /**
+   * @minLength 1
+   * @maxLength 200
+   */
+  cron: string;
+  /** @maxLength 64 */
+  timezone?: string;
+}
+
+export interface PreviewScheduleResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  next: string[];
 }
 
 export interface PrincipalGroup {
@@ -3298,6 +3665,101 @@ export interface Rule {
   who: string[];
 }
 
+export interface RunEvent {
+  action?: string;
+  /** @format int64 */
+  attempt?: number;
+  data?: any;
+  diff?: any;
+  e: string;
+  handler?: boolean;
+  host?: string;
+  hosts?: string;
+  id?: string;
+  items?: ItemResult[];
+  msg?: string;
+  name?: string;
+  path?: string;
+  play?: string;
+  /** @format int64 */
+  rc?: number;
+  reason?: string;
+  /** @format int64 */
+  retries?: number;
+  stats?: Record<string, HostStats>;
+  status?: string;
+  stderr?: string;
+  stdout?: string;
+  /** @format double */
+  t: number;
+  task?: string;
+}
+
+export interface RunListBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: AnsibleRun[];
+  /** @format int64 */
+  total: number;
+}
+
+export interface RunListBody1 {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: ScheduleRun[];
+  /** @format int64 */
+  total: number;
+}
+
+export interface RunOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** The background job; null when the run was skipped */
+  job: Job;
+  run: ScheduleRun;
+}
+
+export interface RunPlay {
+  /** Its host pattern */
+  hosts: string;
+  id: string;
+  name: string;
+  no_hosts?: "matched" | "remaining";
+  tasks: RunTask[];
+}
+
+export interface RunScheduleRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Only count what would be copied and deleted */
+  dry_run?: boolean;
+}
+
+export interface RunTask {
+  action: string;
+  handler: boolean;
+  id: string;
+  name: string;
+  /** Where it's written (file:line) */
+  path?: string;
+  /** By inventory host name */
+  results: Record<string, TaskResult>;
+  /** @format date-time */
+  started_at: string;
+}
+
 export interface SaveCrontabRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -3313,6 +3775,309 @@ export interface SaveCrontabRequest {
    * @maxLength 300
    */
   table: string;
+}
+
+export interface Schedule {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  action: "sync";
+  /** @format date-time */
+  created_at: string;
+  cron: string;
+  description: string;
+  destinations: ScheduleEndView[];
+  enabled: boolean;
+  /** @format uuid */
+  id: string;
+  last_run: ScheduleRunBrief;
+  name: string;
+  /**
+   * null while paused
+   * @format date-time
+   */
+  next_run_at: string | null;
+  options: ScheduleOptions;
+  problem: string;
+  /**
+   * Runs use this person's access: whoever saved it last
+   * @format uuid
+   */
+  run_as_id: string | null;
+  run_as_name: string;
+  source: ScheduleEndView;
+  timezone: string;
+  /** @format date-time */
+  updated_at: string;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface ScheduleBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Five fields (minute hour day month weekday), or @hourly, @daily, @weekly, @monthly, @every 2h
+   * @minLength 1
+   * @maxLength 200
+   */
+  cron: string;
+  /** @maxLength 2000 */
+  description?: string;
+  /**
+   * @maxItems 20
+   * @minItems 1
+   */
+  destinations: ScheduleEnd[];
+  /** Default true */
+  enabled?: boolean;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  options: ScheduleOptions;
+  source: ScheduleEnd;
+  /**
+   * IANA zone the times are read in; default UTC
+   * @maxLength 64
+   */
+  timezone?: string;
+}
+
+export interface ScheduleEnd {
+  /**
+   * Absolute path. The source may be a file or a folder; a destination is a folder
+   * @minLength 1
+   * @maxLength 4096
+   */
+  path: string;
+  /**
+   * Exactly one of server_id and storage_id
+   * @format uuid
+   */
+  server_id?: string;
+  /** @format uuid */
+  storage_id?: string;
+}
+
+export interface ScheduleEndView {
+  /** The server or storage was deleted */
+  missing: boolean;
+  /** The server's or storage's name; empty when it was deleted */
+  name: string;
+  /**
+   * Absolute path. The source may be a file or a folder; a destination is a folder
+   * @minLength 1
+   * @maxLength 4096
+   */
+  path: string;
+  /**
+   * Exactly one of server_id and storage_id
+   * @format uuid
+   */
+  server_id?: string;
+  /** @format uuid */
+  storage_id?: string;
+}
+
+export interface ScheduleListBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: Schedule[];
+}
+
+export interface ScheduleOptions {
+  /**
+   * Glob patterns to leave out; without a slash they match a name at any depth
+   * @maxItems 100
+   */
+  excludes?: string[];
+  /**
+   * Snapshots to keep (snapshot mode), 0 = all
+   * @format int64
+   * @min 0
+   * @max 1000
+   */
+  keep?: number;
+  /**
+   * update: copy new and changed files. mirror: also delete what the source no longer has. snapshot: a full copy in a new dated folder each run
+   * @default "update"
+   */
+  mode: "update" | "mirror" | "snapshot";
+}
+
+export interface ScheduleRun {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format int64 */
+  bytes: number;
+  /** @format date-time */
+  created_at: string;
+  /** Who pressed Run now; empty for a run on time */
+  created_by_name: string;
+  /** A test run: counted, nothing changed */
+  dry_run: boolean;
+  error: string;
+  /**
+   * Files copied in all
+   * @format int64
+   */
+  files: number;
+  /** @format date-time */
+  finished_at: string | null;
+  /** @format uuid */
+  id: string;
+  /** @format uuid */
+  job_id: string | null;
+  options: ScheduleOptions;
+  /** While it runs */
+  progress: Progress;
+  results: ScheduleRunDest[];
+  /** @format uuid */
+  schedule_id: string;
+  source: ScheduleEndView;
+  /** @format date-time */
+  started_at: string | null;
+  state:
+    | "queued"
+    | "running"
+    | "succeeded"
+    | "partial"
+    | "failed"
+    | "canceled"
+    | "interrupted"
+    | "skipped";
+  trigger: "schedule" | "manual";
+}
+
+export interface ScheduleRunBrief {
+  /** @format date-time */
+  at: string;
+  error: string;
+  /** @format date-time */
+  finished_at: string | null;
+  /** @format uuid */
+  id: string;
+  state:
+    | "queued"
+    | "running"
+    | "succeeded"
+    | "partial"
+    | "failed"
+    | "canceled"
+    | "interrupted";
+}
+
+export interface ScheduleRunDest {
+  /**
+   * Bytes written
+   * @format int64
+   */
+  bytes: number;
+  /**
+   * Files written
+   * @format int64
+   */
+  copied: number;
+  /**
+   * Files and folders removed (mirror), or old snapshots
+   * @format int64
+   */
+  deleted: number;
+  error: string;
+  /**
+   * Files that couldn't be copied
+   * @format int64
+   */
+  failed: number;
+  /** @format date-time */
+  finished_at: string | null;
+  folder?: string;
+  /** The server or storage was deleted */
+  missing: boolean;
+  /** The server's or storage's name; empty when it was deleted */
+  name: string;
+  /**
+   * Absolute path. The source may be a file or a folder; a destination is a folder
+   * @minLength 1
+   * @maxLength 4096
+   */
+  path: string;
+  problems?: string[];
+  /**
+   * Exactly one of server_id and storage_id
+   * @format uuid
+   */
+  server_id?: string;
+  /**
+   * Files already up to date
+   * @format int64
+   */
+  skipped: number;
+  /** @format date-time */
+  started_at: string | null;
+  /** partial: some files couldn't be copied */
+  state:
+    | "pending"
+    | "running"
+    | "succeeded"
+    | "partial"
+    | "failed"
+    | "canceled";
+  /** @format uuid */
+  storage_id?: string;
+}
+
+export interface ScheduleUpdate {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Five fields (minute hour day month weekday), or @hourly, @daily, @weekly, @monthly, @every 2h
+   * @minLength 1
+   * @maxLength 200
+   */
+  cron: string;
+  /** @maxLength 2000 */
+  description?: string;
+  /**
+   * @maxItems 20
+   * @minItems 1
+   */
+  destinations: ScheduleEnd[];
+  /** Default true */
+  enabled?: boolean;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  options: ScheduleOptions;
+  /**
+   * updated_at when you loaded it; 409 when it changed since
+   * @format date-time
+   */
+  revision?: string;
+  source: ScheduleEnd;
+  /**
+   * IANA zone the times are read in; default UTC
+   * @maxLength 64
+   */
+  timezone?: string;
 }
 
 export interface SearchResult {
@@ -3828,6 +4593,15 @@ export interface SetDatabasePausedRequest {
   paused: boolean;
 }
 
+export interface SetScheduleEnabledRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  enabled: boolean;
+}
+
 export interface SetServerFavoriteRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -3873,6 +4647,41 @@ export interface ShareStorageFileResponse {
   /** @format date-time */
   expires_at: string;
   url: string;
+}
+
+export interface StartRunBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Run this text instead of the saved one, or without saving at all
+   * @maxLength 1048576
+   */
+  content?: string;
+  /**
+   * What to call it when it isn't saved
+   * @maxLength 100
+   */
+  name?: string;
+  options?: AnsibleOptions;
+  /**
+   * A saved playbook
+   * @format uuid
+   */
+  playbook_id?: string;
+  selection: AnsibleSelection;
+}
+
+export interface StartRunOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  job: Job;
+  run: AnsibleRun;
 }
 
 export interface Stats {
@@ -4362,6 +5171,34 @@ export interface SubnetMember {
   ip: string;
   /** @format uuid */
   server_id: string;
+}
+
+export interface TaskResult {
+  /** @format int64 */
+  attempts?: number;
+  /** The rest of the module's answer */
+  data?: any;
+  /** Ansible's diff (with --diff) */
+  diff?: any;
+  /** @format date-time */
+  ended_at?: string;
+  /** Per loop item */
+  items?: ItemResult[];
+  msg?: string;
+  /** @format int64 */
+  rc?: number;
+  /** @format date-time */
+  started_at: string;
+  status:
+    | "running"
+    | "ok"
+    | "changed"
+    | "failed"
+    | "ignored"
+    | "skipped"
+    | "unreachable";
+  stderr?: string;
+  stdout?: string;
 }
 
 export interface TerminalSession {
@@ -5612,6 +6449,298 @@ export class Api<
         ...params,
       }),
   };
+  ansible = {
+    /**
+     * @description A queued run is dropped; a running one stops soon. What it already did on the servers stays done.
+     *
+     * @tags Ansible
+     * @name CancelAnsibleRun
+     * @summary Stop a run
+     * @request POST:/ansible/runs/{id}/cancel
+     */
+    cancelAnsibleRun: (id: string, params: RequestParams = {}) =>
+      this.request<AnsibleRunDetail, ErrorModel>({
+        path: `/ansible/runs/${id}/cancel`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Ansible
+     * @name CreatePlaybook
+     * @summary Save a new playbook
+     * @request POST:/workspaces/{id}/ansible/playbooks
+     */
+    createPlaybook: (
+      id: string,
+      data: PlaybookBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<PlaybookDetail, ErrorModel>({
+        path: `/workspaces/${id}/ansible/playbooks`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Ansible
+     * @name DeleteAnsibleRun
+     * @summary Delete a finished run
+     * @request DELETE:/ansible/runs/{id}
+     */
+    deleteAnsibleRun: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/ansible/runs/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * @description Its past runs stay, with the text they ran.
+     *
+     * @tags Ansible
+     * @name DeletePlaybook
+     * @summary Delete a playbook
+     * @request DELETE:/ansible/playbooks/{id}
+     */
+    deletePlaybook: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/ansible/playbooks/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Ansible
+     * @name GetAnsibleRun
+     * @summary Get a run with its output and results
+     * @request GET:/ansible/runs/{id}
+     */
+    getAnsibleRun: (id: string, params: RequestParams = {}) =>
+      this.request<AnsibleRunDetail, ErrorModel>({
+        path: `/ansible/runs/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Ansible
+     * @name GetAnsibleStatus
+     * @summary Can playbooks run on this Morcheh?
+     * @request GET:/ansible/status
+     */
+    getAnsibleStatus: (params: RequestParams = {}) =>
+      this.request<AnsibleStatus, ErrorModel>({
+        path: `/ansible/status`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Ansible
+     * @name GetPlaybook
+     * @summary Get a playbook
+     * @request GET:/ansible/playbooks/{id}
+     */
+    getPlaybook: (id: string, params: RequestParams = {}) =>
+      this.request<PlaybookDetail, ErrorModel>({
+        path: `/ansible/playbooks/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Ansible
+     * @name ListAnsibleRuns
+     * @summary List runs, newest first
+     * @request GET:/workspaces/{id}/ansible/runs
+     */
+    listAnsibleRuns: (
+      id: string,
+      query?: {
+        /**
+         * @format int32
+         * @min 1
+         * @max 200
+         * @default 50
+         */
+        limit?: number;
+        /**
+         * @format int32
+         * @min 0
+         */
+        offset?: number;
+        /** @format uuid */
+        playbook_id?: string;
+        /** In the playbook's name or who ran it */
+        q?: string;
+        /** @format uuid */
+        server_id?: string;
+        state?:
+          | "queued"
+          | "running"
+          | "succeeded"
+          | "failed"
+          | "canceled"
+          | "interrupted";
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<RunListBody, ErrorModel>({
+        path: `/workspaces/${id}/ansible/runs`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Ansible
+     * @name ListPlaybooks
+     * @summary List a workspace's playbooks
+     * @request GET:/workspaces/{id}/ansible/playbooks
+     */
+    listPlaybooks: (id: string, params: RequestParams = {}) =>
+      this.request<ListPlaybooksResponse, ErrorModel>({
+        path: `/workspaces/${id}/ansible/playbooks`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Ansible
+     * @name PreviewAnsibleTargets
+     * @summary See which servers a selection means
+     * @request POST:/workspaces/{id}/ansible/preview
+     */
+    previewAnsibleTargets: (
+      id: string,
+      data: PreviewAnsibleTargetsRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<PreviewAnsibleTargetsResponse, ErrorModel>({
+        path: `/workspaces/${id}/ansible/preview`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Queues a background job. You need Owner on every chosen server: a playbook can do anything there, including reading its login.
+     *
+     * @tags Ansible
+     * @name StartAnsibleRun
+     * @summary Run a playbook
+     * @request POST:/workspaces/{id}/ansible/runs
+     */
+    startAnsibleRun: (
+      id: string,
+      data: StartRunBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<StartRunOutputBody, ErrorModel>({
+        path: `/workspaces/${id}/ansible/runs`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Server-sent events. `snapshot` is the whole run: on connecting, and last when it ends (state is then final, and the stream closes). In between `output` carries new text and `event` what the callback reported: apply it to plays and recap as GET returns them.
+     *
+     * @tags Ansible
+     * @name StreamAnsibleRun
+     * @summary Follow a run
+     * @request GET:/ansible/runs/{id}/stream
+     */
+    streamAnsibleRun: (id: string, params: RequestParams = {}) =>
+      this.request<
+        (
+          | {
+              data: RunEvent;
+              /** The event name. */
+              event: "event";
+              /** The event ID. */
+              id?: number | string;
+              /** The retry time in milliseconds. */
+              retry?: number;
+            }
+          | {
+              data: AnsibleOutputChunk;
+              /** The event name. */
+              event: "output";
+              /** The event ID. */
+              id?: number | string;
+              /** The retry time in milliseconds. */
+              retry?: number;
+            }
+          | {
+              data: AnsibleRunDetail;
+              /** The event name. */
+              event: "snapshot";
+              /** The event ID. */
+              id?: number | string;
+              /** The retry time in milliseconds. */
+              retry?: number;
+            }
+        )[],
+        ErrorModel
+      >({
+        path: `/ansible/runs/${id}/stream`,
+        method: "GET",
+        ...params,
+      }),
+
+    /**
+     * @description With revision (its updated_at when you loaded it), answers 409 when someone else saved in between.
+     *
+     * @tags Ansible
+     * @name UpdatePlaybook
+     * @summary Save changes to a playbook
+     * @request PATCH:/ansible/playbooks/{id}
+     */
+    updatePlaybook: (
+      id: string,
+      data: PlaybookUpdate,
+      params: RequestParams = {},
+    ) =>
+      this.request<PlaybookDetail, ErrorModel>({
+        path: `/ansible/playbooks/${id}`,
+        method: "PATCH",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
   apps = {
     /**
      * @description Goes in the open workspace, at the end of its category.
@@ -6694,6 +7823,269 @@ export class Api<
       this.request<PortsReport, ErrorModel>({
         path: `/servers/${id}/ports`,
         method: "GET",
+        format: "json",
+        ...params,
+      }),
+  };
+  cronJobs = {
+    /**
+     * @description Files already copied stay. 409 when it has finished.
+     *
+     * @tags Cron jobs
+     * @name CancelScheduleRun
+     * @summary Stop a run
+     * @request POST:/schedule-runs/{id}/cancel
+     */
+    cancelScheduleRun: (id: string, params: RequestParams = {}) =>
+      this.request<ScheduleRun, ErrorModel>({
+        path: `/schedule-runs/${id}/cancel`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description You need Engineer on the workspace, Operator on the source and Engineer on every destination. Runs act with your access, checked each time.
+     *
+     * @tags Cron jobs
+     * @name CreateSchedule
+     * @summary Create a cron job
+     * @request POST:/workspaces/{id}/schedules
+     */
+    createSchedule: (
+      id: string,
+      data: ScheduleBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Schedule, ErrorModel>({
+        path: `/workspaces/${id}/schedules`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description A run going now is stopped. Files it already copied stay.
+     *
+     * @tags Cron jobs
+     * @name DeleteSchedule
+     * @summary Delete a cron job and its runs
+     * @request DELETE:/schedules/{id}
+     */
+    deleteSchedule: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/schedules/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Cron jobs
+     * @name DeleteScheduleRun
+     * @summary Delete a finished run's record
+     * @request DELETE:/schedule-runs/{id}
+     */
+    deleteScheduleRun: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/schedule-runs/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Cron jobs
+     * @name GetSchedule
+     * @summary Get a cron job
+     * @request GET:/schedules/{id}
+     */
+    getSchedule: (id: string, params: RequestParams = {}) =>
+      this.request<Schedule, ErrorModel>({
+        path: `/schedules/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Cron jobs
+     * @name GetScheduleRun
+     * @summary Get a run, with each destination's result
+     * @request GET:/schedule-runs/{id}
+     */
+    getScheduleRun: (id: string, params: RequestParams = {}) =>
+      this.request<ScheduleRun, ErrorModel>({
+        path: `/schedule-runs/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Cron jobs
+     * @name ListScheduleRuns
+     * @summary List a cron job's runs, newest first
+     * @request GET:/schedules/{id}/runs
+     */
+    listScheduleRuns: (
+      id: string,
+      query?: {
+        /**
+         * @format int32
+         * @min 1
+         * @max 200
+         * @default 50
+         */
+        limit?: number;
+        /**
+         * @format int32
+         * @min 0
+         */
+        offset?: number;
+        state?:
+          | "queued"
+          | "running"
+          | "succeeded"
+          | "partial"
+          | "failed"
+          | "canceled"
+          | "interrupted"
+          | "skipped";
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<RunListBody1, ErrorModel>({
+        path: `/schedules/${id}/runs`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Cron jobs
+     * @name ListSchedules
+     * @summary List a workspace's cron jobs
+     * @request GET:/workspaces/{id}/schedules
+     */
+    listSchedules: (
+      id: string,
+      query?: {
+        /**
+         * Only those using this server
+         * @format uuid
+         */
+        server_id?: string;
+        /**
+         * Only those using this storage
+         * @format uuid
+         */
+        storage_id?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ScheduleListBody, ErrorModel>({
+        path: `/workspaces/${id}/schedules`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Cron jobs
+     * @name PreviewSchedule
+     * @summary Check a cron expression and see when it would run
+     * @request POST:/schedules/preview
+     */
+    previewSchedule: (
+      data: PreviewScheduleRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<PreviewScheduleResponse, ErrorModel>({
+        path: `/schedules/preview`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Queues a background job, with the access of the person who saved the job. dry_run counts what would change and changes nothing. 409 while a run is going.
+     *
+     * @tags Cron jobs
+     * @name RunSchedule
+     * @summary Run a cron job now
+     * @request POST:/schedules/{id}/run
+     */
+    runSchedule: (
+      id: string,
+      data: RunScheduleRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<RunOutputBody, ErrorModel>({
+        path: `/schedules/${id}/run`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description A run already going isn't stopped. Resuming doesn't make up for runs missed while paused.
+     *
+     * @tags Cron jobs
+     * @name SetScheduleEnabled
+     * @summary Pause or resume a cron job
+     * @request POST:/schedules/{id}/enabled
+     */
+    setScheduleEnabled: (
+      id: string,
+      data: SetScheduleEnabledRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<Schedule, ErrorModel>({
+        path: `/schedules/${id}/enabled`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The whole job is sent. From now on it runs with your access. With revision, answers 409 when someone else saved in between.
+     *
+     * @tags Cron jobs
+     * @name UpdateSchedule
+     * @summary Save changes to a cron job
+     * @request PATCH:/schedules/{id}
+     */
+    updateSchedule: (
+      id: string,
+      data: ScheduleUpdate,
+      params: RequestParams = {},
+    ) =>
+      this.request<Schedule, ErrorModel>({
+        path: `/schedules/${id}`,
+        method: "PATCH",
+        body: data,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),

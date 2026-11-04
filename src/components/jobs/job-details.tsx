@@ -11,8 +11,10 @@ import type { Job } from "@/lib/services"
 import { isActive, useJobLog } from "./api"
 import { useJobActions } from "./jobs-provider"
 import {
+  canRetry,
   JobBar,
   placeHref,
+  placeLabel,
   progressText,
   resultText,
   StateText,
@@ -140,7 +142,7 @@ function Actions({ job, close }: { job: Job; close: (open: boolean) => void }) {
           className="max-md:h-11"
           onClick={() => afterClose(close, () => router.push(href))}
         >
-          <FolderOpen /> Open folder
+          <FolderOpen /> {placeLabel(job)}
         </Button>
       )}
       {active ? (
@@ -154,7 +156,7 @@ function Actions({ job, close }: { job: Job; close: (open: boolean) => void }) {
           {canceling ? "Canceling…" : "Cancel task"}
         </Button>
       ) : (
-        job.state !== "succeeded" && (
+        canRetry(job) && (
           <Button
             className="max-md:h-11"
             onClick={() => {

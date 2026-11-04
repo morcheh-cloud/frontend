@@ -27,7 +27,7 @@ import {
   useJobList,
 } from "./api"
 import { JobDetails } from "./job-details"
-import { doneTitle, placeHref, resultText } from "./meta"
+import { doneTitle, placeHref, placeLabel, resultText } from "./meta"
 
 type JobActions = {
   // Follow a job this tab just started: toast now and when it ends.
@@ -157,7 +157,7 @@ function announce(
       description: resultText(job) || undefined,
       action:
         href && !here
-          ? { label: "Open folder", onClick: () => go.open(href) }
+          ? { label: placeLabel(job), onClick: () => go.open(href) }
           : undefined,
     })
   } else if (job.state === "canceled") {

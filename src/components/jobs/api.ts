@@ -93,6 +93,14 @@ export function dropJob(qc: QueryClient, id: string) {
 // What a finished job may have changed. Open files in an editor aren't
 // included: reloading one would replace what's being typed.
 export function refreshAfterJob(qc: QueryClient, job: Job) {
+  if (job.kind === "ansible-run") {
+    qc.invalidateQueries({ queryKey: ["ansible"] })
+    return
+  }
+  // A cron job's sync also wrote into its destinations' folders (below).
+  if (job.kind === "schedule-sync") {
+    qc.invalidateQueries({ queryKey: ["cronjobs"] })
+  }
   for (const ref of job.refs) {
     if (job.kind.startsWith("fail2ban-")) {
       qc.invalidateQueries({ queryKey: ["fail2ban", ref] })

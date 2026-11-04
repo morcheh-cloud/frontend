@@ -1,6 +1,8 @@
 import type { GuideSection } from "../components/prose"
 import { access } from "./access"
+import { ansible } from "./ansible"
 import { cron } from "./cron"
+import { cronjobs } from "./cronjobs"
 import { databases } from "./databases"
 import { fail2ban } from "./fail2ban"
 import { files } from "./files"
@@ -33,6 +35,8 @@ export const content: Record<string, GuideSection[]> = {
   power,
   databases,
   "service-launcher": serviceLauncher,
+  ansible,
+  cronjobs,
   storage,
   tasks,
   access,

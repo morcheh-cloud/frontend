@@ -13,6 +13,8 @@ import { useSettingsItem } from "./app-sidebar"
 import {
   accountItem,
   alertsItem,
+  ansibleItem,
+  cronjobsItem,
   databasesItem,
   helpItem,
   homeItem,
@@ -37,6 +39,8 @@ const moreItems = [
   networkMapItem,
   databasesItem,
   storageItem,
+  ansibleItem,
+  cronjobsItem,
   monitoringItem,
   keysItem,
 ]

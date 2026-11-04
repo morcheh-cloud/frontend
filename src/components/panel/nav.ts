@@ -2,6 +2,7 @@ import {
   Activity,
   Bell,
   Boxes,
+  CalendarClock,
   CircleHelp,
   CircleUser,
   Database,
@@ -13,6 +14,7 @@ import {
   Server,
   Settings,
   Waypoints,
+  Workflow,
 } from "lucide-react"
 
 export type NavLink = { href: string; label: string }
@@ -51,6 +53,16 @@ export const servicesItem: NavItem = {
   href: "/services",
   label: "Services",
   icon: Boxes,
+}
+export const ansibleItem: NavItem = {
+  href: "/ansible",
+  label: "Ansible",
+  icon: Workflow,
+}
+export const cronjobsItem: NavItem = {
+  href: "/cronjobs",
+  label: "Cron jobs",
+  icon: CalendarClock,
 }
 export const monitoringItem: NavItem = {
   href: "/monitoring",
@@ -113,6 +125,8 @@ export const navGroups: NavGroup[] = [
       databasesItem,
       storageItem,
       servicesItem,
+      ansibleItem,
+      cronjobsItem,
       keysItem,
     ],
   },

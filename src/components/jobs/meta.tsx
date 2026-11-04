@@ -1,5 +1,6 @@
 import {
   ArrowLeftRight,
+  CalendarClock,
   Copy,
   Download,
   FileArchive,
@@ -7,6 +8,7 @@ import {
   ListChecks,
   type LucideIcon,
   PackageOpen,
+  Play,
   ShieldBan,
 } from "lucide-react"
 
@@ -27,6 +29,8 @@ const icons: Record<string, LucideIcon> = {
   compress: FileArchive,
   extract: PackageOpen,
   fetch: Download,
+  "ansible-run": Play,
+  "schedule-sync": CalendarClock,
 }
 
 export function JobIcon({
@@ -129,14 +133,33 @@ export function tookText(job: Job) {
   return `${Math.floor(m / 60)}h ${m % 60}m`
 }
 
-// The file manager at the folder a job works in.
+// Where a job's work can be seen: the file manager at its folder, or the
+// Ansible or cron job run it belongs to.
 export function placeHref(job: Job) {
   const t = job.target
+  if (t?.schedule_id) {
+    return `/cronjobs/${t.schedule_id}${t.run_id ? `?run=${t.run_id}` : ""}`
+  }
+  if (t?.run_id) return `/ansible/runs/${t.run_id}`
   if (!t?.path) return null
   const query = filesHref({ path: t.path })
   if (t.server_id) return `/servers/${t.server_id}/files${query}`
   if (t.storage_id) return `/storage/${t.storage_id}${query}`
   return null
+}
+
+export function placeLabel(job: Job) {
+  return job.target?.run_id ? "Open run" : "Open folder"
+}
+
+// A run is started again from its page, through its checks (Owner on every
+// server; a cron job's access), not by replaying the job.
+export function canRetry(job: Job) {
+  return (
+    job.state !== "succeeded" &&
+    job.kind !== "ansible-run" &&
+    job.kind !== "schedule-sync"
+  )
 }
 
 export function JobBar({ job, className }: { job: Job; className?: string }) {

@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 import { isActive } from "./api"
 import { useJobActions } from "./jobs-provider"
 import {
+  canRetry,
   JobBar,
   JobIcon,
   progressText,
@@ -92,7 +93,7 @@ export function JobRow({
           {canceling ? <Loader2 className="animate-spin" /> : <Ban />}
         </Button>
       ) : (
-        job.state !== "succeeded" && (
+        canRetry(job) && (
           <Button
             variant="ghost"
             size="icon-sm"

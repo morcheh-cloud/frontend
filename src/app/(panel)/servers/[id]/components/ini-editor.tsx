@@ -20,7 +20,7 @@ import { useServerPage } from "./server-page"
 const MONO =
   "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace"
 
-const theme = EditorView.theme({
+export const editorTheme = EditorView.theme({
   "&": { height: "100%", fontSize: "13px" },
   "&.cm-focused": { outline: "none" },
   ".cm-scroller": { fontFamily: MONO, lineHeight: "1.6" },
@@ -46,7 +46,7 @@ const theme = EditorView.theme({
 // INI-like files: [section], key = value, # comments (fail2ban's
 // configs, systemd units).
 const extensions = [
-  theme,
+  editorTheme,
   EditorView.lineWrapping,
   StreamLanguage.define(properties),
 ]

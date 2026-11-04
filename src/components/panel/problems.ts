@@ -3,8 +3,9 @@
 import { queryOptions, useQuery } from "@tanstack/react-query"
 
 import { api } from "@/lib/api"
-import type { Database, Server, Storage } from "@/lib/services"
-import { databasesItem, serversItem, storageItem } from "./nav"
+import type { Database, Schedule, Server, Storage } from "@/lib/services"
+import { cronjobsItem, databasesItem, serversItem, storageItem } from "./nav"
+import { useWorkspace } from "./workspace"
 
 // What the menu shows in red next to a section: how many of its things are
 // broken. Servers, storages and databases are re-checked by the backend on
@@ -54,6 +55,16 @@ export const databaseBroken = (
   ((d.status !== "online" && d.status !== "unknown") ||
     (d.status === "online" && d.health === "critical"))
 
+// A cron job needs a look when it can't run or its last run didn't fully
+// work. Paused ones don't count.
+export const cronjobBroken = (
+  s: Pick<Schedule, "enabled" | "problem" | "last_run">,
+) =>
+  s.enabled &&
+  (!!s.problem ||
+    (!!s.last_run &&
+      ["failed", "partial", "interrupted"].includes(s.last_run.state)))
+
 export type NavAlert = { count: number; label: string }
 
 const plural = (n: number, one: string, many: string) =>
@@ -88,11 +99,26 @@ export function useDatabaseProblems() {
   return data ?? 0
 }
 
+// Same query (and cache) as /cronjobs.
+export function useCronjobProblems() {
+  const { workspace } = useWorkspace()
+  const ws = workspace?.id ?? ""
+  const { data } = useQuery({
+    queryKey: ["cronjobs", "list", ws],
+    queryFn: () => api.cronJobs.listSchedules(ws),
+    enabled: !!ws,
+    refetchInterval: STATUS_POLL,
+    select: (list) => list.items.filter(cronjobBroken).length,
+  })
+  return data ?? 0
+}
+
 // The red counts for the menu, by section href.
 export function useNavAlerts() {
   const servers = useServerProblems()
   const storages = useStorageProblems()
   const databases = useDatabaseProblems()
+  const cronjobs = useCronjobProblems()
   const alerts = new Map<string, NavAlert>()
   if (servers > 0) {
     alerts.set(serversItem.href, {
@@ -110,6 +136,12 @@ export function useNavAlerts() {
     alerts.set(databasesItem.href, {
       count: databases,
       label: `${plural(databases, "database", "databases")} down or critical`,
+    })
+  }
+  if (cronjobs > 0) {
+    alerts.set(cronjobsItem.href, {
+      count: cronjobs,
+      label: `${plural(cronjobs, "cron job", "cron jobs")} failing`,
     })
   }
   return alerts
