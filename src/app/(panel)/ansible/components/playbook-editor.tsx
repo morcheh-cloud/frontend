@@ -37,7 +37,14 @@ import {
   useUpdatePlaybook,
 } from "../api"
 import { useAnsibleActions } from "./ansible-actions"
-import { RecapText, RunStateBadge, templates } from "./meta"
+import { PlaybookBuilder } from "./builder/builder"
+import { newPlay, newStep, printPlaybook } from "./builder/model"
+import {
+  RecapText,
+  RunStateBadge,
+  templates,
+  useNewPlaybookParams,
+} from "./meta"
 import { useAnsibleCan } from "./permissions"
 import { YamlEditor, yamlProblems } from "./yaml-editor"
 
@@ -107,6 +114,13 @@ export function PlaybookPage({ id }: { id?: string }) {
 }
 
 type Pane = "playbook" | "variables" | "details" | "runs"
+type Mode = "visual" | "yaml"
+
+const modeKey = "morcheh.ansible.editor-mode"
+const modes = [
+  { value: "visual", label: "Visual" },
+  { value: "yaml", label: "YAML" },
+] as const
 
 function Editor({
   saved,
@@ -123,13 +137,17 @@ function Editor({
   const qc = useQueryClient()
   const back = useBack("/ansible")
   const readOnly = !can.edit
+  const [{ module }] = useNewPlaybookParams()
 
   const base: Draft = saved
     ? fromSaved(saved)
     : {
         name: "",
         description: "",
-        content: templates[0].content,
+        // From the module list: start with that module as the first task.
+        content: module
+          ? printPlaybook([{ ...newPlay(), tasks: [newStep(module)] }])
+          : templates[0].content,
         variables: "",
       }
   const [draft, setDraft] = useState<Draft>(base)
@@ -139,6 +157,14 @@ function Editor({
   const [conflict, setConflict] = useOpen("ansible-playbook-conflict")
   const [pane, setPane] = useState<Pane>("playbook")
   const [touched, setTouched] = useState(false)
+  // This page only renders in the browser (see PlaybookPage).
+  const [mode, setModeState] = useState<Mode>(() =>
+    readOnly || localStorage.getItem(modeKey) === "yaml" ? "yaml" : "visual",
+  )
+  const setMode = (next: Mode) => {
+    setModeState(next)
+    localStorage.setItem(modeKey, next)
+  }
 
   const create = useCreatePlaybook(ws)
   const update = useUpdatePlaybook(saved?.id ?? "")
@@ -269,6 +295,16 @@ function Editor({
 
   const editor = (kind: "playbook" | "variables") => (
     <div className="flex min-h-0 flex-1 flex-col">
+      {kind === "playbook" && phone && (
+        <div className="shrink-0 px-4 pb-3">
+          <Segmented
+            label="Edit as"
+            items={modes}
+            value={mode}
+            onChange={setMode}
+          />
+        </div>
+      )}
       {kind === "playbook" && !saved && !touched && (
         <TemplatePicker
           onPick={(content) => setDraft((d) => ({ ...d, content }))}
@@ -278,16 +314,30 @@ function Editor({
       <div
         className={cn(
           "min-h-0 flex-1 overflow-hidden",
-          !phone && "rounded-2xl border border-border",
+          !phone &&
+            !(kind === "playbook" && mode === "visual") &&
+            "rounded-2xl border border-border",
         )}
       >
         {kind === "playbook" ? (
-          <YamlEditor
-            kind="playbook"
-            value={draft.content}
-            onChange={(content) => set({ content })}
-            readOnly={readOnly}
-          />
+          mode === "visual" ? (
+            <div className="h-full overflow-y-auto pb-4">
+              <PlaybookBuilder
+                value={draft.content}
+                onChange={(content) => set({ content })}
+                readOnly={readOnly}
+                phone={phone}
+                onYaml={() => setMode("yaml")}
+              />
+            </div>
+          ) : (
+            <YamlEditor
+              kind="playbook"
+              value={draft.content}
+              onChange={(content) => set({ content })}
+              readOnly={readOnly}
+            />
+          )
         ) : (
           <YamlEditor
             kind="vars"
@@ -470,15 +520,25 @@ function Editor({
       </div>
       <div className="flex min-h-0 flex-1 gap-6">
         <div className="flex min-w-0 flex-1 flex-col gap-3">
-          <Segmented
-            label="Edit"
-            items={[
-              { value: "playbook", label: "Playbook" },
-              { value: "variables", label: "Variables" },
-            ]}
-            value={pane === "variables" ? "variables" : "playbook"}
-            onChange={setPane}
-          />
+          <div className="flex items-center justify-between gap-3">
+            <Segmented
+              label="Edit"
+              items={[
+                { value: "playbook", label: "Playbook" },
+                { value: "variables", label: "Variables" },
+              ]}
+              value={pane === "variables" ? "variables" : "playbook"}
+              onChange={setPane}
+            />
+            {pane !== "variables" && (
+              <Segmented
+                label="Edit as"
+                items={modes}
+                value={mode}
+                onChange={setMode}
+              />
+            )}
+          </div>
           {editor(pane === "variables" ? "variables" : "playbook")}
         </div>
         <aside className="flex w-80 shrink-0 flex-col gap-6 overflow-y-auto">

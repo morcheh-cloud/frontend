@@ -3,6 +3,7 @@
 import {
   Activity,
   CopyPlus,
+  ExternalLink,
   FolderInput,
   KeyRound,
   KeySquare,
@@ -16,6 +17,11 @@ import {
 import type { ReactNode } from "react"
 
 import { BottomSheet, SheetAction } from "@/components/bottom-sheet"
+import {
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu"
 import {
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -147,17 +153,21 @@ export function ServerMenuItems({
   server,
   checking,
   onDeleted,
+  Item = DropdownMenuItem,
+  Separator = DropdownMenuSeparator,
 }: {
   server: Server
   checking: boolean
   onDeleted?: () => void
+  Item?: typeof DropdownMenuItem | typeof ContextMenuItem
+  Separator?: typeof DropdownMenuSeparator | typeof ContextMenuSeparator
 }) {
   const groups = useItems(server, checking, onDeleted)
   return groups.map((group, i) => (
     <div key={group[0].key}>
-      {i > 0 && <DropdownMenuSeparator />}
+      {i > 0 && <Separator />}
       {group.map((item) => (
-        <DropdownMenuItem
+        <Item
           key={item.key}
           variant={item.destructive ? "destructive" : "default"}
           disabled={item.key === "check" && checking}
@@ -165,10 +175,40 @@ export function ServerMenuItems({
         >
           {item.icon}
           {item.label}
-        </DropdownMenuItem>
+        </Item>
       ))}
     </div>
   ))
+}
+
+// The same actions on a right-click. It replaces the browser's own menu over
+// the server's link, so the one thing that menu was for comes along.
+export function ServerContextContent({
+  server,
+  checking,
+}: {
+  server: Server
+  checking: boolean
+}) {
+  return (
+    <ContextMenuContent className="w-56">
+      <ContextMenuItem
+        onClick={() =>
+          window.open(`/servers/${server.id}`, "_blank", "noopener")
+        }
+      >
+        <ExternalLink />
+        Open in new tab
+      </ContextMenuItem>
+      <ContextMenuSeparator />
+      <ServerMenuItems
+        server={server}
+        checking={checking}
+        Item={ContextMenuItem}
+        Separator={ContextMenuSeparator}
+      />
+    </ContextMenuContent>
+  )
 }
 
 // Phone: tapping a server opens this sheet, its details on top.

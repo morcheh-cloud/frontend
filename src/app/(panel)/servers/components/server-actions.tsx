@@ -39,7 +39,7 @@ import {
 } from "../api"
 import { ServerCredentialsLayer } from "./credentials"
 import { Field, FolderSelect, TagInput } from "./fields"
-import { buildTree, flatten, subtreeIds } from "./folder-tree"
+import { buildTree, flatten, ROOT_LABEL, subtreeIds } from "./folder-tree"
 import { osLabel, sshCommand, statusMeta } from "./meta"
 import {
   connectionChanged,
@@ -669,7 +669,7 @@ function FolderForm({
               setErrors({})
             }}
             skip={skip}
-            rootLabel="Top level"
+            rootLabel={ROOT_LABEL}
           />
         )}
       </Field>
@@ -716,7 +716,7 @@ function MoveLayer({
         <div className="divide-y divide-border">
           <SheetAction
             icon={<FolderMinus />}
-            label="No folder"
+            label={ROOT_LABEL}
             disabled={move.isPending}
             onClick={() => moveTo(null)}
           />

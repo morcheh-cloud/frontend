@@ -6,7 +6,7 @@ import {
   ChevronDown,
   X,
 } from "lucide-react"
-import { useState } from "react"
+import { type ReactNode, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -79,7 +79,7 @@ export function useFilterOptions() {
   }
 }
 
-export function Toolbar() {
+export function Toolbar({ children }: { children?: ReactNode }) {
   const { filters, setFilters } = useFilters()
   const options = useFilterOptions()
 
@@ -116,6 +116,7 @@ export function Toolbar() {
         onChange={(auth) => setFilters({ auth: auth as typeof filters.auth })}
       />
       <SortMenu />
+      {children}
     </div>
   )
 }

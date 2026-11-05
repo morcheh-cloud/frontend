@@ -9,6 +9,7 @@ import {
   type LucideIcon,
   PackageOpen,
   Play,
+  Shield,
   ShieldBan,
 } from "lucide-react"
 
@@ -26,6 +27,8 @@ const icons: Record<string, LucideIcon> = {
   "storage-move": FolderInput,
   "fail2ban-install": ShieldBan,
   "fail2ban-uninstall": ShieldBan,
+  "firewall-install": Shield,
+  "firewall-apply": Shield,
   compress: FileArchive,
   extract: PackageOpen,
   fetch: Download,

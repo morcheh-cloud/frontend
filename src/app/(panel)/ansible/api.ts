@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-query"
 import { useEffect, useState } from "react"
 
+import usePersistedQuery from "@/hooks/usePersistedQuery"
 import { ApiError, api } from "@/lib/api"
 import type {
   AnsibleOutputChunk,
@@ -36,6 +37,9 @@ export const ansibleKeys = {
   run: (id: string) => ["ansible", "run", id] as const,
   preview: (ws: string, selection: AnsibleSelection) =>
     ["ansible", "preview", ws, selection] as const,
+  modules: (version: string) => ["ansible", "modules", version] as const,
+  module: (version: string, name: string) =>
+    ["ansible", "module", version, name] as const,
 }
 
 const notFound = (count: number, error: Error) =>
@@ -46,6 +50,33 @@ export function useAnsibleStatus() {
     queryKey: ansibleKeys.status,
     queryFn: () => api.ansible.getAnsibleStatus(),
     staleTime: 60_000,
+  })
+}
+
+// Modules only change when Ansible is upgraded: kept in IndexedDB under the
+// version, so the catalog and the builder open at once.
+export function useModules() {
+  const status = useAnsibleStatus()
+  const version = status.data?.installed ? status.data.version : ""
+  return usePersistedQuery({
+    queryKey: ansibleKeys.modules(version),
+    queryFn: () => api.ansible.listAnsibleModules(),
+    enabled: !!version,
+    staleTime: Number.POSITIVE_INFINITY,
+    ttl: 1000 * 60 * 60 * 24 * 7,
+  })
+}
+
+export function useModuleDoc(name: string | undefined) {
+  const status = useAnsibleStatus()
+  const version = status.data?.installed ? status.data.version : ""
+  return usePersistedQuery({
+    queryKey: ansibleKeys.module(version, name ?? ""),
+    queryFn: () => api.ansible.getAnsibleModule(name ?? ""),
+    enabled: !!version && !!name,
+    staleTime: Number.POSITIVE_INFINITY,
+    retry: notFound,
+    ttl: 1000 * 60 * 60 * 24 * 7,
   })
 }
 

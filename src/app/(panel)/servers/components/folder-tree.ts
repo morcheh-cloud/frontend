@@ -1,5 +1,8 @@
 import type { Folder } from "@/lib/services"
 
+// The top level, as Drive's "My Drive": what isn't inside any folder.
+export const ROOT_LABEL = "My servers"
+
 export type FolderNode = Folder & {
   children: FolderNode[]
   /** Servers in this folder and every folder under it. */

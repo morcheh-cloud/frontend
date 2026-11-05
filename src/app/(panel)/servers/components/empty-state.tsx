@@ -7,12 +7,12 @@ import { Button } from "@/components/ui/button"
 import { useFacets } from "../api"
 import { useWorkspaceCan } from "./permissions"
 import { useServerActions } from "./server-actions"
-import { useFilters } from "./use-filters"
+import { folderIdOf, placeOf, useFilters } from "./use-filters"
 
 // What an empty list says depends on why it's empty: no servers at all, a
 // search or filter that matches nothing, or an empty folder/favorites view.
 export function EmptyState() {
-  const { filters, narrowed, clearFilters, setFilters } = useFilters()
+  const { filters, narrowed, clearFilters, open } = useFilters()
   const facets = useFacets()
   const actions = useServerActions()
   const { addServer } = useWorkspaceCan()
@@ -61,22 +61,19 @@ export function EmptyState() {
         title="No favorites yet"
         text="Star the servers you open most to keep them one tap away."
         action={
-          <Button
-            variant="outline"
-            onClick={() => setFilters({ favorites: null })}
-          >
+          <Button variant="outline" onClick={() => open({ folder: "all" })}>
             Show all servers
           </Button>
         }
       />
     )
   }
-  if (!filters.folder) {
+  if (placeOf(filters) !== "folder") {
     return (
       <Empty
         icon={<Server />}
         title="No servers here"
-        text="Servers you add show up in this list."
+        text="Servers outside every folder show up here."
         action={
           addServer && (
             <Button onClick={() => actions.addServer()}>Add server</Button>
@@ -85,21 +82,15 @@ export function EmptyState() {
       />
     )
   }
-  const folderId = filters.folder !== "none" ? filters.folder : null
+  const folderId = folderIdOf(filters)
   return (
     <Empty
       icon={<FolderOpen />}
-      title={
-        filters.folder === "none"
-          ? "Every server is in a folder"
-          : "This folder is empty"
-      }
+      title="This folder is empty"
       text={
-        filters.folder === "none"
-          ? "Servers outside every folder show up here."
-          : addServer
-            ? "Add a server here, or move existing ones in from the list."
-            : "Servers moved into this folder show up here."
+        addServer
+          ? "Add a server here, or move existing ones in from another list."
+          : "Servers moved into this folder show up here."
       }
       action={
         addServer &&

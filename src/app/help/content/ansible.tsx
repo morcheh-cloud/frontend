@@ -92,16 +92,146 @@ export const ansible: GuideSection[] = [
         enabled: true`}</Code>
         </Example>
         <Tip>
-          Write <C>hosts: all</C>: the servers you pick when you run{" "}
+          Plays use <C>hosts: all</C>: the servers you pick when you run{" "}
           <em>are</em> the inventory, so <C>all</C> means "the servers in this
-          run". Use a group name only to narrow a play to some of them (see{" "}
-          <A href="#groups">Groups</A>).
+          run". To narrow one play to some of them, write a group in{" "}
+          <UI>YAML</UI> (see <A href="#groups">Groups</A>).
         </Tip>
         <P>
           If two people edit the same playbook, the second save is refused with{" "}
           <UI>Someone else saved this playbook</UI>: <UI>Load theirs</UI> drops
           your changes, <UI>Overwrite</UI> saves yours over theirs.
         </P>
+      </>
+    ),
+  },
+  {
+    id: "modules",
+    title: "The module list",
+    body: (
+      <>
+        <P>
+          A module is one ready-made job Ansible knows how to do: install a
+          package, copy a file, create a user. The <UI>Modules</UI> tab of{" "}
+          <A href="/ansible">Ansible</A> lists every module installed on the
+          Morcheh host, sorted by category, with the most used ones on top.
+        </P>
+        <Steps>
+          {[
+            <>
+              Open <A href="/ansible">Ansible</A> › <UI>Modules</UI>.
+            </>,
+            <>
+              Search by name or by what you want done (<C>apt</C>,{" "}
+              <C>download</C>, <C>firewall</C>), or press a category.
+            </>,
+            <>
+              Press a module to read what it does, its required and most used
+              options, the rest under <UI>Other options</UI>, and examples you
+              can copy.
+            </>,
+            <>
+              <UI>Use in a new playbook</UI> opens a new playbook with that
+              module as its first task.
+            </>,
+          ]}
+        </Steps>
+        <Tip>
+          On a Morcheh with only <C>ansible-core</C> the list has about 70
+          modules. Install the full <C>ansible</C> package on the Morcheh host
+          to get thousands more (Docker, MySQL, UFW…); they appear here by
+          themselves.
+        </Tip>
+      </>
+    ),
+  },
+  {
+    id: "visual",
+    title: "Building a playbook visually",
+    body: (
+      <>
+        <P>
+          The playbook page has two modes, <UI>Visual</UI> and <UI>YAML</UI>.
+          They edit the same playbook: switch whenever you like. Your choice is
+          remembered on this browser.
+        </P>
+        <Steps>
+          {[
+            <>
+              In <UI>Visual</UI>, name the play. There is no servers field here:
+              you pick them each time you press <UI>Run</UI>.
+            </>,
+            <>
+              Press <UI>Add task</UI> and pick a module.
+            </>,
+            <>
+              Give the task a name and fill in its fields. Required ones have a{" "}
+              <C>*</C>; the usual ones are shown too.
+            </>,
+            <>
+              Everything else is under <UI>More options</UI>. Conditions, loops,
+              run as, register and notify are under <UI>Task settings</UI>.
+            </>,
+            <>
+              Drag a task by its grip to reorder it (an open task folds first),
+              or use the <UI>⋯</UI> menu (<UI>Move up</UI>, <UI>Duplicate</UI>,{" "}
+              <UI>Remove</UI>).
+            </>,
+          ]}
+        </Steps>
+        <Example title="Restart nginx only when its config changed">
+          <Steps>
+            {[
+              <>
+                Add a <C>copy</C> task for the config file, and under{" "}
+                <UI>Task settings</UI> set <C>notify</C> to <C>Restart nginx</C>
+                .
+              </>,
+              <>
+                Under <UI>Handlers</UI> press <UI>Add handler</UI>, pick{" "}
+                <C>service</C>, name it <C>Restart nginx</C> (the same words),
+                then set <C>name</C> to <C>nginx</C> and <C>state</C> to{" "}
+                <C>restarted</C>.
+              </>,
+            ]}
+          </Steps>
+        </Example>
+        <P>
+          A variable fits any field: press the <C>{"{ }"}</C> button of a
+          yes/no, a choice, a number or a list and write{" "}
+          <C>{"{{ my_variable }}"}</C>. Lists take one item at a time: type it
+          and press Enter. Fields for nested data take YAML.
+        </P>
+        <Recommended
+          rows={[
+            {
+              setting: "Task name",
+              value: "Always set it",
+              why: "It's what you read in a run.",
+            },
+            {
+              setting: "Module",
+              value: (
+                <>
+                  A real module over <C>shell</C>
+                </>
+              ),
+              why: "Modules skip work that's already done, so running twice is safe.",
+            },
+            {
+              setting: "First run",
+              value: <UI>Check mode</UI>,
+              why: "See what would change before changing it.",
+            },
+          ]}
+        />
+        <Warn>
+          Saving from <UI>Visual</UI> rewrites the YAML in a tidy form, so
+          comments are dropped on the first change (a notice says so when there
+          are any). Steps it can't take apart, such as a <C>block</C>, are kept
+          whole and shown as YAML. A mode like <C>0644</C> comes back quoted as{" "}
+          <C>"0644"</C>, which Ansible reads as the same mode.
+        </Warn>
       </>
     ),
   },
@@ -212,7 +342,7 @@ export const ansible: GuideSection[] = [
       <>
         <P>
           Every server in a run is put into groups you can use in a play's{" "}
-          <C>hosts:</C> line:
+          <C>hosts:</C> line in <UI>YAML</UI>:
         </P>
         <Table
           head={["Group", "Who is in it"]}
@@ -237,6 +367,8 @@ export const ansible: GuideSection[] = [
         <Tip>
           A play whose <C>hosts:</C> matches none of the servers in the run is
           marked on the Tasks tab: check the spelling against the groups above.
+          <UI>Visual</UI> shows such a play's group with{" "}
+          <UI>Run on all of them</UI>, which puts it back to <C>all</C>.
         </Tip>
       </>
     ),
@@ -309,9 +441,32 @@ export const ansible: GuideSection[] = [
             [
               "“couldn't resolve module/action …”",
               <>
-                Only ansible-core's own modules (<C>ansible.builtin.*</C>) are
-                installed. Modules from collections such as{" "}
-                <C>community.general</C> aren't available yet.
+                The module isn't installed on the Morcheh host: check the{" "}
+                <A href="#modules">module list</A>. Collections have to come
+                with the Ansible install itself (the full <C>ansible</C>{" "}
+                package); ones in a user's <C>~/.ansible</C> aren't seen by
+                runs.
+              </>,
+            ],
+            [
+              "“Needs …” on a task card",
+              <>
+                A required option is empty. Open the task and fill in the field
+                with a <C>*</C>.
+              </>,
+            ],
+            [
+              "“The YAML has a mistake” in Visual",
+              <>
+                The text doesn't parse, so it can't be drawn. Press{" "}
+                <UI>Edit in YAML</UI>, fix the line shown, and switch back.
+              </>,
+            ],
+            [
+              "“This module isn't installed on the Morcheh host” in a task",
+              <>
+                Its options can't be listed, so write them as YAML in the field
+                below it, or press <UI>Change</UI> to pick another module.
               </>,
             ],
             [
@@ -330,7 +485,8 @@ export const ansible: GuideSection[] = [
               "A play says no server matched",
               <>
                 Its <C>hosts:</C> names a group none of the run's servers is in.
-                Use <C>all</C> or a group from <A href="#groups">Groups</A>.
+                Press <UI>Run on all of them</UI> in <UI>Visual</UI>, or use a
+                group from <A href="#groups">Groups</A>.
               </>,
             ],
             [

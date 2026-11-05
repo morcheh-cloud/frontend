@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils"
 import { runFinished, useAnsibleStatus, usePlaybooks, useRuns } from "../api"
 import { useAnsibleActions } from "./ansible-actions"
 import { duration, RecapText, RunStateBadge, useAnsibleFilters } from "./meta"
+import { ModulesPanel } from "./modules/modules-panel"
 import { useAnsibleCan } from "./permissions"
 
 export function AnsibleView() {
@@ -93,7 +94,7 @@ function View({ phone }: { phone: boolean }) {
   ) : (
     <PageHeader
       title="Ansible"
-      description="Write playbooks, run them on many servers at once and follow every task as it happens."
+      description="Browse Ansible's modules, build playbooks, run them on many servers at once and follow every task live."
       guide="ansible"
       actions={
         can.edit && (
@@ -119,6 +120,8 @@ function View({ phone }: { phone: boolean }) {
         <Bar phone={phone} />
         {tab === "runs" && can.runs ? (
           <RunsPanel phone={phone} />
+        ) : tab === "modules" ? (
+          <ModulesPanel phone={phone} />
         ) : (
           <PlaybooksPanel
             phone={phone}
@@ -133,28 +136,37 @@ function View({ phone }: { phone: boolean }) {
 function Bar({ phone }: { phone: boolean }) {
   const can = useAnsibleCan()
   const [{ tab, q, show }, setFilters] = useAnsibleFilters()
-  const tabs = can.runs
-    ? [
-        { value: "playbooks" as const, label: "Playbooks" },
-        { value: "runs" as const, label: "Runs" },
-      ]
-    : []
+  const tabs = [
+    { value: "playbooks" as const, label: "Playbooks" },
+    { value: "modules" as const, label: "Modules" },
+    ...(can.runs ? [{ value: "runs" as const, label: "Runs" }] : []),
+  ]
   const tabSwitch = tabs.length > 1 && (
     <Segmented
       label="Show"
       items={tabs}
       value={tab}
       onChange={(t) =>
-        setFilters({ tab: t === "playbooks" ? null : t, show: null })
+        setFilters({
+          tab: t === "playbooks" ? null : t,
+          show: null,
+          cat: null,
+        })
       }
     />
   )
+  const searchLabel =
+    tab === "runs"
+      ? "Search runs"
+      : tab === "modules"
+        ? "Search modules: apt, copy, docker…"
+        : "Search playbooks"
   const search = (
     <SearchBox
       value={q}
       onChange={(v) => setFilters({ q: v || null })}
-      placeholder={tab === "runs" ? "Search runs" : "Search playbooks"}
-      label={tab === "runs" ? "Search runs" : "Search playbooks"}
+      placeholder={searchLabel}
+      label={searchLabel}
       className={phone ? "min-w-0 flex-1" : undefined}
     />
   )

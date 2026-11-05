@@ -102,6 +102,9 @@ export function refreshAfterJob(qc: QueryClient, job: Job) {
     qc.invalidateQueries({ queryKey: ["cronjobs"] })
   }
   for (const ref of job.refs) {
+    if (job.kind === "firewall-install" || job.kind === "firewall-apply") {
+      qc.invalidateQueries({ queryKey: ["firewall", ref] })
+    }
     if (job.kind.startsWith("fail2ban-")) {
       qc.invalidateQueries({ queryKey: ["fail2ban", ref] })
     }

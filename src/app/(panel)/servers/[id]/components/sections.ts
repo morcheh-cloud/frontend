@@ -119,12 +119,9 @@ export const sectionGroups: SectionGroup[] = [
         slug: "firewall",
         label: "Firewall",
         icon: Shield,
-        summary: "Rules for ufw, firewalld or nftables, whichever it runs.",
-        planned: [
-          "See the default policy and every active rule",
-          "Allow or block a port, protocol or address",
-          "Safe apply: rules roll back unless you confirm, so a bad rule can't lock you out",
-        ],
+        ready: true,
+        summary:
+          "Open or close ports and block addresses, with ufw or firewalld. A change that could lock you out undoes itself.",
       },
       {
         slug: "ports",

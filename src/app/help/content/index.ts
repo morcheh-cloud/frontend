@@ -6,6 +6,7 @@ import { cronjobs } from "./cronjobs"
 import { databases } from "./databases"
 import { fail2ban } from "./fail2ban"
 import { files } from "./files"
+import { firewall } from "./firewall"
 import { gettingStarted } from "./getting-started"
 import { networkMap } from "./network-map"
 import { ports } from "./ports"
@@ -29,6 +30,7 @@ export const content: Record<string, GuideSection[]> = {
   files,
   cron,
   ports,
+  firewall,
   fail2ban,
   users,
   services,

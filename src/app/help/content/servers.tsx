@@ -305,11 +305,27 @@ ssh -i ~/Downloads/web-01.key -p 22 deploy@10.0.0.12
       <>
         <List>
           <li>
-            <UI>Folders</UI> hold each server in one place, and nest. Use the
-            folder rail on the start side: <UI>New subfolder</UI>,{" "}
+            <UI>Folders</UI> hold each server in one place, and nest. The page
+            works like a drive: <UI>My servers</UI> is the top level, with its
+            folders as cards above the servers outside every folder. Open a
+            folder to see what's directly in it, and use the path above the list
+            (or Back) to climb out. <UI>New subfolder</UI>,{" "}
             <UI>Rename or move…</UI> and <UI>Delete folder…</UI> are in each
-            folder's menu. Deleting a folder keeps its servers; they move up a
+            folder's menu: right-click its card, or use <UI>⋯</UI> on the card
+            or the path. Deleting a folder keeps its servers; they move up a
             level.
+          </li>
+          <li>
+            <UI>All servers</UI> is the flat list of everything in this
+            workspace, and each server shows its folder. Switch between{" "}
+            <UI>My servers</UI>, <UI>All servers</UI> and <UI>Favorites</UI>{" "}
+            above the list.
+          </li>
+          <li>
+            <UI>Cards</UI> and <UI>Table</UI> switch how the list looks; your
+            browser remembers the choice. Cards show the essentials and open the
+            server on a click. Table adds more columns, and you sort by clicking
+            their headings. Phones always use their own list.
           </li>
           <li>
             <UI>Tags</UI> cut across folders: a server can have many. Click a
@@ -330,6 +346,43 @@ ssh -i ~/Downloads/web-01.key -p 22 deploy@10.0.0.12
     ),
   },
   {
+    id: "move",
+    title: "Moving servers and folders",
+    body: (
+      <>
+        <P>
+          On a computer, drag a server (its card or row) onto a folder card, or
+          onto a step of the path above the list to move it up. Drop on{" "}
+          <UI>My servers</UI> to take it out of every folder.
+        </P>
+        <List>
+          <li>Dragging a ticked server carries every ticked server along.</li>
+          <li>
+            Folders drag the same way, with everything inside them. A folder
+            can't go into itself or one of its own subfolders; those places
+            don't light up.
+          </li>
+          <li>
+            Every move shows <UI>Undo</UI> for a few seconds, and puts each
+            server back where it was.
+          </li>
+        </List>
+        <P>
+          Without dragging: <UI>Move to folder…</UI> in a server's menu,{" "}
+          <UI>Move</UI> on the bulk bar, and <UI>Rename or move…</UI> for a
+          folder. On a phone these are the way to move things. On a computer,
+          right-click a server or a folder to open its menu; a server's menu
+          there also has <UI>Open in new tab</UI>.
+        </P>
+        <Tip>
+          Only the folders on screen take a drop. For one further away, or from{" "}
+          <UI>All servers</UI>, use <UI>Move to folder…</UI>. Moving a server
+          needs <UI>Owner</UI> on it, and one you can't move won't drag.
+        </Tip>
+      </>
+    ),
+  },
+  {
     id: "find",
     title: "Finding servers",
     body: (
@@ -339,6 +392,12 @@ ssh -i ~/Downloads/web-01.key -p 22 deploy@10.0.0.12
           system, tag and authentication method, and sort by name, host, OS,
           status, last check or date added. On a phone, the chips under the
           search open each filter.
+        </P>
+        <P>
+          A search or filter reaches past the level you're on: from{" "}
+          <UI>My servers</UI> it covers every server, and inside a folder it
+          covers that folder and its subfolders. Searching also finds folders by
+          name.
         </P>
         <P>
           The whole view (folder, search, filters, sort and page) is kept in the

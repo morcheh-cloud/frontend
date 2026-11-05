@@ -6,6 +6,7 @@ import type { ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +22,7 @@ import type { Server } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { useCheckingIds, useFolders } from "../api"
 import { EmptyState, ErrorState } from "./empty-state"
+import { useDragServer } from "./folder-dnd"
 import { buildTree, folderPath } from "./folder-tree"
 import {
   address,
@@ -32,10 +34,39 @@ import {
 } from "./meta"
 import { useServerCan } from "./permissions"
 import { useServerActions } from "./server-actions"
-import { ServerMenuItems } from "./server-menu"
-import { type SortField, useFilters } from "./use-filters"
+import { ServerContextContent, ServerMenuItems } from "./server-menu"
+import { isBrowsing, type SortField, useFilters } from "./use-filters"
 
 export type Selection = Map<string, Server>
+
+export type ServerListProps = {
+  servers: Server[]
+  loading: boolean
+  /** Set when the list failed to load and there is nothing to show. */
+  error: Error | null
+  onRetry: () => void
+  selection: Selection
+  onSelectionChange: (selection: Selection) => void
+}
+
+// A tag on a server adds it to the Tags filter.
+export function useTagFilter() {
+  const { filters, setFilters } = useFilters()
+  return (tag: string) => {
+    if (!filters.tag.includes(tag)) setFilters({ tag: [...filters.tag, tag] })
+  }
+}
+
+export function ListProblem({
+  error,
+  onRetry,
+}: Pick<ServerListProps, "error" | "onRetry">) {
+  return (
+    <div className="rounded-2xl border border-border">
+      {error ? <ErrorState error={error} onRetry={onRetry} /> : <EmptyState />}
+    </div>
+  )
+}
 
 export function ServersTable({
   servers,
@@ -44,22 +75,15 @@ export function ServersTable({
   onRetry,
   selection,
   onSelectionChange,
-}: {
-  servers: Server[]
-  loading: boolean
-  /** Set when the list failed to load and there is nothing to show. */
-  error: Error | null
-  onRetry: () => void
-  selection: Selection
-  onSelectionChange: (selection: Selection) => void
-}) {
-  const { filters, setFilters } = useFilters()
+}: ServerListProps) {
+  const { filters, setFilters, open } = useFilters()
+  const onTag = useTagFilter()
   const actions = useServerActions()
   const checking = useCheckingIds()
   const folders = useFolders()
   const { nodes } = buildTree(folders.data ?? [])
   // A folder column only helps where servers from many folders mix.
-  const showFolder = !filters.folder
+  const showFolder = !isBrowsing(filters)
 
   const allSelected =
     servers.length > 0 && servers.every((s) => selection.has(s.id))
@@ -122,15 +146,7 @@ export function ServersTable({
   )
 
   if (!loading && servers.length === 0) {
-    return (
-      <div className="rounded-2xl border border-border">
-        {error ? (
-          <ErrorState error={error} onRetry={onRetry} />
-        ) : (
-          <EmptyState />
-        )}
-      </div>
-    )
+    return <ListProblem error={error} onRetry={onRetry} />
   }
 
   return (
@@ -178,13 +194,8 @@ export function ServersTable({
                   }
                   onSelect={(on) => toggle(server, on)}
                   onFavorite={() => actions.toggleFavorite(server)}
-                  onTag={(tag) =>
-                    filters.tag.includes(tag) ||
-                    setFilters({ tag: [...filters.tag, tag] })
-                  }
-                  onFolder={() =>
-                    setFilters({ folder: server.folder_id, favorites: null })
-                  }
+                  onTag={onTag}
+                  onFolder={() => open({ folder: server.folder_id })}
                 />
               ))}
         </tbody>
@@ -213,136 +224,151 @@ function Row({
   onFolder: () => void
 }) {
   const can = useServerCan()
+  const drag = useDragServer(server, can(server, "owner"))
   const shownTags = server.tags.slice(0, 2)
   const moreTags = server.tags.length - shownTags.length
 
   return (
-    <tr
-      aria-selected={selected}
-      className="group/row h-14 hover:bg-subtle aria-selected:bg-brand-soft/60"
-    >
-      <td className="ps-4">
-        <Checkbox
-          aria-label={`Select ${server.name}`}
-          checked={selected}
-          onCheckedChange={(on) => onSelect(on)}
-        />
-      </td>
-      <td>
-        {can(server, "operator") && (
-          <button
-            type="button"
-            aria-label={
-              server.favorite ? "Remove from favorites" : "Add to favorites"
-            }
-            aria-pressed={server.favorite}
-            onClick={onFavorite}
-            className={cn(
-              "flex size-7 items-center justify-center rounded-lg text-ash hover:bg-muted hover:text-foreground",
-              !server.favorite &&
-                "opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100",
-            )}
-          >
-            <Star
+    <ContextMenu onOpenChange={drag.onMenuChange}>
+      <ContextMenuTrigger
+        ref={drag.ref}
+        render={<tr />}
+        aria-selected={selected}
+        onClickCapture={drag.onClickCapture}
+        {...drag.listeners}
+        className={cn(
+          "group/row h-14 hover:bg-subtle aria-selected:bg-brand-soft/60 data-popup-open:bg-subtle",
+          drag.moving && "opacity-40",
+        )}
+      >
+        <td className="ps-4">
+          <Checkbox
+            aria-label={`Select ${server.name}`}
+            checked={selected}
+            onCheckedChange={(on) => onSelect(on)}
+          />
+        </td>
+        <td>
+          {can(server, "operator") && (
+            <button
+              type="button"
+              aria-label={
+                server.favorite ? "Remove from favorites" : "Add to favorites"
+              }
+              aria-pressed={server.favorite}
+              onClick={onFavorite}
               className={cn(
-                "size-4",
-                server.favorite && "fill-brand text-brand",
+                "flex size-7 items-center justify-center rounded-lg text-ash hover:bg-muted hover:text-foreground",
+                !server.favorite &&
+                  "opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100",
               )}
-            />
-          </button>
-        )}
-      </td>
-      <td className="max-w-64 ps-1 pe-3">
-        <Link
-          href={`/servers/${server.id}`}
-          className="block max-w-full truncate font-medium hover:text-brand"
-        >
-          {server.name}
-        </Link>
-        {(server.hostname || server.description) && (
-          <p className="truncate text-caption text-ash">
-            {server.description || server.hostname}
-          </p>
-        )}
-      </td>
-      <td className="px-3 font-mono text-caption whitespace-nowrap text-muted-foreground">
-        {address(server)}
-      </td>
-      <td className="px-3">
-        <span className="flex items-center gap-2 whitespace-nowrap">
-          <OsTile os={server.os} className="size-7 rounded-md text-[11px]" />
-          <span className={cn(!server.os.id && "text-ash")}>
-            {osLabel(server.os)}
-          </span>
-        </span>
-      </td>
-      <td className="px-3 whitespace-nowrap">
-        <StatusCell server={server} checking={checking} />
-      </td>
-      <td className="hidden px-3 @3xl:table-cell">
-        <span className="flex items-center gap-1">
-          {shownTags.map((tag) => (
-            <button
-              key={tag}
-              type="button"
-              onClick={() => onTag(tag)}
-              title={`Filter by ${tag}`}
-              className="h-6 max-w-28 truncate rounded-full bg-muted px-2 text-caption text-muted-foreground hover:bg-mist hover:text-foreground"
             >
-              {tag}
+              <Star
+                className={cn(
+                  "size-4",
+                  server.favorite && "fill-brand text-brand",
+                )}
+              />
             </button>
-          ))}
-          {moreTags > 0 && (
-            <span
-              title={server.tags.slice(2).join(", ")}
-              className="text-caption text-ash"
-            >
-              +{moreTags}
-            </span>
-          )}
-        </span>
-      </td>
-      {folder !== null && (
-        <td className="hidden max-w-48 px-3 @4xl:table-cell">
-          {folder ? (
-            <button
-              type="button"
-              onClick={onFolder}
-              className="block max-w-full truncate text-muted-foreground hover:text-foreground"
-            >
-              {folder}
-            </button>
-          ) : (
-            <span className="text-ash">—</span>
           )}
         </td>
-      )}
-      <td className="hidden px-3 whitespace-nowrap text-muted-foreground @5xl:table-cell">
-        {timeAgo(server.last_checked_at)}
-      </td>
-      <td className="pe-3">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={`${server.name} actions`}
-              />
-            }
+        <td className="max-w-64 ps-1 pe-3">
+          <Link
+            href={`/servers/${server.id}`}
+            draggable={false}
+            className="block max-w-full truncate font-medium hover:text-brand"
           >
-            <Ellipsis />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <ServerMenuItems server={server} checking={checking} />
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </td>
-    </tr>
+            {server.name}
+          </Link>
+          {(server.hostname || server.description) && (
+            <p className="truncate text-caption text-ash">
+              {server.description || server.hostname}
+            </p>
+          )}
+        </td>
+        <td
+          data-no-drag
+          className="px-3 font-mono text-caption whitespace-nowrap text-muted-foreground select-text"
+        >
+          {address(server)}
+        </td>
+        <td className="px-3">
+          <span className="flex items-center gap-2 whitespace-nowrap">
+            <OsTile os={server.os} className="size-7 rounded-md text-[11px]" />
+            <span className={cn(!server.os.id && "text-ash")}>
+              {osLabel(server.os)}
+            </span>
+          </span>
+        </td>
+        <td className="px-3 whitespace-nowrap">
+          <StatusCell server={server} checking={checking} />
+        </td>
+        <td className="hidden px-3 @3xl:table-cell">
+          <span className="flex items-center gap-1">
+            {shownTags.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => onTag(tag)}
+                title={`Filter by ${tag}`}
+                className="h-6 max-w-28 truncate rounded-full bg-muted px-2 text-caption text-muted-foreground hover:bg-mist hover:text-foreground"
+              >
+                {tag}
+              </button>
+            ))}
+            {moreTags > 0 && (
+              <span
+                title={server.tags.slice(2).join(", ")}
+                className="text-caption text-ash"
+              >
+                +{moreTags}
+              </span>
+            )}
+          </span>
+        </td>
+        {folder !== null && (
+          <td className="hidden max-w-48 px-3 @4xl:table-cell">
+            {folder ? (
+              <button
+                type="button"
+                onClick={onFolder}
+                className="block max-w-full truncate text-muted-foreground hover:text-foreground"
+              >
+                {folder}
+              </button>
+            ) : (
+              <span className="text-ash">—</span>
+            )}
+          </td>
+        )}
+        <td className="hidden px-3 whitespace-nowrap text-muted-foreground @5xl:table-cell">
+          {timeAgo(server.last_checked_at)}
+        </td>
+        <td className="pe-3">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`${server.name} actions`}
+                />
+              }
+            >
+              <Ellipsis />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <ServerMenuItems server={server} checking={checking} />
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </td>
+      </ContextMenuTrigger>
+      <ServerContextContent server={server} checking={checking} />
+    </ContextMenu>
   )
 }
 
-function StatusCell({
+export function StatusCell({
   server,
   checking,
 }: {

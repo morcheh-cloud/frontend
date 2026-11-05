@@ -2,6 +2,7 @@
 
 import {
   createSerializer,
+  type inferParserType,
   parseAsArrayOf,
   parseAsBoolean,
   parseAsInteger,
@@ -43,7 +44,8 @@ const list = parseAsArrayOf(parseAsString).withDefault([])
 // bookmarked, shared and survives a reload.
 const parsers = {
   q: parseAsString.withDefault(""),
-  // A folder id, or "none" for servers outside every folder.
+  // Unset = the top level, like Drive's root: the top folders and the servers
+  // outside every folder. A folder id = inside it. "all" = every server, flat.
   folder: parseAsString,
   favorites: parseAsBoolean.withDefault(false),
   os: list,
@@ -58,6 +60,33 @@ const parsers = {
 // Builds links into a filtered list, e.g. serversHref("/servers", { tag: [t] }).
 export const serversHref = createSerializer(parsers)
 
+export type Filters = inferParserType<typeof parsers>
+
+// Where the page is. Favorites and All servers are flat lists, the top level
+// and folders are places you browse.
+export function placeOf(f: Filters) {
+  if (f.favorites) return "favorites"
+  if (f.folder === "all") return "all"
+  return f.folder ? "folder" : "root"
+}
+
+// The open folder; new servers and folders land in it.
+export const folderIdOf = (f: Filters) =>
+  placeOf(f) === "folder" ? f.folder : null
+
+export const filterCount = (f: Filters) =>
+  f.os.length + f.status.length + f.tag.length + f.auth.length
+
+// Search or any filter narrows the list (folder views don't count). Like a
+// Drive search it then reaches past the current level: the whole subtree of
+// the open folder, or every server from the top level.
+const isNarrowed = (f: Filters) => filterCount(f) > 0 || f.q !== ""
+
+// Browsing a level: its folders show as cards and the list holds only what's
+// directly here. Otherwise the list is flat and each row names its folder.
+export const isBrowsing = (f: Filters) =>
+  !isNarrowed(f) && (placeOf(f) === "root" || placeOf(f) === "folder")
+
 export function useFilters() {
   const [filters, setRaw] = useQueryStates(parsers, { history: "replace" })
 
@@ -68,11 +97,21 @@ export function useFilters() {
     [setRaw],
   )
 
-  const activeCount =
-    filters.os.length +
-    filters.status.length +
-    filters.tag.length +
-    filters.auth.length
+  // Going to a place pushes a history entry, so Back climbs out of a folder
+  // the way it does in Drive. No argument = the top level.
+  const open = useCallback(
+    (place: { folder?: string | null; favorites?: boolean } = {}) =>
+      setRaw(
+        {
+          page: null,
+          q: null,
+          folder: place.folder ?? null,
+          favorites: place.favorites ?? null,
+        },
+        { history: "push" },
+      ),
+    [setRaw],
+  )
 
   function clearFilters() {
     setFilters({ q: null, os: null, status: null, tag: null, auth: null })
@@ -81,15 +120,21 @@ export function useFilters() {
   return {
     filters,
     setFilters,
+    open,
     setPage: (page: number) => setRaw({ page: page > 1 ? page : null }),
-    activeCount,
-    /** Search or any filter narrows the list (folder views don't count). */
-    narrowed: activeCount > 0 || filters.q !== "",
+    activeCount: filterCount(filters),
+    narrowed: isNarrowed(filters),
     clearFilters,
   }
 }
 
-export type Filters = ReturnType<typeof useFilters>["filters"]
+// The list's reach for the place and filters: see isNarrowed and isBrowsing.
+function reach(f: Filters): Pick<ListQuery, "folder" | "direct"> {
+  const id = folderIdOf(f) ?? undefined
+  if (isBrowsing(f))
+    return id ? { folder: id, direct: true } : { folder: "none" }
+  return { folder: id }
+}
 
 // Empty arrays become undefined: the generated client would otherwise send
 // nothing anyway, but this keeps the query keys stable.
@@ -97,7 +142,7 @@ export function toQuery(f: Filters, paged = true): ListQuery {
   const arr = <T>(a: T[]) => (a.length ? a : undefined)
   return {
     q: f.q || undefined,
-    folder: f.folder ?? undefined,
+    ...reach(f),
     favorites: f.favorites || undefined,
     os: arr(f.os),
     status: arr(f.status),

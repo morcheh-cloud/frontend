@@ -2407,6 +2407,388 @@ export interface FilePathsBody {
   paths: string[];
 }
 
+export interface FilterRule {
+  action: "allow" | "block" | "reject" | "limit" | "other";
+  comment?: string;
+  deletable: boolean;
+  direction: "in" | "out" | "routed";
+  /** Can be changed here, not only removed */
+  editable: boolean;
+  family: "both" | "v4" | "v6";
+  /** Empty = anywhere */
+  from: string;
+  /** Stable while the rule's meaning stays the same */
+  id: string;
+  interface?: string;
+  log: boolean;
+  /** Routed rules only */
+  out_interface?: string;
+  /** Empty = every port. A port, a range or a comma list */
+  port: string;
+  /** Lets SSH in for Morcheh or for everyone */
+  protects_ssh: boolean;
+  /** any, tcp, udp, or another protocol name */
+  protocol: string;
+  /** The rule as the tool writes it */
+  raw: string;
+  /** An application profile (ufw) or service (firewalld) */
+  service?: string;
+  source_port?: string;
+  /** Empty = this server */
+  to: string;
+  /** firewalld */
+  zone?: string;
+}
+
+export interface FirewallApplyBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * @maxItems 100
+   * @minItems 1
+   */
+  rules: FirewallRuleBody[];
+  /**
+   * Engineer access on each is needed
+   * @maxItems 200
+   * @minItems 1
+   */
+  server_ids: string[];
+}
+
+export interface FirewallCapabilities {
+  comments: boolean;
+  /** A forward can be limited to a source and an interface */
+  forward_from: boolean;
+  /** Morcheh can change port forwards */
+  forwards: boolean;
+  interface: boolean;
+  /** Morcheh can change this firewall */
+  manage: boolean;
+  outbound: boolean;
+  /** The order of the rules matters and can be changed */
+  reorder: boolean;
+  routed: boolean;
+  zones: boolean;
+}
+
+export interface FirewallChange {
+  /** Rules and forwards it added */
+  added: string[];
+  backend: string;
+  /** @format date-time */
+  created_at: string;
+  /** @format uuid */
+  id: string;
+  /** Rules and forwards it removed */
+  removed: string[];
+  /** A copy of the firewall from before it was saved */
+  restorable: boolean;
+  /** pending = waiting to be kept; undone = it was taken back straight away */
+  status: "applied" | "pending" | "undone";
+  summary: string;
+  /** Who made it */
+  user: string;
+}
+
+export interface FirewallChangePreview {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Rules and forwards that would come back */
+  adds: string[];
+  change: FirewallChange;
+  /** Why it can't go back; empty when it can */
+  problem: string;
+  /** Rules and forwards that would go */
+  removes: string[];
+  /** The order of the rules would change */
+  reordered: boolean;
+  /** Settings that would change */
+  settings: string[];
+}
+
+export interface FirewallDefaults {
+  /** What happens to incoming traffic no rule matches: allow, deny or reject */
+  incoming: string;
+  /** ufw: off, low, medium, high, full. firewalld: off, all, unicast, broadcast, multicast */
+  logging: string;
+  /** ufw only */
+  outgoing: string;
+  /** ufw only */
+  routed: string;
+}
+
+export interface FirewallDeleteBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Rule ids from the overview
+   * @maxItems 500
+   * @minItems 1
+   */
+  ids: string[];
+}
+
+export interface FirewallEnableBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Rules to add before turning it on. SSH is always allowed
+   * @maxItems 64
+   */
+  allow?: FirewallRuleBody[];
+}
+
+export interface FirewallForwardBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * ufw
+   * @maxLength 120
+   */
+  comment?: string;
+  /**
+   * ufw: only from this IPv4 address or network
+   * @maxLength 18
+   */
+  from?: string;
+  /**
+   * ufw: only arriving on this interface
+   * @maxLength 15
+   */
+  interface?: string;
+  /**
+   * The port it arrives on, or a range like 5000-5010
+   * @maxLength 16
+   */
+  port: string;
+  protocol: "tcp" | "udp";
+  /**
+   * Empty = this server
+   * @maxLength 15
+   */
+  to_address?: string;
+  /**
+   * Empty = the same port
+   * @maxLength 5
+   */
+  to_port?: string;
+  /**
+   * firewalld; empty = the default zone
+   * @maxLength 32
+   */
+  zone?: string;
+}
+
+export interface FirewallForwardDeleteBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Forward ids from the overview
+   * @maxItems 200
+   * @minItems 1
+   */
+  ids: string[];
+}
+
+export interface FirewallHistory {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Newest first; a server keeps its last 50 */
+  items: FirewallChange[];
+}
+
+export interface FirewallLog {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Refused packets, newest first */
+  events: LogEvent[];
+  /** Where it was read from; empty when no log was readable */
+  source: string;
+}
+
+export interface FirewallMoveBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Put it right above this rule; empty = after all the others
+   * @maxLength 32
+   */
+  before?: string;
+}
+
+export interface FirewallOverview {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Reading and changing the firewall needs root or sudo */
+  access: "root" | "sudo" | "user";
+  /** Filtering traffic right now */
+  active: boolean;
+  /** The firewall in charge of this server */
+  backend: "ufw" | "firewalld" | "nftables" | "iptables" | "none";
+  capabilities: FirewallCapabilities;
+  /** firewalld */
+  default_zone?: string;
+  defaults: FirewallDefaults;
+  /** Ports sent on to another port or machine */
+  forwards: Forward[];
+  init: "systemd" | "openrc" | "none";
+  /** The address this server sees Morcheh's connection from */
+  morcheh_ip: string;
+  package_manager: string;
+  /** A change waiting to be kept; while it's here, other changes are refused */
+  pending?: FirewallPending;
+  /** What installing a firewall would install here; empty when it can't be done */
+  recommended: string;
+  /** In the order the firewall applies them */
+  rules: FilterRule[];
+  /**
+   * The port Morcheh reaches this server on; 0 if unknown
+   * @format int64
+   */
+  ssh_port: number;
+  starts_at_boot: boolean;
+  version: string;
+  warnings: string[];
+  /** The address of the person asking, when it isn't a loopback one */
+  your_ip: string;
+  /** firewalld: every zone */
+  zones: Zone[];
+}
+
+export interface FirewallPending {
+  /**
+   * When it runs out the server undoes the change by itself
+   * @format int64
+   */
+  seconds_left: number;
+  /** What was changed */
+  summary: string;
+}
+
+export interface FirewallRaw {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  sections: FirewallRawSection[];
+}
+
+export interface FirewallRawSection {
+  content: string;
+  title: string;
+}
+
+export interface FirewallRuleBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** limit = allow, but slow down an address opening many connections */
+  action: "allow" | "block" | "reject" | "limit";
+  /**
+   * ufw only
+   * @maxLength 120
+   */
+  comment?: string;
+  /** @default "in" */
+  direction?: "in" | "out" | "routed";
+  /**
+   * An address or network; empty = anywhere
+   * @maxLength 64
+   */
+  from?: string;
+  /** @maxLength 15 */
+  interface?: string;
+  log?: boolean;
+  /** @maxLength 15 */
+  out_interface?: string;
+  /**
+   * A port, a range (5000-5010) or a list (80,443); empty = every port
+   * @maxLength 128
+   */
+  port?: string;
+  /** @default "any" */
+  protocol?: "any" | "tcp" | "udp";
+  /**
+   * Instead of a port: a firewalld service or ufw application
+   * @maxLength 64
+   */
+  service?: string;
+  /**
+   * An address or network on this server; empty = any
+   * @maxLength 64
+   */
+  to?: string;
+  /** Put it before the other rules. Block and reject rules always go first */
+  top?: boolean;
+  /**
+   * firewalld; empty = the default zone
+   * @maxLength 32
+   */
+  zone?: string;
+}
+
+export interface FirewallSettingsBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * firewalld
+   * @maxLength 32
+   */
+  default_zone?: string;
+  incoming?: "allow" | "deny" | "reject";
+  logging?:
+    | "off"
+    | "low"
+    | "medium"
+    | "high"
+    | "full"
+    | "all"
+    | "unicast"
+    | "broadcast"
+    | "multicast";
+  /** ufw only */
+  outgoing?: "allow" | "deny" | "reject";
+  /** ufw only */
+  routed?: "allow" | "deny" | "reject";
+}
+
 export interface Folder {
   /**
    * A URL to the JSON Schema for this object.
@@ -2473,6 +2855,26 @@ export interface FolderSize {
    * @format int64
    */
   size: number;
+}
+
+export interface Forward {
+  /** ufw */
+  comment?: string;
+  /** ufw: only from this address or network; empty = anywhere */
+  from?: string;
+  /** Stable while its meaning stays the same */
+  id: string;
+  /** ufw: only arriving on this interface */
+  interface?: string;
+  /** The port it arrives on, or a range */
+  port: string;
+  protocol: "tcp" | "udp";
+  /** Empty = this server */
+  to_address: string;
+  /** Empty = the same port */
+  to_port: string;
+  /** firewalld */
+  zone?: string;
 }
 
 export interface GrantBody {
@@ -2683,7 +3085,7 @@ export interface Job {
   finished_at?: string;
   /** @format uuid */
   id: string;
-  /** What it does: transfer, copy, move, storage-copy, storage-move, compress, extract, fetch, fail2ban-install, fail2ban-uninstall, ansible-run or schedule-sync */
+  /** What it does: transfer, copy, move, storage-copy, storage-move, compress, extract, fetch, fail2ban-install, fail2ban-uninstall, firewall-install, firewall-apply, ansible-run or schedule-sync */
   kind: string;
   /** What it printed (newest last); only on GET /jobs/{id} */
   log?: string;
@@ -2747,6 +3149,17 @@ export interface KillDatabaseSessionRequest {
   id: string;
 }
 
+export interface ListAnsibleModulesResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: Module[];
+  /** ansible-core version */
+  version: string;
+}
+
 export interface ListJobsResponse {
   /**
    * A URL to the JSON Schema for this object.
@@ -2800,6 +3213,22 @@ export interface LogEntry {
   time: string;
 }
 
+export interface LogEvent {
+  /** limit = refused by a rate limit */
+  action: "block" | "reject" | "limit";
+  /** @format date-time */
+  at: string;
+  dest: string;
+  interface?: string;
+  /**
+   * The port it wanted; 0 for protocols without one
+   * @format int64
+   */
+  port: number;
+  protocol: string;
+  source: string;
+}
+
 export interface Login {
   /** Address, or empty for a local login */
   from: string;
@@ -2840,6 +3269,65 @@ export interface Memory {
    * @format int64
    */
   used_bytes: number;
+}
+
+export interface Module {
+  /** packages, files, commands, system, users, network, security, source, containers, databases, cloud, flow or other */
+  category: string;
+  collection: string;
+  /** One line, may hold Ansible markup (C(), O(), V()…) */
+  description: string;
+  /** Fully qualified name */
+  name: string;
+  short_name: string;
+}
+
+export interface ModuleDoc {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** packages, files, commands, system, users, network, security, source, containers, databases, cloud, flow or other */
+  category: string;
+  /** full, partial, none or empty when unknown */
+  check_mode: string;
+  collection: string;
+  /** Why not to use it, when it's on its way out */
+  deprecated?: string;
+  /** One line, may hold Ansible markup (C(), O(), V()…) */
+  description: string;
+  /** Paragraphs of the long description */
+  details: string[];
+  /** YAML tasks */
+  examples: string;
+  /** Takes its main argument as a bare string (command, shell, raw…) */
+  free_form: boolean;
+  /** Options worth showing up front besides the required ones */
+  main: string[];
+  /** Fully qualified name */
+  name: string;
+  notes: string[];
+  /** Sorted by name */
+  options: ModuleOption[];
+  requirements: string[];
+  short_name: string;
+}
+
+export interface ModuleOption {
+  aliases?: string[];
+  choices?: any[];
+  default?: any;
+  /** Paragraphs, may hold Ansible markup */
+  description: string[];
+  /** Type of a list's items */
+  elements?: string;
+  name: string;
+  required: boolean;
+  /** Keys of a dict (or of each item of a list of dicts) */
+  suboptions?: ModuleOption[];
+  /** str, bool, int, float, path, list, dict, raw, jsonarg… (empty = str) */
+  type: string;
 }
 
 export interface MyAccess {
@@ -5667,6 +6155,18 @@ export interface WriteStorageFileRequest {
   path: string;
 }
 
+export interface Zone {
+  /** It has interfaces or sources, so it's in use */
+  active: boolean;
+  default: boolean;
+  interfaces: string[];
+  masquerade: boolean;
+  name: string;
+  sources: string[];
+  /** What happens to traffic no rule matches */
+  target: string;
+}
+
 export type QueryParamsType = Record<string | number, any>;
 export type ResponseFormat = keyof Omit<Body, "body" | "bodyUsed">;
 
@@ -6522,6 +7022,22 @@ export class Api<
      * No description
      *
      * @tags Ansible
+     * @name GetAnsibleModule
+     * @summary Describe a module: its options and examples
+     * @request GET:/ansible/modules/{name}
+     */
+    getAnsibleModule: (name: string, params: RequestParams = {}) =>
+      this.request<ModuleDoc, ErrorModel>({
+        path: `/ansible/modules/${name}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Ansible
      * @name GetAnsibleRun
      * @summary Get a run with its output and results
      * @request GET:/ansible/runs/{id}
@@ -6561,6 +7077,22 @@ export class Api<
     getPlaybook: (id: string, params: RequestParams = {}) =>
       this.request<PlaybookDetail, ErrorModel>({
         path: `/ansible/playbooks/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Read from ansible-doc and kept until Ansible is upgraded.
+     *
+     * @tags Ansible
+     * @name ListAnsibleModules
+     * @summary List the modules installed with Ansible
+     * @request GET:/ansible/modules
+     */
+    listAnsibleModules: (params: RequestParams = {}) =>
+      this.request<ListAnsibleModulesResponse, ErrorModel>({
+        path: `/ansible/modules`,
         method: "GET",
         format: "json",
         ...params,
@@ -7538,6 +8070,420 @@ export class Api<
         ...params,
       }),
   };
+  firewall = {
+    /**
+     * @description Sends what arrives on a port to another port here or to another machine. IPv4 only. On ufw it also adds the rule that lets that traffic through. The port Morcheh uses for SSH can't be forwarded.
+     *
+     * @tags Firewall
+     * @name AddFirewallForward
+     * @summary Forward a port
+     * @request POST:/servers/{id}/firewall/forwards
+     */
+    addFirewallForward: (
+      id: string,
+      data: FirewallForwardBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<FirewallOverview, ErrorModel>({
+        path: `/servers/${id}/firewall/forwards`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description A rule that could cut the SSH connection off answers with `pending`, like turning it on.
+     *
+     * @tags Firewall
+     * @name AddFirewallRule
+     * @summary Add a rule
+     * @request POST:/servers/{id}/firewall/rules
+     */
+    addFirewallRule: (
+      id: string,
+      data: FirewallRuleBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<FirewallOverview, ErrorModel>({
+        path: `/servers/${id}/firewall/rules`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Runs as a background job (kind `firewall-apply`), a few servers at a time. Rules a server already has are skipped. Each server gets all the rules or none. A server is left alone if the rules could cut SSH off, since nobody is there to confirm it.
+     *
+     * @tags Firewall
+     * @name ApplyFirewallRules
+     * @summary Add rules to many servers
+     * @request POST:/firewall/apply
+     */
+    applyFirewallRules: (data: FirewallApplyBody, params: RequestParams = {}) =>
+      this.request<Job, ErrorModel>({
+        path: `/firewall/apply`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description All of them or none. The rules Morcheh added beside them go too.
+     *
+     * @tags Firewall
+     * @name DeleteFirewallForwards
+     * @summary Delete port forwards
+     * @request POST:/servers/{id}/firewall/forwards/delete
+     */
+    deleteFirewallForwards: (
+      id: string,
+      data: FirewallForwardDeleteBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<FirewallOverview, ErrorModel>({
+        path: `/servers/${id}/firewall/forwards/delete`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description All of them or none. Removing what lets SSH in answers with `pending`.
+     *
+     * @tags Firewall
+     * @name DeleteFirewallRules
+     * @summary Delete rules
+     * @request POST:/servers/{id}/firewall/rules/delete
+     */
+    deleteFirewallRules: (
+      id: string,
+      data: FirewallDeleteBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<FirewallOverview, ErrorModel>({
+        path: `/servers/${id}/firewall/rules/delete`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Rules are kept, but nothing is filtered until it's turned on again.
+     *
+     * @tags Firewall
+     * @name DisableFirewall
+     * @summary Turn the firewall off
+     * @request POST:/servers/{id}/firewall/disable
+     */
+    disableFirewall: (id: string, params: RequestParams = {}) =>
+      this.request<FirewallOverview, ErrorModel>({
+        path: `/servers/${id}/firewall/disable`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Allows the SSH port Morcheh uses first, whatever the body says. Answers with `pending`: keep it within the time shown or the server undoes it.
+     *
+     * @tags Firewall
+     * @name EnableFirewall
+     * @summary Turn the firewall on
+     * @request POST:/servers/{id}/firewall/enable
+     */
+    enableFirewall: (
+      id: string,
+      data: FirewallEnableBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<FirewallOverview, ErrorModel>({
+        path: `/servers/${id}/firewall/enable`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Compares the firewall as it was with how it is now.
+     *
+     * @tags Firewall
+     * @name FirewallChange
+     * @summary What going back to before a change would do
+     * @request GET:/servers/{id}/firewall/history/{change}
+     */
+    firewallChange: (id: string, change: string, params: RequestParams = {}) =>
+      this.request<FirewallChangePreview, ErrorModel>({
+        path: `/servers/${id}/firewall/history/${change}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Read from Morcheh's database, so it works while the server is down. Changes made on the server by hand aren't here.
+     *
+     * @tags Firewall
+     * @name FirewallHistory
+     * @summary Changes made through Morcheh
+     * @request GET:/servers/{id}/firewall/history
+     */
+    firewallHistory: (id: string, params: RequestParams = {}) =>
+      this.request<FirewallHistory, ErrorModel>({
+        path: `/servers/${id}/firewall/history`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description From ufw's log, the journal or the kernel log. Empty until logging is on.
+     *
+     * @tags Firewall
+     * @name FirewallLog
+     * @summary Traffic the firewall refused
+     * @request GET:/servers/{id}/firewall/log
+     */
+    firewallLog: (
+      id: string,
+      query?: {
+        /**
+         * How many log lines to look through
+         * @format int64
+         * @min 100
+         * @max 20000
+         * @default 5000
+         */
+        lines?: number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<FirewallLog, ErrorModel>({
+        path: `/servers/${id}/firewall/log`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Firewall
+     * @name FirewallRaw
+     * @summary The firewall's own view of its rules
+     * @request GET:/servers/{id}/firewall/raw
+     */
+    firewallRaw: (id: string, params: RequestParams = {}) =>
+      this.request<FirewallRaw, ErrorModel>({
+        path: `/servers/${id}/firewall/raw`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Which firewall is in charge (ufw, firewalld, or plain nftables/iptables, which are read-only here), whether it's on, its defaults and rules in one shape, the SSH port Morcheh depends on, and any change waiting to be kept.
+     *
+     * @tags Firewall
+     * @name GetFirewall
+     * @summary The firewall on a server
+     * @request GET:/servers/{id}/firewall
+     */
+    getFirewall: (id: string, params: RequestParams = {}) =>
+      this.request<FirewallOverview, ErrorModel>({
+        path: `/servers/${id}/firewall`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description ufw, or firewalld on the RHEL and SUSE families. It stays off until it's turned on. Runs as a background job (kind `firewall-install`). 409 when one is already under way.
+     *
+     * @tags Firewall
+     * @name InstallFirewall
+     * @summary Install a firewall
+     * @request POST:/servers/{id}/firewall/install
+     */
+    installFirewall: (id: string, params: RequestParams = {}) =>
+      this.request<Job, ErrorModel>({
+        path: `/servers/${id}/firewall/install`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description 409 when nothing is waiting, for instance because time ran out and it was undone.
+     *
+     * @tags Firewall
+     * @name KeepFirewallChange
+     * @summary Keep the change that's waiting
+     * @request POST:/servers/{id}/firewall/pending/keep
+     */
+    keepFirewallChange: (id: string, params: RequestParams = {}) =>
+      this.request<FirewallOverview, ErrorModel>({
+        path: `/servers/${id}/firewall/pending/keep`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description ufw only: the first rule that matches decides. A move that could cut the SSH connection off answers with `pending`.
+     *
+     * @tags Firewall
+     * @name MoveFirewallRule
+     * @summary Change a rule's place
+     * @request POST:/servers/{id}/firewall/rules/{rule}/move
+     */
+    moveFirewallRule: (
+      id: string,
+      rule: string,
+      data: FirewallMoveBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<FirewallOverview, ErrorModel>({
+        path: `/servers/${id}/firewall/rules/${rule}/move`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Keeps SSH allowed and the firewall on or off as it was.
+     *
+     * @tags Firewall
+     * @name ResetFirewall
+     * @summary Remove every rule
+     * @request POST:/servers/{id}/firewall/reset
+     */
+    resetFirewall: (id: string, params: RequestParams = {}) =>
+      this.request<FirewallOverview, ErrorModel>({
+        path: `/servers/${id}/firewall/reset`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Puts the whole firewall back as it was, which also takes back later changes. It's a change like any other: with the firewall on it answers with `pending`, and it shows up in the history, so it can be taken back too.
+     *
+     * @tags Firewall
+     * @name RestoreFirewallChange
+     * @summary Go back to before a change
+     * @request POST:/servers/{id}/firewall/history/{change}/restore
+     */
+    restoreFirewallChange: (
+      id: string,
+      change: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<FirewallOverview, ErrorModel>({
+        path: `/servers/${id}/firewall/history/${change}/restore`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Firewall
+     * @name UndoFirewallChange
+     * @summary Undo the change that's waiting
+     * @request POST:/servers/{id}/firewall/pending/undo
+     */
+    undoFirewallChange: (id: string, params: RequestParams = {}) =>
+      this.request<FirewallOverview, ErrorModel>({
+        path: `/servers/${id}/firewall/pending/undo`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description 404 when it's gone, for instance changed by hand meanwhile.
+     *
+     * @tags Firewall
+     * @name UpdateFirewallForward
+     * @summary Change a port forward
+     * @request PUT:/servers/{id}/firewall/forwards/{forward}
+     */
+    updateFirewallForward: (
+      id: string,
+      forward: string,
+      data: FirewallForwardBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<FirewallOverview, ErrorModel>({
+        path: `/servers/${id}/firewall/forwards/${forward}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Replaces it in the same place. 404 when it's gone, for instance changed by hand meanwhile.
+     *
+     * @tags Firewall
+     * @name UpdateFirewallRule
+     * @summary Change a rule
+     * @request PUT:/servers/{id}/firewall/rules/{rule}
+     */
+    updateFirewallRule: (
+      id: string,
+      rule: string,
+      data: FirewallRuleBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<FirewallOverview, ErrorModel>({
+        path: `/servers/${id}/firewall/rules/${rule}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Only what's sent changes. Tightening a default answers with `pending`.
+     *
+     * @tags Firewall
+     * @name UpdateFirewallSettings
+     * @summary Change default policies, logging or the default zone
+     * @request PUT:/servers/{id}/firewall/settings
+     */
+    updateFirewallSettings: (
+      id: string,
+      data: FirewallSettingsBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<FirewallOverview, ErrorModel>({
+        path: `/servers/${id}/firewall/settings`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
   folders = {
     /**
      * No description
@@ -8298,6 +9244,8 @@ export class Api<
     listServers: (
       query?: {
         auth?: ("password" | "private_key")[];
+        /** With a folder id: only the folder's own servers, not its subfolders' */
+        direct?: boolean;
         /** Only favourites */
         favorites?: boolean;
         /** A folder id (subfolders included), or 'none' for servers outside every folder */

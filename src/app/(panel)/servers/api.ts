@@ -317,8 +317,11 @@ export function useDeleteServers() {
   })
 }
 
+// Servers leave a list of one place the moment they're moved, as files do in
+// Drive; wider lists only change the row's folder. The refetch that follows
+// settles it, or brings them back if the move failed.
 export function useMoveServers() {
-  const invalidate = useInvalidate()
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({
       ids,
@@ -327,7 +330,30 @@ export function useMoveServers() {
       ids: string[]
       folderId: string | null
     }) => api.servers.bulkMoveServers({ ids, folder_id: folderId }),
-    onSuccess: invalidate,
+    onMutate: async ({ ids, folderId }) => {
+      const lists = ["servers", "list"]
+      await queryClient.cancelQueries({ queryKey: lists })
+      const cached = queryClient.getQueryCache().findAll({ queryKey: lists })
+      for (const { queryKey } of cached) {
+        const { folder, direct } = queryKey[2] as ListQuery
+        const oneLevel = direct || folder === "none"
+        const leaves = oneLevel && folder !== (folderId ?? "none")
+        queryClient.setQueryData<{ items: Server[]; total: number }>(
+          queryKey,
+          (data) => {
+            if (!data) return data
+            const items = leaves
+              ? data.items.filter((s) => !ids.includes(s.id))
+              : data.items.map((s) =>
+                  ids.includes(s.id) ? { ...s, folder_id: folderId } : s,
+                )
+            const gone = data.items.length - items.length
+            return { ...data, items, total: data.total - gone }
+          },
+        )
+      }
+    },
+    onSettled: () => invalidateServers(queryClient),
   })
 }
 

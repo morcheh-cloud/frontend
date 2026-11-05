@@ -8,7 +8,7 @@ import { toast } from "sonner"
 import type { Server } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { useFolders } from "../../api"
-import { buildTree, folderPath } from "../../components/folder-tree"
+import { buildTree, folderPath, ROOT_LABEL } from "../../components/folder-tree"
 import { osLabel, StatusDot, statusMeta, timeAgo } from "../../components/meta"
 import { serversHref } from "../../components/use-filters"
 
@@ -116,7 +116,7 @@ export function useFacts(server: Server, checking: boolean) {
               </Link>
             ),
           }
-        : none("Unfiled")),
+        : none(ROOT_LABEL)),
     },
     {
       label: "Tags",

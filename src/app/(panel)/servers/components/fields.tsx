@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
-import { type FolderNode, flatten } from "./folder-tree"
+import { type FolderNode, flatten, ROOT_LABEL } from "./folder-tree"
 
 export { Field } from "@/components/field"
 
@@ -25,7 +25,7 @@ export function FolderSelect({
   value,
   onChange,
   skip,
-  rootLabel = "No folder",
+  rootLabel = ROOT_LABEL,
 }: {
   id?: string
   roots: FolderNode[]

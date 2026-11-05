@@ -211,13 +211,14 @@ export function duration(from?: string, to?: string) {
 
 // ---- URL state of /ansible ----
 
-const tabs = ["playbooks", "runs"] as const
+const tabs = ["playbooks", "modules", "runs"] as const
 const runShows = ["all", "running", "failed", "succeeded"] as const
 
 const filters = {
   tab: parseAsStringLiteral(tabs).withDefault("playbooks"),
   q: parseAsString.withDefault(""),
   show: parseAsStringLiteral(runShows).withDefault("all"),
+  cat: parseAsString.withDefault(""),
 }
 
 export function useAnsibleFilters() {
@@ -225,6 +226,11 @@ export function useAnsibleFilters() {
 }
 
 export const ansibleHref = createSerializer(filters)
+
+// /ansible/playbooks/new?module=… starts the playbook with that module.
+const newPlaybookParams = { module: parseAsString.withDefault("") }
+export const useNewPlaybookParams = () => useQueryStates(newPlaybookParams)
+export const newPlaybookHref = createSerializer(newPlaybookParams)
 
 // ---- Starter playbooks ----
 

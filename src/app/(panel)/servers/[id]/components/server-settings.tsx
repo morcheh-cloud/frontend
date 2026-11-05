@@ -6,7 +6,7 @@ import type { ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useFolders } from "../../api"
-import { buildTree, folderPath } from "../../components/folder-tree"
+import { buildTree, folderPath, ROOT_LABEL } from "../../components/folder-tree"
 import { address } from "../../components/meta"
 import { useServerActions } from "../../components/server-actions"
 import { authText, Mono } from "./facts"
@@ -51,7 +51,7 @@ export function ServerSettings() {
       <Group title="Organization">
         <Row
           title="Folder"
-          value={folderPath(nodes, server.folder_id) || "Unfiled"}
+          value={folderPath(nodes, server.folder_id) || ROOT_LABEL}
           muted={!server.folder_id}
           action={{
             label: "Move…",

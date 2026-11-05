@@ -5,10 +5,12 @@ import {
   ArrowUpNarrowWide,
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Ellipsis,
   Folder as FolderIcon,
   FolderPlus,
-  Inbox,
+  HardDrive,
   Layers,
   Pencil,
   Plus,
@@ -34,14 +36,27 @@ import {
   useInfiniteServers,
 } from "../api"
 import { EmptyState, ErrorState } from "./empty-state"
-import { buildTree, flatten, folderPath } from "./folder-tree"
+import { folderSummary, useShownFolders } from "./folder-grid"
+import {
+  buildTree,
+  type FolderNode,
+  flatten,
+  folderPath,
+  ROOT_LABEL,
+} from "./folder-tree"
 import { address, OsTile, osLabel, StatusDot, statusMeta } from "./meta"
 import { useWorkspaceCan } from "./permissions"
 import { SearchInput } from "./search-input"
 import { useServerActions } from "./server-actions"
 import { ServerSheet } from "./server-menu"
 import { type Option, sortLabels, useFilterOptions } from "./toolbar"
-import { type SortField, toQuery, useFilters } from "./use-filters"
+import {
+  folderIdOf,
+  placeOf,
+  type SortField,
+  toQuery,
+  useFilters,
+} from "./use-filters"
 
 type SheetKind = "folder" | "status" | "os" | "tag" | "sort" | "folder-actions"
 
@@ -54,7 +69,7 @@ function afterClose(close: () => void, fn: () => void) {
 }
 
 export function ServersMobile() {
-  const { filters } = useFilters()
+  const { filters, open } = useFilters()
   const actions = useServerActions()
   const checking = useCheckingIds()
   const list = useInfiniteServers(toQuery(filters, false))
@@ -91,14 +106,30 @@ export function ServersMobile() {
     return () => observer.disconnect()
   }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
-  const folderId =
-    filters.folder && filters.folder !== "none" ? filters.folder : null
+  const folderId = folderIdOf(filters)
   const can = useWorkspaceCan()
+  const shownFolders = useShownFolders(filters)
+  const tree = useFolders()
+  const folder = folderId
+    ? buildTree(tree.data ?? []).nodes.get(folderId)
+    : undefined
 
   return (
     <>
       <header className="flex items-center gap-1 px-4 pt-[max(--spacing(5),env(safe-area-inset-top))]">
-        <h1 className="text-heading font-light">Servers</h1>
+        {folderId && (
+          <button
+            type="button"
+            aria-label="Up one level"
+            onClick={() => open({ folder: folder?.parent_id })}
+            className="-ms-2 flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none active:bg-muted"
+          >
+            <ChevronLeft className="size-6 rtl:rotate-180" />
+          </button>
+        )}
+        <h1 className="min-w-0 truncate text-heading font-light">
+          {folder?.name ?? "Servers"}
+        </h1>
         <HelpButton
           href={guideHref("servers")}
           label="Servers guide"
@@ -158,7 +189,7 @@ export function ServersMobile() {
             </li>
           ))}
         </ul>
-      ) : servers.length === 0 ? (
+      ) : servers.length === 0 && shownFolders.length === 0 ? (
         list.error ? (
           <ErrorState error={list.error} onRetry={() => list.refetch()} />
         ) : (
@@ -166,6 +197,14 @@ export function ServersMobile() {
         )
       ) : (
         <ul className="divide-y divide-border border-y border-border">
+          {shownFolders.map((node) => (
+            <li key={node.id}>
+              <FolderListRow
+                node={node}
+                onOpen={() => open({ folder: node.id })}
+              />
+            </li>
+          ))}
           {servers.map((server) => (
             <li key={server.id}>
               <ServerRow
@@ -196,6 +235,35 @@ export function ServersMobile() {
 
       <FilterSheet kind={sheet} open={sheetOpen} onOpenChange={setSheetOpen} />
     </>
+  )
+}
+
+function FolderListRow({
+  node,
+  onOpen,
+}: {
+  node: FolderNode
+  onOpen: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="flex min-h-[4.5rem] w-full items-center gap-3 py-3 ps-4 pe-3 text-start outline-none active:bg-muted"
+    >
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+        <FolderIcon className="size-5" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-body font-medium">
+          {node.name}
+        </span>
+        <span className="block truncate text-body-sm text-muted-foreground">
+          {folderSummary(node)}
+        </span>
+      </span>
+      <ChevronRight className="size-5 shrink-0 text-ash rtl:rotate-180" />
+    </button>
   )
 }
 
@@ -252,20 +320,22 @@ function FilterChips({ onOpen }: { onOpen: (kind: SheetKind) => void }) {
   const { filters } = useFilters()
   const folders = useFolders()
   const { nodes } = buildTree(folders.data ?? [])
-  const folderLabel = filters.favorites
-    ? "Favorites"
-    : filters.folder === "none"
-      ? "Unfiled"
-      : filters.folder
-        ? (nodes.get(filters.folder)?.name ?? "Folder")
-        : "All servers"
+  const place = placeOf(filters)
+  const folderLabel =
+    place === "favorites"
+      ? "Favorites"
+      : place === "all"
+        ? "All servers"
+        : place === "folder"
+          ? (nodes.get(filters.folder ?? "")?.name ?? "Folder")
+          : ROOT_LABEL
   const SortIcon =
     filters.order === "desc" ? ArrowDownWideNarrow : ArrowUpNarrowWide
 
   return (
     <div className="flex [scrollbar-width:none] gap-2 overflow-x-auto px-4 [&::-webkit-scrollbar]:hidden">
       <Chip
-        active={Boolean(filters.folder || filters.favorites)}
+        active={place !== "root"}
         onClick={() => onOpen("folder")}
         icon={<FolderIcon />}
       >
@@ -476,27 +546,35 @@ function OptionList({
 }
 
 function FolderPicker({ close }: { close: () => void }) {
-  const { filters, setFilters } = useFilters()
+  const { filters, open } = useFilters()
   const facets = useFacets()
   const folders = useFolders()
   const actions = useServerActions()
   const can = useWorkspaceCan()
   const { roots } = buildTree(folders.data ?? [])
 
-  const pick = (patch: Parameters<typeof setFilters>[0]) =>
-    afterClose(close, () => setFilters(patch))
+  const pick = (place?: Parameters<typeof open>[0]) =>
+    afterClose(close, () => open(place))
   const tick = <Check className="size-5 text-brand" />
-  const isAll = !filters.folder && !filters.favorites
+  const at = placeOf(filters)
 
   return (
     <>
       <ul className="divide-y divide-border border-b border-border">
         <li>
           <SheetAction
+            icon={<HardDrive />}
+            label={ROOT_LABEL}
+            trailing={at === "root" && tick}
+            onClick={() => pick()}
+          />
+        </li>
+        <li>
+          <SheetAction
             icon={<Layers />}
             label="All servers"
-            trailing={isAll ? tick : <Count n={facets.data?.total} />}
-            onClick={() => pick({ folder: null, favorites: null })}
+            trailing={at === "all" ? tick : <Count n={facets.data?.total} />}
+            onClick={() => pick({ folder: "all" })}
           />
         </li>
         <li>
@@ -504,23 +582,9 @@ function FolderPicker({ close }: { close: () => void }) {
             icon={<Star />}
             label="Favorites"
             trailing={
-              filters.favorites ? tick : <Count n={facets.data?.favorites} />
+              at === "favorites" ? tick : <Count n={facets.data?.favorites} />
             }
-            onClick={() => pick({ folder: null, favorites: true })}
-          />
-        </li>
-        <li>
-          <SheetAction
-            icon={<Inbox />}
-            label="Unfiled"
-            trailing={
-              filters.folder === "none" ? (
-                tick
-              ) : (
-                <Count n={facets.data?.unfiled} />
-              )
-            }
-            onClick={() => pick({ folder: "none", favorites: null })}
+            onClick={() => pick({ favorites: true })}
           />
         </li>
       </ul>
@@ -537,13 +601,13 @@ function FolderPicker({ close }: { close: () => void }) {
               icon={<FolderIcon />}
               label={node.name}
               trailing={
-                filters.folder === node.id && !filters.favorites ? (
+                folderIdOf(filters) === node.id ? (
                   tick
                 ) : (
                   <Count n={node.total} />
                 )
               }
-              onClick={() => pick({ folder: node.id, favorites: null })}
+              onClick={() => pick({ folder: node.id })}
             />
           </li>
         ))}
@@ -552,7 +616,9 @@ function FolderPicker({ close }: { close: () => void }) {
             <SheetAction
               icon={<FolderPlus />}
               label="New folder"
-              onClick={() => afterClose(close, () => actions.newFolder(null))}
+              onClick={() =>
+                afterClose(close, () => actions.newFolder(folderIdOf(filters)))
+              }
             />
           </li>
         )}
@@ -569,14 +635,14 @@ function Count({ n }: { n?: number }) {
   )
 }
 
-// Actions on the folder being viewed: the phone's stand-in for the rail's menu.
+// Actions on the folder being viewed: the phone's stand-in for the path's menu.
 function FolderActions({ close }: { close: () => void }) {
   const { filters } = useFilters()
   const folders = useFolders()
   const actions = useServerActions()
   const can = useWorkspaceCan()
   const { nodes } = buildTree(folders.data ?? [])
-  const folder = filters.folder ? nodes.get(filters.folder) : undefined
+  const folder = nodes.get(folderIdOf(filters) ?? "")
   if (!folder) return null
   const run = (fn: () => void) => () => afterClose(close, fn)
 

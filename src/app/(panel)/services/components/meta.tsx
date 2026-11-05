@@ -46,6 +46,7 @@ import {
 } from "nuqs"
 import { useState } from "react"
 
+import { useStoredChoice } from "@/hooks/useStoredChoice"
 import { API_URL } from "@/lib/api"
 import type { App, AppCategory, AppList } from "@/lib/services"
 import { cn } from "@/lib/utils"
@@ -323,25 +324,6 @@ export function visibleGroups(
   return { shown, groups }
 }
 
-export type ViewMode = "tiles" | "table"
-const viewKey = "morcheh.services.view"
-
 // Tiles or table, remembered on this browser.
-export function useViewMode() {
-  const [mode, setMode] = useState<ViewMode>(() => {
-    try {
-      return localStorage.getItem(viewKey) === "table" ? "table" : "tiles"
-    } catch {
-      return "tiles"
-    }
-  })
-  return [
-    mode,
-    (next: ViewMode) => {
-      setMode(next)
-      try {
-        localStorage.setItem(viewKey, next)
-      } catch {}
-    },
-  ] as const
-}
+export const useViewMode = () =>
+  useStoredChoice("morcheh.services.view", ["tiles", "table"])

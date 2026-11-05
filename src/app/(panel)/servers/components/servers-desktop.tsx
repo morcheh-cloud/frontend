@@ -14,22 +14,33 @@ import {
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
-import { PageHeader } from "@/components/panel/page-header"
+import { Segmented } from "@/app/(panel)/servers/[id]/components/parts"
 import { Button } from "@/components/ui/button"
 import {
-  PAGE_SIZE,
-  useBulkCheck,
-  useCheckingIds,
-  useFolders,
-  useServers,
-} from "../api"
-import { FolderRail } from "./folder-rail"
-import { buildTree, folderPath } from "./folder-tree"
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { useStoredChoice } from "@/hooks/useStoredChoice"
+import { PAGE_SIZE, useBulkCheck, useCheckingIds, useServers } from "../api"
+import { FolderDnd } from "./folder-dnd"
+import {
+  FolderCrumbs,
+  FolderGrid,
+  PlaceTabs,
+  useShownFolders,
+} from "./folder-grid"
 import { useServerCan, useWorkspaceCan } from "./permissions"
 import { useServerActions } from "./server-actions"
+import { ServerCards } from "./server-cards"
 import { type Selection, ServersTable } from "./servers-table"
 import { ActiveFilters, Toolbar } from "./toolbar"
-import { toQuery, useFilters } from "./use-filters"
+import { folderIdOf, toQuery, useFilters } from "./use-filters"
+
+const views = [
+  { value: "cards", label: "Cards" },
+  { value: "table", label: "Table" },
+] as const
 
 export function ServersDesktop() {
   const { filters, setPage } = useFilters()
@@ -54,46 +65,61 @@ export function ServersDesktop() {
     if (servers.data && filters.page > pages) setPage(pages)
   }, [servers.data, filters.page, pages, setPage])
 
-  const folderId =
-    filters.folder && filters.folder !== "none" ? filters.folder : null
+  const folderId = folderIdOf(filters)
   const can = useWorkspaceCan()
+  const folders = useShownFolders(filters)
+  // A level holding only folders has no empty list to explain.
+  const showList = servers.isPending || items.length > 0 || !folders.length
+  const [listView, setListView] = useStoredChoice("morcheh.servers.view", [
+    "cards",
+    "table",
+  ])
+  const List = listView === "cards" ? ServerCards : ServersTable
 
   return (
-    <>
-      <PageHeader
-        title="Servers"
-        description="Every machine Morcheh reaches over SSH."
-        actions={
-          <>
-            {can.folders && (
-              <Button
-                variant="outline"
-                onClick={() => actions.newFolder(folderId)}
+    <FolderDnd selection={selection} onMoved={() => setSelection(new Map())}>
+      <section className="flex w-full min-w-0 flex-col gap-3 px-6 pt-5 pb-24">
+        <Toolbar>
+          {can.folders && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    aria-label="New folder"
+                    className="size-9 p-0"
+                    onClick={() => actions.newFolder(folderId)}
+                  />
+                }
               >
                 <FolderPlus />
-                New folder
-              </Button>
-            )}
-            {can.addServer && (
-              <Button onClick={() => actions.addServer(folderId)}>
-                <Plus />
-                Add server
-              </Button>
-            )}
-          </>
-        }
-      />
-
-      <div className="grid w-full grid-cols-[13.5rem_minmax(0,1fr)] gap-6 px-6 pt-5 pb-24">
-        <aside className="sticky top-[calc(3rem+1px+--spacing(5))] self-start">
-          <FolderRail />
-        </aside>
-
-        <section className="flex min-w-0 flex-col gap-3">
-          <ViewTitle total={servers.data ? total : undefined} />
-          <Toolbar />
-          <ActiveFilters />
-          <ServersTable
+              </TooltipTrigger>
+              <TooltipContent>New folder</TooltipContent>
+            </Tooltip>
+          )}
+          {can.addServer && (
+            <Button className="h-9" onClick={() => actions.addServer(folderId)}>
+              <Plus />
+              Add server
+            </Button>
+          )}
+        </Toolbar>
+        <ActiveFilters />
+        <div className="flex items-center justify-between gap-3">
+          <FolderCrumbs total={servers.data ? total : undefined} />
+          <div className="flex shrink-0 items-center gap-2">
+            <PlaceTabs />
+            <Segmented
+              label="View"
+              items={views}
+              value={listView}
+              onChange={setListView}
+            />
+          </div>
+        </div>
+        {folders.length > 0 && <FolderGrid folders={folders} />}
+        {showList && (
+          <List
             servers={items}
             loading={servers.isPending}
             error={servers.data ? null : servers.error}
@@ -101,46 +127,34 @@ export function ServersDesktop() {
             selection={selection}
             onSelectionChange={setSelection}
           />
-          {total > PAGE_SIZE && (
-            <Pagination
-              page={filters.page}
-              pages={pages}
-              total={total}
-              onPage={setPage}
-            />
-          )}
-          {selection.size > 0 && (
-            <BulkBar
-              selection={selection}
-              onClear={() => setSelection(new Map())}
-            />
-          )}
-        </section>
-      </div>
-    </>
-  )
-}
-
-function ViewTitle({ total }: { total?: number }) {
-  const { filters } = useFilters()
-  const folders = useFolders()
-  const { nodes } = buildTree(folders.data ?? [])
-  const title = filters.favorites
-    ? "Favorites"
-    : filters.folder === "none"
-      ? "Unfiled"
-      : filters.folder
-        ? folderPath(nodes, filters.folder) || "Folder"
-        : "All servers"
-  return (
-    <div className="flex items-baseline gap-2">
-      <h2 className="truncate text-body font-medium">{title}</h2>
-      {total !== undefined && (
-        <span className="text-body-sm text-ash tabular-nums">
-          {total} {total === 1 ? "server" : "servers"}
-        </span>
-      )}
-    </div>
+        )}
+        {total > PAGE_SIZE && (
+          <Pagination
+            page={filters.page}
+            pages={pages}
+            total={total}
+            onPage={setPage}
+          />
+        )}
+        {selection.size > 0 && (
+          <BulkBar
+            selection={selection}
+            onClear={() => setSelection(new Map())}
+            onSelectAll={
+              items.every((s) => selection.has(s.id))
+                ? undefined
+                : () =>
+                    setSelection(
+                      new Map([
+                        ...selection,
+                        ...items.map((s) => [s.id, s] as const),
+                      ]),
+                    )
+            }
+          />
+        )}
+      </section>
+    </FolderDnd>
   )
 }
 
@@ -192,9 +206,12 @@ function Pagination({
 function BulkBar({
   selection,
   onClear,
+  onSelectAll,
 }: {
   selection: Selection
   onClear: () => void
+  /** Set while some servers on this page aren't selected. */
+  onSelectAll?: () => void
 }) {
   const actions = useServerActions()
   const bulkCheck = useBulkCheck()
@@ -232,6 +249,11 @@ function BulkBar({
       <span className="px-3 text-body-sm font-medium tabular-nums">
         {selection.size} selected
       </span>
+      {onSelectAll && (
+        <Button variant="ghost" size="sm" onClick={onSelectAll}>
+          Select all
+        </Button>
+      )}
       {operator && (
         <Button
           variant="ghost"
