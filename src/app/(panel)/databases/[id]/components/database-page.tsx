@@ -13,7 +13,7 @@ import {
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { parseAsStringLiteral, useQueryState } from "nuqs"
-import { useRef } from "react"
+import { useEffect, useRef } from "react"
 
 import { useServer } from "@/app/(panel)/servers/api"
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
@@ -51,6 +51,7 @@ import {
 } from "../../components/meta"
 import { useDatabaseCan } from "../../components/permissions"
 import { ActivityTab } from "./activity"
+import { BackupsTab } from "./backups/backups-tab"
 import { ClientsTab } from "./clients"
 import { DashboardActionsProvider } from "./dashboard-actions"
 import { DetailsTab } from "./details"
@@ -68,6 +69,7 @@ const tabs = [
   "space",
   "clients",
   "replication",
+  "backups",
   "details",
 ] as const
 type Tab = (typeof tabs)[number]
@@ -79,6 +81,7 @@ const tabLabels = (d: Database): Record<Tab, string> => ({
   space: d.engine === "redis" ? "Keys" : "Tables & space",
   clients: "Clients",
   replication: "Replication",
+  backups: "Backups",
   details: "Details",
 })
 
@@ -306,6 +309,15 @@ function PhonePage() {
   const labels = tabLabels(d)
   const guide = guideForPath(`/databases/${d.id}`)
 
+  // Links lead straight to a later tab (Home's backup issue): show its chip.
+  const chips = useRef<HTMLElement>(null)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `tab` is the trigger.
+  useEffect(() => {
+    chips.current
+      ?.querySelector("[aria-current=page]")
+      ?.scrollIntoView({ block: "nearest", inline: "center" })
+  }, [tab])
+
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-border bg-background/90 pt-[env(safe-area-inset-top)] backdrop-blur-md">
@@ -346,6 +358,7 @@ function PhonePage() {
           </button>
         </div>
         <nav
+          ref={chips}
           aria-label="Database sections"
           className="flex [scrollbar-width:none] gap-2 overflow-x-auto px-4 pb-2.5"
         >
@@ -390,6 +403,8 @@ function TabBody({ tab }: { tab: Tab }) {
       return <ClientsTab />
     case "replication":
       return <ReplicationTab />
+    case "backups":
+      return <BackupsTab />
     case "details":
       return <DetailsTab />
     default:

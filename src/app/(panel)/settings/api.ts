@@ -5,7 +5,7 @@ import { toast } from "sonner"
 
 import { accessKey } from "@/components/auth/keys"
 import { workspacesKey } from "@/components/panel/workspace"
-import { api } from "@/lib/api"
+import { api, apiFetch } from "@/lib/api"
 import type {
   PanelApproveBody,
   PanelGroupBody,
@@ -13,6 +13,7 @@ import type {
   PanelUser,
   PanelUserCreateBody,
   PanelUserUpdateBody,
+  PanelWorkspace,
   WorkspaceAssignBody,
   WorkspaceBody,
 } from "@/lib/services"
@@ -171,6 +172,20 @@ export function useSaveWorkspace() {
       id
         ? api.workspaces.updateWorkspace(id, body)
         : api.workspaces.createWorkspace(body),
+    onSuccess: refresh,
+  })
+}
+
+// The image goes up as raw bytes; the generated client would send JSON.
+export function useUploadWorkspaceLogo() {
+  const refresh = useRefreshWorkspaces()
+  return useMutation({
+    mutationFn: ({ id, file }: { id: string; file: File }) =>
+      apiFetch<PanelWorkspace>(`/workspaces/${id}/logo`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/octet-stream" },
+        body: file,
+      }),
     onSuccess: refresh,
   })
 }

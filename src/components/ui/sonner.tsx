@@ -9,11 +9,14 @@ import {
 } from "lucide-react"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 
-// Light theme only (no next-themes). Toasts sit above the phone tab bar.
+import { useTheme } from "@/components/theme"
+
+// Follows our theme (no next-themes). Toasts sit above the phone tab bar.
 const Toaster = ({ ...props }: ToasterProps) => {
+  const { resolved } = useTheme()
   return (
     <Sonner
-      theme="light"
+      theme={resolved}
       className="toaster group"
       icons={{
         success: <CircleCheckIcon className="size-4" />,

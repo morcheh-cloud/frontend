@@ -8,13 +8,18 @@ import {
   useQueryClient,
 } from "@tanstack/react-query"
 
+import { type InsightsRange, timeZone } from "@/components/insights/format"
 import { STATUS_POLL } from "@/components/panel/problems"
-import { ApiError, api } from "@/lib/api"
+import { API_URL, ApiError, api } from "@/lib/api"
 import type {
+  Backup,
+  BackupPlanBody,
+  BackupRestore,
   Database,
   DatabaseBody,
   DatabaseHistory,
   DatabaseTestBody,
+  RestoreBody,
   UpdateDatabaseMonitoringRequest,
 } from "@/lib/services"
 
@@ -286,4 +291,154 @@ export function useExplain(id: string) {
     mutationFn: (v: { query: string; database?: string }) =>
       api.databases.explainDatabaseQuery(id, v),
   })
+}
+
+export const databaseInsightsKeys = {
+  all: ["database-insights"] as const,
+  range: (range: InsightsRange) => ["database-insights", range] as const,
+}
+
+// Availability, load and size from the monitor's samples (one a minute).
+export function useDatabaseInsights(range: InsightsRange) {
+  return useQuery({
+    queryKey: databaseInsightsKeys.range(range),
+    queryFn: () => api.databases.databaseInsights({ range, tz: timeZone() }),
+    refetchInterval: 60_000,
+    placeholderData: (previous) => previous,
+  })
+}
+
+// Backups (the Backups tab). Everything sits under one root, so a finished
+// job (`refreshAfterJob`) refreshes it all.
+export const backupKeys = {
+  all: ["database-backups"] as const,
+  plans: (id: string) => ["database-backups", "plans", id] as const,
+  list: (id: string, limit: number) =>
+    ["database-backups", "list", id, limit] as const,
+  one: (id: string) => ["database-backups", "one", id] as const,
+  plan: (id: string) => ["database-backups", "plan", id] as const,
+  options: (id: string) => ["database-backups", "options", id] as const,
+  restores: (id: string) => ["database-backups", "restores", id] as const,
+}
+
+export const backupActive = (b: Pick<Backup, "state">) =>
+  b.state === "queued" || b.state === "running"
+
+const BACKUP_POLL = 3_000
+
+export function useBackupPlans(id: string) {
+  return useQuery({
+    queryKey: backupKeys.plans(id),
+    queryFn: () => api.databaseBackups.listDatabaseBackupPlans(id),
+    select: (l) => l.items,
+    refetchInterval: (q) =>
+      q.state.data?.items.some((p) => p.running) ? BACKUP_POLL : STATUS_POLL,
+  })
+}
+
+export function useBackups(id: string, limit: number) {
+  return useQuery({
+    queryKey: backupKeys.list(id, limit),
+    queryFn: () => api.databaseBackups.listDatabaseBackups(id, { limit }),
+    placeholderData: (previous) => previous,
+    refetchInterval: (q) =>
+      q.state.data?.items.some(backupActive) ? BACKUP_POLL : STATUS_POLL,
+  })
+}
+
+export function useBackup(id: string | undefined) {
+  return useQuery({
+    queryKey: backupKeys.one(id ?? ""),
+    queryFn: () => api.databaseBackups.getDatabaseBackup(id ?? ""),
+    enabled: !!id,
+    refetchInterval: (q) =>
+      q.state.data && backupActive(q.state.data) ? BACKUP_POLL : false,
+  })
+}
+
+// One plan, for its editor page. No polling: the form is a draft over it.
+export function useBackupPlan(id: string | undefined) {
+  return useQuery({
+    queryKey: backupKeys.plan(id ?? ""),
+    queryFn: () => api.databaseBackups.getDatabaseBackupPlan(id ?? ""),
+    enabled: !!id,
+    refetchOnWindowFocus: false,
+  })
+}
+
+// What a plan can choose from on this database: its databases, which ways of
+// selecting them work, and whether incremental backups do. Owner only.
+export function useBackupOptions(id: string, enabled = true) {
+  return useQuery({
+    queryKey: backupKeys.options(id),
+    queryFn: () => api.databaseBackups.getDatabaseBackupOptions(id),
+    enabled,
+    staleTime: 60_000,
+  })
+}
+
+export const restoreActive = (r: Pick<BackupRestore, "state">) =>
+  r.state === "queued" || r.state === "running"
+
+export function useRestores(id: string) {
+  return useQuery({
+    queryKey: backupKeys.restores(id),
+    queryFn: () => api.databaseBackups.listDatabaseRestores(id),
+    select: (l) => l.items,
+    refetchInterval: (q) =>
+      q.state.data?.items.some(restoreActive) ? BACKUP_POLL : STATUS_POLL,
+  })
+}
+
+// Every write changes what the tab, the menu's count and Home show.
+function useBackupWrite<V, R>(fn: (v: V) => Promise<R>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSettled: () => qc.invalidateQueries({ queryKey: backupKeys.all }),
+  })
+}
+
+export function useSavePlan(databaseId: string) {
+  return useBackupWrite((v: { id?: string; body: BackupPlanBody }) =>
+    v.id
+      ? api.databaseBackups.updateDatabaseBackupPlan(v.id, v.body)
+      : api.databaseBackups.createDatabaseBackupPlan(databaseId, v.body),
+  )
+}
+
+export const useDeletePlan = () =>
+  useBackupWrite((id: string) =>
+    api.databaseBackups.deleteDatabaseBackupPlan(id),
+  )
+
+// These two answer with a job: hand it to `track`.
+export const useRunPlan = () =>
+  useBackupWrite((id: string) => api.databaseBackups.runDatabaseBackupPlan(id))
+
+export const useVerifyBackup = () =>
+  useBackupWrite((id: string) => api.databaseBackups.verifyDatabaseBackup(id))
+
+export const useCancelBackup = () =>
+  useBackupWrite((id: string) => api.databaseBackups.cancelDatabaseBackup(id))
+
+// Answers with a job: hand it to `track`.
+export const useRestoreBackup = () =>
+  useBackupWrite((v: { id: string; body: RestoreBody }) =>
+    api.databaseBackups.restoreDatabaseBackup(v.id, v.body),
+  )
+
+export const useDeleteBackup = () =>
+  useBackupWrite((id: string) => api.databaseBackups.deleteDatabaseBackup(id))
+
+// A plain link: the browser streams the file to disk, however big it is.
+// `storage` picks the copy; empty = the first stored one.
+export function downloadBackup(id: string, storage?: string) {
+  const a = document.createElement("a")
+  const q = storage ? `?storage=${encodeURIComponent(storage)}` : ""
+  a.href = `${API_URL || window.location.origin}/database-backups/${id}/download${q}`
+  a.rel = "noopener"
+  document.body.append(a)
+  a.click()
+  a.remove()
 }

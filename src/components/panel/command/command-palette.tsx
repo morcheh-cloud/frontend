@@ -52,6 +52,7 @@ import {
 import { Highlight } from "@/app/help/components/search"
 import { useAccess } from "@/components/auth/auth"
 import { useSettingsItem } from "@/components/panel/app-sidebar"
+import { useTheme } from "@/components/theme"
 import { Kbd } from "@/components/ui/kbd"
 import { useSidebar } from "@/components/ui/sidebar"
 import { queueIntent } from "@/hooks/useIntent"
@@ -361,7 +362,8 @@ function Palette({ phone, close }: { phone: boolean; close: () => void }) {
     forget: () => forget(r.key),
   })
 
-  const allActions = actions(pathname, toggleSidebar, canAdd)
+  const { resolved: theme } = useTheme()
+  const allActions = actions(pathname, toggleSidebar, canAdd, theme)
 
   const groups: Group[] = q
     ? [

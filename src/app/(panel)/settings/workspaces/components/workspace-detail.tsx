@@ -19,6 +19,7 @@ import { ResourceAccess } from "@/components/access/grants"
 import { useAccess } from "@/components/auth/auth"
 import { usePageCrumbs } from "@/components/panel/breadcrumbs"
 import { PageHeader } from "@/components/panel/page-header"
+import { WorkspaceAvatar } from "@/components/panel/workspace"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useBack } from "@/hooks/useBack"
@@ -103,6 +104,12 @@ function Detail({ id }: { id: string }) {
       )}
       <PageHeader
         title={workspace.name}
+        icon={
+          <WorkspaceAvatar
+            workspace={workspace}
+            className="size-10 rounded-lg text-body"
+          />
+        }
         guide="access"
         description={workspace.description || undefined}
         actions={

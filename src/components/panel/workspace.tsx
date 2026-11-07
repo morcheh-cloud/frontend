@@ -12,8 +12,9 @@ import {
   useState,
 } from "react"
 
+import { appIcons, colorOf } from "@/components/palette"
 import { Button } from "@/components/ui/button"
-import { api, setActiveWorkspace } from "@/lib/api"
+import { API_URL, api, setActiveWorkspace } from "@/lib/api"
 import type { PanelWorkspace } from "@/lib/services"
 import { cn } from "@/lib/utils"
 
@@ -147,23 +148,56 @@ export function useFollowWorkspace(id: string | undefined) {
   }, [id, known, current, select])
 }
 
-// The workspace's initial on a tinted tile.
+type AvatarWorkspace = Pick<Workspace, "name"> &
+  Partial<Pick<Workspace, "color" | "logo_kind" | "logo_icon" | "logo_url">>
+
+// The workspace's uploaded logo, else its icon or first letter on its color.
+// Size it with className (default 24px).
 export function WorkspaceAvatar({
   workspace,
   className,
 }: {
-  workspace: Pick<Workspace, "name"> | null
+  workspace: AvatarWorkspace | null
   className?: string
 }) {
+  const [broken, setBroken] = useState<string | null>(null)
+  const box = cn(
+    "flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-md text-caption font-medium",
+    className,
+  )
+  const url = workspace?.logo_kind === "upload" ? workspace.logo_url : undefined
+  if (url && broken !== url) {
+    return (
+      <span
+        aria-hidden
+        className={cn(box, "bg-card ring-1 ring-border ring-inset")}
+      >
+        {/* biome-ignore lint/performance/noImgElement: a cookie-authenticated API image, not a static asset */}
+        <img
+          src={`${API_URL}${url}`}
+          alt=""
+          draggable={false}
+          onError={() => setBroken(url)}
+          className="size-full object-contain"
+        />
+      </span>
+    )
+  }
+  const tile = cn(box, colorOf(workspace?.color ?? "indigo").tile, "text-white")
+  const Icon =
+    workspace?.logo_kind === "icon"
+      ? appIcons[workspace.logo_icon ?? ""]
+      : undefined
+  if (Icon) {
+    return (
+      <span aria-hidden className={tile}>
+        <Icon className="size-[60%]" />
+      </span>
+    )
+  }
   return (
-    <span
-      aria-hidden
-      className={cn(
-        "flex size-6 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-caption font-medium text-sidebar-primary-foreground",
-        className,
-      )}
-    >
-      {workspace?.name.charAt(0).toUpperCase() ?? "–"}
+    <span aria-hidden className={tile}>
+      {[...(workspace?.name.trim() ?? "")][0]?.toUpperCase() ?? "–"}
     </span>
   )
 }

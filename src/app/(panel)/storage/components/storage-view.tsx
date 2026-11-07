@@ -23,8 +23,11 @@ import { useIsPhone } from "@/hooks/useIsPhone"
 import { useOpen } from "@/hooks/useOpen"
 import type { Storage } from "@/lib/services"
 import { cn } from "@/lib/utils"
+import { Segmented } from "../../servers/[id]/components/parts"
 import { useWorkspaceCan } from "../../servers/components/permissions"
 import { useCheckingStorages, useStorages } from "../api"
+import { useStoragePageFilters } from "./filters"
+import { InsightsBody, InsightsControls } from "./insights/insights"
 import { endpointLabel, ProtocolTile, providerLabel } from "./meta"
 import { useStorageCan } from "./permissions"
 import { useStorageActions } from "./storage-actions"
@@ -49,6 +52,7 @@ function StorageDesktop() {
   const list = useStorages()
   const checking = useCheckingStorages()
   const items = sorted(list.data?.items ?? [])
+  const [{ tab }, setFilters] = useStoragePageFilters()
 
   return (
     <>
@@ -65,7 +69,21 @@ function StorageDesktop() {
           )
         }
       />
-      <div className="px-6 pt-5 pb-24">
+      <div className="flex flex-col gap-4 px-6 pt-5 pb-24">
+        {items.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3">
+            <Segmented
+              label="Show"
+              value={tab}
+              onChange={(tab) => setFilters({ tab })}
+              items={[
+                { value: "storages", label: `Storages · ${items.length}` },
+                { value: "insights", label: "Insights" },
+              ]}
+            />
+            {tab === "insights" && <InsightsControls phone={false} />}
+          </div>
+        )}
         {list.isPending ? (
           <div className="overflow-hidden rounded-2xl border border-border">
             {Array.from({ length: 4 }, (_, i) => (
@@ -88,6 +106,8 @@ function StorageDesktop() {
           <div className="rounded-2xl border border-border">
             <NoStorage onAdd={canAdd ? actions.addStorage : undefined} />
           </div>
+        ) : tab === "insights" ? (
+          <InsightsBody phone={false} />
         ) : (
           <div className="@container overflow-x-auto rounded-2xl border border-border">
             <table className="w-full text-body-sm">
@@ -248,6 +268,7 @@ function StorageMobile() {
   const last = useRef<Storage | null>(null)
   const current = items.find((s) => s.id === sheetId) ?? last.current
   if (current) last.current = current
+  const [{ tab }, setFilters] = useStoragePageFilters()
 
   return (
     <>
@@ -270,7 +291,26 @@ function StorageMobile() {
         )}
       </header>
 
-      <div className="pt-4 pb-24">
+      {items.length > 0 && (
+        <div className="flex flex-col gap-3 px-4 pt-4">
+          <Segmented
+            label="Show"
+            value={tab}
+            onChange={(tab) => setFilters({ tab })}
+            items={[
+              { value: "storages", label: `Storages · ${items.length}` },
+              { value: "insights", label: "Insights" },
+            ]}
+          />
+          {tab === "insights" && (
+            <div className="flex items-center gap-2">
+              <InsightsControls phone />
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className={cn("pb-24", tab === "insights" ? "pt-3" : "pt-4")}>
         {list.isPending ? (
           <ul className="divide-y divide-border border-y border-border">
             {Array.from({ length: 4 }, (_, i) => (
@@ -288,6 +328,10 @@ function StorageMobile() {
           <Failed error={list.error} onRetry={() => list.refetch()} />
         ) : items.length === 0 ? (
           <NoStorage onAdd={canAdd ? actions.addStorage : undefined} />
+        ) : tab === "insights" ? (
+          <div className="border-t border-border">
+            <InsightsBody phone />
+          </div>
         ) : (
           <ul className="divide-y divide-border border-y border-border">
             {items.map((s) => (

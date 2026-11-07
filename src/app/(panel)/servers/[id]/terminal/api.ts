@@ -60,7 +60,7 @@ export function terminalSocketUrl(
 
 // What the server sends as JSON text frames (terminal bytes are binary).
 export type ControlMessage =
-  | { type: "session"; id: string; title: string }
+  | { type: "session"; id: string; title: string; recorded?: boolean }
   | { type: "title"; title: string }
   | { type: "exit"; code?: number }
   | { type: "error"; status: number; message: string }

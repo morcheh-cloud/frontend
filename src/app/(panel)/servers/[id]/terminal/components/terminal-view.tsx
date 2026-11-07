@@ -12,6 +12,7 @@ import {
   useRef,
 } from "react"
 
+import { useTheme } from "@/components/theme"
 import { cn } from "@/lib/utils"
 import { type ControlMessage, terminalSocketUrl } from "../api"
 
@@ -88,7 +89,8 @@ export function TerminalView({
   fontSize: number
   // Lets the phone key bar apply its sticky Ctrl/Alt to typed keys.
   transformInput?: (data: string) => string
-  onSession: (id: string, title: string) => void
+  // `recorded`: the workspace saves this shell's output.
+  onSession: (id: string, title: string, recorded: boolean) => void
   onTitle: (title: string) => void
   onStatus: (status: Status) => void
   onShortcut?: (name: "search") => void
@@ -327,7 +329,7 @@ export function TerminalView({
               attempt = 0
               // A new shell (or a restart) starts a new history.
               if (!resuming) setCommands([])
-              emitSession(msg.id, msg.title)
+              emitSession(msg.id, msg.title, Boolean(msg.recorded))
               emitStatus({ kind: "open" })
               // The shell may have another size if someone else resized it.
               send(
@@ -414,6 +416,13 @@ export function TerminalView({
       fitRef.current = null
     }
   }, [])
+
+  // xterm takes plain colors: read the tokens again when the theme flips
+  // (the class is already on <html> by the time this runs).
+  const { resolved: theme } = useTheme()
+  useEffect(() => {
+    if (theme && termRef.current) termRef.current.options.theme = readTheme()
+  }, [theme])
 
   useEffect(() => {
     const term = termRef.current

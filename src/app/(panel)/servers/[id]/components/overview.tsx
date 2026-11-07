@@ -22,6 +22,12 @@ import {
 } from "../../components/meta"
 import { useServerActions } from "../../components/server-actions"
 import { useServerStats } from "../api"
+import {
+  NotesCardAction,
+  NotesCardBody,
+  PinnedNoteRows,
+  useHasPinnedNotes,
+} from "../notes/components/pinned-notes"
 import { Copyable, type Fact, useFacts } from "./facts"
 import { DesktopResources, DiskList, MobileResources } from "./resources"
 import {
@@ -113,28 +119,8 @@ function DesktopOverview() {
         <Card title="Organization">
           <Facts facts={facts.organization} />
         </Card>
-        <Card
-          title="Notes"
-          action={
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => actions.editServer(server)}
-            >
-              <Pencil />
-              {server.description ? "Edit" : "Add"}
-            </Button>
-          }
-        >
-          {server.description ? (
-            <p className="text-body-sm whitespace-pre-line">
-              {server.description}
-            </p>
-          ) : (
-            <p className="text-body-sm text-ash">
-              What runs here, who owns it, anything the next person should know.
-            </p>
-          )}
+        <Card title="Notes" action={<NotesCardAction />}>
+          <NotesCardBody />
         </Card>
       </div>
     </div>
@@ -194,6 +180,7 @@ function MobileOverview() {
   const actions = useServerActions()
   const facts = useFacts(server, checking)
   const stats = useServerStats(server)
+  const hasNotes = useHasPinnedNotes()
 
   return (
     <div className="pb-6">
@@ -285,11 +272,9 @@ function MobileOverview() {
       <Group title="Organization">
         <FactRows facts={facts.organization} />
       </Group>
-      {server.description && (
+      {hasNotes && (
         <Group title="Notes">
-          <li className="px-4 py-3 text-body whitespace-pre-line">
-            {server.description}
-          </li>
+          <PinnedNoteRows />
         </Group>
       )}
 

@@ -443,6 +443,71 @@ ssh -i ~/Downloads/web-01.key -p 22 deploy@10.0.0.12
     ),
   },
   {
+    id: "insights",
+    title: "Insights: charts and statistics",
+    body: (
+      <>
+        <P>
+          The <UI>Insights</UI> tab on the Servers page (next to{" "}
+          <UI>Servers</UI>, at the start of the toolbar; on a phone, under the
+          title) shows how your servers have been doing over <UI>24 hours</UI>,{" "}
+          <UI>7 days</UI> or <UI>30 days</UI>. It covers the servers of the
+          selected workspace that you can see, and refreshes by itself every
+          minute.
+        </P>
+        <Table
+          head={["Part", "What it shows"]}
+          rows={[
+            [
+              "Tiles",
+              "How many are online now, uptime over the range, the average SSH response time, average CPU and memory, and the fullest disk.",
+            ],
+            [
+              "Availability",
+              "One strip per server: each block is a stretch of status checks. Green = all passed, orange = some failed, red = all failed, grey = no checks (Morcheh wasn't running).",
+            ],
+            [
+              "Response time",
+              "How long an SSH check took, for all servers or the one you pick. Failed checks aren't counted.",
+            ],
+            [
+              "Resources",
+              "CPU, memory, root disk or network over time, for all servers together (average; network is summed) or the one you pick.",
+            ],
+            [
+              "Disks",
+              "Each server's root disk, fullest first, how much it grew, and when it will be full at this pace.",
+            ],
+            [
+              "Busiest servers",
+              "The servers with the highest average CPU in the range.",
+            ],
+            [
+              "Status changes",
+              "Each time a server went down or came back, with the error it gave.",
+            ],
+          ]}
+        />
+        <P>
+          Resources come from a small sample Morcheh reads over SSH from every
+          online Linux server, every 5 minutes by default. History starts when
+          sampling starts, so a new server's charts fill up over time. Hover a
+          chart (or tap it on a phone) for the exact numbers; on a keyboard,
+          focus it and use the arrow keys.
+        </P>
+        <Tip>
+          Keep an eye on <UI>Disks</UI>: a disk shown as full within two weeks
+          is worth cleaning up now. Open <UI>Disk usage</UI> from the server's{" "}
+          <UI>Files</UI> tab to find what grew.
+        </Tip>
+        <Tip>
+          No resource charts? The server may not be Linux, or the admin turned
+          sampling off (<C>SERVER_SAMPLE_INTERVAL=0</C> on the backend).
+        </Tip>
+      </>
+    ),
+  },
+  {
     id: "server-settings",
     title: "A server's settings",
     body: (

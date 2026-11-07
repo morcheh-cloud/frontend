@@ -11,6 +11,7 @@ import { meKey } from "@/components/auth/keys"
 import { Field } from "@/components/field"
 import { PageHeader } from "@/components/panel/page-header"
 import { ConfirmDialog } from "@/components/responsive-dialog"
+import { ThemePicker } from "@/components/theme-picker"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useOpen } from "@/hooks/useOpen"
@@ -22,11 +23,17 @@ export function AccountView() {
       <PageHeader
         title="Account"
         guide="access"
-        description="Your name, your password, and where you're signed in."
+        description="Your name, your password, the theme, and where you're signed in."
       />
       <div className="flex w-full flex-col gap-4 py-5 md:px-6">
         <Section title="Profile">
           <Profile />
+        </Section>
+        <Section
+          title="Appearance"
+          note="Saved in this browser. System follows your device's light or dark setting."
+        >
+          <ThemePicker />
         </Section>
         <Section
           title="Password"

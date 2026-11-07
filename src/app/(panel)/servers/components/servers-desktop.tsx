@@ -30,6 +30,8 @@ import {
   PlaceTabs,
   useShownFolders,
 } from "./folder-grid"
+import { ServerInsightsDesktop, ServersTabs } from "./insights/insights"
+import { useServersPageTab } from "./page-tab"
 import { useServerCan, useWorkspaceCan } from "./permissions"
 import { useServerActions } from "./server-actions"
 import { ServerCards } from "./server-cards"
@@ -43,6 +45,7 @@ const views = [
 ] as const
 
 export function ServersDesktop() {
+  const [{ tab }] = useServersPageTab()
   const { filters, setPage } = useFilters()
   const actions = useServerActions()
   const query = toQuery(filters)
@@ -76,10 +79,12 @@ export function ServersDesktop() {
   ])
   const List = listView === "cards" ? ServerCards : ServersTable
 
+  if (tab === "insights") return <ServerInsightsDesktop />
+
   return (
     <FolderDnd selection={selection} onMoved={() => setSelection(new Map())}>
       <section className="flex w-full min-w-0 flex-col gap-3 px-6 pt-5 pb-24">
-        <Toolbar>
+        <Toolbar leading={<ServersTabs />}>
           {can.folders && (
             <Tooltip>
               <TooltipTrigger

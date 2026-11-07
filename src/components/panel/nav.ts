@@ -6,11 +6,14 @@ import {
   CircleHelp,
   CircleUser,
   Database,
+  FileCode,
+  Globe,
   HardDrive,
   House,
   KeyRound,
   ListChecks,
   type LucideIcon,
+  MonitorPlay,
   Server,
   Settings,
   Waypoints,
@@ -39,6 +42,11 @@ export const storageItem: NavItem = {
   label: "Storage",
   icon: HardDrive,
 }
+export const dnsItem: NavItem = {
+  href: "/dns",
+  label: "DNS",
+  icon: Globe,
+}
 export const databasesItem: NavItem = {
   href: "/databases",
   label: "Databases",
@@ -58,6 +66,11 @@ export const ansibleItem: NavItem = {
   href: "/ansible",
   label: "Ansible",
   icon: Workflow,
+}
+export const scriptsItem: NavItem = {
+  href: "/scripts",
+  label: "Scripts",
+  icon: FileCode,
 }
 export const cronjobsItem: NavItem = {
   href: "/cronjobs",
@@ -84,6 +97,11 @@ export const alertsItem: NavItem = {
     { href: "/alerts/rules", label: "Rules" },
     { href: "/alerts/channels", label: "Channels" },
   ],
+}
+export const recordingsItem: NavItem = {
+  href: "/recordings",
+  label: "Recordings",
+  icon: MonitorPlay,
 }
 export const keysItem: NavItem = {
   href: "/keys",
@@ -124,13 +142,18 @@ export const navGroups: NavGroup[] = [
       networkMapItem,
       databasesItem,
       storageItem,
+      dnsItem,
       servicesItem,
       ansibleItem,
+      scriptsItem,
       cronjobsItem,
       keysItem,
     ],
   },
-  { label: "Observability", items: [monitoringItem, alertsItem] },
+  {
+    label: "Observability",
+    items: [monitoringItem, alertsItem, recordingsItem],
+  },
 ]
 
 const allItems = [

@@ -7,6 +7,7 @@ import { Loader2, TriangleAlert } from "lucide-react"
 import type { ReactNode } from "react"
 
 import { BottomSheet } from "@/components/bottom-sheet"
+import { useCodeTheme } from "@/components/code-theme"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -67,9 +68,11 @@ export function IniEditor({
   readOnly?: boolean
   placeholder?: string
 }) {
+  const codeTheme = useCodeTheme()
   const { phone } = useServerPage()
   return (
     <CodeMirror
+      theme={codeTheme}
       value={value}
       onChange={onChange}
       extensions={readOnly ? readOnlyExtensions : extensions}

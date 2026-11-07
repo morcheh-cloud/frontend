@@ -5,9 +5,12 @@ import {
   CircleHelp,
   Link2,
   type LucideIcon,
+  Moon,
   PanelLeft,
   Plus,
   Search,
+  SquareTerminal,
+  Sun,
 } from "lucide-react"
 import { useEffect, useState } from "react"
 
@@ -21,6 +24,7 @@ import {
 import { serversHref } from "@/app/(panel)/servers/components/use-filters"
 import { atLeast } from "@/components/auth/level"
 import { guideForPath, guideHref, guides } from "@/components/help/guides"
+import { setTheme, type Theme } from "@/components/theme"
 import {
   accountItem,
   helpItem,
@@ -100,6 +104,7 @@ export function actions(
   pathname: string,
   toggleSidebar: () => void,
   canAdd: boolean,
+  theme: Theme,
 ): Command[] {
   const guide = guideForPath(pathname)
   const add: Command[] = [
@@ -132,6 +137,15 @@ export function actions(
       keywords: "new create s3 ftp sftp webdav bucket",
     },
     {
+      key: "action:add-dns-server",
+      label: "Add DNS server",
+      icon: Plus,
+      tile: "brand",
+      href: "/dns",
+      intent: "add-dns-server",
+      keywords: "new create technitium nameserver ns zone domain records",
+    },
+    {
       key: "action:add-service",
       label: "Add service",
       icon: Plus,
@@ -148,6 +162,23 @@ export function actions(
       href: "/cronjobs/new",
       keywords:
         "create schedule sync backup copy mirror snapshot storage server timer",
+    },
+    {
+      key: "action:add-script",
+      label: "New script",
+      icon: Plus,
+      tile: "brand",
+      href: "/scripts/new",
+      keywords: "create shell bash python command saved snippet run",
+    },
+    {
+      key: "action:run-command",
+      label: "Run a command on servers",
+      icon: SquareTerminal,
+      tile: "brand",
+      href: "/scripts",
+      intent: "run-command",
+      keywords: "script shell bash exec execute many servers bulk ad hoc",
     },
   ]
   return [
@@ -169,6 +200,15 @@ export function actions(
       run: toggleSidebar,
       keys: ["Mod", "B"],
       keywords: "collapse expand menu",
+    },
+    {
+      key: "action:theme",
+      label:
+        theme === "dark" ? "Switch to light theme" : "Switch to dark theme",
+      icon: theme === "dark" ? Sun : Moon,
+      tile: "brand",
+      run: () => setTheme(theme === "dark" ? "light" : "dark"),
+      keywords: "dark mode light mode appearance color scheme night",
     },
     {
       key: "action:copy-link",

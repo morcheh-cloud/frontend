@@ -1,0 +1,297 @@
+"use client"
+
+import { useQuery } from "@tanstack/react-query"
+
+import { useCronjobs } from "@/app/(panel)/cronjobs/api"
+import { statusMeta as dbStatusMeta } from "@/app/(panel)/databases/components/meta"
+import { dnsStatusMeta } from "@/app/(panel)/dns/components/meta"
+import { keys, type ListQuery } from "@/app/(panel)/servers/api"
+import { statusMeta } from "@/app/(panel)/servers/components/meta"
+import { useApps } from "@/app/(panel)/services/api"
+import { isActive, useJobList } from "@/components/jobs/api"
+import {
+  backupProblemsQuery,
+  cronjobBroken,
+  databaseBroken,
+  databasesQuery,
+  dnsServerBroken,
+  dnsServersQuery,
+  facetsQuery,
+  problemStatuses,
+  STATUS_POLL,
+  storagesQuery,
+} from "@/components/panel/problems"
+import { useWorkspace } from "@/components/panel/workspace"
+import { api } from "@/lib/api"
+import type { App, Database, Job, Schedule, Server } from "@/lib/services"
+
+// Everything the home page shows, read from the same queries (and cache) as
+// the sections themselves, so opening a section after Home is instant and the
+// numbers always agree with the menu's red counts.
+
+export type Kind = "server" | "database" | "storage" | "dns" | "cronjob"
+export type Tone = "destructive" | "warning"
+
+export type Issue = {
+  key: string
+  kind: Kind
+  name: string
+  status: string
+  detail: string
+  href: string
+  tone: Tone
+}
+
+// How a section's things are doing: ok, warn and bad are real statuses; idle
+// is not checked yet or paused.
+export type Tally = {
+  total: number
+  ok: number
+  warn: number
+  bad: number
+  idle: number
+}
+
+const emptyTally: Tally = { total: 0, ok: 0, warn: 0, bad: 0, idle: 0 }
+
+// The servers with a connection problem, listed by name. The count comes from
+// the facets, so this list only needs the first few.
+export const BROKEN_SHOWN = 8
+const brokenQuery: ListQuery = {
+  status: [...problemStatuses],
+  sort: "name",
+  limit: BROKEN_SHOWN,
+}
+
+const favoritesQuery: ListQuery = { favorites: true, limit: 6 }
+const firstServersQuery: ListQuery = { limit: 6 }
+
+const toneOf = (status: string): Tone =>
+  status === "auth_failed" || status === "blocked" ? "warning" : "destructive"
+
+function useServerList(query: ListQuery, enabled = true) {
+  return useQuery({
+    queryKey: keys.list(query),
+    queryFn: () => api.servers.listServers(query),
+    refetchInterval: STATUS_POLL,
+    enabled,
+  })
+}
+
+export function useHome() {
+  const { workspace } = useWorkspace()
+  const facets = useQuery(facetsQuery)
+  const brokenCount =
+    facets.data?.status
+      .filter((f) => (problemStatuses as readonly string[]).includes(f.value))
+      .reduce((n, f) => n + f.count, 0) ?? 0
+  const broken = useServerList(brokenQuery, brokenCount > 0)
+  const favorites = useServerList(favoritesQuery)
+  const noFavorites = favorites.isSuccess && favorites.data.items.length === 0
+  const first = useServerList(firstServersQuery, noFavorites)
+
+  const storages = useQuery(storagesQuery)
+  const databases = useQuery(databasesQuery)
+  const backups = useQuery(backupProblemsQuery(workspace?.id ?? ""))
+  const dns = useQuery(dnsServersQuery)
+  const cronjobs = useCronjobs(workspace?.id)
+  const apps = useApps()
+  const jobs = useJobList()
+
+  const issues: Issue[] = []
+  for (const s of brokenCount > 0 ? (broken.data?.items ?? []) : []) {
+    issues.push({
+      key: `server:${s.id}`,
+      kind: "server",
+      name: s.name,
+      status: statusMeta[s.status].label,
+      detail: s.status_message || s.host,
+      href: `/servers/${s.id}`,
+      tone: toneOf(s.status),
+    })
+  }
+  for (const d of databases.data?.items ?? []) {
+    if (!databaseBroken(d)) continue
+    const down = d.status !== "online"
+    const check = d.checks.find((c) => c.level === "critical" && !c.muted)
+    issues.push({
+      key: `database:${d.id}`,
+      kind: "database",
+      name: d.name,
+      status: down ? dbStatusMeta[d.status].label : "Critical",
+      detail: down
+        ? d.status_message || dbStatusMeta[d.status].hint
+        : (check?.title ?? "A check is critical"),
+      href: `/databases/${d.id}`,
+      tone: down ? toneOf(d.status) : "destructive",
+    })
+  }
+  for (const s of storages.data?.items ?? []) {
+    if (!(problemStatuses as readonly string[]).includes(s.status)) continue
+    issues.push({
+      key: `storage:${s.id}`,
+      kind: "storage",
+      name: s.name,
+      status: statusMeta[s.status].label,
+      detail: s.status_message,
+      href: `/storage/${s.id}`,
+      tone: toneOf(s.status),
+    })
+  }
+  for (const s of dns.data?.items ?? []) {
+    if (!dnsServerBroken(s)) continue
+    issues.push({
+      key: `dns:${s.id}`,
+      kind: "dns",
+      name: s.name,
+      status: dnsStatusMeta[s.status].label,
+      detail: s.status_message || s.url,
+      href: `/dns/${s.id}`,
+      tone: toneOf(s.status),
+    })
+  }
+  for (const c of cronjobs.data ?? []) {
+    if (!cronjobBroken(c)) continue
+    const failed = c.last_run?.state === "failed"
+    issues.push({
+      key: `cronjob:${c.id}`,
+      kind: "cronjob",
+      name: c.name,
+      status: c.problem ? "Can't run" : `Last run ${runWord(c)}`,
+      detail: c.problem || c.last_run?.error || "",
+      href: `/cronjobs/${c.id}`,
+      tone: c.problem || failed ? "destructive" : "warning",
+    })
+  }
+  for (const b of backups.data ?? []) {
+    issues.push({
+      key: `backup:${b.plan_id}`,
+      kind: "database",
+      name: `${b.database_name} · ${b.plan_name}`,
+      status: "Backup failed",
+      detail: b.error,
+      href: `/databases/${b.database_id}?tab=backups`,
+      tone: "destructive",
+    })
+  }
+  issues.sort((a, b) => rank(a.tone) - rank(b.tone))
+
+  return {
+    workspace,
+    ready:
+      !facets.isPending &&
+      !storages.isPending &&
+      !databases.isPending &&
+      !dns.isPending,
+    issues,
+    // Problem servers beyond the ones listed.
+    moreBroken: Math.max(0, brokenCount - BROKEN_SHOWN),
+    tallies: {
+      servers: serverTally(facets.data),
+      databases: databaseTally(databases.data?.items),
+      storage: statusTally(storages.data?.items),
+      dns: statusTally(dns.data?.items),
+      cronjobs: cronTally(cronjobs.data),
+    },
+    serverTotal: facets.data?.total,
+    servers: {
+      favorites: !noFavorites,
+      items: (noFavorites ? first.data?.items : favorites.data?.items) ?? [],
+      pending: favorites.isPending || (noFavorites && first.isPending),
+    },
+    apps: launchable(apps.data?.items),
+    appCount: apps.data?.items.length,
+    criticalApps: apps.data?.items.filter((a) => a.critical).length ?? 0,
+    jobs: recentJobs(jobs.data),
+    activeJobs: (jobs.data ?? []).filter(isActive).length,
+    upcoming: upcoming(cronjobs.data),
+  }
+}
+
+export type Home = ReturnType<typeof useHome>
+
+const rank = (t: Tone) => (t === "destructive" ? 0 : 1)
+
+const runWords: Partial<Record<string, string>> = {
+  failed: "failed",
+  partial: "partly failed",
+  interrupted: "interrupted",
+}
+const runWord = (c: Schedule) => runWords[c.last_run?.state ?? ""] ?? "failed"
+
+function serverTally(
+  facets:
+    | { total: number; status: { value: string; count: number }[] }
+    | undefined,
+): Tally {
+  if (!facets) return emptyTally
+  const t = { ...emptyTally, total: facets.total }
+  for (const f of facets.status) add(t, f.value as Server["status"], f.count)
+  return t
+}
+
+function add(t: Tally, status: string, n = 1) {
+  if (status === "online") t.ok += n
+  else if (status === "unknown") t.idle += n
+  else if (toneOf(status) === "warning") t.warn += n
+  else t.bad += n
+}
+
+function statusTally(items: { status: string }[] | undefined): Tally {
+  const t = { ...emptyTally, total: items?.length ?? 0 }
+  for (const s of items ?? []) add(t, s.status)
+  return t
+}
+
+function databaseTally(items: Database[] | undefined): Tally {
+  const t = { ...emptyTally, total: items?.length ?? 0 }
+  for (const d of items ?? []) {
+    if (d.paused || d.status === "unknown") t.idle++
+    else if (d.status !== "online") add(t, d.status)
+    else if (d.health === "critical") t.bad++
+    else if (d.health === "warning") t.warn++
+    else t.ok++
+  }
+  return t
+}
+
+function cronTally(items: Schedule[] | undefined): Tally {
+  const t = { ...emptyTally, total: items?.length ?? 0 }
+  for (const c of items ?? []) {
+    if (!c.enabled) t.idle++
+    else if (cronjobBroken(c)) {
+      if (c.problem || c.last_run?.state === "failed") t.bad++
+      else t.warn++
+    } else t.ok++
+  }
+  return t
+}
+
+// Critical services first, then the order the team gave them.
+function launchable(items: App[] | undefined) {
+  return [...(items ?? [])]
+    .sort(
+      (a, b) =>
+        Number(b.critical) - Number(a.critical) || a.position - b.position,
+    )
+    .slice(0, 12)
+}
+
+// Running first, then the newest.
+function recentJobs(jobs: Job[] | undefined) {
+  const list = jobs ?? []
+  return [...list.filter(isActive), ...list.filter((j) => !isActive(j))].slice(
+    0,
+    5,
+  )
+}
+
+function upcoming(items: Schedule[] | undefined) {
+  return (items ?? [])
+    .filter((c) => c.enabled && c.next_run_at)
+    .sort(
+      (a, b) =>
+        Date.parse(a.next_run_at ?? "") - Date.parse(b.next_run_at ?? ""),
+    )
+    .slice(0, 4)
+}

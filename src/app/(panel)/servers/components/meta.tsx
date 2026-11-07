@@ -96,6 +96,9 @@ const logos: Record<string, string> = {
   macos: "apple",
 }
 
+// Logos drawn in our near-black: flipped to near-white in dark mode.
+const inkLogos = new Set(["almalinux", "apple", "mxlinux", "slackware"])
+
 // Two-letter monograms for systems without a logo: we only use lucide icons,
 // and lucide has no distro logos.
 const monograms: Record<string, string> = {
@@ -131,7 +134,7 @@ export function OsTile({
           alt={osLabel(os)}
           width={64}
           height={64}
-          className="size-[55%]"
+          className={cn("size-[55%]", inkLogos.has(logo) && "dark:invert")}
         />
       </span>
     )

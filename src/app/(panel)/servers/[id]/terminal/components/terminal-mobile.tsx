@@ -27,7 +27,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useOpen } from "@/hooks/useOpen"
 import { cn } from "@/lib/utils"
-import { Empty } from "./terminal-desktop"
+import { Empty, RecordedBadge } from "./terminal-desktop"
 import {
   FONT_MAX,
   FONT_MIN,
@@ -100,6 +100,7 @@ export function TerminalMobile({
           <span className="truncate text-body font-medium">
             {w.active?.title ?? "Terminal"}
           </span>
+          {w.active?.recorded && <RecordedBadge className="me-0" />}
           {count > 1 && (
             <span className="rounded-full bg-muted px-1.5 text-caption tabular-nums">
               {count}
@@ -356,7 +357,7 @@ function TabRow({
             {tab.title}
           </span>
           <span className="block truncate text-body-sm text-muted-foreground">
-            {status}
+            {tab.recorded ? `${status} · Recorded` : status}
           </span>
         </span>
       </button>

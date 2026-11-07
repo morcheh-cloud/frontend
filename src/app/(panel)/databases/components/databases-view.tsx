@@ -39,6 +39,10 @@ import { useCheckingDatabases, useDatabases } from "../api"
 import { useDatabaseActions } from "./database-actions"
 import { DatabaseMenuItems, DatabaseSheet } from "./database-menu"
 import {
+  DatabaseInsightsBody,
+  DatabaseInsightsControls,
+} from "./insights/insights"
+import {
   byState,
   EngineTile,
   endpointLabel,
@@ -69,10 +73,13 @@ function List({ server, phone }: { server?: Server; phone: boolean }) {
   const list = useDatabases(server?.id)
   const checking = useCheckingDatabases()
   const { filters, setFilters } = useDatabasesFilters()
+  // Insights live on the Databases page only, not on a server's tab.
+  const show = server && filters.show === "insights" ? "all" : filters.show
+  const insights = show === "insights"
   const all = [...(list.data?.items ?? [])].sort(byState)
   const look = all.filter(needsLook)
   const q = filters.q.trim().toLowerCase()
-  const items = (filters.show === "problems" ? look : all).filter(
+  const items = (show === "problems" ? look : all).filter(
     (d) =>
       !q ||
       [
@@ -116,8 +123,9 @@ function List({ server, phone }: { server?: Server; phone: boolean }) {
       items={[
         { value: "all", label: `All · ${all.length}` },
         { value: "problems", label: `Needs a look · ${look.length}` },
+        ...(server ? [] : [{ value: "insights" as const, label: "Insights" }]),
       ]}
-      value={filters.show}
+      value={show}
       onChange={(show) => setFilters({ show: show === "all" ? null : show })}
     />
   )
@@ -169,12 +177,10 @@ function List({ server, phone }: { server?: Server; phone: boolean }) {
       <Empty
         icon={SearchX}
         title={
-          filters.show === "problems" && !q
-            ? "Nothing needs a look"
-            : "Nothing matches"
+          show === "problems" && !q ? "Nothing needs a look" : "Nothing matches"
         }
         body={
-          filters.show === "problems" && !q
+          show === "problems" && !q
             ? "Every database is online and its checks pass."
             : "Try another search, or show all databases."
         }
@@ -219,18 +225,31 @@ function List({ server, phone }: { server?: Server; phone: boolean }) {
           </header>
         )}
         <div className="flex flex-col gap-3 px-4 pt-4">
-          <div className="flex items-center gap-2">
-            {search}
-            {refresh}
-            {addButton}
-          </div>
-          {all.length > 0 && (
+          {!insights && (
+            <div className="flex items-center gap-2">
+              {search}
+              {refresh}
+              {addButton}
+            </div>
+          )}
+          {(all.length > 0 || insights) && (
             <div className="-mx-4 flex [scrollbar-width:none] gap-2 overflow-x-auto px-4">
               {tabs}
             </div>
           )}
+          {insights && (
+            <div className="flex items-center gap-2">
+              <DatabaseInsightsControls phone />
+            </div>
+          )}
         </div>
-        <div className="pt-3 pb-24">{body}</div>
+        {insights ? (
+          <div className="mt-3 border-t border-border pb-24">
+            <DatabaseInsightsBody phone />
+          </div>
+        ) : (
+          <div className="pt-3 pb-24">{body}</div>
+        )}
       </>
     )
   }
@@ -245,17 +264,29 @@ function List({ server, phone }: { server?: Server; phone: boolean }) {
         />
       )}
       <div className={cn("flex flex-col gap-4", !server && "px-6 pt-5 pb-24")}>
-        <div className="@container flex items-center gap-2">
-          {tabs}
-          <span className="mx-1 h-5 w-px shrink-0 bg-border" />
-          {search}
-          <div className="ms-auto flex shrink-0 items-center gap-2">
-            <span className="me-2">{caption}</span>
-            {refresh}
-            {addButton}
-          </div>
-        </div>
-        {body}
+        {insights ? (
+          <>
+            <div className="flex flex-wrap items-center gap-3">
+              {tabs}
+              <DatabaseInsightsControls phone={false} />
+            </div>
+            <DatabaseInsightsBody phone={false} />
+          </>
+        ) : (
+          <>
+            <div className="@container flex items-center gap-2">
+              {tabs}
+              <span className="mx-1 h-5 w-px shrink-0 bg-border" />
+              {search}
+              <div className="ms-auto flex shrink-0 items-center gap-2">
+                <span className="me-2">{caption}</span>
+                {refresh}
+                {addButton}
+              </div>
+            </div>
+            {body}
+          </>
+        )}
       </div>
     </>
   )

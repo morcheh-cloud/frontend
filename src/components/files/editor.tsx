@@ -23,6 +23,7 @@ import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { BottomSheet, SheetAction } from "@/components/bottom-sheet"
+import { useCodeTheme } from "@/components/code-theme"
 import { ConfirmDialog } from "@/components/responsive-dialog"
 import { Button } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
@@ -104,6 +105,7 @@ export function FileEditor({
   onClosed: () => void
   phone: boolean
 }) {
+  const codeTheme = useCodeTheme()
   const source = useSource()
   const queryClient = useQueryClient()
   const query = useFileContent(source, path)
@@ -285,6 +287,7 @@ export function FileEditor({
     </div>
   ) : (
     <CodeMirror
+      theme={codeTheme}
       ref={viewRef}
       value={value}
       onChange={(next) => setDraft(next)}

@@ -12,6 +12,7 @@ import { useState } from "react"
 
 import { useAuth } from "@/components/auth/auth"
 import { atLeast } from "@/components/auth/level"
+import { ThemeMenuItems } from "@/components/theme-picker"
 import {
   Collapsible,
   CollapsibleContent,
@@ -321,7 +322,11 @@ function AccountMenu() {
                 <CircleUser />
                 Account
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <ThemeMenuItems />
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
               <DropdownMenuItem onClick={signOut}>
                 <LogOut />
                 Sign out

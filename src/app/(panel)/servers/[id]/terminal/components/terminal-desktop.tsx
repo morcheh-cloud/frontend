@@ -104,6 +104,7 @@ export function TerminalDesktop({
           </Tool>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
+          {w.active?.recorded && <RecordedBadge />}
           <Tool
             label="Find"
             shortcut={`${mod}F`}
@@ -561,5 +562,21 @@ export function Empty({
         New terminal
       </Button>
     </div>
+  )
+}
+
+// Shown while the active shell's output is being saved for the workspace.
+export function RecordedBadge({ className }: { className?: string }) {
+  return (
+    <span
+      title="This workspace records terminals: what this shell prints is saved, and you and its Owners can replay it. What you type isn't saved."
+      className={cn(
+        "me-1 flex h-6 shrink-0 items-center gap-1.5 rounded-full border border-border px-2 text-caption text-muted-foreground",
+        className,
+      )}
+    >
+      <span className="size-1.5 rounded-full bg-destructive" />
+      Recorded
+    </span>
   )
 }

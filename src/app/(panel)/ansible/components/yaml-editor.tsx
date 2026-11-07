@@ -6,6 +6,7 @@ import CodeMirror, { EditorView } from "@uiw/react-codemirror"
 import { isMap, isSeq, parseDocument } from "yaml"
 
 import { editorTheme } from "@/app/(panel)/servers/[id]/components/ini-editor"
+import { useCodeTheme } from "@/components/code-theme"
 import { cn } from "@/lib/utils"
 
 export type YamlKind = "playbook" | "vars"
@@ -109,8 +110,10 @@ export function YamlEditor({
   className?: string
   height?: string
 }) {
+  const codeTheme = useCodeTheme()
   return (
     <CodeMirror
+      theme={codeTheme}
       value={value}
       onChange={onChange}
       extensions={readOnly ? extensionsFor.readOnly : extensionsFor[kind]}

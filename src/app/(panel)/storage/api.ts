@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-query"
 import { useEffect } from "react"
 
+import { type InsightsRange, timeZone } from "@/components/insights/format"
 import { STATUS_POLL, storagesQuery } from "@/components/panel/problems"
 import { ApiError, api } from "@/lib/api"
 import type { Storage, StorageBody, StorageTestBody } from "@/lib/services"
@@ -191,5 +192,32 @@ export function useSetStorageFavorite() {
     },
     onSuccess: (s) => store(queryClient, s),
     onError: () => queryClient.invalidateQueries({ queryKey: keys.storages }),
+  })
+}
+
+export type { InsightsRange }
+
+export const insightsKeys = {
+  all: ["storage-insights"] as const,
+  range: (range: InsightsRange) => ["storage-insights", range] as const,
+}
+
+// Check history, space and activity. History only grows every check interval
+// (30 s by default), so a minute between reads is plenty.
+export function useStorageInsights(range: InsightsRange) {
+  return useQuery({
+    queryKey: insightsKeys.range(range),
+    queryFn: () => api.storage.storageInsights({ range, tz: timeZone() }),
+    refetchInterval: 60_000,
+    placeholderData: (previous) => previous,
+  })
+}
+
+// Starts a background walk of the storage; the job (kind storage-scan) shows
+// in Tasks and refreshes Insights when it ends (refreshAfterJob).
+export function useMeasureUsage() {
+  return useMutation({
+    mutationKey: ["measure-storage-usage"],
+    mutationFn: (id: string) => api.storage.measureStorageUsage(id),
   })
 }

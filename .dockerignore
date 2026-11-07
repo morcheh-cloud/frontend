@@ -1,0 +1,10 @@
+.git
+.next
+node_modules
+.env*
+!.env.example
+.superpowers
+docs
+tsconfig.tsbuildinfo
+*.log
+Dockerfile

@@ -3,8 +3,20 @@
 import { queryOptions, useQuery } from "@tanstack/react-query"
 
 import { api } from "@/lib/api"
-import type { Database, Schedule, Server, Storage } from "@/lib/services"
-import { cronjobsItem, databasesItem, serversItem, storageItem } from "./nav"
+import type {
+  Database,
+  DNSServer,
+  Schedule,
+  Server,
+  Storage,
+} from "@/lib/services"
+import {
+  cronjobsItem,
+  databasesItem,
+  dnsItem,
+  serversItem,
+  storageItem,
+} from "./nav"
 import { useWorkspace } from "./workspace"
 
 // What the menu shows in red next to a section: how many of its things are
@@ -38,6 +50,17 @@ export const storagesQuery = queryOptions({
   queryFn: () => api.storage.listStorages(),
   refetchInterval: STATUS_POLL,
 })
+
+// Shared with /dns. The backend re-checks them (DNS_CHECK_INTERVAL).
+export const dnsServersQuery = queryOptions({
+  queryKey: ["dns-servers"] as const,
+  queryFn: () => api.dns.listDnsServers(),
+  refetchInterval: STATUS_POLL,
+})
+
+// A DNS server Morcheh can't reach or log in to. Not yet checked = fine.
+export const dnsServerBroken = (s: Pick<DNSServer, "status">) =>
+  s.status !== "online" && s.status !== "unknown"
 
 // Every database in the workspace, as /databases lists them.
 export const databasesQuery = queryOptions({
@@ -91,6 +114,14 @@ export function useStorageProblems() {
   return data ?? 0
 }
 
+export function useDNSProblems() {
+  const { data } = useQuery({
+    ...dnsServersQuery,
+    select: (list) => list.items.filter(dnsServerBroken).length,
+  })
+  return data ?? 0
+}
+
 export function useDatabaseProblems() {
   const { data } = useQuery({
     ...databasesQuery,
@@ -113,12 +144,32 @@ export function useCronjobProblems() {
   return data ?? 0
 }
 
+// Backups that failed on their last run, across the workspace (Home and the
+// menu). Paused plans aren't counted. Under the backups' own root, so a
+// finished job refreshes it too.
+export const backupProblemsQuery = (workspace: string) =>
+  queryOptions({
+    queryKey: ["database-backups", "problems", workspace] as const,
+    queryFn: () => api.databaseBackups.listDatabaseBackupProblems(),
+    enabled: !!workspace,
+    refetchInterval: STATUS_POLL,
+    select: (l) => l.items,
+  })
+
+function useBackupProblems() {
+  const { workspace } = useWorkspace()
+  const { data } = useQuery(backupProblemsQuery(workspace?.id ?? ""))
+  return data?.length ?? 0
+}
+
 // The red counts for the menu, by section href.
 export function useNavAlerts() {
   const servers = useServerProblems()
   const storages = useStorageProblems()
   const databases = useDatabaseProblems()
+  const backups = useBackupProblems()
   const cronjobs = useCronjobProblems()
+  const dns = useDNSProblems()
   const alerts = new Map<string, NavAlert>()
   if (servers > 0) {
     alerts.set(serversItem.href, {
@@ -132,10 +183,23 @@ export function useNavAlerts() {
       label: `${plural(storages, "storage", "storages")} not connected`,
     })
   }
-  if (databases > 0) {
+  if (databases + backups > 0) {
     alerts.set(databasesItem.href, {
-      count: databases,
-      label: `${plural(databases, "database", "databases")} down or critical`,
+      count: databases + backups,
+      label: [
+        databases > 0 &&
+          `${plural(databases, "database", "databases")} down or critical`,
+        backups > 0 &&
+          `${plural(backups, "backup plan", "backup plans")} failing`,
+      ]
+        .filter(Boolean)
+        .join(", "),
+    })
+  }
+  if (dns > 0) {
+    alerts.set(dnsItem.href, {
+      count: dns,
+      label: `${plural(dns, "DNS server", "DNS servers")} not connected`,
     })
   }
   if (cronjobs > 0) {

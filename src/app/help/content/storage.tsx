@@ -371,6 +371,122 @@ aws s3 ls s3://backups --endpoint-url https://s3.example.com
     ),
   },
   {
+    id: "insights",
+    title: "Insights: charts and statistics",
+    body: (
+      <>
+        <P>
+          The <UI>Insights</UI> tab on the Storage page shows how your storages
+          have been doing: whether they stayed reachable, how fast they
+          answered, how much they hold and what was copied to or from them. Pick{" "}
+          <UI>24 hours</UI>, <UI>7 days</UI> or <UI>30 days</UI> at the top; the
+          page refreshes by itself every minute.
+        </P>
+        <Table
+          head={["Part", "What it shows"]}
+          rows={[
+            [
+              "Tiles",
+              "How many are online now, uptime over the range, the space they hold and the data moved.",
+            ],
+            [
+              "Availability",
+              "One strip per storage: each block is a stretch of connection checks. Green = all passed, orange = some failed, red = all failed, grey = no checks (Morcheh wasn't running).",
+            ],
+            [
+              "Response time",
+              "How long a connection check took, for all storages or the one you pick. Failed checks aren't counted.",
+            ],
+            [
+              "Activity",
+              "File transfers, cron job syncs and database backups that used a storage: runs (succeeded and failed) or the data they moved.",
+            ],
+            [
+              "Space",
+              "What each storage holds and how much it grew over the range. Open one for its biggest folders and a chart of its size.",
+            ],
+            [
+              "Status changes",
+              "Each time a storage went down or came back, with the error it gave.",
+            ],
+          ]}
+        />
+        <P>
+          Hover a chart (or tap it on a phone) to read the exact numbers; on a
+          keyboard, focus it and use the arrow keys.
+        </P>
+      </>
+    ),
+  },
+  {
+    id: "measuring",
+    title: "How space is measured",
+    body: (
+      <>
+        <P>
+          Storages don't report their size, so Morcheh walks every folder and
+          adds up the files. It does this on its own about once a day for each
+          online storage, as a background task. To measure one now, press{" "}
+          <UI>Measure now</UI> (the scan icon in its row, or in its space
+          panel), or <UI>Measure all</UI> at the top. You need Operator access
+          on the storage.
+        </P>
+        <Steps>
+          <li>
+            Open <UI>Storage</UI> › <UI>Insights</UI>.
+          </li>
+          <li>
+            In <UI>Space</UI>, open the storage you want to look at.
+          </li>
+          <li>
+            Press <UI>Measure now</UI>. The walk runs in{" "}
+            <See guide="tasks">Tasks</See>; the numbers update when it ends.
+          </li>
+          <li>
+            Click a folder in <UI>Biggest folders</UI> to browse it.
+          </li>
+        </Steps>
+        <Example title="Finding what filled a backup bucket">
+          <P>
+            The <UI>Stored</UI> tile shows +40 GB in 7 days. In <UI>Space</UI>{" "}
+            the backup bucket grew the most; its panel shows <C>postgres/</C>{" "}
+            holds 90% of it. Lower the number of copies the backup job keeps, or
+            add a lifecycle rule on the bucket.
+          </P>
+        </Example>
+        <Tip>
+          A walk that runs too long stops early and is marked <UI>Partial</UI>:
+          the storage holds at least that much. SFTP storages also show the free
+          space on the disk.
+        </Tip>
+        <P>
+          Connection checks are kept for 31 days and space measurements for
+          about a year. Admins can change how long checks are kept, and how
+          often space is measured, with these backend settings:
+        </P>
+        <Recommended
+          rows={[
+            {
+              setting: "STORAGE_SCAN_INTERVAL",
+              value: "24h",
+              why: "How often each storage is measured. Walking a big storage costs requests (and on S3, money): don't go below a few hours.",
+            },
+            {
+              setting: "STORAGE_HISTORY",
+              value: "744h (31 days)",
+              why: "How long connection checks are kept. The 30-day view needs at least 31 days.",
+            },
+            {
+              setting: "STORAGE_CHECK_INTERVAL",
+              value: "30s",
+              why: "How often each storage is checked; this is what fills the availability strips.",
+            },
+          ]}
+        />
+      </>
+    ),
+  },
+  {
     id: "settings",
     title: "Recommended settings",
     body: (
@@ -427,6 +543,20 @@ aws s3 ls s3://backups --endpoint-url https://s3.example.com
         <li>
           <UI>Host key changed</UI> on SFTP: expected after the machine was
           reinstalled; otherwise find out why before you trust the new key.
+        </li>
+        <li>
+          In <UI>Insights</UI>, a storage says <UI>Not measured yet</UI>: it's
+          measured once it's online and its turn comes; press{" "}
+          <UI>Measure now</UI> to skip the wait.
+        </li>
+        <li>
+          Grey blocks in an availability strip: Morcheh wasn't running then, or
+          the storage was added later.
+        </li>
+        <li>
+          Insights' <UI>Activity</UI> is empty: only transfers, cron job syncs
+          and database backups count. Browsing, uploads and downloads in the
+          file manager don't.
         </li>
       </List>
     ),

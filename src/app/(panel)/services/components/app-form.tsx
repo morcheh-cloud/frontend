@@ -4,6 +4,7 @@ import { type FormEvent, useState } from "react"
 import { toast } from "sonner"
 
 import { Field } from "@/components/field"
+import { ColorPicker } from "@/components/palette"
 import { ResponsiveDialog } from "@/components/responsive-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,7 +25,6 @@ import type {
   AppCreateBody,
   AppUpdateBody,
 } from "@/lib/services"
-import { cn } from "@/lib/utils"
 import { useSaveApp, useUploadLogo } from "../api"
 import {
   type AccountDraft,
@@ -36,7 +36,6 @@ import { type LogoDraft, LogoPicker, logoDraft } from "./logo-picker"
 import {
   type AppColor,
   appColorKeys,
-  appColors,
   safeHref,
   suggestName,
   withScheme,
@@ -360,46 +359,5 @@ function CategorySelect({
         ))}
       </SelectContent>
     </Select>
-  )
-}
-
-export function ColorPicker({
-  value,
-  onChange,
-}: {
-  value: AppColor
-  onChange: (color: AppColor) => void
-}) {
-  return (
-    <fieldset>
-      <legend className="mb-1.5 text-body-sm font-medium">Color</legend>
-      <div
-        role="radiogroup"
-        aria-label="Color"
-        className="flex flex-wrap gap-1"
-      >
-        {appColorKeys.map((key) => (
-          // biome-ignore lint/a11y/useSemanticElements: color swatches; radio inputs can't be styled as these
-          <button
-            key={key}
-            type="button"
-            role="radio"
-            aria-checked={value === key}
-            aria-label={appColors[key].label}
-            title={appColors[key].label}
-            onClick={() => onChange(key)}
-            className="flex size-11 items-center justify-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50 md:size-8"
-          >
-            <span
-              className={cn(
-                "size-6 rounded-full ring-offset-2 ring-offset-background md:size-5",
-                appColors[key].dot,
-                value === key && "ring-2 ring-foreground",
-              )}
-            />
-          </button>
-        ))}
-      </div>
-    </fieldset>
   )
 }

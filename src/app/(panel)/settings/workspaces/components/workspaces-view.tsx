@@ -11,7 +11,7 @@ import {
 import { useAccess } from "@/components/auth/auth"
 import { levelLabel } from "@/components/auth/level"
 import { PageHeader } from "@/components/panel/page-header"
-import { useWorkspace } from "@/components/panel/workspace"
+import { useWorkspace, WorkspaceAvatar } from "@/components/panel/workspace"
 import { Button } from "@/components/ui/button"
 import { useIsPhone } from "@/hooks/useIsPhone"
 import type { PanelWorkspace } from "@/lib/services"
@@ -86,14 +86,21 @@ export function WorkspacesView() {
             <li key={w.id}>
               <Link
                 href={`/settings/workspaces/${w.id}`}
-                className="flex min-h-16 flex-col justify-center px-4 py-3 active:bg-muted"
+                className="flex min-h-16 items-center gap-3 px-4 py-3 active:bg-muted"
               >
-                <span className="truncate font-medium">{w.name}</span>
-                <span className="truncate text-body-sm text-muted-foreground">
-                  {w.server_count} {w.server_count === 1 ? "server" : "servers"}{" "}
-                  · {w.storage_count} storage · {w.app_count}{" "}
-                  {w.app_count === 1 ? "service" : "services"}
-                  {!admin && ` · ${levelLabel(w.level)}`}
+                <WorkspaceAvatar
+                  workspace={w}
+                  className="size-10 rounded-lg text-body"
+                />
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate font-medium">{w.name}</span>
+                  <span className="truncate text-body-sm text-muted-foreground">
+                    {w.server_count}{" "}
+                    {w.server_count === 1 ? "server" : "servers"} ·{" "}
+                    {w.storage_count} storage · {w.app_count}{" "}
+                    {w.app_count === 1 ? "service" : "services"}
+                    {!admin && ` · ${levelLabel(w.level)}`}
+                  </span>
                 </span>
               </Link>
             </li>
@@ -127,8 +134,9 @@ export function WorkspacesView() {
                     <td className="px-4">
                       <Link
                         href={`/settings/workspaces/${w.id}`}
-                        className="font-medium"
+                        className="flex items-center gap-2.5 font-medium"
                       >
+                        <WorkspaceAvatar workspace={w} />
                         {w.name}
                       </Link>
                     </td>

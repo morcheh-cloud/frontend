@@ -97,9 +97,22 @@ export function refreshAfterJob(qc: QueryClient, job: Job) {
     qc.invalidateQueries({ queryKey: ["ansible"] })
     return
   }
+  if (job.kind === "script-run") {
+    qc.invalidateQueries({ queryKey: ["scripts"] })
+    return
+  }
   // A cron job's sync also wrote into its destinations' folders (below).
   if (job.kind === "schedule-sync") {
     qc.invalidateQueries({ queryKey: ["cronjobs"] })
+  }
+  // A backup also wrote into its storage's folder (below).
+  if (job.kind.startsWith("database-backup")) {
+    qc.invalidateQueries({ queryKey: ["database-backups"] })
+  }
+  // A measurement: Insights shows it, nothing in the files changed.
+  if (job.kind === "storage-scan") {
+    qc.invalidateQueries({ queryKey: ["storage-insights"] })
+    return
   }
   for (const ref of job.refs) {
     if (job.kind === "firewall-install" || job.kind === "firewall-apply") {

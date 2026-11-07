@@ -1,4 +1,5 @@
 import {
+  A,
   C,
   Code,
   Example,
@@ -57,7 +58,9 @@ export const databases: GuideSection[] = [
           Morcheh only reads. It never browses or changes your data or schema.
           The only things it can do to a database are stop a session (
           <UI>Kill</UI>) and ask for a query plan without running the query (
-          <UI>Explain</UI>).
+          <UI>Explain</UI>). <A href="#backups">Backups</A> only read too; the
+          one exception is <A href="#restore">restoring a backup</A>, which an
+          Owner starts and confirms.
         </P>
       </>
     ),
@@ -398,6 +401,486 @@ db.createUser({
     ),
   },
   {
+    id: "backups",
+    title: "Backups",
+    body: (
+      <>
+        <P>
+          The <UI>Backups</UI> tab on a database copies it to one or more{" "}
+          <See guide="storage">storages</See>, on a schedule or when you press
+          the button. The dump is made once, then uploaded to every storage the
+          plan names. Where it's made depends on how the database is reached
+          (see <A href="#where-it-runs">Where a backup runs</A>).
+        </P>
+        <P>
+          A database can have several plans, each with its own databases,
+          storages, schedule and keeping rule: for example an hourly one kept
+          for a day next to a nightly one kept for a year. A plan is made and
+          changed on its own page.
+        </P>
+        <Steps>
+          <P>
+            Open the database, go to <UI>Backups</UI> and press{" "}
+            <UI>New plan</UI>.
+          </P>
+          <P>
+            <UI>What to back up</UI>: <UI>All databases</UI> (whatever is there
+            at run time), <UI>Selected</UI> (tick them, or type a name) or{" "}
+            <UI>Pattern</UI> (a regular expression; the box lists what it
+            matches now). Each database becomes a file of its own.
+          </P>
+          <P>
+            <UI>Backup type</UI>: <UI>Full</UI>, or <UI>Incremental</UI> where
+            the engine has it (see{" "}
+            <A href="#incremental">Incremental backups</A>).
+          </P>
+          <P>
+            <UI>Where to store</UI>: tick up to 10 storages. <UI>+</UI> opens{" "}
+            <UI>Storage</UI> in a new tab; come back and press refresh.
+          </P>
+          <P>
+            <UI>Folder</UI>: where they go on each storage. <C>{"{year}"}</C>,{" "}
+            <C>{"{month}"}</C> and <C>{"{day}"}</C> are filled in at run time,
+            and the line below shows today's result.
+          </P>
+          <P>
+            <UI>When to run</UI>: pick a schedule, press the gear for any other
+            one, or <UI>Only by hand</UI>.
+          </P>
+          <P>
+            <UI>How long to keep</UI>: <UI>Days</UI>, <UI>GFS</UI> or{" "}
+            <UI>Forever</UI> (see <A href="#retention">Keeping backups</A>).
+          </P>
+          <P>
+            <UI>Run it from</UI> (direct connections only): keep{" "}
+            <UI>This Morcheh server</UI>, or pick a server that can reach the
+            database.
+          </P>
+          <P>
+            Turn on <UI>Use another login</UI> and enter one that can read all
+            the data, unless the monitoring login already can. Check the{" "}
+            <UI>Summary</UI>, then <UI>Create plan</UI>.
+          </P>
+          <P>
+            Press <UI>Back up now</UI> on the toast (or the play button on the
+            plan) and wait for <UI>Done</UI>, so you know it works before
+            tonight. Then <UI>Check</UI> in the backup's menu reads the file
+            back.
+          </P>
+        </Steps>
+        <Example title="Nightly, to two places">
+          <P>
+            <UI>Selected</UI> <C>shop</C> and <C>billing</C>, storages{" "}
+            <UI>Office NAS</UI> and <UI>S3 Frankfurt</UI>, folder{" "}
+            <C>/backups/{"{year}-{month}-{day}"}</C>, <UI>Daily</UI> at 02:00,
+            GFS 7 / 4 / 12. Each night makes two files, each uploaded to both
+            storages, under <C>/backups/2026-11-07/&lt;database&gt;/</C>.
+          </P>
+        </Example>
+        <Recommended
+          rows={[
+            {
+              setting: "Storages",
+              value: "Two, one of them off-site",
+              why: "A copy that dies with the database isn't a backup",
+            },
+            {
+              setting: "Keeping",
+              value: "GFS 7 daily, 4 weekly, 12 monthly",
+              why: "Mistakes are often found days or weeks later",
+            },
+            {
+              setting: "Schedule",
+              value: "When traffic is lowest",
+              why: "A dump reads everything",
+            },
+            {
+              setting: "Check",
+              value: "After changing a plan, then now and then",
+              why: "It's the only proof that the stored file is still good",
+            },
+          ]}
+        />
+        <Table
+          head={["Engine", "What's made"]}
+          rows={[
+            ["PostgreSQL", "pg_dump custom format (.dump), one per database"],
+            [
+              "MySQL / MariaDB",
+              "mysqldump of each database, gzipped; incrementals = binary log",
+            ],
+            ["MongoDB", "mongodump archive of each database, gzipped"],
+            ["Redis", "A snapshot of everything (.rdb); no choice of database"],
+            [
+              "SQL Server",
+              "BACKUP DATABASE (.bak); incrementals = differential; on its own server only",
+            ],
+          ]}
+        />
+        <P>
+          The list under the plans shows every backup: database, type, the
+          storages that hold it, size and state. If an upload to one storage
+          fails the backup still counts, and the row says how many uploads
+          failed; the details say why.
+        </P>
+        <P>
+          <UI>Check</UI> reads the stored file back, compares it with the
+          SHA-256 recorded when it was made and has the engine's own tool read
+          it where it can. It proves the file is whole, not that a restore will
+          work, so try a restore as a new database now and then. The health
+          check <UI>Backup check</UI> on the Overview tab tells you when one is
+          due.
+        </P>
+        <Warn>
+          Anyone who can open those storages can read the backups, and the files
+          aren't encrypted. Keep them in storages only the right people can
+          reach.
+        </Warn>
+        <P>
+          A plan runs with the access of whoever saved it last: Owner on the
+          database, Engineer on every storage and on the server that runs it. If
+          that person loses access, the plan shows why it can't run until
+          someone with access saves it. Deleting a plan leaves its backups in
+          place.
+        </P>
+        <Table
+          head={["Level", "Can"]}
+          rows={[
+            ["Viewer", "See plans, backups and restores"],
+            ["Operator", "Also back up now, Check and Stop"],
+            [
+              "Owner",
+              "Also manage plans; download and restore (with Operator on a storage that holds it); delete (with Engineer on every storage that holds it)",
+            ],
+          ]}
+        />
+        <P>
+          A plan whose last run failed adds to the red count on{" "}
+          <UI>Databases</UI> and shows on{" "}
+          <See guide="getting-started" section="home">
+            Home
+          </See>
+          . Paused plans aren't counted.
+        </P>
+        <P>If a backup fails:</P>
+        <List>
+          <li>
+            <UI>permission denied</UI> or similar: the login can't read
+            everything. A monitoring login usually can't: use another login.
+          </li>
+          <li>
+            <UI>command not found</UI>: the machine that runs it needs the
+            engine's tools, such as <C>postgresql-client</C> or{" "}
+            <C>default-mysql-client</C>. On <UI>This Morcheh server</UI>, use
+            Morcheh's Docker image or install them next to the backend.
+          </li>
+          <li>
+            A newer database than the tools: <C>pg_dump</C> refuses a server
+            newer than itself. Update the client on the machine that runs it.
+          </li>
+          <li>
+            <UI>Skipped</UI>: the database was gone, or the pattern matched
+            nothing, at run time.
+          </li>
+          <li>
+            SQL Server: the <C>.bak</C> is first written on the database's own
+            disk, so it needs the room for it, and root or <C>sudo -n</C> to
+            read and remove it.
+          </li>
+          <li>
+            Redis: making the snapshot forks the process, which briefly needs
+            spare memory on a busy instance.
+          </li>
+        </List>
+      </>
+    ),
+  },
+  {
+    id: "where-it-runs",
+    title: "Where a backup runs",
+    body: (
+      <>
+        <Table
+          head={["Database", "The dump and the restore run on"]}
+          rows={[
+            [
+              "Direct connection",
+              "This Morcheh server by default, or a server you pick in Run it from",
+            ],
+            ["Reached through a server", "That server, always"],
+            [
+              "SQL Server",
+              "Its own server only (the .bak is written on its disk)",
+            ],
+          ]}
+        />
+        <P>
+          On <UI>This Morcheh server</UI> the engine's client tools must be
+          installed where Morcheh's backend runs. Morcheh's Docker image has
+          them all (<C>pg_dump</C> 18, <C>mariadb-dump</C> and{" "}
+          <C>mariadb-binlog</C>, <C>mongodump</C>, <C>redis-cli</C>); on another
+          install the plan form lists what's missing. The script gets only what
+          it needs to find its tools, never Morcheh's own settings, and runs
+          with the backend's user. Backups that run here queue together, two at
+          a time.
+        </P>
+        <Tip>
+          Pick a server in <UI>Run it from</UI> when the database is only
+          reachable from inside its own network, or when the dump would be
+          large: the data then crosses the network once, from that server to the
+          storages.
+        </Tip>
+      </>
+    ),
+  },
+  {
+    id: "retention",
+    title: "Keeping backups (Days, GFS, Forever)",
+    body: (
+      <>
+        <P>
+          After a run that worked, a plan deletes the backups it no longer
+          needs, files included, on every storage. Each database in the plan is
+          counted on its own.
+        </P>
+        <Table
+          head={["Rule", "Keeps"]}
+          rows={[
+            ["Days", "Everything from the last N days"],
+            [
+              "GFS",
+              "The newest backup of each of the last N days, N weeks and N months",
+            ],
+            ["Forever", "Everything; nothing is deleted"],
+          ]}
+        />
+        <P>
+          GFS (Grandfather-Father-Son) keeps a tiered set across several time
+          spans. Set a tier to 0 to turn it off. A backup that fits several
+          tiers (Sunday's daily is also that week's weekly) is kept once, so it
+          only counts once toward the storage's space.
+        </P>
+        <Example title="GFS 3 / 4 / 12, run every night">
+          <P>
+            About 3 + 4 + 12 = 19 backups per database at most, usually fewer
+            because tiers overlap: the last 3 nights, the newest of each of the
+            last 4 weeks and of each of the last 12 months. A year back is
+            covered with under twenty files.
+          </P>
+        </Example>
+        <Tip>
+          The newest backup of each database is never deleted, and neither is
+          anything a kept incremental builds on, so a chain is never broken by
+          the keeping rule.
+        </Tip>
+      </>
+    ),
+  },
+  {
+    id: "incremental",
+    title: "Incremental backups",
+    body: (
+      <>
+        <P>
+          An incremental plan makes a full backup, then only the changes since
+          the backup before, until <UI>Start over with a full backup every</UI>{" "}
+          days have passed. They're smaller and quicker; a restore loads the
+          full one and every step up to the one you pick, by itself.
+        </P>
+        <Table
+          head={["Engine", "Incremental"]}
+          rows={[
+            [
+              "MySQL / MariaDB",
+              "Yes: the binary log since the last backup. Binary logging must be on (log_bin), and the login needs RELOAD, REPLICATION CLIENT and REPLICATION SLAVE",
+            ],
+            [
+              "SQL Server",
+              "Yes: a differential backup, everything changed since the last full one",
+            ],
+            [
+              "PostgreSQL",
+              "No: its incremental backups cover the whole server and need it stopped to bring back",
+            ],
+            ["MongoDB", "No: only through a replica set's oplog"],
+            ["Redis", "No: only whole snapshots"],
+          ]}
+        />
+        <Recommended
+          rows={[
+            {
+              setting: "Full backup every",
+              value: "7 days",
+              why: "A long chain is slower to restore and breaks if one file goes",
+            },
+          ]}
+        />
+        <P>
+          A backup's details show its chain: <UI>Open the one before</UI>, and
+          how many incrementals build on it. Deleting a backup deletes the
+          incrementals that build on it too, since they can't be restored
+          without it. If the chain can't go on (the binary log was purged, the
+          full one was deleted), the next run makes a full backup.
+        </P>
+        <Warn>
+          A MySQL binary log names its database, so a MySQL incremental can only
+          be restored into the database it came from.
+        </Warn>
+      </>
+    ),
+  },
+  {
+    id: "restore",
+    title: "Restoring a backup",
+    body: (
+      <>
+        <P>
+          Restoring is the one thing Morcheh writes to a database, and only an
+          Owner can start it. Every file is read back from the storage and
+          checked against its SHA-256 before the database is touched.
+        </P>
+        <Steps>
+          <P>
+            In the backup list, press the restore icon on a row (or{" "}
+            <UI>Restore…</UI> in its menu or details).
+          </P>
+          <P>
+            <UI>Restore into</UI>: the database's name. The box says whether one
+            with that name exists.
+          </P>
+          <P>
+            <UI>As a new database</UI> creates it and loads the backup; nothing
+            that exists is touched. <UI>Replace it</UI> overwrites the database
+            with the backup.
+          </P>
+          <P>
+            For a replace, keep <UI>Back it up first</UI> on: a full backup of
+            the database as it is now goes to the same storage, so you can go
+            back.
+          </P>
+          <P>
+            <UI>Run it from</UI> (direct connections):{" "}
+            <UI>Where the plan runs</UI>, <UI>This Morcheh server</UI> or a
+            server. A backup made without a plan runs on this Morcheh server
+            unless you pick one.
+          </P>
+          <P>
+            Type the name again to confirm and press <UI>Replace</UI>. It runs
+            as a background task; <UI>Restores</UI> at the bottom of the tab
+            lists every one, with a link to the backup taken before.
+          </P>
+        </Steps>
+        <Recommended
+          rows={[
+            {
+              setting: "First restore of a plan",
+              value: "As a new database, e.g. shop_check",
+              why: "Proves the backup works without touching the real one",
+            },
+            {
+              setting: "Back it up first",
+              value: "On",
+              why: "The only way back from a replace",
+            },
+          ]}
+        />
+        <Table
+          head={["Backup", "Restored by Morcheh"]}
+          rows={[
+            ["PostgreSQL (one database)", "Yes, into any name"],
+            [
+              "MySQL / MariaDB (one database)",
+              "Yes; incrementals only into their own name",
+            ],
+            ["SQL Server", "Yes, on its own server only"],
+            ["MongoDB (one database)", "Yes, into any name"],
+            [
+              "Everything at once (pg_dumpall, an old all-databases dump), Redis",
+              "No: the details have the commands to run by hand",
+            ],
+          ]}
+        />
+        <P>
+          The details of every backup also have <UI>Restore by hand</UI>: the
+          same steps as commands, for a machine Morcheh can't reach.
+        </P>
+        <P>If a restore fails:</P>
+        <List>
+          <li>
+            <UI>You need … access</UI>: a restore needs Owner on the database,
+            Operator on the storage (Engineer to write the backup before), and
+            Engineer on the server that runs it (none when it runs on this
+            Morcheh server).
+          </li>
+          <li>
+            <UI>permission denied</UI>: the login can't create or overwrite
+            databases. Turn on <UI>Use another login</UI> in the restore.
+          </li>
+          <li>
+            <UI>No storage holds every file</UI>: a file of the chain was
+            deleted from the storages. Pick an older full backup.
+          </li>
+          <li>
+            A replace that failed halfway leaves the database partly loaded:
+            restore the backup taken before, from <UI>Restores</UI>.
+          </li>
+        </List>
+      </>
+    ),
+  },
+  {
+    id: "insights",
+    title: "Insights: charts and statistics",
+    body: (
+      <>
+        <P>
+          The <UI>Insights</UI> tab on the Databases page (next to <UI>All</UI>{" "}
+          and <UI>Needs a look</UI>) shows how your databases have been doing
+          over <UI>24 hours</UI>, <UI>7 days</UI> or <UI>30 days</UI>, from the
+          monitor's checks (kept 30 days). It covers the selected workspace and
+          refreshes every minute.
+        </P>
+        <Table
+          head={["Part", "What it shows"]}
+          rows={[
+            [
+              "Tiles",
+              "Online now (paused ones aren't counted), availability, average response time, queries per second, total size and how many need a look.",
+            ],
+            [
+              "Availability",
+              "One strip per database: green = every check reached it, orange = some didn't, red = none did, grey = no checks (paused, or Morcheh wasn't running).",
+            ],
+            [
+              "Response time",
+              "How long the monitor took to connect and read, for all databases or the one you pick.",
+            ],
+            [
+              "Load",
+              "Queries (or commands) per second, or the most connections open at once, compared with the connection limit.",
+            ],
+            [
+              "Size",
+              "Data on disk for each database and how much it grew in the range.",
+            ],
+            [
+              "Busiest databases",
+              "The highest average queries per second, with the peak, connections and how much was read from memory.",
+            ],
+            [
+              "Problems",
+              "Each time a check started failing or recovered, with what it found.",
+            ],
+          ]}
+        />
+        <Tip>
+          A database added today has short charts: history starts with its first
+          check.
+        </Tip>
+      </>
+    ),
+  },
+  {
     id: "server-tab",
     title: "On a server's page",
     body: (
@@ -422,7 +905,10 @@ db.createUser({
               "Engineer",
               "Also see query text, Kill, Explain, pause, mute and change limits",
             ],
-            ["Owner", "Also edit, remove and see the credentials"],
+            [
+              "Owner",
+              "Also edit, remove, see the credentials, manage backup plans and restore backups",
+            ],
           ]}
         />
         <P>

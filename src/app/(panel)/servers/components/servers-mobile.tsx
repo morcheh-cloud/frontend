@@ -44,7 +44,13 @@ import {
   folderPath,
   ROOT_LABEL,
 } from "./folder-tree"
+import {
+  ServerInsightsBody,
+  ServerInsightsControls,
+  ServersTabs,
+} from "./insights/insights"
 import { address, OsTile, osLabel, StatusDot, statusMeta } from "./meta"
+import { useServersPageTab } from "./page-tab"
 import { useWorkspaceCan } from "./permissions"
 import { SearchInput } from "./search-input"
 import { useServerActions } from "./server-actions"
@@ -69,6 +75,7 @@ function afterClose(close: () => void, fn: () => void) {
 }
 
 export function ServersMobile() {
+  const [{ tab }] = useServersPageTab()
   const { filters, open } = useFilters()
   const actions = useServerActions()
   const checking = useCheckingIds()
@@ -154,74 +161,95 @@ export function ServersMobile() {
         )}
       </header>
 
-      <div className="sticky top-0 z-20 flex flex-col gap-2 bg-background pt-3 pb-2">
-        <SearchInput className="mx-4" />
-        <FilterChips onOpen={openSheet} />
-      </div>
-
-      <div className="flex items-center justify-between px-4 py-1 text-body-sm text-ash">
-        <span className="tabular-nums">
-          {total !== undefined &&
-            `${total} ${total === 1 ? "server" : "servers"}`}
-        </span>
-        {folderId && (can.addServer || can.folders) && (
-          <button
-            type="button"
-            onClick={() => openSheet("folder-actions")}
-            className="-me-2 flex h-11 items-center gap-1.5 px-2 font-medium text-muted-foreground active:text-foreground"
-          >
-            <Ellipsis className="size-4" />
-            Folder
-          </button>
-        )}
-      </div>
-
-      {list.isPending ? (
-        <ul className="divide-y divide-border border-y border-border">
-          {Array.from({ length: 8 }, (_, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: static placeholders
-            <li key={i} className="flex h-[4.5rem] items-center gap-3 px-4">
-              <Skeleton className="size-10 rounded-lg" />
-              <div className="flex flex-1 flex-col gap-2">
-                <Skeleton className="h-4 w-36" />
-                <Skeleton className="h-3 w-48" />
-              </div>
-            </li>
-          ))}
-        </ul>
-      ) : servers.length === 0 && shownFolders.length === 0 ? (
-        list.error ? (
-          <ErrorState error={list.error} onRetry={() => list.refetch()} />
-        ) : (
-          <EmptyState />
-        )
-      ) : (
-        <ul className="divide-y divide-border border-y border-border">
-          {shownFolders.map((node) => (
-            <li key={node.id}>
-              <FolderListRow
-                node={node}
-                onOpen={() => open({ folder: node.id })}
-              />
-            </li>
-          ))}
-          {servers.map((server) => (
-            <li key={server.id}>
-              <ServerRow
-                server={server}
-                checking={checking.has(server.id)}
-                onActions={() => {
-                  setServerId(server.id)
-                  setServerOpen(true)
-                }}
-              />
-            </li>
-          ))}
-        </ul>
+      {!folderId && (
+        <div className="px-4 pt-4">
+          <ServersTabs />
+        </div>
       )}
-      <div ref={sentinel} aria-hidden className="h-px" />
-      {isFetchingNextPage && (
-        <p className="py-4 text-center text-body-sm text-ash">Loading more…</p>
+
+      {tab === "insights" && !folderId ? (
+        <>
+          <div className="flex items-center gap-2 px-4 pt-3">
+            <ServerInsightsControls phone />
+          </div>
+          <div className="mt-3 border-t border-border pb-24">
+            <ServerInsightsBody phone />
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="sticky top-0 z-20 flex flex-col gap-2 bg-background pt-3 pb-2">
+            <SearchInput className="mx-4" />
+            <FilterChips onOpen={openSheet} />
+          </div>
+
+          <div className="flex items-center justify-between px-4 py-1 text-body-sm text-ash">
+            <span className="tabular-nums">
+              {total !== undefined &&
+                `${total} ${total === 1 ? "server" : "servers"}`}
+            </span>
+            {folderId && (can.addServer || can.folders) && (
+              <button
+                type="button"
+                onClick={() => openSheet("folder-actions")}
+                className="-me-2 flex h-11 items-center gap-1.5 px-2 font-medium text-muted-foreground active:text-foreground"
+              >
+                <Ellipsis className="size-4" />
+                Folder
+              </button>
+            )}
+          </div>
+
+          {list.isPending ? (
+            <ul className="divide-y divide-border border-y border-border">
+              {Array.from({ length: 8 }, (_, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: static placeholders
+                <li key={i} className="flex h-[4.5rem] items-center gap-3 px-4">
+                  <Skeleton className="size-10 rounded-lg" />
+                  <div className="flex flex-1 flex-col gap-2">
+                    <Skeleton className="h-4 w-36" />
+                    <Skeleton className="h-3 w-48" />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : servers.length === 0 && shownFolders.length === 0 ? (
+            list.error ? (
+              <ErrorState error={list.error} onRetry={() => list.refetch()} />
+            ) : (
+              <EmptyState />
+            )
+          ) : (
+            <ul className="divide-y divide-border border-y border-border">
+              {shownFolders.map((node) => (
+                <li key={node.id}>
+                  <FolderListRow
+                    node={node}
+                    onOpen={() => open({ folder: node.id })}
+                  />
+                </li>
+              ))}
+              {servers.map((server) => (
+                <li key={server.id}>
+                  <ServerRow
+                    server={server}
+                    checking={checking.has(server.id)}
+                    onActions={() => {
+                      setServerId(server.id)
+                      setServerOpen(true)
+                    }}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+          <div ref={sentinel} aria-hidden className="h-px" />
+          {isFetchingNextPage && (
+            <p className="py-4 text-center text-body-sm text-ash">
+              Loading more…
+            </p>
+          )}
+        </>
       )}
 
       {current && (

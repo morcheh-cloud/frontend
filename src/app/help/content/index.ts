@@ -4,6 +4,7 @@ import { ansible } from "./ansible"
 import { cron } from "./cron"
 import { cronjobs } from "./cronjobs"
 import { databases } from "./databases"
+import { dns } from "./dns"
 import { fail2ban } from "./fail2ban"
 import { files } from "./files"
 import { firewall } from "./firewall"
@@ -11,6 +12,8 @@ import { gettingStarted } from "./getting-started"
 import { networkMap } from "./network-map"
 import { ports } from "./ports"
 import { power } from "./power"
+import { scripts } from "./scripts"
+import { serverNotes } from "./server-notes"
 import { serverOverview } from "./server-overview"
 import { servers } from "./servers"
 import { serviceLauncher } from "./service-launcher"
@@ -18,6 +21,7 @@ import { services } from "./services"
 import { storage } from "./storage"
 import { tasks } from "./tasks"
 import { terminal } from "./terminal"
+import { terminalRecordings } from "./terminal-recordings"
 import { users } from "./users"
 
 // Each guide's sections, by the slug in components/help/guides.ts.
@@ -26,6 +30,8 @@ export const content: Record<string, GuideSection[]> = {
   servers,
   "network-map": networkMap,
   "server-overview": serverOverview,
+  "server-notes": serverNotes,
+  "terminal-recordings": terminalRecordings,
   terminal,
   files,
   cron,
@@ -36,9 +42,11 @@ export const content: Record<string, GuideSection[]> = {
   services,
   power,
   databases,
+  dns,
   "service-launcher": serviceLauncher,
   ansible,
   cronjobs,
+  scripts,
   storage,
   tasks,
   access,

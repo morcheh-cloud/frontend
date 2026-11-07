@@ -1,9 +1,13 @@
 import {
+  ArchiveRestore,
   ArrowLeftRight,
   CalendarClock,
+  ChartPie,
   Copy,
+  DatabaseBackup,
   Download,
   FileArchive,
+  FileCode,
   FolderInput,
   ListChecks,
   type LucideIcon,
@@ -11,6 +15,7 @@ import {
   Play,
   Shield,
   ShieldBan,
+  ShieldCheck,
 } from "lucide-react"
 
 import { filesHref } from "@/components/files/file-manager"
@@ -33,7 +38,12 @@ const icons: Record<string, LucideIcon> = {
   extract: PackageOpen,
   fetch: Download,
   "ansible-run": Play,
+  "script-run": FileCode,
   "schedule-sync": CalendarClock,
+  "storage-scan": ChartPie,
+  "database-backup": DatabaseBackup,
+  "database-backup-verify": ShieldCheck,
+  "database-backup-restore": ArchiveRestore,
 }
 
 export function JobIcon({
@@ -140,10 +150,15 @@ export function tookText(job: Job) {
 // Ansible or cron job run it belongs to.
 export function placeHref(job: Job) {
   const t = job.target
+  if (t?.database_id) return `/databases/${t.database_id}?tab=backups`
   if (t?.schedule_id) {
     return `/cronjobs/${t.schedule_id}${t.run_id ? `?run=${t.run_id}` : ""}`
   }
+  if (t?.run_id && job.kind === "script-run") {
+    return `/scripts/runs/${t.run_id}`
+  }
   if (t?.run_id) return `/ansible/runs/${t.run_id}`
+  if (job.kind === "storage-scan") return "/storage?tab=insights"
   if (!t?.path) return null
   const query = filesHref({ path: t.path })
   if (t.server_id) return `/servers/${t.server_id}/files${query}`
@@ -152,16 +167,21 @@ export function placeHref(job: Job) {
 }
 
 export function placeLabel(job: Job) {
+  if (job.kind === "storage-scan") return "Open Insights"
+  if (job.target?.database_id) return "Open backups"
   return job.target?.run_id ? "Open run" : "Open folder"
 }
 
 // A run is started again from its page, through its checks (Owner on every
-// server; a cron job's access), not by replaying the job.
+// server; a cron job's access; a backup's plan), not by replaying the job.
 export function canRetry(job: Job) {
   return (
     job.state !== "succeeded" &&
     job.kind !== "ansible-run" &&
-    job.kind !== "schedule-sync"
+    job.kind !== "script-run" &&
+    job.kind !== "schedule-sync" &&
+    job.kind !== "database-backup" &&
+    job.kind !== "database-backup-restore"
   )
 }
 

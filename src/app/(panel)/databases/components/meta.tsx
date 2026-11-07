@@ -2,6 +2,7 @@ import { Loader2 } from "lucide-react"
 import Image from "next/image"
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs"
 
+import { insightRanges } from "@/components/insights/format"
 import type { Database, DatabaseCheck } from "@/lib/services"
 import { cn } from "@/lib/utils"
 
@@ -275,10 +276,14 @@ export function endpointLabel(
 export function useDatabasesFilters() {
   const [filters, setFilters] = useQueryStates(
     {
-      show: parseAsStringLiteral(["all", "problems"] as const).withDefault(
+      // "insights" only on the Databases page, not a server's tab.
+      show: parseAsStringLiteral([
         "all",
-      ),
+        "problems",
+        "insights",
+      ] as const).withDefault("all"),
       q: parseAsString.withDefault(""),
+      range: parseAsStringLiteral(insightRanges).withDefault("7d"),
     },
     { history: "replace" },
   )

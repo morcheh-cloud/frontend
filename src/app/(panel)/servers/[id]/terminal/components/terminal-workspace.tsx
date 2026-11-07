@@ -74,7 +74,9 @@ export function TerminalWorkspace() {
         active={tab.key === tabs.activeKey}
         fontSize={fontSize}
         transformInput={phone ? applyMods : undefined}
-        onSession={(id, title) => tabs.attach(tab.key, id, title)}
+        onSession={(id, title, recorded) =>
+          tabs.attach(tab.key, id, title, recorded)
+        }
         onTitle={(title) => tabs.update(tab.key, { title })}
         onStatus={(status) => tabs.update(tab.key, { status })}
         onCommands={(commands) => tabs.update(tab.key, { commands })}

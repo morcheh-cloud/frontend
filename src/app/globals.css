@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* Design tokens (type, spacing, radii from DESIGN.md; colors are our own). Spacing is NOT redefined: Tailwind's default
    4px step already matches the DESIGN.md base unit (p-4 = 16px, p-6 = 24px). */
@@ -109,7 +109,8 @@
   --radius-4xl: 32px;
 }
 
-/* Light theme only — no dark mode until asked. */
+/* Light theme (default). Dark overrides follow in `.dark`, set on <html> by
+   `themeScript` / `useTheme()` (src/components/theme.ts). */
 :root {
   --background: #ffffff;
   --foreground: #1c2024;
@@ -165,6 +166,97 @@
   --term-selection: rgba(62, 99, 221, 0.2);
 }
 
+/* Dark theme: the same cool neutrals and indigo, from Radix's dark slate and
+   indigo scales. Overrides both the @theme tokens (subtle, ash, mist, brand…)
+   and shadcn's variables, so every class above works unchanged. */
+.dark {
+  --color-subtle: #18191b;
+  --color-ash: #80838d;
+  --color-mist: #3c3f44;
+  --color-brand: #5472e4;
+  --color-brand-soft: #1d2a5c;
+  /* Text on brand-soft and links that need extra contrast: lighter here. */
+  --color-brand-strong: #9eb1ff;
+  --color-success: #3dd68c;
+  --color-warning: #ff8b3e;
+  --shadow-sm: 0px 1px 2px 0px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0px 4px 12px 0px rgba(0, 0, 0, 0.45);
+
+  --background: #111113;
+  --foreground: #edeef0;
+  --card: #111113;
+  --card-foreground: #edeef0;
+  --popover: #18191b;
+  --popover-foreground: #edeef0;
+  --primary: #3e63dd;
+  --primary-foreground: #ffffff;
+  --secondary: #212225;
+  --secondary-foreground: #edeef0;
+  --muted: #212225;
+  --muted-foreground: #b0b4ba;
+  --accent: #272a2d;
+  --accent-foreground: #edeef0;
+  --destructive: #ec5d5e;
+  --border: #2b2d31;
+  --input: #3c3f44;
+  --ring: #5472e4;
+  --chart-1: #5472e4;
+  --chart-2: #edeef0;
+  --chart-3: #b0b4ba;
+  --chart-4: #80838d;
+  --chart-5: #3c3f44;
+  --sidebar: #18191b;
+  --sidebar-foreground: #edeef0;
+  --sidebar-primary: #3e63dd;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #272a2d;
+  --sidebar-accent-foreground: #edeef0;
+  --sidebar-border: #2b2d31;
+  --sidebar-ring: #5472e4;
+
+  /* ANSI colors for a dark background: Radix dark 9/10 shades for normal,
+     11 for bright. */
+  --term-black: #43484e;
+  --term-red: #e5484d;
+  --term-green: #30a46c;
+  --term-yellow: #e2a336;
+  --term-blue: #5472e4;
+  --term-magenta: #ab4aba;
+  --term-cyan: #00a2c7;
+  --term-white: #b0b4ba;
+  --term-bright-black: #80838d;
+  --term-bright-red: #ff9592;
+  --term-bright-green: #3dd68c;
+  --term-bright-yellow: #ffca16;
+  --term-bright-blue: #9eb1ff;
+  --term-bright-magenta: #e796f3;
+  --term-bright-cyan: #4ccce6;
+  --term-bright-white: #edeef0;
+  --term-selection: rgba(84, 114, 228, 0.35);
+}
+
+/* Terminal recordings (asciinema-player): our ANSI tokens, so a replay looks
+   like the live terminal in both themes. */
+.ap-player.asciinema-player-theme-morcheh {
+  --term-color-foreground: var(--foreground);
+  --term-color-background: var(--background);
+  --term-color-0: var(--term-black);
+  --term-color-1: var(--term-red);
+  --term-color-2: var(--term-green);
+  --term-color-3: var(--term-yellow);
+  --term-color-4: var(--term-blue);
+  --term-color-5: var(--term-magenta);
+  --term-color-6: var(--term-cyan);
+  --term-color-7: var(--term-white);
+  --term-color-8: var(--term-bright-black);
+  --term-color-9: var(--term-bright-red);
+  --term-color-10: var(--term-bright-green);
+  --term-color-11: var(--term-bright-yellow);
+  --term-color-12: var(--term-bright-blue);
+  --term-color-13: var(--term-bright-magenta);
+  --term-color-14: var(--term-bright-cyan);
+  --term-color-15: var(--term-bright-white);
+}
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -258,7 +350,11 @@
   --xy-controls-button-border-color-default: var(--border);
   --xy-controls-box-shadow-default: var(--shadow-sm);
   --xy-minimap-background-color-default: var(--background);
-  --xy-minimap-mask-background-color-default: rgb(240 240 243 / 0.7);
+  --xy-minimap-mask-background-color-default: color-mix(
+    in oklab,
+    var(--muted) 70%,
+    transparent
+  );
   --xy-minimap-node-background-color-default: var(--color-mist);
   --xy-attribution-background-color-default: transparent;
   font-family: inherit;

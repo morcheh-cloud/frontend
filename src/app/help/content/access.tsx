@@ -1,8 +1,10 @@
 import {
   A,
+  C,
   Code,
   Example,
   type GuideSection,
+  Keys,
   List,
   P,
   Recommended,
@@ -335,6 +337,59 @@ export const access: GuideSection[] = [
     ),
   },
   {
+    id: "workspace-logo",
+    title: "A workspace's logo",
+    body: (
+      <>
+        <P>
+          Each workspace has a small picture that shows in the sidebar's
+          workspace switcher, the phone's <UI>More</UI> sheet and the workspaces
+          list, so you can tell them apart at a glance.
+        </P>
+        <Steps>
+          <li>
+            Open <UI>Settings › Workspaces</UI> and press <UI>Edit</UI> on the
+            workspace (or <UI>New workspace</UI>).
+          </li>
+          <li>
+            Under <UI>Logo</UI>, pick <UI>Letter</UI> (the first letter of the
+            name), <UI>Icon</UI>, or <UI>Picture</UI>.
+          </li>
+          <li>
+            For a letter or an icon, choose a color. For a picture, press{" "}
+            <UI>Choose image</UI>: PNG, JPEG, GIF, WebP, ICO or SVG, up to 1 MB.
+          </li>
+          <li>
+            Press <UI>Save</UI>. The picture uploads right after the workspace
+            is saved.
+          </li>
+        </Steps>
+        <Example title="Production and staging side by side">
+          Give <C>Production</C> a red shield icon and <C>Staging</C> an amber
+          wrench, so nobody runs something in the wrong one by mistake.
+        </Example>
+        <Recommended
+          rows={[
+            {
+              setting: "Picture",
+              value: "Square, transparent background",
+              why: "It's shown small and isn't cropped.",
+            },
+            {
+              setting: "Colors",
+              value: "Clearly different per workspace",
+              why: "Two shades of blue are easy to mix up.",
+            },
+          ]}
+        />
+        <Tip>
+          Switching back to a letter or an icon deletes the uploaded picture.
+          Only admins can change a workspace's logo.
+        </Tip>
+      </>
+    ),
+  },
+  {
     id: "create",
     title: "Who can add servers",
     body: (
@@ -364,6 +419,37 @@ export const access: GuideSection[] = [
           other browsers and closes your terminals. <UI>Sign out everywhere</UI>{" "}
           ends every session, including this one.
         </P>
+      </>
+    ),
+  },
+  {
+    id: "theme",
+    title: "Light and dark theme",
+    body: (
+      <>
+        <P>
+          The panel comes in a light and a dark theme. <UI>System</UI>, the
+          default, follows your device's setting and switches by itself when the
+          device does (for example at sunset).
+        </P>
+        <Steps>
+          <li>
+            Open the menu under your name at the bottom of the sidebar and pick{" "}
+            <UI>Light</UI>, <UI>Dark</UI> or <UI>System</UI>.
+          </li>
+          <li>
+            Or open <A href="/account">Account</A> › <UI>Appearance</UI> (on a
+            phone: <UI>More</UI> › <UI>Account</UI>).
+          </li>
+          <li>
+            Or press <Keys>Ctrl+K</Keys> (<Keys>⌘K</Keys> on a Mac) and type{" "}
+            <C>dark</C> or <C>light</C>.
+          </li>
+        </Steps>
+        <Tip>
+          The choice is saved in this browser, not your account, so a phone and
+          a laptop can differ. Other open tabs follow at once.
+        </Tip>
       </>
     ),
   },
@@ -440,6 +526,10 @@ export const access: GuideSection[] = [
           [
             "Can't delete a workspace",
             "It still holds servers, storage or services. Move them out first.",
+          ],
+          [
+            "“That image is over 1 MB” or the logo didn't upload",
+            "Shrink the picture under 1 MB and use PNG, JPEG, GIF, WebP, ICO or SVG. The workspace itself was saved; edit it and choose the image again.",
           ],
           [
             "Can't block or delete an admin",

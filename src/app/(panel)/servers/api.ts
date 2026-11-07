@@ -10,6 +10,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query"
 
+import { type InsightsRange, timeZone } from "@/components/insights/format"
 import { facetsQuery, STATUS_POLL } from "@/components/panel/problems"
 import { ApiError, api } from "@/lib/api"
 import type {
@@ -383,5 +384,21 @@ export function useDeleteFolder() {
   return useMutation({
     mutationFn: (id: string) => api.folders.deleteFolder(id),
     onSuccess: invalidate,
+  })
+}
+
+export const serverInsightsKeys = {
+  all: ["server-insights"] as const,
+  range: (range: InsightsRange) => ["server-insights", range] as const,
+}
+
+// Check history and resources. Resources are read every few minutes, so a
+// minute between reads is plenty.
+export function useServerInsights(range: InsightsRange) {
+  return useQuery({
+    queryKey: serverInsightsKeys.range(range),
+    queryFn: () => api.servers.serverInsights({ range, tz: timeZone() }),
+    refetchInterval: 60_000,
+    placeholderData: (previous) => previous,
   })
 }

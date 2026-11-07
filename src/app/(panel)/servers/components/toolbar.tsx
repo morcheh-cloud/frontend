@@ -79,12 +79,19 @@ export function useFilterOptions() {
   }
 }
 
-export function Toolbar({ children }: { children?: ReactNode }) {
+export function Toolbar({
+  leading,
+  children,
+}: {
+  leading?: ReactNode
+  children?: ReactNode
+}) {
   const { filters, setFilters } = useFilters()
   const options = useFilterOptions()
 
   return (
     <div className="flex flex-wrap items-center gap-2">
+      {leading}
       <SearchInput shortcut className="min-w-56 flex-1" />
       <FilterPopover
         label="OS"

@@ -19,6 +19,8 @@ export type Tab = {
   status: Status
   // What was run in this shell, newest last (see TerminalView).
   commands?: Command[]
+  // The workspace records this shell's output.
+  recorded?: boolean
 }
 
 const cwdParser = parseAsString
@@ -80,6 +82,7 @@ export function useTabs(serverId: string) {
         key: newKey(),
         sessionId: s.id,
         title: s.title,
+        recorded: s.recorded,
         status: { kind: "connecting" },
       }))
       commit(tabs)
@@ -124,11 +127,11 @@ export function useTabs(serverId: string) {
   // The tab's shell started (or was resumed). A new shell keeps the tab's
   // name when it already had one (a restart, or one opened in a folder).
   const attach = useCallback(
-    (key: string, sessionId: string, title: string) => {
+    (key: string, sessionId: string, title: string, recorded: boolean) => {
       const tab = tabsRef.current.find((t) => t.key === key)
       if (!tab) return
       const keep = tab.sessionId !== sessionId && (tab.sessionId || tab.cwd)
-      update(key, { sessionId, title: keep ? tab.title : title })
+      update(key, { sessionId, recorded, title: keep ? tab.title : title })
       if (keep) rename.mutate({ session: sessionId, title: tab.title })
     },
     [update, rename.mutate],

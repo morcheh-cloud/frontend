@@ -35,6 +35,56 @@ export const gettingStarted: GuideSection[] = [
     ),
   },
   {
+    id: "home",
+    title: "The Home page",
+    body: (
+      <>
+        <P>
+          <A href="/home">Home</A> answers one question first: is anything wrong
+          in this workspace? Everything on it updates by itself every few
+          seconds, from the same checks the rest of the panel uses.
+        </P>
+        <List>
+          <li>
+            <UI>Needs attention</UI> lists every server, storage or DNS server
+            Morcheh can't reach or log in to, every database that is down or
+            critical, and every cron job that can't run or whose last run
+            failed. Red is down, orange needs a look (for example a refused
+            password). Click a row to open it. When the list is empty you see{" "}
+            <UI>All systems normal</UI>.
+          </li>
+          <li>
+            <UI>Overview tiles</UI> count each section's things. The thin bar
+            shows them by status: green online, orange needs a look, red down,
+            grey not checked yet or paused. A red number is the same count the
+            menu shows.
+          </li>
+          <li>
+            <UI>Favorite servers</UI>: star a server on the Servers page to keep
+            it here. With no favorites, the first servers are shown.
+          </li>
+          <li>
+            <UI>Services</UI> opens your team's web tools straight away in a new
+            tab, critical ones first.
+          </li>
+          <li>
+            <UI>Tasks</UI> (running first, then the newest) and{" "}
+            <UI>Coming up</UI> (the next scheduled cron jobs).
+          </li>
+          <li>
+            <UI>Add</UI> (the <UI>+</UI> on phones) opens the form for a new
+            server, database, storage, DNS server, service or cron job. It shows
+            only when you may add things to the selected workspace.
+          </li>
+        </List>
+        <Tip>
+          Home shows the selected workspace only. Switch workspace in the
+          sidebar header (or under <UI>More</UI> on phones) to see another.
+        </Tip>
+      </>
+    ),
+  },
+  {
     id: "layout",
     title: "Finding your way",
     body: (

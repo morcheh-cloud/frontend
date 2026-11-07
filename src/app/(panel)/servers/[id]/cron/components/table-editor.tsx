@@ -10,6 +10,7 @@ import { useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { BottomSheet } from "@/components/bottom-sheet"
+import { useCodeTheme } from "@/components/code-theme"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -67,6 +68,7 @@ export function TableEditor({
   onOpenChange: (open: boolean) => void
   table: CronTable
 }) {
+  const codeTheme = useCodeTheme()
   const { server, phone } = useServerPage()
   const edit = useEditTable(server.id)
   const editor = useRef<ReactCodeMirrorRef>(null)
@@ -161,6 +163,7 @@ export function TableEditor({
     <div className="flex min-h-0 flex-1 flex-col">
       {notice}
       <CodeMirror
+        theme={codeTheme}
         ref={editor}
         value={content}
         onChange={(value) =>

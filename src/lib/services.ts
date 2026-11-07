@@ -460,6 +460,344 @@ export interface AuthState {
   setup_token_required: boolean;
 }
 
+export interface Backup {
+  sha256: string;
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format int64 */
+  bytes: number;
+  copies: BackupCopy[];
+  /** @format date-time */
+  created_at: string;
+  created_by_name: string;
+  /** @format uuid */
+  database_id: string;
+  /**
+   * Incrementals that build on it directly
+   * @format int64
+   */
+  dependents: number;
+  engine: string;
+  /** Why it failed; on a backup that worked, a storage that didn't get its copy */
+  error: string;
+  /** @format date-time */
+  finished_at: string | null;
+  format: string;
+  /** @format uuid */
+  id: string;
+  /** @format uuid */
+  job_id: string | null;
+  kind: "full" | "incremental";
+  /**
+   * What an incremental builds on
+   * @format uuid
+   */
+  parent_id: string | null;
+  /** The same on every storage it was written to */
+  path: string;
+  /** @format uuid */
+  plan_id: string | null;
+  plan_name: string;
+  /** Morcheh can restore it from the panel */
+  restorable: boolean;
+  /** The commands that bring it back by hand, for copying */
+  restore: string;
+  /** Why it can't be restored from the panel; empty when it can */
+  restore_problem: string;
+  /** @format date-time */
+  started_at: string | null;
+  state:
+    | "queued"
+    | "running"
+    | "succeeded"
+    | "failed"
+    | "canceled"
+    | "interrupted"
+    | "skipped";
+  /** The database it holds; empty = all of them */
+  target: string;
+  trigger: "schedule" | "manual" | "restore";
+  /**
+   * When the stored file was last read back
+   * @format date-time
+   */
+  verified_at: string | null;
+  /** What that check found wrong; empty = it passed */
+  verify_error: string;
+}
+
+export interface BackupCopy {
+  error: string;
+  state: "pending" | "stored" | "failed";
+  /**
+   * Null when the storage was removed
+   * @format uuid
+   */
+  storage_id: string | null;
+  storage_name: string;
+}
+
+export interface BackupIncremental {
+  /** How it works, or why not */
+  note: string;
+  supported: boolean;
+}
+
+export interface BackupListBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: Backup[];
+  /** @format int64 */
+  total: number;
+}
+
+export interface BackupOptions {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** The databases on it, without the system ones */
+  databases: string[];
+  /** Why they couldn't be listed; empty when they could */
+  databases_error: string;
+  incremental: BackupIncremental;
+  /** Whether the machine Morcheh runs on can run its backups and restores */
+  local: LocalTools;
+  /** Why some don't */
+  selection_note: string;
+  /** Which ways of choosing databases work here */
+  selections: string[];
+}
+
+export interface BackupPlan {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format date-time */
+  created_at: string;
+  cron: string;
+  /** @format uuid */
+  database_id: string;
+  enabled: boolean;
+  folder: string;
+  /** @format int32 */
+  full_every_days: number;
+  /** @format int32 */
+  gfs_daily: number;
+  /** @format int32 */
+  gfs_monthly: number;
+  /** @format int32 */
+  gfs_weekly: number;
+  has_password: boolean;
+  /** @format uuid */
+  id: string;
+  /** @format int32 */
+  keep_days: number;
+  last?: BackupRunBrief;
+  /** @format date-time */
+  last_good_at: string | null;
+  method: "full" | "incremental";
+  name: string;
+  /** @format date-time */
+  next_run_at: string | null;
+  pattern: string;
+  /** Why it can't run right now; empty when it can */
+  problem: string;
+  retention: "days" | "gfs" | "forever";
+  /** The server the dump runs on ("This Morcheh server" for Morcheh's own machine) */
+  runner_name: string;
+  /** @format uuid */
+  runner_server_id: string | null;
+  running: boolean;
+  /** The person whose access it runs with: whoever saved it last */
+  runs_as: string;
+  selection: "all" | "selected" | "pattern";
+  storages: BackupPlanStorage[];
+  targets: string[];
+  timezone: string;
+  /** @format date-time */
+  updated_at: string;
+  username: string;
+}
+
+export interface BackupPlanBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * When it runs; empty = only when started by hand
+   * @maxLength 128
+   */
+  cron?: string;
+  enabled: boolean;
+  /**
+   * Folder on the Storages; {year}, {month} and {day} are filled in at each run. Each database gets a folder of its own inside it
+   * @minLength 1
+   * @maxLength 1024
+   */
+  folder: string;
+  /**
+   * An incremental plan starts over with a full backup this often
+   * @format int32
+   * @min 1
+   * @max 365
+   */
+  full_every_days: number;
+  /**
+   * For retention=gfs: the newest backup of this many days
+   * @format int32
+   * @min 0
+   * @max 1000
+   */
+  gfs_daily: number;
+  /**
+   * … of this many months
+   * @format int32
+   * @min 0
+   * @max 1000
+   */
+  gfs_monthly: number;
+  /**
+   * … of this many weeks
+   * @format int32
+   * @min 0
+   * @max 1000
+   */
+  gfs_weekly: number;
+  /**
+   * For retention=days
+   * @format int32
+   * @min 1
+   * @max 3650
+   */
+  keep_days: number;
+  /** incremental: only what changed since the backup before (MySQL/MariaDB, SQL Server) */
+  method: "full" | "incremental";
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  /**
+   * Blank keeps the saved one
+   * @maxLength 1024
+   */
+  password?: string;
+  /**
+   * A regular expression, for selection=pattern
+   * @maxLength 256
+   */
+  pattern?: string;
+  /** How old backups are deleted */
+  retention: "days" | "gfs" | "forever";
+  /**
+   * For a direct database: the server that runs the dump; empty = the machine Morcheh runs on. Ignored otherwise
+   * @format uuid
+   */
+  runner_server_id?: string;
+  /** Which databases: all of them, the ones named in targets, or the ones matching pattern */
+  selection: "all" | "selected" | "pattern";
+  /**
+   * Where it's uploaded: the database is dumped once and sent to each of them
+   * @maxItems 10
+   * @minItems 1
+   */
+  storage_ids: string[];
+  /**
+   * The databases, for selection=selected
+   * @maxItems 200
+   */
+  targets?: string[];
+  /** @maxLength 64 */
+  timezone?: string;
+  /**
+   * A login just for backups; empty = the database's own
+   * @maxLength 255
+   */
+  username?: string;
+}
+
+export interface BackupPlanStorage {
+  /** @format uuid */
+  id: string;
+  name: string;
+  protocol: string;
+}
+
+export interface BackupProblem {
+  /** @format date-time */
+  at: string;
+  /** @format uuid */
+  database_id: string;
+  database_name: string;
+  error: string;
+  /** @format uuid */
+  plan_id: string;
+  plan_name: string;
+}
+
+export interface BackupRestore {
+  /**
+   * Null when the backup was deleted since
+   * @format uuid
+   */
+  backup_id: string | null;
+  /** @format date-time */
+  created_at: string;
+  created_by_name: string;
+  /** @format uuid */
+  database_id: string;
+  error: string;
+  /** @format date-time */
+  finished_at: string | null;
+  /** @format uuid */
+  id: string;
+  /** @format uuid */
+  job_id: string | null;
+  mode: "replace" | "new";
+  /**
+   * The backup taken just before
+   * @format uuid
+   */
+  safety_backup_id: string | null;
+  /** The backup's file */
+  source: string;
+  /** @format date-time */
+  started_at: string | null;
+  state:
+    | "queued"
+    | "running"
+    | "succeeded"
+    | "failed"
+    | "canceled"
+    | "interrupted";
+  storage_name: string;
+  target_name: string;
+  want_safety: boolean;
+}
+
+export interface BackupRunBrief {
+  /** @format date-time */
+  at: string;
+  /** @format int64 */
+  bytes: number;
+  error: string;
+  /** @format uuid */
+  id: string;
+  state: string;
+}
+
 export interface Ban {
   ip: string;
   /**
@@ -702,6 +1040,36 @@ export interface CreateAppCategoryRequest {
   name: string;
 }
 
+export interface CreateDnsZoneRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * A domain, or an IP or network for a reverse zone
+   * @minLength 1
+   * @maxLength 255
+   */
+  name: string;
+  /**
+   * Secondary: where to copy from. Blank asks the zone's SOA.
+   * @maxItems 10
+   */
+  primary_addresses?: string[];
+  /** Primary holds the records; Secondary copies them from a primary. */
+  type: "Primary" | "Secondary";
+}
+
+export interface CreateDnsZoneResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  name: string;
+}
+
 export interface CronEnv {
   name: string;
   value: string;
@@ -913,6 +1281,332 @@ export interface CronUser {
   name: string;
   /** @format int64 */
   uid: number;
+}
+
+export interface DNSRecord {
+  comments: string;
+  disabled: boolean;
+  editable: boolean;
+  /** @format int64 */
+  flags?: number;
+  /** Full name, like www.example.com */
+  name: string;
+  /** @format int64 */
+  port?: number;
+  /** @format int64 */
+  priority?: number;
+  tag?: string;
+  /** @format int64 */
+  ttl: number;
+  type: string;
+  value: string;
+  /** @format int64 */
+  weight?: number;
+}
+
+export interface DNSRecordBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 500 */
+  comments?: string;
+  disabled?: boolean;
+  /**
+   * @format int64
+   * @min 0
+   * @max 255
+   */
+  flags?: number;
+  /**
+   * Full name, like www.example.com
+   * @minLength 1
+   * @maxLength 255
+   */
+  name: string;
+  /**
+   * @format int64
+   * @min 0
+   * @max 65535
+   */
+  port?: number;
+  /**
+   * @format int64
+   * @min 0
+   * @max 65535
+   */
+  priority?: number;
+  /** @maxLength 32 */
+  tag?: string;
+  /**
+   * Seconds. 3600 when left out.
+   * @format int64
+   * @min 0
+   * @max 2147483647
+   */
+  ttl?: number;
+  type:
+    | "A"
+    | "AAAA"
+    | "CNAME"
+    | "ANAME"
+    | "NS"
+    | "PTR"
+    | "MX"
+    | "TXT"
+    | "SRV"
+    | "CAA";
+  /**
+   * @minLength 1
+   * @maxLength 8192
+   */
+  value: string;
+  /**
+   * @format int64
+   * @min 0
+   * @max 65535
+   */
+  weight?: number;
+}
+
+export interface DNSServer {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  allow_internal: boolean;
+  /** @format date-time */
+  created_at: string;
+  description: string;
+  favorite: boolean;
+  /** @format uuid */
+  id: string;
+  /** @format date-time */
+  last_checked_at?: string;
+  /** @format date-time */
+  last_online_at?: string;
+  /** @format int32 */
+  latency_ms?: number;
+  name: string;
+  server_domain: string;
+  status:
+    | "unknown"
+    | "online"
+    | "unreachable"
+    | "auth_failed"
+    | "tls_error"
+    | "blocked"
+    | "error";
+  status_message: string;
+  tls_skip_verify: boolean;
+  /** @format date-time */
+  updated_at: string;
+  url: string;
+  version: string;
+  /** @format uuid */
+  workspace_id: string;
+  /** @format int32 */
+  zone_count: number;
+}
+
+export interface DNSServerBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Reach a private or loopback address. System admins only. */
+  allow_internal?: boolean;
+  /** @maxLength 500 */
+  description?: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  tls_skip_verify?: boolean;
+  /**
+   * API token. Blank on update keeps the saved one.
+   * @maxLength 500
+   */
+  token?: string;
+  /**
+   * The server's web console, like https://ns1.example.com:53443
+   * @minLength 1
+   * @maxLength 500
+   */
+  url: string;
+}
+
+export interface DNSServerProblem {
+  message: string;
+  /** @format uuid */
+  server_id: string;
+  server_name: string;
+}
+
+export interface DNSTestBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  allow_internal?: boolean;
+  /**
+   * When editing: the saved server, whose token a blank one stands for.
+   * @format uuid
+   */
+  server_id?: string;
+  tls_skip_verify?: boolean;
+  /** @maxLength 500 */
+  token?: string;
+  /**
+   * @minLength 1
+   * @maxLength 500
+   */
+  url: string;
+}
+
+export interface DNSTestOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format int64 */
+  latency_ms: number;
+  message: string;
+  ok: boolean;
+  server_domain: string;
+  status: string;
+  version: string;
+  /** @format int64 */
+  zone_count: number;
+}
+
+export interface DNSZone {
+  disabled: boolean;
+  dnssec_status: string;
+  expired: boolean;
+  /** @format date-time */
+  expiry?: string;
+  /** @format date-time */
+  last_modified?: string;
+  name: string;
+  notify_failed: boolean;
+  /**
+   * @format int32
+   * @min 0
+   */
+  soa_serial: number;
+  sync_failed: boolean;
+  type: string;
+}
+
+export interface DNSZoneCopy {
+  disabled: boolean;
+  dnssec_status: string;
+  expired: boolean;
+  /** @format date-time */
+  expiry?: string;
+  /** @format date-time */
+  last_modified?: string;
+  name: string;
+  notify_failed: boolean;
+  /** @format uuid */
+  server_id: string;
+  server_name: string;
+  /**
+   * @format int32
+   * @min 0
+   */
+  soa_serial: number;
+  sync_failed: boolean;
+  type: string;
+}
+
+export interface DNSZoneGroup {
+  copies: DNSZoneCopy[];
+  name: string;
+  /** A secondary copy's serial differs from its primary's, or its last transfer failed. */
+  out_of_sync: boolean;
+}
+
+export interface DNSZoneOptions {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  notify:
+    | "None"
+    | "ZoneNameServers"
+    | "SpecifiedNameServers"
+    | "BothZoneAndSpecifiedNameServers";
+  notify_failed: boolean;
+  notify_failed_for: string[];
+  notify_servers: string[];
+  /** Secondary zones only. */
+  primary_addresses: string[];
+  type: string;
+  zone_transfer:
+    | "Deny"
+    | "Allow"
+    | "AllowOnlyZoneNameServers"
+    | "UseSpecifiedNetworkACL"
+    | "AllowZoneNameServersAndUseSpecifiedNetworkACL";
+  /** Addresses or networks; a leading ! refuses one. */
+  zone_transfer_allowed: string[];
+}
+
+export interface DNSZoneOptionsBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  notify:
+    | "None"
+    | "ZoneNameServers"
+    | "SpecifiedNameServers"
+    | "BothZoneAndSpecifiedNameServers";
+  /** @maxItems 50 */
+  notify_servers: string[];
+  /**
+   * Sent only for a Secondary zone.
+   * @maxItems 10
+   */
+  primary_addresses?: string[];
+  zone_transfer:
+    | "Deny"
+    | "Allow"
+    | "AllowOnlyZoneNameServers"
+    | "UseSpecifiedNetworkACL"
+    | "AllowZoneNameServersAndUseSpecifiedNetworkACL";
+  /** @maxItems 50 */
+  zone_transfer_allowed: string[];
+}
+
+export interface DNSZoneRecords {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  records: DNSRecord[];
+  zone: DNSZone;
+}
+
+export interface DNSZonesEverywhereOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  problems: DNSServerProblem[];
+  zones: DNSZoneGroup[];
 }
 
 export interface Database {
@@ -1392,6 +2086,128 @@ export interface DatabaseInfo {
    * @format int64
    */
   tables: number | null;
+}
+
+export interface DatabaseInsight {
+  /** @format double */
+  latency_p95: number | null;
+  /** @format double */
+  blocked_max: number | null;
+  /**
+   * Average share of reads served from memory, 0–1
+   * @format double
+   */
+  cache_hit: number | null;
+  /** @format double */
+  connections_max: number | null;
+  /**
+   * Sum over the range
+   * @format double
+   */
+  deadlocks: number | null;
+  engine: string;
+  /** @format int64 */
+  failures: number;
+  favorite: boolean;
+  /** mariadb for MariaDB; empty otherwise */
+  flavor: string;
+  health: string;
+  /**
+   * First sample in the range
+   * @format date-time
+   */
+  history_since: string | null;
+  /** @format uuid */
+  id: string;
+  /** @format double */
+  latency_avg: number | null;
+  name: string;
+  paused: boolean;
+  /** @format double */
+  qps_avg: number | null;
+  /** @format double */
+  qps_max: number | null;
+  /** @format int64 */
+  samples: number;
+  /**
+   * From the last check
+   * @format int64
+   */
+  size_bytes: number | null;
+  /**
+   * First measured size in the range
+   * @format double
+   */
+  size_first: number | null;
+  /** @format double */
+  size_last: number | null;
+  status: string;
+  /**
+   * Share of checks that reached it, 0–1; null without checks
+   * @format double
+   */
+  uptime: number | null;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface DatabaseInsightEvent {
+  /** @format date-time */
+  at: string;
+  check_id: string;
+  /** @format uuid */
+  database_id: string;
+  detail: string;
+  kind: string;
+  severity: string;
+  title: string;
+}
+
+export interface DatabaseInsightPoint {
+  /**
+   * Highest in the bucket
+   * @format double
+   */
+  connections: number | null;
+  /** @format uuid */
+  database_id: string;
+  /** @format int64 */
+  failures: number;
+  /** @format double */
+  latency_avg: number | null;
+  /** @format int32 */
+  latency_max: number;
+  /** @format double */
+  max_connections: number | null;
+  /** @format double */
+  qps: number | null;
+  /** @format int64 */
+  samples: number;
+  /** @format double */
+  size_bytes: number | null;
+  /** @format date-time */
+  t: string;
+  /** @format double */
+  tps: number | null;
+}
+
+export interface DatabaseInsights {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format int64 */
+  bucket_seconds: number;
+  databases: DatabaseInsight[];
+  /** Problems and recoveries, newest first (at most 200) */
+  events: DatabaseInsightEvent[];
+  /** @format date-time */
+  from: string;
+  range: string;
+  series: DatabaseInsightPoint[];
+  /** @format date-time */
+  to: string;
 }
 
 export interface DatabaseLimit {
@@ -3085,7 +3901,7 @@ export interface Job {
   finished_at?: string;
   /** @format uuid */
   id: string;
-  /** What it does: transfer, copy, move, storage-copy, storage-move, compress, extract, fetch, fail2ban-install, fail2ban-uninstall, firewall-install, firewall-apply, ansible-run or schedule-sync */
+  /** What it does: transfer, copy, move, storage-copy, storage-move, compress, extract, fetch, fail2ban-install, fail2ban-uninstall, firewall-install, firewall-apply, ansible-run, schedule-sync, script-run, database-backup, database-backup-verify or database-backup-restore */
   kind: string;
   /** What it printed (newest last); only on GET /jobs/{id} */
   log?: string;
@@ -3111,6 +3927,11 @@ export interface Job {
 }
 
 export interface JobPlace {
+  /**
+   * The database it backs up
+   * @format uuid
+   */
+  database_id?: string;
   /** The server's or storage's name when the job started */
   name?: string;
   path: string;
@@ -3160,6 +3981,15 @@ export interface ListAnsibleModulesResponse {
   version: string;
 }
 
+export interface ListDnsServersResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: DNSServer[];
+}
+
 export interface ListJobsResponse {
   /**
    * A URL to the JSON Schema for this object.
@@ -3178,6 +4008,26 @@ export interface ListPlaybooksResponse {
   items: Playbook[];
 }
 
+export interface ListServerNotesResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: ServerNote[];
+}
+
+export interface ListServerScriptRunsResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: ServerScriptRun[];
+  /** @format int64 */
+  total: number;
+}
+
 export interface ListStoragesResponse {
   /**
    * A URL to the JSON Schema for this object.
@@ -3194,6 +4044,15 @@ export interface ListTerminalsResponse {
    */
   $schema?: string;
   items: TerminalSession[];
+}
+
+export interface LocalTools {
+  /** Tools a backup or restore needs that aren't installed here */
+  missing: string[];
+  /** Why not, when it can't */
+  note: string;
+  /** Whether this kind of database can be backed up from the Morcheh server at all */
+  supported: boolean;
 }
 
 export interface LogEntry {
@@ -3687,11 +4546,17 @@ export interface PanelWorkspace {
   app_count: number;
   /** You can add servers, storages and services here. */
   can_create: boolean;
+  /** A palette key; the panel owns the actual colors. */
+  color: string;
   description: string;
   /** @format uuid */
   id: string;
   /** Your level on the whole workspace; none if you only reach some servers, storages or services in it. */
   level: string;
+  logo_icon: string;
+  logo_kind: "letter" | "icon" | "upload";
+  /** Where to load the uploaded logo from; changes with the image. Missing = draw the letter or the icon. */
+  logo_url?: string;
   name: string;
   /** You only reach some servers, storages or services in it. */
   partial: boolean;
@@ -3705,6 +4570,24 @@ export interface PanelWorkspace {
    * @format int32
    */
   storage_count: number;
+}
+
+export interface PinServerNoteRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  pinned: boolean;
+}
+
+export interface PlanListBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: BackupPlan[];
 }
 
 export interface Playbook {
@@ -4021,6 +4904,15 @@ export interface PrincipalsOutputBody {
   users: PrincipalUser[];
 }
 
+export interface ProblemListBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: BackupProblem[];
+}
+
 export interface Progress {
   /** The file it's on */
   current?: string;
@@ -4098,6 +4990,50 @@ export interface ReachProbe {
   via: "lan" | "vpn" | "host" | "address";
 }
 
+export interface RecordingListBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  everyone: boolean;
+  items: TerminalRecording[];
+  /** @format int64 */
+  total: number;
+}
+
+export interface RecordingSettings {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  enabled: boolean;
+  /**
+   * Recordings older than this are deleted
+   * @format int64
+   */
+  keep_days: number;
+  /** @format date-time */
+  updated_at?: string;
+  updated_by_name?: string;
+}
+
+export interface RecordingSettingsBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  enabled: boolean;
+  /**
+   * @format int64
+   * @min 1
+   * @max 3650
+   */
+  keep_days: number;
+}
+
 export interface RenameFileRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -4127,6 +5063,55 @@ export interface ResourceAccess {
   /** @format uuid */
   id: string;
   level: string;
+}
+
+export interface RestoreBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * For replace: the target's name typed again
+   * @maxLength 128
+   */
+  confirm?: string;
+  /** replace = overwrite a database that exists; new = create one */
+  mode: "replace" | "new";
+  /** @maxLength 1024 */
+  password?: string;
+  /**
+   * For a direct database: the server the restore runs on, or "local" for the machine Morcheh runs on; empty = the plan's (Morcheh's machine when there's no plan)
+   * @maxLength 36
+   */
+  runner_server_id?: string;
+  /** For replace: back the target up first, to the same storage */
+  safety_backup?: boolean;
+  /**
+   * Which storage to read it from; empty = the first that holds all of it
+   * @maxLength 36
+   */
+  storage_id?: string;
+  /**
+   * The database to load it into
+   * @minLength 1
+   * @maxLength 128
+   */
+  target_name: string;
+  /**
+   * A login for this restore only; empty = the database's saved one
+   * @maxLength 256
+   */
+  username?: string;
+}
+
+export interface RestoreListBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: BackupRestore[];
 }
 
 export interface Rule {
@@ -4568,6 +5553,263 @@ export interface ScheduleUpdate {
   timezone?: string;
 }
 
+export interface Script {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  content: string;
+  /** @format date-time */
+  created_at: string;
+  created_by_name: string;
+  description: string;
+  /** @format uuid */
+  id: string;
+  interpreter: "sh" | "bash" | "python3";
+  last_run?: ScriptLastRun;
+  name: string;
+  params: ScriptParam[];
+  run_as: "user" | "root";
+  /** @format int32 */
+  timeout_seconds: number;
+  /** @format date-time */
+  updated_at: string;
+  updated_by_name: string;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface ScriptInput {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 262144 */
+  content: string;
+  /** @maxLength 2000 */
+  description?: string;
+  interpreter: "sh" | "bash" | "python3";
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  /** @maxItems 30 */
+  params: ScriptParam[];
+  /** user = the server's login user; root = through sudo when it isn't root */
+  run_as: "user" | "root";
+  /**
+   * @format int32
+   * @min 1
+   * @max 86400
+   */
+  timeout_seconds: number;
+}
+
+export interface ScriptLastRun {
+  /** @format date-time */
+  at: string;
+  /** @format int32 */
+  exit_code?: number;
+  /** @format uuid */
+  run_id: string;
+  state: string;
+}
+
+export interface ScriptListBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: Script[];
+}
+
+export interface ScriptParam {
+  /** @maxLength 4096 */
+  default?: string;
+  /**
+   * What the run form asks
+   * @maxLength 100
+   */
+  label?: string;
+  /**
+   * The environment variable
+   * @minLength 1
+   * @maxLength 64
+   * @pattern ^[A-Za-z_][A-Za-z0-9_]*$
+   */
+  name: string;
+  /** A run must give it a value */
+  required?: boolean;
+}
+
+export interface ScriptRun {
+  /** @format date-time */
+  created_at: string;
+  created_by_name: string;
+  error?: string;
+  /** @format int32 */
+  failed: number;
+  /** @format date-time */
+  finished_at?: string;
+  /** @format uuid */
+  id: string;
+  interpreter: string;
+  /** @format uuid */
+  job_id?: string;
+  name: string;
+  run_as: string;
+  /**
+   * Unset for a command run without saving, or a script deleted since
+   * @format uuid
+   */
+  script_id?: string;
+  server_names: string[];
+  /** @format int32 */
+  servers: number;
+  /** @format date-time */
+  started_at?: string;
+  state:
+    | "queued"
+    | "running"
+    | "succeeded"
+    | "failed"
+    | "canceled"
+    | "interrupted";
+  /** @format int32 */
+  succeeded: number;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface ScriptRunDetail {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  content: string;
+  /** @format date-time */
+  created_at: string;
+  created_by_name: string;
+  /** The values it ran with */
+  env: Record<string, string>;
+  error?: string;
+  /** @format int32 */
+  failed: number;
+  /** @format date-time */
+  finished_at?: string;
+  /** @format uuid */
+  id: string;
+  interpreter: string;
+  /** @format uuid */
+  job_id?: string;
+  name: string;
+  run_as: string;
+  /**
+   * Unset for a command run without saving, or a script deleted since
+   * @format uuid
+   */
+  script_id?: string;
+  server_names: string[];
+  /** @format int32 */
+  servers: number;
+  /** @format date-time */
+  started_at?: string;
+  state:
+    | "queued"
+    | "running"
+    | "succeeded"
+    | "failed"
+    | "canceled"
+    | "interrupted";
+  /** @format int32 */
+  succeeded: number;
+  targets: ScriptRunTarget[];
+  /** @format int32 */
+  timeout_seconds: number;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface ScriptRunListBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: ScriptRun[];
+  /** @format int64 */
+  total: number;
+}
+
+export interface ScriptRunTarget {
+  /** Why it couldn't run at all */
+  error?: string;
+  /** @format int32 */
+  exit_code?: number;
+  /** @format date-time */
+  finished_at?: string;
+  /** stdout and stderr together */
+  output: string;
+  /** @format int32 */
+  position: number;
+  /**
+   * Unset once the server is deleted
+   * @format uuid
+   */
+  server_id?: string;
+  server_name: string;
+  /** @format date-time */
+  started_at?: string;
+  state:
+    | "queued"
+    | "running"
+    | "succeeded"
+    | "failed"
+    | "canceled"
+    | "interrupted";
+  timed_out: boolean;
+  /** Output past 1 MiB was dropped */
+  truncated: boolean;
+}
+
+export interface ScriptUpdate {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 262144 */
+  content: string;
+  /** @maxLength 2000 */
+  description?: string;
+  interpreter: "sh" | "bash" | "python3";
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  /** @maxItems 30 */
+  params: ScriptParam[];
+  /**
+   * Its updated_at when you loaded it: 409 if someone saved in between
+   * @format date-time
+   */
+  revision?: string;
+  /** user = the server's login user; root = through sudo when it isn't root */
+  run_as: "user" | "root";
+  /**
+   * @format int32
+   * @min 1
+   * @max 86400
+   */
+  timeout_seconds: number;
+}
+
 export interface SearchResult {
   /**
    * A URL to the JSON Schema for this object.
@@ -4707,6 +5949,24 @@ export interface ServerBody {
   username: string;
 }
 
+export interface ServerCheckPoint {
+  /** @format int64 */
+  checks: number;
+  /** @format int64 */
+  failures: number;
+  /**
+   * Online checks only; 0 when none
+   * @format double
+   */
+  latency_avg: number;
+  /** @format int32 */
+  latency_max: number;
+  /** @format uuid */
+  server_id: string;
+  /** @format date-time */
+  t: string;
+}
+
 export interface ServerCredentials {
   /**
    * A URL to the JSON Schema for this object.
@@ -4732,6 +5992,71 @@ export interface ServerCredentials {
   username: string;
 }
 
+export interface ServerInsight {
+  /** @format int64 */
+  checks: number;
+  /** @format int64 */
+  failures: number;
+  favorite: boolean;
+  /**
+   * First check in the range
+   * @format date-time
+   */
+  history_since: string | null;
+  host: string;
+  /** @format uuid */
+  id: string;
+  /** @format double */
+  latency_avg: number | null;
+  /** @format int32 */
+  latency_max: number | null;
+  /**
+   * From the last check
+   * @format int32
+   */
+  latency_ms: number | null;
+  /** Last sample, any age; missing = never sampled */
+  latest?: ServerResourceInfo;
+  name: string;
+  os_id: string;
+  os_name: string;
+  /** Missing = no sample in the range */
+  resources?: ServerResourceSummary;
+  status: string;
+  /**
+   * Share of checks that found it online, 0–1; null without checks
+   * @format double
+   */
+  uptime: number | null;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface ServerInsights {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format int64 */
+  bucket_seconds: number;
+  checks: ServerCheckPoint[];
+  /** Status changes, newest first (at most 200) */
+  events: ServerStatusEvent[];
+  /** @format date-time */
+  from: string;
+  range: string;
+  resources: ServerResourcePoint[];
+  /**
+   * How often resources are read; 0 = off
+   * @format int64
+   */
+  sample_seconds: number;
+  servers: ServerInsight[];
+  /** @format date-time */
+  to: string;
+}
+
 export interface ServerItemsOutputBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -4755,6 +6080,61 @@ export interface ServerListOutputBody {
   total: number;
 }
 
+export interface ServerNote {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Markdown */
+  body: string;
+  /** @format date-time */
+  created_at: string;
+  created_by_name: string;
+  /** @format uuid */
+  id: string;
+  /** Shown on the server's overview */
+  pinned: boolean;
+  title: string;
+  /**
+   * Send it back as revision when saving
+   * @format date-time
+   */
+  updated_at: string;
+  updated_by_name: string;
+}
+
+export interface ServerNoteBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 100000 */
+  body: string;
+  pinned?: boolean;
+  /** @maxLength 200 */
+  title: string;
+}
+
+export interface ServerNoteUpdate {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 100000 */
+  body: string;
+  pinned?: boolean;
+  /**
+   * The note's updated_at when you loaded it: 409 when someone saved in between
+   * @format date-time
+   */
+  revision?: string;
+  /** @maxLength 200 */
+  title: string;
+}
+
 export interface ServerOS {
   arch: string;
   /** linux, darwin, freebsd, windows…; empty until a check detects it */
@@ -4764,6 +6144,141 @@ export interface ServerOS {
   kernel: string;
   name: string;
   version: string;
+}
+
+export interface ServerResourceInfo {
+  /** @format double */
+  load1: number;
+  /** @format date-time */
+  at: string;
+  /** @format int32 */
+  cores: number;
+  /** @format double */
+  cpu_percent: number;
+  disk_max_mount: string;
+  /**
+   * The fullest filesystem's Use%
+   * @format double
+   */
+  disk_max_percent: number;
+  /** @format int64 */
+  disk_total_bytes: number;
+  /**
+   * The root filesystem (the largest one without /)
+   * @format int64
+   */
+  disk_used_bytes: number;
+  /** @format int64 */
+  mem_total_bytes: number;
+  /** @format int64 */
+  mem_used_bytes: number;
+  /** @format double */
+  rx_bytes_per_sec: number;
+  /** @format int64 */
+  swap_total_bytes: number;
+  /** @format int64 */
+  swap_used_bytes: number;
+  /** @format double */
+  tx_bytes_per_sec: number;
+}
+
+export interface ServerResourcePoint {
+  /** @format double */
+  cpu_avg: number;
+  /** @format double */
+  cpu_max: number;
+  /** @format double */
+  disk_max: number;
+  /** @format int64 */
+  disk_used: number;
+  /** @format double */
+  load_avg: number;
+  /** @format double */
+  mem_avg: number;
+  /** @format double */
+  mem_max: number;
+  /** @format double */
+  rx_avg: number;
+  /** @format int64 */
+  samples: number;
+  /** @format uuid */
+  server_id: string;
+  /** @format date-time */
+  t: string;
+  /** @format double */
+  tx_avg: number;
+}
+
+export interface ServerResourceSummary {
+  /** @format double */
+  cpu_avg: number;
+  /** @format double */
+  cpu_max: number;
+  /** @format int64 */
+  disk_first: number;
+  /** @format int64 */
+  disk_last: number;
+  /**
+   * Fullest filesystem's highest Use%
+   * @format double
+   */
+  disk_max: number;
+  /** @format date-time */
+  first_at: string;
+  /** @format date-time */
+  last_at: string;
+  /**
+   * Percent of memory used
+   * @format double
+   */
+  mem_avg: number;
+  /** @format double */
+  mem_max: number;
+  /** @format double */
+  rx_avg: number;
+  /** @format int64 */
+  samples: number;
+  /** @format double */
+  tx_avg: number;
+}
+
+export interface ServerScriptRun {
+  /** @format date-time */
+  created_at: string;
+  created_by_name: string;
+  error?: string;
+  /** @format int32 */
+  exit_code?: number;
+  /** @format date-time */
+  finished_at?: string;
+  interpreter: string;
+  name: string;
+  run_as: string;
+  /** @format uuid */
+  run_id: string;
+  run_state: string;
+  /** @format uuid */
+  script_id?: string;
+  /**
+   * Servers in the whole run
+   * @format int32
+   */
+  servers: number;
+  /** @format date-time */
+  started_at?: string;
+  /** How it went on this server */
+  state: string;
+  timed_out: boolean;
+}
+
+export interface ServerStatusEvent {
+  /** @format date-time */
+  at: string;
+  message: string;
+  prev_status: string;
+  /** @format uuid */
+  server_id: string;
+  status: string;
 }
 
 export interface Service {
@@ -5081,6 +6596,24 @@ export interface SetDatabasePausedRequest {
   paused: boolean;
 }
 
+export interface SetDnsServerFavoriteRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  favorite: boolean;
+}
+
+export interface SetDnsZoneEnabledRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  enabled: boolean;
+}
+
 export interface SetScheduleEnabledRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -5170,6 +6703,51 @@ export interface StartRunOutputBody {
   $schema?: string;
   job: Job;
   run: AnsibleRun;
+}
+
+export interface StartScriptRunBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 262144 */
+  content?: string;
+  /** Values for the script's parameters (or any variables, without a saved script). Kept with the run and shown to whoever can read it */
+  env?: Record<string, string>;
+  interpreter?: "sh" | "bash" | "python3";
+  /**
+   * For a command run without saving
+   * @maxLength 100
+   */
+  name?: string;
+  run_as?: "user" | "root";
+  /**
+   * A saved script; the fields below are then ignored
+   * @format uuid
+   */
+  script_id?: string;
+  /**
+   * @maxItems 200
+   * @minItems 1
+   */
+  server_ids: string[];
+  /**
+   * @format int32
+   * @min 0
+   * @max 86400
+   */
+  timeout_seconds?: number;
+}
+
+export interface StartScriptRunResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  job: Job;
+  run: ScriptRunDetail;
 }
 
 export interface Stats {
@@ -5266,6 +6844,30 @@ export interface Storage {
   username: string;
   /** @format uuid */
   workspace_id: string;
+}
+
+export interface StorageActivityPoint {
+  /** @format int64 */
+  bytes: number;
+  /** @format int64 */
+  failed: number;
+  /** @format int64 */
+  files: number;
+  /** transfer = copies and moves, sync = cron job runs, backup = database backups */
+  kind: "transfer" | "sync" | "backup";
+  /** @format int64 */
+  ok: number;
+  /** @format date-time */
+  t: string;
+}
+
+export interface StorageActivityTotals {
+  /** @format int64 */
+  bytes: number;
+  /** @format int64 */
+  failed: number;
+  /** @format int64 */
+  ok: number;
 }
 
 export interface StorageAffectedOutputBody {
@@ -5455,6 +7057,83 @@ export interface StorageFolderSizeResponse {
   size: number;
 }
 
+export interface StorageInsight {
+  /** @format double */
+  latency_p95: number | null;
+  activity: StorageActivityTotals;
+  /** @format int64 */
+  checks: number;
+  /** @format int64 */
+  failures: number;
+  /**
+   * First check in the range
+   * @format date-time
+   */
+  history_since: string | null;
+  /** @format uuid */
+  id: string;
+  /** @format double */
+  latency_avg: number | null;
+  /**
+   * From the last check
+   * @format int32
+   */
+  latency_ms: number | null;
+  name: string;
+  protocol: string;
+  provider: string;
+  status: string;
+  /**
+   * Share of checks that found it online, 0–1; null without checks
+   * @format double
+   */
+  uptime: number | null;
+  /** Last measurement, any age; missing = never measured */
+  usage?: StorageUsageInfo;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface StorageInsights {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  activity: StorageActivityPoint[];
+  /** @format int64 */
+  bucket_seconds: number;
+  /** Status changes, newest first (at most 200) */
+  events: StorageStatusEvent[];
+  /** @format date-time */
+  from: string;
+  latency: StorageLatencyPoint[];
+  range: string;
+  storages: StorageInsight[];
+  /** @format date-time */
+  to: string;
+  /** Measurements in the range, plus each storage's last one before it */
+  usage: StorageUsagePoint[];
+}
+
+export interface StorageLatencyPoint {
+  /** @format int64 */
+  checks: number;
+  /** @format int64 */
+  failures: number;
+  /**
+   * Online checks only; 0 when none
+   * @format double
+   */
+  latency_avg: number;
+  /** @format int32 */
+  latency_max: number;
+  /** @format uuid */
+  storage_id: string;
+  /** @format date-time */
+  t: string;
+}
+
 export interface StorageListing {
   /**
    * A URL to the JSON Schema for this object.
@@ -5507,6 +7186,16 @@ export interface StorageRenameRequest {
   name: string;
   /** @minLength 1 */
   path: string;
+}
+
+export interface StorageStatusEvent {
+  /** @format date-time */
+  at: string;
+  message: string;
+  prev_status: string;
+  status: string;
+  /** @format uuid */
+  storage_id: string;
 }
 
 export interface StorageTestBody {
@@ -5637,6 +7326,54 @@ export interface StorageTransferBodySourceStruct {
   storage_id?: string;
 }
 
+export interface StorageUsageInfo {
+  /** @format int32 */
+  duration_ms: number;
+  /** @format int64 */
+  files: number;
+  /** @format int64 */
+  folders: number;
+  /**
+   * Free space on that disk (SFTP only)
+   * @format int64
+   */
+  free_bytes: number | null;
+  /** @format date-time */
+  measured_at: string;
+  /** Stopped before the end: too big to walk in time */
+  partial: boolean;
+  top: StorageUsagePart[];
+  /**
+   * Size of the disk behind it (SFTP only)
+   * @format int64
+   */
+  total_bytes: number | null;
+  /** @format int64 */
+  used_bytes: number;
+}
+
+export interface StorageUsagePart {
+  /** @format int64 */
+  bytes: number;
+  /** @format int64 */
+  files: number;
+  /** Top-level folder or bucket; empty = files right in the top folder */
+  name: string;
+  /** Everything past the biggest folders, summed */
+  other: boolean;
+}
+
+export interface StorageUsagePoint {
+  /** @format int64 */
+  files: number;
+  /** @format uuid */
+  storage_id: string;
+  /** @format date-time */
+  t: string;
+  /** @format int64 */
+  used_bytes: number;
+}
+
 export interface Subnet {
   /** Empty for the internet */
   cidr: string;
@@ -5689,6 +7426,56 @@ export interface TaskResult {
   stdout?: string;
 }
 
+export interface TerminalRecording {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  can_delete: boolean;
+  /** @format int64 */
+  cols: number;
+  /** @format int64 */
+  duration_ms: number;
+  /**
+   * Missing while the shell runs
+   * @format date-time
+   */
+  ended_at?: string;
+  /** @format int64 */
+  exit_code?: number;
+  /** @format uuid */
+  id: string;
+  /** Morcheh restarted while the shell was open; the end is missing */
+  interrupted: boolean;
+  /** The shell is still open */
+  live: boolean;
+  /** The caller opened this shell */
+  mine: boolean;
+  /** @format int64 */
+  rows: number;
+  /**
+   * Missing when the server was deleted
+   * @format uuid
+   */
+  server_id?: string;
+  server_name: string;
+  /**
+   * Output bytes recorded
+   * @format int64
+   */
+  size: number;
+  /** @format date-time */
+  started_at: string;
+  title: string;
+  /** It reached the size limit; later output wasn't kept */
+  truncated: boolean;
+  /** Who opened the shell */
+  user_name: string;
+  /** @format uuid */
+  workspace_id: string;
+}
+
 export interface TerminalSession {
   /**
    * A URL to the JSON Schema for this object.
@@ -5706,6 +7493,8 @@ export interface TerminalSession {
   created_at: string;
   /** @format uuid */
   id: string;
+  /** Its output is being recorded (the workspace records terminals) */
+  recorded: boolean;
   /** @format int64 */
   rows: number;
   title: string;
@@ -5787,6 +7576,16 @@ export interface UpdateDatabaseMonitoringRequest {
   alerts_enabled: boolean;
   muted_checks: string[];
   thresholds: Record<string, DatabaseLimit>;
+}
+
+export interface UpdateDnsRecordRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  current: DNSRecordBody;
+  new: DNSRecordBody;
 }
 
 export interface UsageDisk {
@@ -6059,8 +7858,28 @@ export interface WorkspaceBody {
    * @format uri
    */
   $schema?: string;
+  /** Empty keeps the current one (indigo for a new workspace). */
+  color?:
+    | "slate"
+    | "red"
+    | "orange"
+    | "amber"
+    | "green"
+    | "teal"
+    | "blue"
+    | "indigo"
+    | "violet"
+    | "pink";
   /** @maxLength 500 */
   description?: string;
+  /**
+   * The Lucide icon for logo_kind icon.
+   * @maxLength 40
+   * @pattern ^[a-z0-9-]*$
+   */
+  logo_icon?: string;
+  /** Empty keeps the current one. Leaving upload drops the picture; upload needs one (PUT /workspaces/{id}/logo). */
+  logo_kind?: "letter" | "icon" | "upload";
   /**
    * @minLength 1
    * @maxLength 64
@@ -6082,11 +7901,17 @@ export interface WorkspaceDetail {
   apps: WorkspaceApp[];
   /** You can add servers, storages and services here. */
   can_create: boolean;
+  /** A palette key; the panel owns the actual colors. */
+  color: string;
   description: string;
   /** @format uuid */
   id: string;
   /** Your level on the whole workspace; none if you only reach some servers, storages or services in it. */
   level: string;
+  logo_icon: string;
+  logo_kind: "letter" | "icon" | "upload";
+  /** Where to load the uploaded logo from; changes with the image. Missing = draw the letter or the icon. */
+  logo_url?: string;
   name: string;
   /** You only reach some servers, storages or services in it. */
   partial: boolean;
@@ -6165,6 +7990,15 @@ export interface Zone {
   sources: string[];
   /** What happens to traffic no rule matches */
   target: string;
+}
+
+export interface ZonesOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: DNSZone[];
 }
 
 export type QueryParamsType = Record<string | number, any>;
@@ -6516,6 +8350,22 @@ export class Api<
       }),
 
     /**
+     * @description For anyone who sees the workspace in their list. Use logo_url from the workspace, which changes with the image.
+     *
+     * @tags Workspaces
+     * @name GetWorkspaceLogo
+     * @summary A workspace's uploaded logo
+     * @request GET:/workspaces/{id}/logo
+     */
+    getWorkspaceLogo: (id: string, params: RequestParams = {}) =>
+      this.request<Blob, ErrorModel>({
+        path: `/workspaces/${id}/logo`,
+        method: "GET",
+        format: "blob",
+        ...params,
+      }),
+
+    /**
      * @description Admins can filter by anything. Others must name a workspace, server, storage or service they own.
      *
      * @tags Workspaces
@@ -6581,6 +8431,23 @@ export class Api<
       }),
 
     /**
+     * @description The raw image (PNG, JPEG, GIF, WebP, ICO or SVG, up to 1 MB); its type is read from the bytes. The workspace switches to it (logo_kind = upload).
+     *
+     * @tags Workspaces
+     * @name PutWorkspaceLogo
+     * @summary Upload a workspace's logo
+     * @request PUT:/workspaces/{id}/logo
+     */
+    putWorkspaceLogo: (id: string, data: File, params: RequestParams = {}) =>
+      this.request<PanelWorkspace, ErrorModel>({
+        path: `/workspaces/${id}/logo`,
+        method: "PUT",
+        body: data,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description One person or group, one workspace, server, storage or service. Admins and the target's Owners can. Only admins decide who may add servers: an Owner passes on at most what they have themselves.
      *
      * @tags Workspaces
@@ -6599,11 +8466,11 @@ export class Api<
       }),
 
     /**
-     * No description
+     * @description Its name, description and how it shows in the panel (color and logo). An uploaded logo goes up with PUT /workspaces/{id}/logo.
      *
      * @tags Workspaces
      * @name UpdateWorkspace
-     * @summary Rename a workspace
+     * @summary Edit a workspace
      * @request PATCH:/workspaces/{id}
      */
     updateWorkspace: (
@@ -7704,6 +9571,307 @@ export class Api<
         ...params,
       }),
   };
+  databaseBackups = {
+    /**
+     * @description Stops the whole run: other databases of it that haven't finished stop too.
+     *
+     * @tags Database backups
+     * @name CancelDatabaseBackup
+     * @summary Stop a backup that's running
+     * @request POST:/database-backups/{id}/cancel
+     */
+    cancelDatabaseBackup: (id: string, params: RequestParams = {}) =>
+      this.request<Backup, ErrorModel>({
+        path: `/database-backups/${id}/cancel`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Database backups
+     * @name CreateDatabaseBackupPlan
+     * @summary Add a backup plan
+     * @request POST:/databases/{id}/backup-plans
+     */
+    createDatabaseBackupPlan: (
+      id: string,
+      data: BackupPlanBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<BackupPlan, ErrorModel>({
+        path: `/databases/${id}/backup-plans`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Deletes its file from every storage, and the incrementals that build on it with theirs.
+     *
+     * @tags Database backups
+     * @name DeleteDatabaseBackup
+     * @summary Delete a backup and its files
+     * @request DELETE:/database-backups/{id}
+     */
+    deleteDatabaseBackup: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/database-backups/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * @description Its backups stay, in the list and on the Storages.
+     *
+     * @tags Database backups
+     * @name DeleteDatabaseBackupPlan
+     * @summary Delete a backup plan
+     * @request DELETE:/database-backup-plans/{id}
+     */
+    deleteDatabaseBackupPlan: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/database-backup-plans/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * @description From the storage named, or else the first one holding it that the caller can read.
+     *
+     * @tags Database backups
+     * @name DownloadDatabaseBackup
+     * @summary Download a backup's file
+     * @request GET:/database-backups/{id}/download
+     */
+    downloadDatabaseBackup: (
+      id: string,
+      query?: {
+        /**
+         * Which copy
+         * @format uuid
+         */
+        storage?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<void, ErrorModel>({
+        path: `/database-backups/${id}/download`,
+        method: "GET",
+        query: query,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Database backups
+     * @name GetDatabaseBackup
+     * @summary Get a backup
+     * @request GET:/database-backups/{id}
+     */
+    getDatabaseBackup: (id: string, params: RequestParams = {}) =>
+      this.request<Backup, ErrorModel>({
+        path: `/database-backups/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Lists its databases (it connects to do so) and says which ways of choosing them, and whether incrementals, work here.
+     *
+     * @tags Database backups
+     * @name GetDatabaseBackupOptions
+     * @summary What a backup plan for this database can choose from
+     * @request GET:/databases/{id}/backup-options
+     */
+    getDatabaseBackupOptions: (id: string, params: RequestParams = {}) =>
+      this.request<BackupOptions, ErrorModel>({
+        path: `/databases/${id}/backup-options`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Database backups
+     * @name GetDatabaseBackupPlan
+     * @summary Get a backup plan
+     * @request GET:/database-backup-plans/{id}
+     */
+    getDatabaseBackupPlan: (id: string, params: RequestParams = {}) =>
+      this.request<BackupPlan, ErrorModel>({
+        path: `/database-backup-plans/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Database backups
+     * @name ListDatabaseBackupPlans
+     * @summary List a database's backup plans
+     * @request GET:/databases/{id}/backup-plans
+     */
+    listDatabaseBackupPlans: (id: string, params: RequestParams = {}) =>
+      this.request<PlanListBody, ErrorModel>({
+        path: `/databases/${id}/backup-plans`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Database backups
+     * @name ListDatabaseBackupProblems
+     * @summary Backup plans whose newest run failed
+     * @request GET:/database-backup-problems
+     */
+    listDatabaseBackupProblems: (params: RequestParams = {}) =>
+      this.request<ProblemListBody, ErrorModel>({
+        path: `/database-backup-problems`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Database backups
+     * @name ListDatabaseBackups
+     * @summary List a database's backups, newest first
+     * @request GET:/databases/{id}/backups
+     */
+    listDatabaseBackups: (
+      id: string,
+      query?: {
+        /**
+         * @format int32
+         * @min 1
+         * @max 200
+         * @default 50
+         */
+        limit?: number;
+        /**
+         * @format int32
+         * @min 0
+         */
+        offset?: number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<BackupListBody, ErrorModel>({
+        path: `/databases/${id}/backups`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Database backups
+     * @name ListDatabaseRestores
+     * @summary A database's restores, newest first
+     * @request GET:/databases/{id}/restores
+     */
+    listDatabaseRestores: (id: string, params: RequestParams = {}) =>
+      this.request<RestoreListBody, ErrorModel>({
+        path: `/databases/${id}/restores`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Loads the backup, and the full one an incremental builds on, into a database that exists (replace, with its name typed again, optionally backed up first) or a new one. Every file is read back and checked before the database is touched.
+     *
+     * @tags Database backups
+     * @name RestoreDatabaseBackup
+     * @summary Restore a backup into a database
+     * @request POST:/database-backups/{id}/restore
+     */
+    restoreDatabaseBackup: (
+      id: string,
+      data: RestoreBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/database-backups/${id}/restore`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Database backups
+     * @name RunDatabaseBackupPlan
+     * @summary Back up now
+     * @request POST:/database-backup-plans/{id}/run
+     */
+    runDatabaseBackupPlan: (id: string, params: RequestParams = {}) =>
+      this.request<Job, ErrorModel>({
+        path: `/database-backup-plans/${id}/run`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description It runs with the access of whoever saves it last.
+     *
+     * @tags Database backups
+     * @name UpdateDatabaseBackupPlan
+     * @summary Change a backup plan
+     * @request PUT:/database-backup-plans/{id}
+     */
+    updateDatabaseBackupPlan: (
+      id: string,
+      data: BackupPlanBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<BackupPlan, ErrorModel>({
+        path: `/database-backup-plans/${id}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Reads every stored copy and compares its size and checksum with what was sent, and looks at its format. It doesn't restore anything.
+     *
+     * @tags Database backups
+     * @name VerifyDatabaseBackup
+     * @summary Read a backup back and check it
+     * @request POST:/database-backups/{id}/verify
+     */
+    verifyDatabaseBackup: (id: string, params: RequestParams = {}) =>
+      this.request<Job, ErrorModel>({
+        path: `/database-backups/${id}/verify`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+  };
   databases = {
     /**
      * @description Connects afresh, runs every check and records the result.
@@ -7735,6 +9903,31 @@ export class Api<
         method: "POST",
         body: data,
         type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description For the databases this person can see (in the selected workspace), from the monitor's samples (kept 30 days). Series come bucketed: 30 min for 24h, 4 h for 7d, a day for 30d.
+     *
+     * @tags Databases
+     * @name DatabaseInsights
+     * @summary Availability, response time, load and size of the databases
+     * @request GET:/databases/insights
+     */
+    databaseInsights: (
+      query?: {
+        /** @default "7d" */
+        range?: "24h" | "7d" | "30d";
+        /** IANA time zone the buckets line up with (days start at its midnight) */
+        tz?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<DatabaseInsights, ErrorModel>({
+        path: `/databases/insights`,
+        method: "GET",
+        query: query,
         format: "json",
         ...params,
       }),
@@ -8063,6 +10256,380 @@ export class Api<
     ) =>
       this.request<Database, ErrorModel>({
         path: `/databases/${id}/monitoring`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  dns = {
+    /**
+     * @description Answers with the zone's records, fresh.
+     *
+     * @tags DNS
+     * @name AddDnsRecord
+     * @summary Add a record
+     * @request POST:/dns-servers/{id}/zones/{zone}/records
+     */
+    addDnsRecord: (
+      id: string,
+      zone: string,
+      data: DNSRecordBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<DNSZoneRecords, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/records`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name CheckDnsServer
+     * @summary Check a DNS server's connection
+     * @request POST:/dns-servers/{id}/check
+     */
+    checkDnsServer: (id: string, params: RequestParams = {}) =>
+      this.request<DNSServer, ErrorModel>({
+        path: `/dns-servers/${id}/check`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name CreateDnsServer
+     * @summary Connect a DNS server
+     * @request POST:/dns-servers
+     */
+    createDnsServer: (data: DNSServerBody, params: RequestParams = {}) =>
+      this.request<DNSServer, ErrorModel>({
+        path: `/dns-servers`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name CreateDnsZone
+     * @summary Create a zone
+     * @request POST:/dns-servers/{id}/zones
+     */
+    createDnsZone: (
+      id: string,
+      data: CreateDnsZoneRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<CreateDnsZoneResponse, ErrorModel>({
+        path: `/dns-servers/${id}/zones`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description A POST because the record's data says which one. Answers with the zone's records, fresh.
+     *
+     * @tags DNS
+     * @name DeleteDnsRecord
+     * @summary Delete a record
+     * @request POST:/dns-servers/{id}/zones/{zone}/records/delete
+     */
+    deleteDnsRecord: (
+      id: string,
+      zone: string,
+      data: DNSRecordBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<DNSZoneRecords, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/records/delete`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Morcheh forgets the connection and its token. Nothing on the DNS server changes.
+     *
+     * @tags DNS
+     * @name DeleteDnsServer
+     * @summary Disconnect a DNS server
+     * @request DELETE:/dns-servers/{id}
+     */
+    deleteDnsServer: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/dns-servers/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * @description Deletes it from the DNS server, with every record in it.
+     *
+     * @tags DNS
+     * @name DeleteDnsZone
+     * @summary Delete a zone
+     * @request DELETE:/dns-servers/{id}/zones/{zone}
+     */
+    deleteDnsZone: (id: string, zone: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name GetDnsServer
+     * @summary Get a DNS server
+     * @request GET:/dns-servers/{id}
+     */
+    getDnsServer: (id: string, params: RequestParams = {}) =>
+      this.request<DNSServer, ErrorModel>({
+        path: `/dns-servers/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name GetDnsZoneOptions
+     * @summary A zone's transfer and notify settings
+     * @request GET:/dns-servers/{id}/zones/{zone}/options
+     */
+    getDnsZoneOptions: (id: string, zone: string, params: RequestParams = {}) =>
+      this.request<DNSZoneOptions, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/options`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name ListDnsRecords
+     * @summary List a zone's records
+     * @request GET:/dns-servers/{id}/zones/{zone}/records
+     */
+    listDnsRecords: (id: string, zone: string, params: RequestParams = {}) =>
+      this.request<DNSZoneRecords, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/records`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Favourites first, then by name.
+     *
+     * @tags DNS
+     * @name ListDnsServers
+     * @summary List DNS servers
+     * @request GET:/dns-servers
+     */
+    listDnsServers: (params: RequestParams = {}) =>
+      this.request<ListDnsServersResponse, ErrorModel>({
+        path: `/dns-servers`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The server's built-in zones are left out.
+     *
+     * @tags DNS
+     * @name ListDnsZones
+     * @summary List a DNS server's zones
+     * @request GET:/dns-servers/{id}/zones
+     */
+    listDnsZones: (id: string, params: RequestParams = {}) =>
+      this.request<ZonesOutputBody, ErrorModel>({
+        path: `/dns-servers/${id}/zones`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Asks every server in scope at once. A server that doesn't answer is listed under problems, and the rest still come back.
+     *
+     * @tags DNS
+     * @name ListDnsZonesEverywhere
+     * @summary Zones across every DNS server
+     * @request GET:/dns-zones
+     */
+    listDnsZonesEverywhere: (params: RequestParams = {}) =>
+      this.request<DNSZonesEverywhereOutputBody, ErrorModel>({
+        path: `/dns-zones`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The server fetches the zone from its primary now instead of waiting.
+     *
+     * @tags DNS
+     * @name ResyncDnsZone
+     * @summary Copy a Secondary zone again
+     * @request POST:/dns-servers/{id}/zones/{zone}/resync
+     */
+    resyncDnsZone: (id: string, zone: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/resync`,
+        method: "POST",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name SetDnsServerFavorite
+     * @summary Star or unstar a DNS server
+     * @request PUT:/dns-servers/{id}/favorite
+     */
+    setDnsServerFavorite: (
+      id: string,
+      data: SetDnsServerFavoriteRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<DNSServer, ErrorModel>({
+        path: `/dns-servers/${id}/favorite`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description A disabled zone stays on the server but isn't answered for.
+     *
+     * @tags DNS
+     * @name SetDnsZoneEnabled
+     * @summary Enable or disable a zone
+     * @request PUT:/dns-servers/{id}/zones/{zone}/enabled
+     */
+    setDnsZoneEnabled: (
+      id: string,
+      zone: string,
+      data: SetDnsZoneEnabledRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/enabled`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        ...params,
+      }),
+
+    /**
+     * @description Answers with the settings, fresh.
+     *
+     * @tags DNS
+     * @name SetDnsZoneOptions
+     * @summary Change a zone's transfer and notify settings
+     * @request PUT:/dns-servers/{id}/zones/{zone}/options
+     */
+    setDnsZoneOptions: (
+      id: string,
+      zone: string,
+      data: DNSZoneOptionsBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<DNSZoneOptions, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/options`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Connects with the given settings without saving anything.
+     *
+     * @tags DNS
+     * @name TestDnsConnection
+     * @summary Test DNS server settings
+     * @request POST:/dns-servers/test-connection
+     */
+    testDnsConnection: (data: DNSTestBody, params: RequestParams = {}) =>
+      this.request<DNSTestOutputBody, ErrorModel>({
+        path: `/dns-servers/test-connection`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description `current` says which record, as it was read. Answers with the zone's records, fresh.
+     *
+     * @tags DNS
+     * @name UpdateDnsRecord
+     * @summary Change a record
+     * @request PUT:/dns-servers/{id}/zones/{zone}/records
+     */
+    updateDnsRecord: (
+      id: string,
+      zone: string,
+      data: UpdateDnsRecordRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<DNSZoneRecords, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/records`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name UpdateDnsServer
+     * @summary Change a DNS server's connection
+     * @request PUT:/dns-servers/{id}
+     */
+    updateDnsServer: (
+      id: string,
+      data: DNSServerBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<DNSServer, ErrorModel>({
+        path: `/dns-servers/${id}`,
         method: "PUT",
         body: data,
         type: ContentType.Json,
@@ -9036,6 +11603,256 @@ export class Api<
         ...params,
       }),
   };
+  scripts = {
+    /**
+     * @description Servers not started yet are skipped; a running script gets SIGTERM, then its session is closed. Needs Engineer on every server it touched.
+     *
+     * @tags Scripts
+     * @name CancelScriptRun
+     * @summary Stop a script run
+     * @request POST:/script-runs/{id}/cancel
+     */
+    cancelScriptRun: (id: string, params: RequestParams = {}) =>
+      this.request<ScriptRunDetail, ErrorModel>({
+        path: `/script-runs/${id}/cancel`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Scripts
+     * @name CreateScript
+     * @summary Save a new script
+     * @request POST:/workspaces/{id}/scripts
+     */
+    createScript: (id: string, data: ScriptInput, params: RequestParams = {}) =>
+      this.request<Script, ErrorModel>({
+        path: `/workspaces/${id}/scripts`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Its past runs stay, with the text they ran.
+     *
+     * @tags Scripts
+     * @name DeleteScript
+     * @summary Delete a saved script
+     * @request DELETE:/scripts/{id}
+     */
+    deleteScript: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/scripts/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * @description Needs Engineer on every server it touched.
+     *
+     * @tags Scripts
+     * @name DeleteScriptRun
+     * @summary Delete a finished script run
+     * @request DELETE:/script-runs/{id}
+     */
+    deleteScriptRun: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/script-runs/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Scripts
+     * @name GetScript
+     * @summary Get a saved script
+     * @request GET:/scripts/{id}
+     */
+    getScript: (id: string, params: RequestParams = {}) =>
+      this.request<Script, ErrorModel>({
+        path: `/scripts/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Needs Operator on every server it touched. While it runs, the output is saved about every second: poll this.
+     *
+     * @tags Scripts
+     * @name GetScriptRun
+     * @summary Get a script run with its output on each server
+     * @request GET:/script-runs/{id}
+     */
+    getScriptRun: (id: string, params: RequestParams = {}) =>
+      this.request<ScriptRunDetail, ErrorModel>({
+        path: `/script-runs/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Scripts
+     * @name ListScriptRuns
+     * @summary List a workspace's script runs, newest first
+     * @request GET:/workspaces/{id}/script-runs
+     */
+    listScriptRuns: (
+      id: string,
+      query?: {
+        /**
+         * @format int32
+         * @min 1
+         * @max 200
+         * @default 50
+         */
+        limit?: number;
+        /**
+         * @format int32
+         * @min 0
+         */
+        offset?: number;
+        /** In the run's name or who ran it */
+        q?: string;
+        /** @format uuid */
+        script_id?: string;
+        state?:
+          | "queued"
+          | "running"
+          | "succeeded"
+          | "failed"
+          | "canceled"
+          | "interrupted";
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ScriptRunListBody, ErrorModel>({
+        path: `/workspaces/${id}/script-runs`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description By name, each with its newest run.
+     *
+     * @tags Scripts
+     * @name ListScripts
+     * @summary List a workspace's saved scripts
+     * @request GET:/workspaces/{id}/scripts
+     */
+    listScripts: (id: string, params: RequestParams = {}) =>
+      this.request<ScriptListBody, ErrorModel>({
+        path: `/workspaces/${id}/scripts`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Scripts
+     * @name ListServerScriptRuns
+     * @summary Script runs on a server, newest first
+     * @request GET:/servers/{id}/script-runs
+     */
+    listServerScriptRuns: (
+      id: string,
+      query?: {
+        /**
+         * @format int32
+         * @min 1
+         * @max 200
+         * @default 50
+         */
+        limit?: number;
+        /**
+         * @format int32
+         * @min 0
+         */
+        offset?: number;
+        /** @format uuid */
+        script_id?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ListServerScriptRunsResponse, ErrorModel>({
+        path: `/servers/${id}/script-runs`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Its workspace's saved scripts, each with its newest run on this server.
+     *
+     * @tags Scripts
+     * @name ListServerScripts
+     * @summary Scripts that can run on a server
+     * @request GET:/servers/{id}/scripts
+     */
+    listServerScripts: (id: string, params: RequestParams = {}) =>
+      this.request<ScriptListBody, ErrorModel>({
+        path: `/servers/${id}/scripts`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description A saved script (script_id) or one written for this run. Queues a background job. You need Engineer on every server, as for its terminal. All servers must be in one workspace.
+     *
+     * @tags Scripts
+     * @name StartScriptRun
+     * @summary Run a script on servers
+     * @request POST:/script-runs
+     */
+    startScriptRun: (data: StartScriptRunBody, params: RequestParams = {}) =>
+      this.request<StartScriptRunResponse, ErrorModel>({
+        path: `/script-runs`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description With revision (its updated_at when you loaded it), answers 409 when someone else saved in between. Past runs keep the text they ran.
+     *
+     * @tags Scripts
+     * @name UpdateScript
+     * @summary Save changes to a script
+     * @request PATCH:/scripts/{id}
+     */
+    updateScript: (
+      id: string,
+      data: ScriptUpdate,
+      params: RequestParams = {},
+    ) =>
+      this.request<Script, ErrorModel>({
+        path: `/scripts/${id}`,
+        method: "PATCH",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
   servers = {
     /**
      * @description Runs connection checks in parallel and returns the updated servers.
@@ -9307,6 +12124,31 @@ export class Api<
       this.request<ServerCredentials, ErrorModel>({
         path: `/servers/${id}/credentials`,
         method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description For the servers this person can see (in the selected workspace). Series come bucketed: 30 min for 24h, 4 h for 7d, a day for 30d. Resources are read from online Linux servers every SERVER_SAMPLE_INTERVAL.
+     *
+     * @tags Servers
+     * @name ServerInsights
+     * @summary Uptime, response time and resources of the servers
+     * @request GET:/servers/insights
+     */
+    serverInsights: (
+      query?: {
+        /** @default "7d" */
+        range?: "24h" | "7d" | "30d";
+        /** IANA time zone the buckets line up with (days start at its midnight) */
+        tz?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ServerInsights, ErrorModel>({
+        path: `/servers/insights`,
+        method: "GET",
+        query: query,
         format: "json",
         ...params,
       }),
@@ -10254,6 +13096,106 @@ export class Api<
         ...params,
       }),
   };
+  serverNotes = {
+    /**
+     * No description
+     *
+     * @tags Server notes
+     * @name CreateServerNote
+     * @summary Write a note on a server
+     * @request POST:/servers/{id}/notes
+     */
+    createServerNote: (
+      id: string,
+      data: ServerNoteBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<ServerNote, ErrorModel>({
+        path: `/servers/${id}/notes`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Server notes
+     * @name DeleteServerNote
+     * @summary Delete a note
+     * @request DELETE:/servers/{id}/notes/{note}
+     */
+    deleteServerNote: (id: string, note: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/servers/${id}/notes/${note}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * @description Pinned first, then the most recently changed.
+     *
+     * @tags Server notes
+     * @name ListServerNotes
+     * @summary List a server's notes
+     * @request GET:/servers/{id}/notes
+     */
+    listServerNotes: (id: string, params: RequestParams = {}) =>
+      this.request<ListServerNotesResponse, ErrorModel>({
+        path: `/servers/${id}/notes`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Server notes
+     * @name PinServerNote
+     * @summary Pin a note to the overview, or unpin it
+     * @request PUT:/servers/{id}/notes/{note}/pinned
+     */
+    pinServerNote: (
+      id: string,
+      note: string,
+      data: PinServerNoteRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<ServerNote, ErrorModel>({
+        path: `/servers/${id}/notes/${note}/pinned`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Server notes
+     * @name UpdateServerNote
+     * @summary Save changes to a note
+     * @request PUT:/servers/{id}/notes/{note}
+     */
+    updateServerNote: (
+      id: string,
+      note: string,
+      data: ServerNoteUpdate,
+      params: RequestParams = {},
+    ) =>
+      this.request<ServerNote, ErrorModel>({
+        path: `/servers/${id}/notes/${note}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
   power = {
     /**
      * @description Runs `shutdown -c` and answers the power state after it.
@@ -10870,6 +13812,167 @@ export class Api<
         ...params,
       }),
   };
+  terminalRecordings = {
+    /**
+     * @description Workspace Owner only, and not while its shell is open.
+     *
+     * @tags Terminal recordings
+     * @name DeleteRecording
+     * @summary Delete a terminal recording
+     * @request DELETE:/terminal-recordings/{id}
+     */
+    deleteRecording: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/terminal-recordings/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Terminal recordings
+     * @name GetRecording
+     * @summary A terminal recording's details
+     * @request GET:/terminal-recordings/{id}
+     */
+    getRecording: (id: string, params: RequestParams = {}) =>
+      this.request<TerminalRecording, ErrorModel>({
+        path: `/terminal-recordings/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description While the shell runs, everything recorded so far.
+     *
+     * @tags Terminal recordings
+     * @name GetRecordingCast
+     * @summary A terminal recording as an asciicast v2 file
+     * @request GET:/terminal-recordings/{id}/cast
+     */
+    getRecordingCast: (id: string, params: RequestParams = {}) =>
+      this.request<string, ErrorModel>({
+        path: `/terminal-recordings/${id}/cast`,
+        method: "GET",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Terminal recordings
+     * @name GetRecordingSettings
+     * @summary Whether a workspace records its terminals
+     * @request GET:/workspaces/{id}/terminal-recording
+     */
+    getRecordingSettings: (id: string, params: RequestParams = {}) =>
+      this.request<RecordingSettings, ErrorModel>({
+        path: `/workspaces/${id}/terminal-recording`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description An Owner of the server gets everyone's; anyone else only their own.
+     *
+     * @tags Terminal recordings
+     * @name ListServerRecordings
+     * @summary List the terminal recordings made on a server, newest first
+     * @request GET:/servers/{id}/terminal-recordings
+     */
+    listServerRecordings: (
+      id: string,
+      query?: {
+        /**
+         * @format int32
+         * @min 1
+         * @max 200
+         * @default 50
+         */
+        limit?: number;
+        /** Only the caller's own, even for an Owner */
+        mine?: boolean;
+        /**
+         * @format int32
+         * @min 0
+         */
+        offset?: number;
+        /** In the title, server or person */
+        q?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<RecordingListBody, ErrorModel>({
+        path: `/servers/${id}/terminal-recordings`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description A workspace Owner gets everyone's; anyone else only their own.
+     *
+     * @tags Terminal recordings
+     * @name ListWorkspaceRecordings
+     * @summary List a workspace's terminal recordings, newest first
+     * @request GET:/workspaces/{id}/terminal-recordings
+     */
+    listWorkspaceRecordings: (
+      id: string,
+      query?: {
+        /**
+         * @format int32
+         * @min 1
+         * @max 200
+         * @default 50
+         */
+        limit?: number;
+        /** Only the caller's own, even for an Owner */
+        mine?: boolean;
+        /**
+         * @format int32
+         * @min 0
+         */
+        offset?: number;
+        /** In the title, server or person */
+        q?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<RecordingListBody, ErrorModel>({
+        path: `/workspaces/${id}/terminal-recordings`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Applies to shells opened from now on; open ones keep going as they started.
+     *
+     * @tags Terminal recordings
+     * @name SetRecordingSettings
+     * @summary Turn terminal recording on or off for a workspace
+     * @request PUT:/workspaces/{id}/terminal-recording
+     */
+    setRecordingSettings: (
+      id: string,
+      data: RecordingSettingsBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<RecordingSettings, ErrorModel>({
+        path: `/workspaces/${id}/terminal-recording`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
   terminal = {
     /**
      * @description Ends the shell (the server sends it SIGHUP). Attached browsers get an `exit` message.
@@ -11015,6 +14118,22 @@ export class Api<
       }),
 
     /**
+     * @description Walks the whole storage in the background (a job of kind storage-scan) and stores the result for Insights. 409 while it's being measured.
+     *
+     * @tags Storage
+     * @name MeasureStorageUsage
+     * @summary Measure how much a storage holds
+     * @request POST:/storages/{id}/usage/measure
+     */
+    measureStorageUsage: (id: string, params: RequestParams = {}) =>
+      this.request<Job, ErrorModel>({
+        path: `/storages/${id}/usage/measure`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description Opens the stored secrets of the chosen auth method. POST and `Cache-Control: no-store` so nothing caches them.
      *
      * @tags Storage
@@ -11048,6 +14167,31 @@ export class Api<
         method: "PUT",
         body: data,
         type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description For the storages this person can see (in the selected workspace). Latency and activity come bucketed: 30 min for 24h, 4 h for 7d, a day for 30d.
+     *
+     * @tags Storage
+     * @name StorageInsights
+     * @summary Uptime, latency, space and activity of the storages
+     * @request GET:/storages/insights
+     */
+    storageInsights: (
+      query?: {
+        /** @default "7d" */
+        range?: "24h" | "7d" | "30d";
+        /** IANA time zone the buckets line up with (days start at its midnight) */
+        tz?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<StorageInsights, ErrorModel>({
+        path: `/storages/insights`,
+        method: "GET",
+        query: query,
         format: "json",
         ...params,
       }),

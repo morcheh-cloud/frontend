@@ -25,7 +25,14 @@ import {
   useAssignWorkspace,
   useDeleteWorkspace,
   useSaveWorkspace,
+  useUploadWorkspaceLogo,
 } from "../../api"
+import {
+  lookBody,
+  lookDraft,
+  lookError,
+  WorkspaceLookPicker,
+} from "./workspace-look"
 
 export type MoveTarget = {
   from: string
@@ -143,28 +150,50 @@ function WorkspaceForm({
   workspace?: PanelWorkspace
 }) {
   const save = useSaveWorkspace()
+  const upload = useUploadWorkspaceLogo()
+  const pending = save.isPending || upload.isPending
   const formId = useId()
   const [name, setName] = useState(workspace?.name ?? "")
   const [description, setDescription] = useState(workspace?.description ?? "")
+  const [look, setLook] = useState(() => lookDraft(workspace))
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault()
+    const logoError = lookError(look, workspace)
+    if (logoError) {
+      setErrors({ logo: logoError })
+      return
+    }
     setErrors({})
-    save.mutate(
-      { id: workspace?.id, name, description },
-      {
-        onSuccess: () => {
-          toast.success(workspace ? "Workspace updated" : "Workspace added")
-          onOpenChange(false)
-        },
-        onError: (err) => {
-          const fields = fieldErrors(err)
-          setErrors(fields)
-          if (Object.keys(fields).length === 0) toast.error(err.message)
-        },
-      },
-    )
+    let saved: PanelWorkspace
+    try {
+      saved = await save.mutateAsync({
+        id: workspace?.id,
+        name,
+        description,
+        ...lookBody(look, workspace),
+      })
+    } catch (err) {
+      const fields = fieldErrors(err as Error)
+      setErrors(fields)
+      if (Object.keys(fields).length === 0) toast.error((err as Error).message)
+      return
+    }
+    const file = look.kind === "upload" ? look.file : null
+    if (file) {
+      try {
+        await upload.mutateAsync({ id: saved.id, file })
+      } catch (err) {
+        toast.error(`Saved ${saved.name}, but the logo didn't upload`, {
+          description: (err as Error).message,
+        })
+        onOpenChange(false)
+        return
+      }
+    }
+    toast.success(workspace ? "Workspace updated" : "Workspace added")
+    onOpenChange(false)
   }
 
   return (
@@ -185,9 +214,9 @@ function WorkspaceForm({
             type="submit"
             form={formId}
             className="max-md:h-11"
-            disabled={save.isPending}
+            disabled={pending}
           >
-            {save.isPending ? "Saving…" : workspace ? "Save" : "Add workspace"}
+            {pending ? "Saving…" : workspace ? "Save" : "Add workspace"}
           </Button>
         </>
       }
@@ -214,6 +243,15 @@ function WorkspaceForm({
             />
           )}
         </Field>
+        <WorkspaceLookPicker
+          workspace={workspace}
+          value={look}
+          onChange={setLook}
+          name={name}
+          error={
+            errors.logo ?? errors.logo_kind ?? errors.logo_icon ?? errors.color
+          }
+        />
       </form>
     </ResponsiveDialog>
   )

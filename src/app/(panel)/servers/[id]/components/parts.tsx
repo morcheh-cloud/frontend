@@ -138,10 +138,21 @@ export type Note = {
   action?: ReactNode
 }
 
-export function Notices({ notes }: { notes: Note[] }) {
+export function Notices({
+  notes,
+  className,
+}: {
+  notes: Note[]
+  className?: string
+}) {
   if (notes.length === 0) return null
   return (
-    <div className="flex flex-col gap-2 max-md:mt-4 max-md:gap-0 max-md:divide-y max-md:divide-border max-md:border-y max-md:border-border">
+    <div
+      className={cn(
+        "flex flex-col gap-2 max-md:mt-4 max-md:gap-0 max-md:divide-y max-md:divide-border max-md:border-y max-md:border-border",
+        className,
+      )}
+    >
       {notes.map((n) => (
         <div
           key={n.key}
