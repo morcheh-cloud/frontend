@@ -73,6 +73,7 @@ import {
 } from "../../../api"
 import { useDatabaseCan } from "../../../components/permissions"
 import {
+  backupsHref,
   folderProblem,
   folderTokens,
   LOCAL_RUNNER,
@@ -261,7 +262,7 @@ function PlanEditor({
   const database = useDatabase(databaseId)
   const plan = useBackupPlan(planId)
   const plans = useBackupPlans(databaseId)
-  const home = `/databases/${databaseId}?tab=backups`
+  const home = backupsHref(databaseId)
 
   if (phone === null) return null
   const d = database.data
@@ -319,7 +320,7 @@ function Editor({
   const access = useAccess()
   const router = useRouter()
   const { track } = useJobActions()
-  const home = `/databases/${db.id}?tab=backups`
+  const home = backupsHref(db.id)
   const back = useBack(`/databases/${db.id}`)
   useFollowWorkspace(db.workspace_id)
 

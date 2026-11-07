@@ -18,6 +18,7 @@ import {
   ShieldCheck,
 } from "lucide-react"
 
+import { backupsHref } from "@/app/(panel)/databases/[id]/components/backups/meta"
 import { filesHref } from "@/components/files/file-manager"
 import { formatSize } from "@/lib/format"
 import type { Job } from "@/lib/services"
@@ -150,7 +151,12 @@ export function tookText(job: Job) {
 // Ansible or cron job run it belongs to.
 export function placeHref(job: Job) {
   const t = job.target
-  if (t?.database_id) return `/databases/${t.database_id}?tab=backups`
+  if (t?.database_id) {
+    return backupsHref(
+      t.database_id,
+      job.kind === "database-backup-restore" ? "restores" : "backups",
+    )
+  }
   if (t?.schedule_id) {
     return `/cronjobs/${t.schedule_id}${t.run_id ? `?run=${t.run_id}` : ""}`
   }

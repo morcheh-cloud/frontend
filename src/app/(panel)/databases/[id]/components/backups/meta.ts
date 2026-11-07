@@ -1,4 +1,32 @@
+import {
+  createSerializer,
+  parseAsInteger,
+  parseAsString,
+  parseAsStringLiteral,
+} from "nuqs"
+
 import type { Backup, BackupPlan, Database } from "@/lib/services"
+
+// The Backups tab's own tabs and page, kept in the URL so links land on the
+// right list (`?tab=backups&list=restores&page=2`).
+export const backupLists = ["plans", "backups", "restores"] as const
+export type BackupList = (typeof backupLists)[number]
+
+export const backupListParsers = {
+  list: parseAsStringLiteral(backupLists).withDefault("plans"),
+  page: parseAsInteger.withDefault(1),
+}
+
+const serializeBackups = createSerializer({
+  tab: parseAsString,
+  list: parseAsStringLiteral(backupLists),
+})
+
+export const backupsHref = (databaseId: string, list?: BackupList) =>
+  serializeBackups(`/databases/${databaseId}`, {
+    tab: "backups",
+    list: list && list !== "plans" ? list : null,
+  })
 
 export const stateLabels: Record<string, string> = {
   queued: "Waiting",

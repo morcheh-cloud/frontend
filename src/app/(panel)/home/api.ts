@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query"
 
 import { useCronjobs } from "@/app/(panel)/cronjobs/api"
+import { backupsHref } from "@/app/(panel)/databases/[id]/components/backups/meta"
 import { statusMeta as dbStatusMeta } from "@/app/(panel)/databases/components/meta"
 import { dnsStatusMeta } from "@/app/(panel)/dns/components/meta"
 import { keys, type ListQuery } from "@/app/(panel)/servers/api"
@@ -170,7 +171,7 @@ export function useHome() {
       name: `${b.database_name} · ${b.plan_name}`,
       status: "Backup failed",
       detail: b.error,
-      href: `/databases/${b.database_id}?tab=backups`,
+      href: backupsHref(b.database_id),
       tone: "destructive",
     })
   }

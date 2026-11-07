@@ -1,8 +1,15 @@
 "use client"
 
-import { ArchiveRestore, Play, Plus, RefreshCw } from "lucide-react"
+import {
+  ArchiveRestore,
+  ChevronLeft,
+  ChevronRight,
+  Play,
+  Plus,
+} from "lucide-react"
 import Link from "next/link"
-import { useRef, useState } from "react"
+import { useQueryStates } from "nuqs"
+import { type ReactNode, useEffect, useRef, useState } from "react"
 
 import { Callout } from "@/app/(panel)/ansible/components/run-layer"
 import { cronText, formatInZone } from "@/app/(panel)/cronjobs/components/meta"
@@ -21,12 +28,13 @@ import { formatSize } from "@/lib/format"
 import type { Backup, BackupPlan, BackupRestore } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import {
+  BACKUP_PAGE,
   restoreActive,
   useBackupPlans,
   useBackups,
   useRestores,
 } from "../../../api"
-import { Blank, type Col, Panel, Rows, useDashboard } from "../parts"
+import { Blank, type Col, Rows, useDashboard } from "../parts"
 import {
   BackupActionsProvider,
   newPlanHref,
@@ -37,6 +45,9 @@ import {
   usePlanMenu,
 } from "./backup-actions"
 import {
+  type BackupList,
+  backupListParsers,
+  backupLists,
   methodText,
   retentionText,
   selectionText,
@@ -47,7 +58,11 @@ import {
   when,
 } from "./meta"
 
-const PAGE = 20
+const listLabels: Record<BackupList, string> = {
+  plans: "Plans",
+  backups: "Backups",
+  restores: "Restores",
+}
 
 export function BackupsTab() {
   return (
@@ -57,36 +72,61 @@ export function BackupsTab() {
   )
 }
 
+const pagesOf = (total: number) => Math.max(1, Math.ceil(total / BACKUP_PAGE))
+
 function Backups() {
   const { database: d, phone, owner } = useDashboard()
-  const [pages, setPages] = useState(1)
+  const [{ list, page: rawPage }, setView] = useQueryStates(backupListParsers, {
+    history: "replace",
+  })
+  const page = Math.max(1, rawPage)
+  const top = useRef<HTMLDivElement>(null)
+  // Each list keeps page 1 for the counts when another one is showing.
   const plans = useBackupPlans(d.id)
-  const backups = useBackups(d.id, PAGE * pages)
-  const restores = useRestores(d.id)
+  const backups = useBackups(d.id, list === "backups" ? page : 1)
+  const restores = useRestores(d.id, list === "restores" ? page : 1)
 
-  if (plans.isPending || backups.isPending) {
+  const total = {
+    plans: plans.data?.length ?? 0,
+    backups: backups.data?.total ?? 0,
+    restores: restores.data?.total ?? 0,
+  }
+  const pages = pagesOf(total[list])
+  const settled =
+    list === "plans"
+      ? plans.isSuccess
+      : list === "backups"
+        ? backups.isSuccess && !backups.isPlaceholderData
+        : restores.isSuccess && !restores.isPlaceholderData
+
+  // Past the end (the last page's rows were deleted): step back.
+  useEffect(() => {
+    if (settled && page > pages) void setView({ page: pages })
+  }, [settled, page, pages, setView])
+
+  if (plans.isPending || backups.isPending || restores.isPending) {
     return (
       <div className={cn("flex flex-col gap-4", phone && "px-4 pt-4")}>
-        <Skeleton className="h-40 rounded-2xl" />
+        <Skeleton className="h-10 w-72 max-w-full rounded-lg" />
         <Skeleton className="h-64 rounded-2xl" />
       </div>
     )
   }
-  if (plans.isError || backups.isError) {
+  const failed = [plans, backups, restores].find((q) => q.isError)
+  if (failed) {
     return (
       <Failed
-        error={plans.error ?? backups.error ?? new Error("Couldn't load")}
+        error={failed.error ?? new Error("Couldn't load")}
         onRetry={() => {
           void plans.refetch()
           void backups.refetch()
+          void restores.refetch()
         }}
       />
     )
   }
 
-  const items = backups.data.items
-  const total = backups.data.total
-  if (plans.data.length === 0 && total === 0) {
+  if (total.plans + total.backups + total.restores === 0) {
     return (
       <div className={cn(phone && "px-4 pt-6")}>
         <Blank
@@ -113,19 +153,202 @@ function Backups() {
     )
   }
 
+  const onPage = (next: number) => {
+    void setView({ page: next })
+    // The pager sits under the rows: go back to the top of the new page.
+    const bar = top.current
+    if (bar && bar.getBoundingClientRect().top < 0) bar.scrollIntoView()
+  }
+  const planRows = plans.data ?? []
+  const broken = planRows.filter((p) => p.problem)
+  const pager = (
+    <Pager page={page} pages={pages} total={total[list]} onPage={onPage} />
+  )
+
   return (
-    <div className="flex flex-col md:gap-4">
-      <Plans plans={plans.data} />
-      <History
-        items={items}
-        total={total}
-        loading={backups.isFetching}
-        onMore={() => setPages((n) => n + 1)}
-      />
-      {(restores.data?.length ?? 0) > 0 && (
-        <Restores items={restores.data ?? []} />
+    <div className="flex flex-col gap-3 md:gap-4">
+      <div
+        ref={top}
+        className={cn(
+          "flex scroll-mt-28 items-center gap-2",
+          phone && "flex-col items-stretch px-4 pt-3",
+        )}
+      >
+        <ListTabs
+          value={list}
+          counts={total}
+          warn={broken.length > 0}
+          onChange={(next) => void setView({ list: next, page: 1 })}
+        />
+        {owner && !phone && (
+          <Button
+            size="sm"
+            className="ms-auto"
+            render={<Link href={newPlanHref(d.id)} />}
+            nativeButton={false}
+          >
+            <Plus />
+            New plan
+          </Button>
+        )}
+      </div>
+      {list === "plans" && (
+        <>
+          <PlanProblems plans={broken} />
+          <Plans
+            plans={planRows.slice((page - 1) * BACKUP_PAGE, page * BACKUP_PAGE)}
+            all={planRows}
+            pager={pager}
+          />
+        </>
+      )}
+      {list === "backups" && (
+        <History items={backups.data?.items ?? []} pager={pager} />
+      )}
+      {list === "restores" && (
+        <Restores items={restores.data?.items ?? []} pager={pager} />
       )}
     </div>
+  )
+}
+
+// Plans that can't run, one notice per reason: a removed person can stop
+// every plan they saved, and the list must stay in reach.
+function PlanProblems({ plans }: { plans: BackupPlan[] }) {
+  const { phone } = useDashboard()
+  if (plans.length === 0) return null
+  const reasons = new Map<string, BackupPlan[]>()
+  for (const p of plans) {
+    const problem = p.problem ?? ""
+    reasons.set(problem, [...(reasons.get(problem) ?? []), p])
+  }
+  return (
+    <div className={cn("flex flex-col gap-2", phone && "px-4")}>
+      {[...reasons].map(([problem, same]) => (
+        <Callout
+          key={problem}
+          warn
+          title={
+            same.length === 1
+              ? `${same[0].name} can't run`
+              : `${same.length} plans can't run`
+          }
+        >
+          {problem}
+        </Callout>
+      ))}
+    </div>
+  )
+}
+
+// The three lists: tabs with their counts inside, in the toolbar row.
+function ListTabs({
+  value,
+  counts,
+  warn,
+  onChange,
+}: {
+  value: BackupList
+  counts: Record<BackupList, number>
+  warn: boolean
+  onChange: (list: BackupList) => void
+}) {
+  return (
+    <fieldset className="flex shrink-0 rounded-lg bg-muted p-0.5">
+      <legend className="sr-only">Show</legend>
+      {backupLists.map((l) => (
+        <button
+          key={l}
+          type="button"
+          aria-pressed={value === l}
+          onClick={() => onChange(l)}
+          className="flex h-11 items-center justify-center gap-1.5 rounded-md px-3 text-body-sm whitespace-nowrap text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 aria-pressed:bg-card aria-pressed:font-medium aria-pressed:text-foreground aria-pressed:shadow-sm max-md:flex-1 md:h-8"
+        >
+          {listLabels[l]}
+          <span className="text-caption font-normal text-ash tabular-nums">
+            {counts[l]}
+          </span>
+          {l === "plans" && warn && (
+            <span
+              role="img"
+              aria-label="A plan can't run"
+              className="size-1.5 rounded-full bg-warning"
+            />
+          )}
+        </button>
+      ))}
+    </fieldset>
+  )
+}
+
+// A list's frame: a card on desktop, edge to edge on phones. The pager sits
+// under the rows, and only when there's more than one page.
+function ListCard({
+  pager,
+  children,
+}: {
+  pager: ReactNode
+  children: ReactNode
+}) {
+  const { phone } = useDashboard()
+  return (
+    <section
+      className={cn(
+        "flex min-w-0 flex-col border-border",
+        phone ? "border-y" : "rounded-2xl border",
+      )}
+    >
+      {children}
+      {pager}
+    </section>
+  )
+}
+
+function Pager({
+  page,
+  pages,
+  total,
+  onPage,
+}: {
+  page: number
+  pages: number
+  total: number
+  onPage: (page: number) => void
+}) {
+  if (total <= BACKUP_PAGE) return null
+  const from = (page - 1) * BACKUP_PAGE + 1
+  const to = Math.min(page * BACKUP_PAGE, total)
+  return (
+    <nav
+      aria-label="Pages"
+      className="flex items-center justify-end gap-3 border-t border-border px-4 py-2 text-body-sm max-md:justify-between"
+    >
+      <span className="text-muted-foreground tabular-nums">
+        {from}–{to} of {total}
+      </span>
+      <div className="flex gap-1">
+        <Button
+          variant="outline"
+          size="icon-sm"
+          className="max-md:size-11"
+          aria-label="Previous page"
+          disabled={page <= 1}
+          onClick={() => onPage(page - 1)}
+        >
+          <ChevronLeft className="rtl:rotate-180" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon-sm"
+          className="max-md:size-11"
+          aria-label="Next page"
+          disabled={page >= pages}
+          onClick={() => onPage(page + 1)}
+        >
+          <ChevronRight className="rtl:rotate-180" />
+        </Button>
+      </div>
+    </nav>
   )
 }
 
@@ -242,46 +465,42 @@ const planCols = (
 
 type BackupPlanEngine = Parameters<typeof whatText>[1]
 
-function Plans({ plans }: { plans: BackupPlan[] }) {
+function Plans({
+  plans,
+  all,
+  pager,
+}: {
+  plans: BackupPlan[]
+  // Every plan, so the sheet still finds its plan after a page change.
+  all: BackupPlan[]
+  pager: ReactNode
+}) {
   const { database: d, phone, owner } = useDashboard()
   const [sheetOpen, setSheetOpen] = useOpen("backup-plan-sheet")
   const [id, setId] = useState<string>()
-  const broken = plans.filter((p) => p.problem)
   return (
     <>
-      {broken.length > 0 && (
-        <div className={cn("flex flex-col gap-2", phone && "px-4 pt-3")}>
-          {broken.map((p) => (
-            <Callout key={p.id} warn title={`${p.name} can't run`}>
-              {p.problem}
-            </Callout>
-          ))}
+      {phone && owner && (
+        <div className="px-4">
+          <Button
+            variant="outline"
+            className="h-11 w-full"
+            render={<Link href={newPlanHref(d.id)} />}
+            nativeButton={false}
+          >
+            <Plus />
+            New plan
+          </Button>
         </div>
       )}
-      <Panel
-        title="Plans"
-        flush
-        actions={
-          owner ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="max-md:h-11"
-              render={<Link href={newPlanHref(d.id)} />}
-              nativeButton={false}
-            >
-              <Plus />
-              New plan
-            </Button>
-          ) : undefined
-        }
-      >
+      <ListCard pager={pager}>
         <Rows
           rows={plans}
+          limit={plans.length}
           label="Backup plans"
           rowKey={(p) => p.id}
           cols={planCols(d.engine, owner)}
-          empty="No plans. The backups below stay until they're deleted."
+          empty="No plans. Backups already made stay until they're deleted."
           onOpen={
             phone
               ? (p) => {
@@ -303,10 +522,10 @@ function Plans({ plans }: { plans: BackupPlan[] }) {
                 : undefined,
           })}
         />
-      </Panel>
+      </ListCard>
       {phone && (
         <PlanSheet
-          plan={plans.find((p) => p.id === id)}
+          plan={all.find((p) => p.id === id)}
           open={sheetOpen}
           onOpenChange={setSheetOpen}
         />
@@ -483,25 +702,11 @@ const historyCols = (
   },
 ]
 
-function History({
-  items,
-  total,
-  loading,
-  onMore,
-}: {
-  items: Backup[]
-  total: number
-  loading: boolean
-  onMore: () => void
-}) {
+function History({ items, pager }: { items: Backup[]; pager: ReactNode }) {
   const { database: d, phone } = useDashboard()
   const a = useBackupActions()
   return (
-    <Panel
-      title="Backups"
-      caption={total > 0 ? String(total) : undefined}
-      flush
-    >
+    <ListCard pager={pager}>
       <Rows
         rows={items}
         limit={items.length}
@@ -522,21 +727,7 @@ function History({
           end: b.verify_error ? "Check failed" : stateLabel(b.state),
         })}
       />
-      {items.length < total && (
-        <div className="border-t border-border px-4 py-2 text-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="max-md:h-11"
-            disabled={loading}
-            onClick={onMore}
-          >
-            {loading && <RefreshCw className="animate-spin" />}
-            Show more
-          </Button>
-        </div>
-      )}
-    </Panel>
+    </ListCard>
   )
 }
 
@@ -610,18 +801,25 @@ const restoreCols = (open: (id: string) => void): Col<BackupRestore>[] => [
   },
 ]
 
-function Restores({ items }: { items: BackupRestore[] }) {
+function Restores({
+  items,
+  pager,
+}: {
+  items: BackupRestore[]
+  pager: ReactNode
+}) {
   const { phone } = useDashboard()
   const a = useBackupActions()
   const open = (id: string) => a.show({ id })
   return (
-    <Panel title="Restores" caption={String(items.length)} flush>
+    <ListCard pager={pager}>
       <Rows
         rows={items}
+        limit={items.length}
         label="Restores"
         rowKey={(r) => r.id}
         cols={restoreCols(open)}
-        empty="None yet."
+        empty="No restores yet. Use the restore button on a backup to start one."
         onOpen={
           phone
             ? (r) => {
@@ -641,6 +839,6 @@ function Restores({ items }: { items: BackupRestore[] }) {
           end: stateLabel(r.state),
         })}
       />
-    </Panel>
+    </ListCard>
   )
 }

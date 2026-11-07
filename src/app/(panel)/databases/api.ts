@@ -313,18 +313,22 @@ export function useDatabaseInsights(range: InsightsRange) {
 export const backupKeys = {
   all: ["database-backups"] as const,
   plans: (id: string) => ["database-backups", "plans", id] as const,
-  list: (id: string, limit: number) =>
-    ["database-backups", "list", id, limit] as const,
+  list: (id: string, page: number) =>
+    ["database-backups", "list", id, page] as const,
   one: (id: string) => ["database-backups", "one", id] as const,
   plan: (id: string) => ["database-backups", "plan", id] as const,
   options: (id: string) => ["database-backups", "options", id] as const,
-  restores: (id: string) => ["database-backups", "restores", id] as const,
+  restores: (id: string, page: number) =>
+    ["database-backups", "restores", id, page] as const,
 }
 
 export const backupActive = (b: Pick<Backup, "state">) =>
   b.state === "queued" || b.state === "running"
 
 const BACKUP_POLL = 3_000
+
+// Rows per page in the Backups tab's lists.
+export const BACKUP_PAGE = 20
 
 export function useBackupPlans(id: string) {
   return useQuery({
@@ -336,11 +340,18 @@ export function useBackupPlans(id: string) {
   })
 }
 
-export function useBackups(id: string, limit: number) {
+// One page (from 1) of a database's backups, newest first, with the total.
+export function useBackups(id: string, page: number) {
   return useQuery({
-    queryKey: backupKeys.list(id, limit),
-    queryFn: () => api.databaseBackups.listDatabaseBackups(id, { limit }),
-    placeholderData: (previous) => previous,
+    queryKey: backupKeys.list(id, page),
+    queryFn: () =>
+      api.databaseBackups.listDatabaseBackups(id, {
+        limit: BACKUP_PAGE,
+        offset: (page - 1) * BACKUP_PAGE,
+      }),
+    // The last page stays up while the next one loads (same database only).
+    placeholderData: (previous, last) =>
+      last?.queryKey[2] === id ? previous : undefined,
     refetchInterval: (q) =>
       q.state.data?.items.some(backupActive) ? BACKUP_POLL : STATUS_POLL,
   })
@@ -380,11 +391,17 @@ export function useBackupOptions(id: string, enabled = true) {
 export const restoreActive = (r: Pick<BackupRestore, "state">) =>
   r.state === "queued" || r.state === "running"
 
-export function useRestores(id: string) {
+export function useRestores(id: string, page: number) {
   return useQuery({
-    queryKey: backupKeys.restores(id),
-    queryFn: () => api.databaseBackups.listDatabaseRestores(id),
-    select: (l) => l.items,
+    queryKey: backupKeys.restores(id, page),
+    queryFn: () =>
+      api.databaseBackups.listDatabaseRestores(id, {
+        limit: BACKUP_PAGE,
+        offset: (page - 1) * BACKUP_PAGE,
+      }),
+    // The last page stays up while the next one loads (same database only).
+    placeholderData: (previous, last) =>
+      last?.queryKey[2] === id ? previous : undefined,
     refetchInterval: (q) =>
       q.state.data?.items.some(restoreActive) ? BACKUP_POLL : STATUS_POLL,
   })

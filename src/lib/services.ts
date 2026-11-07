@@ -5112,6 +5112,8 @@ export interface RestoreListBody {
    */
   $schema?: string;
   items: BackupRestore[];
+  /** @format int64 */
+  total: number;
 }
 
 export interface Rule {
@@ -9788,10 +9790,28 @@ export class Api<
      * @summary A database's restores, newest first
      * @request GET:/databases/{id}/restores
      */
-    listDatabaseRestores: (id: string, params: RequestParams = {}) =>
+    listDatabaseRestores: (
+      id: string,
+      query?: {
+        /**
+         * @format int32
+         * @min 1
+         * @max 200
+         * @default 50
+         */
+        limit?: number;
+        /**
+         * @format int32
+         * @min 0
+         */
+        offset?: number;
+      },
+      params: RequestParams = {},
+    ) =>
       this.request<RestoreListBody, ErrorModel>({
         path: `/databases/${id}/restores`,
         method: "GET",
+        query: query,
         format: "json",
         ...params,
       }),

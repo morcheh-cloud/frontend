@@ -418,6 +418,13 @@ db.createUser({
           for a day next to a nightly one kept for a year. A plan is made and
           changed on its own page.
         </P>
+        <P>
+          The tab has three lists, each with its count: <UI>Plans</UI>,{" "}
+          <UI>Backups</UI> (every copy made, newest first) and <UI>Restores</UI>{" "}
+          (the history of restores). A long list shows 20 rows at a time; the
+          arrows under it change the page. A dot on <UI>Plans</UI> means a plan
+          can't run, and the list says why.
+        </P>
         <Steps>
           <P>
             Open the database, go to <UI>Backups</UI> and press{" "}
