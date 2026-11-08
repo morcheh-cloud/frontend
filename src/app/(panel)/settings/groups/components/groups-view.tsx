@@ -100,7 +100,6 @@ export function GroupsView() {
       <PageHeader
         title="Groups"
         guide="access"
-        description="Give several people the same access in one place."
         actions={
           <Button className="max-md:h-11" onClick={() => showForm()}>
             <Plus />
@@ -235,7 +234,6 @@ export function GroupsView() {
           open={removeOpen}
           onOpenChange={setRemoveOpen}
           title={`Delete ${removing.name}?`}
-          description="Its members lose whatever access came from this group, straight away. Their accounts stay."
           confirmLabel="Delete"
           pending={remove.isPending}
           onConfirm={() =>

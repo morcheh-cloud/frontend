@@ -20,11 +20,7 @@ import { api, fieldErrors } from "@/lib/api"
 export function AccountView() {
   return (
     <>
-      <PageHeader
-        title="Account"
-        guide="access"
-        description="Your name, your password, the theme, and where you're signed in."
-      />
+      <PageHeader title="Account" guide="access" />
       <div className="flex w-full flex-col gap-4 py-5 md:px-6">
         <Section title="Profile">
           <Profile />
@@ -182,7 +178,6 @@ function SignOutEverywhere() {
         open={open}
         onOpenChange={setOpen}
         title="Sign out everywhere?"
-        description="Every session ends, this one included, and your open terminals close."
         confirmLabel="Sign out"
         pending={signOut.isPending}
         onConfirm={() => signOut.mutate()}

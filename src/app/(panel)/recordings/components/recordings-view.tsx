@@ -2,7 +2,6 @@
 
 import { guideHref } from "@/components/help/guides"
 import { HelpButton } from "@/components/help/help-link"
-import { PageHeader } from "@/components/panel/page-header"
 import { useWorkspace } from "@/components/panel/workspace"
 import { useIsPhone } from "@/hooks/useIsPhone"
 import { cn } from "@/lib/utils"
@@ -21,13 +20,7 @@ export function RecordingsView() {
         className="ms-auto"
       />
     </header>
-  ) : (
-    <PageHeader
-      title="Terminal recordings"
-      description="Replay what was done in the panel's terminals: each shell's output, as it appeared."
-      guide="terminal-recordings"
-    />
-  )
+  ) : null
   return (
     <>
       {header}

@@ -38,6 +38,22 @@ export type LoginUser = { name: string; uid: number; home: string }
 // The other end of a transfer: a server or a storage.
 export type Endpoint = { server_id: string } | { storage_id: string }
 
+// The tabs of a bucket's settings.
+export type BucketTab =
+  | "overview"
+  | "access"
+  | "lifecycle"
+  | "cors"
+  | "security"
+
+// S3 bucket settings, run by the storage page. Absent = no bucket UI.
+export type BucketHooks = {
+  settings: (bucket: string, tab?: BucketTab) => void
+  // Missing = this person can't.
+  empty?: (bucket: string) => void
+  create?: () => void
+}
+
 // Where the file manager reads and writes: a server over SFTP or a storage
 // (S3, FTP, SFTP, WebDAV). Optional methods turn their UI on.
 export type FileSource = {
@@ -52,6 +68,7 @@ export type FileSource = {
   listOnly?: boolean
   // Top-level folders are buckets: files can't go at "/".
   buckets?: boolean
+  bucketHooks?: BucketHooks
   // Unix permissions, owners and symlinks are real.
   posix?: boolean
 

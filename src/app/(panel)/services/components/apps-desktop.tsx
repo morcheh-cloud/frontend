@@ -3,7 +3,6 @@
 import { AppWindow, CloudOff, Plus, SearchX } from "lucide-react"
 
 import { useAccess } from "@/components/auth/auth"
-import { PageHeader } from "@/components/panel/page-header"
 import { useWorkspace } from "@/components/panel/workspace"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -29,37 +28,16 @@ const views = [
 
 export function AppsDesktop() {
   const list = useApps()
-  const { q, cat, critical } = useAppFilters()
-  const a = useAppActions()
-  const { canCreateIn } = useAccess()
-  const { workspace } = useWorkspace()
-  const canAdd = canCreateIn(workspace?.id)
+  const { q, critical } = useAppFilters()
 
   // Rearranging works on the whole list, so not while it's filtered.
   const layoutCan = useAppLayoutCan()
   const enabled = layoutCan && !!list.data && !q && !critical
 
   return (
-    <>
-      <PageHeader
-        title="Services"
-        description="The web services your team uses, with their addresses and logins."
-        guide="service-launcher"
-        actions={
-          canAdd && (
-            <Button
-              onClick={() => a.add(cat && cat !== "none" ? cat : undefined)}
-            >
-              <Plus />
-              Add service
-            </Button>
-          )
-        }
-      />
-      <LayoutDnd enabled={enabled} list={list.data ?? noApps}>
-        {(data) => <Body list={list} data={data} enabled={enabled} />}
-      </LayoutDnd>
-    </>
+    <LayoutDnd enabled={enabled} list={list.data ?? noApps}>
+      {(data) => <Body list={list} data={data} enabled={enabled} />}
+    </LayoutDnd>
   )
 }
 
@@ -118,6 +96,14 @@ function Body({
             value={view}
             onChange={setView}
           />
+          {canAdd && (
+            <Button
+              onClick={() => a.add(cat && cat !== "none" ? cat : undefined)}
+            >
+              <Plus />
+              Add service
+            </Button>
+          )}
         </div>
       </div>
       <div className="flex min-w-0 flex-col gap-4">

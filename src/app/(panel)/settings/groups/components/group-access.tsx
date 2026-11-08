@@ -91,11 +91,7 @@ function Editor({ group }: { group: PanelGroup }) {
 
   return (
     <>
-      <PageHeader
-        title={`Access for ${group.name}`}
-        guide="access"
-        description="Everyone in this group gets what you tick here."
-      />
+      <PageHeader title={`Access for ${group.name}`} guide="access" />
       <AccessEditor draft={draft} />
       <AccessSaveBar
         draft={draft}

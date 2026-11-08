@@ -28,7 +28,6 @@ import { timeAgo } from "@/app/(panel)/servers/components/meta"
 import { BottomSheet } from "@/components/bottom-sheet"
 import { guideHref } from "@/components/help/guides"
 import { HelpButton } from "@/components/help/help-link"
-import { PageHeader } from "@/components/panel/page-header"
 import { useWorkspace } from "@/components/panel/workspace"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -91,21 +90,7 @@ function View({ phone }: { phone: boolean }) {
         </Button>
       )}
     </header>
-  ) : (
-    <PageHeader
-      title="Ansible"
-      description="Browse Ansible's modules, build playbooks, run them on many servers at once and follow every task live."
-      guide="ansible"
-      actions={
-        can.edit && (
-          <Button onClick={newPlaybook}>
-            <Plus />
-            New playbook
-          </Button>
-        )
-      }
-    />
-  )
+  ) : null
 
   return (
     <>
@@ -117,7 +102,17 @@ function View({ phone }: { phone: boolean }) {
         )}
       >
         <Notices notes={notes} />
-        <Bar phone={phone} />
+        <Bar
+          phone={phone}
+          action={
+            can.edit && (
+              <Button onClick={newPlaybook}>
+                <Plus />
+                New playbook
+              </Button>
+            )
+          }
+        />
         {tab === "runs" && can.runs ? (
           <RunsPanel phone={phone} />
         ) : tab === "modules" ? (
@@ -133,7 +128,7 @@ function View({ phone }: { phone: boolean }) {
   )
 }
 
-function Bar({ phone }: { phone: boolean }) {
+function Bar({ phone, action }: { phone: boolean; action?: ReactNode }) {
   const can = useAnsibleCan()
   const [{ tab, q, show }, setFilters] = useAnsibleFilters()
   const tabs = [
@@ -203,6 +198,7 @@ function Bar({ phone }: { phone: boolean }) {
       {tabSwitch && <span className="mx-1 h-5 w-px bg-border" />}
       {search}
       {showSwitch}
+      {action && <div className="ms-auto flex gap-2">{action}</div>}
     </div>
   )
 }

@@ -60,11 +60,6 @@ export function WorkspacesView() {
       <PageHeader
         title="Workspaces"
         guide="access"
-        description={
-          admin
-            ? "Every server, storage and service belongs to one workspace."
-            : "The workspaces you own."
-        }
         actions={
           admin && (
             <Button className="max-md:h-11" onClick={a.add}>

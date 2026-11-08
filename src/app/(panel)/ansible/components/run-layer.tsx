@@ -64,21 +64,21 @@ export type RunPreset = {
   servers?: { id: string; name: string }[]
 }
 
-type Picked = {
+export type Picked = {
   all: boolean
   servers: Map<string, string>
   tags: string[]
   folders: string[]
 }
 
-const emptyPick = (): Picked => ({
+export const emptyPick = (): Picked => ({
   all: false,
   servers: new Map(),
   tags: [],
   folders: [],
 })
 
-function toSelection(p: Picked): AnsibleSelection {
+export function toSelection(p: Picked): AnsibleSelection {
   if (p.all) return { all: true }
   return {
     server_ids: [...p.servers.keys()].sort(),
@@ -87,7 +87,7 @@ function toSelection(p: Picked): AnsibleSelection {
   }
 }
 
-function pickedCount(p: Picked) {
+export function pickedCount(p: Picked) {
   return p.all ? 1 : p.servers.size + p.tags.length + p.folders.length
 }
 
@@ -455,7 +455,7 @@ function RunForm({
 
 type PickTab = "servers" | "tags" | "folders" | "all"
 
-function TargetPicker({
+export function TargetPicker({
   picked,
   onChange,
   phone,
@@ -664,7 +664,7 @@ function folderTree(folders: FolderT[]) {
 
 // ---- The hosts it will run on ----
 
-function HostPreview({
+export function HostPreview({
   any,
   hosts,
   loading,

@@ -25,7 +25,6 @@ import {
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
 import { guideHref } from "@/components/help/guides"
 import { HelpButton } from "@/components/help/help-link"
-import { PageHeader } from "@/components/panel/page-header"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useIsPhone } from "@/hooks/useIsPhone"
@@ -140,13 +139,48 @@ function DnsDesktop() {
   const fetching = d.servers.isFetching || d.zones.isFetching
 
   return (
-    <>
-      <PageHeader
-        title="DNS"
-        description="Your Technitium DNS servers in one place: zones and records on all of them."
-        guide="dns"
-        actions={
-          <>
+    <div className="flex flex-col gap-4 px-6 pt-5 pb-24">
+      {d.servers.isPending ? (
+        <TableSkeleton />
+      ) : d.servers.isError && !d.servers.data ? (
+        <div className="rounded-2xl border border-border">
+          <Failed error={d.servers.error} onRetry={() => d.servers.refetch()} />
+        </div>
+      ) : d.all.length === 0 ? (
+        <NoServers onAdd={canAdd ? actions.addServer : undefined} />
+      ) : (
+        <>
+          <div className="flex items-center gap-3">
+            <Segmented
+              label="Show"
+              value={d.tab}
+              onChange={(tab) => d.setFilters({ tab })}
+              items={[
+                { value: "zones", label: `Zones · ${d.zoneCount}` },
+                { value: "servers", label: `Servers · ${d.all.length}` },
+              ]}
+            />
+            <SearchBox
+              value={d.q}
+              onChange={(q) => d.setFilters({ q: q || null })}
+              placeholder={
+                d.tab === "zones" ? "Search zones" : "Search servers"
+              }
+              label={d.tab === "zones" ? "Search zones" : "Search servers"}
+            />
+            <span className="flex-1" />
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Refresh"
+              disabled={fetching}
+              onClick={() => {
+                d.servers.refetch()
+                d.zones.refetch()
+              }}
+            >
+              <RefreshCw className={cn(fetching && "animate-spin")} />
+            </Button>
             {canNewZone && (
               <Button variant="outline" onClick={() => actions.newZone()}>
                 <Plus />
@@ -159,71 +193,22 @@ function DnsDesktop() {
                 Add DNS server
               </Button>
             )}
-          </>
-        }
-      />
-      <div className="flex flex-col gap-4 px-6 pt-5 pb-24">
-        {d.servers.isPending ? (
-          <TableSkeleton />
-        ) : d.servers.isError && !d.servers.data ? (
-          <div className="rounded-2xl border border-border">
-            <Failed
-              error={d.servers.error}
-              onRetry={() => d.servers.refetch()}
-            />
           </div>
-        ) : d.all.length === 0 ? (
-          <NoServers onAdd={canAdd ? actions.addServer : undefined} />
-        ) : (
-          <>
-            <div className="flex items-center gap-3">
-              <Segmented
-                label="Show"
-                value={d.tab}
-                onChange={(tab) => d.setFilters({ tab })}
-                items={[
-                  { value: "zones", label: `Zones · ${d.zoneCount}` },
-                  { value: "servers", label: `Servers · ${d.all.length}` },
-                ]}
-              />
-              <SearchBox
-                value={d.q}
-                onChange={(q) => d.setFilters({ q: q || null })}
-                placeholder={
-                  d.tab === "zones" ? "Search zones" : "Search servers"
-                }
-                label={d.tab === "zones" ? "Search zones" : "Search servers"}
-              />
-              <span className="flex-1" />
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Refresh"
-                disabled={fetching}
-                onClick={() => {
-                  d.servers.refetch()
-                  d.zones.refetch()
-                }}
-              >
-                <RefreshCw className={cn(fetching && "animate-spin")} />
-              </Button>
-            </div>
-            <Problems problems={d.zones.data?.problems ?? []} />
-            {d.tab === "zones" ? (
-              <ZonesTable
-                groups={d.groups}
-                byId={d.byId}
-                pending={d.zones.isPending}
-                error={d.zones.isError && !d.zones.data ? d.zones.error : null}
-                searching={!!d.q}
-              />
-            ) : (
-              <ServersTable servers={d.shownServers} />
-            )}
-          </>
-        )}
-      </div>
-    </>
+          <Problems problems={d.zones.data?.problems ?? []} />
+          {d.tab === "zones" ? (
+            <ZonesTable
+              groups={d.groups}
+              byId={d.byId}
+              pending={d.zones.isPending}
+              error={d.zones.isError && !d.zones.data ? d.zones.error : null}
+              searching={!!d.q}
+            />
+          ) : (
+            <ServersTable servers={d.shownServers} />
+          )}
+        </>
+      )}
+    </div>
   )
 }
 

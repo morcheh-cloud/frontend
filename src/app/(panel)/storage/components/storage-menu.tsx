@@ -24,7 +24,7 @@ import { endpointLabel, ProtocolTile, providerLabel } from "./meta"
 import { useStorageCan } from "./permissions"
 import { useStorageActions } from "./storage-actions"
 
-type Item = {
+export type StorageItem = {
   key: string
   icon: ReactNode
   label: string
@@ -38,12 +38,12 @@ function useItems(
   storage: Storage,
   checking: boolean,
   onDeleted?: () => void,
-): Item[][] {
+): StorageItem[][] {
   const a = useStorageActions()
   const can = useStorageCan()
   const operator = can(storage, "operator")
   const owner = can(storage, "owner")
-  const primary: Item[] = [
+  const primary: StorageItem[] = [
     ...(operator
       ? [
           {
@@ -95,7 +95,7 @@ function useItems(
       onSelect: () => a.trustHostKey(storage),
     })
   }
-  const groups: Item[][] = [primary]
+  const groups: StorageItem[][] = [primary]
   if (operator) {
     groups.push([
       {
@@ -155,18 +155,22 @@ export function StorageSheet({
   open,
   onOpenChange,
   onDeleted,
+  extra,
 }: {
   storage: Storage
   checking: boolean
   open: boolean
   onOpenChange: (open: boolean) => void
   onDeleted?: () => void
+  /** A first group of page-specific actions. */
+  extra?: StorageItem[]
 }) {
-  const groups = useItems(storage, checking, onDeleted)
+  const items = useItems(storage, checking, onDeleted)
+  const groups = extra?.length ? [extra, ...items] : items
 
   // Close first, then act once the sheet's history entry is gone, so a layer
   // the action opens gets its own Back entry.
-  function run(item: Item) {
+  function run(item: StorageItem) {
     window.addEventListener("popstate", () => item.onSelect(), { once: true })
     onOpenChange(false)
   }

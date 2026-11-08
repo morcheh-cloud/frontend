@@ -9,11 +9,7 @@ import { AdminOnly } from "./no-access"
 export function GeneralSettings() {
   return (
     <AdminOnly>
-      <PageHeader
-        title="Settings"
-        guide="access"
-        description="How people get into this panel."
-      />
+      <PageHeader title="Settings" guide="access" />
       <Registration />
     </AdminOnly>
   )

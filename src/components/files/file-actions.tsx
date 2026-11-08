@@ -53,7 +53,10 @@ type Dialog =
   | { kind: "fetch" }
 
 type Actions = {
+  // At the top of a storage with buckets, this makes a bucket.
   newFolder: () => void
+  // newFolder makes a bucket here.
+  bucketRoot: boolean
   newFile: () => void
   rename: (entry: FileEntry) => void
   remove: (entries: FileEntry[]) => void
@@ -113,6 +116,8 @@ export function FileActionsProvider({
     setOpen(true)
   }
   const close = () => setOpen(false)
+  const newBucket =
+    source.buckets && dir === "/" ? source.bucketHooks?.create : undefined
 
   const downloadEntries = (entries: FileEntry[]) => {
     if (!entries.length) return
@@ -131,7 +136,8 @@ export function FileActionsProvider({
   }
 
   const actions: Actions = {
-    newFolder: () => show({ kind: "new-folder" }),
+    newFolder: () => (newBucket ? newBucket() : show({ kind: "new-folder" })),
+    bucketRoot: !!newBucket,
     newFile: () => show({ kind: "new-file" }),
     rename: (entry) => show({ kind: "rename", entry }),
     remove: (entries) => entries.length && show({ kind: "delete", entries }),
@@ -268,8 +274,10 @@ export function FileActionsProvider({
         description={
           d?.kind === "delete" && (
             <>
-              {d.entries.some(isDir) &&
-                "Folders are deleted with everything inside them. "}
+              {d.entries.some((e) => e.bucket)
+                ? "Buckets are deleted with every object in them, old versions included. "
+                : d.entries.some(isDir) &&
+                  "Folders are deleted with everything inside them. "}
               This can't be undone.
             </>
           )

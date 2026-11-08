@@ -22,7 +22,6 @@ import { useServers } from "@/app/(panel)/servers/api"
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
 import { guideHref } from "@/components/help/guides"
 import { HelpButton } from "@/components/help/help-link"
-import { PageHeader } from "@/components/panel/page-header"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -255,40 +254,31 @@ function List({ server, phone }: { server?: Server; phone: boolean }) {
   }
 
   return (
-    <>
-      {!server && (
-        <PageHeader
-          title="Databases"
-          description="Is every database up and healthy? Checks, live sessions and slow queries for PostgreSQL, MySQL, SQL Server, MongoDB and Redis."
-          guide="databases"
-        />
+    <div className={cn("flex flex-col gap-4", !server && "px-6 pt-5 pb-24")}>
+      {insights ? (
+        <>
+          <div className="flex flex-wrap items-center gap-3">
+            {tabs}
+            <DatabaseInsightsControls phone={false} />
+          </div>
+          <DatabaseInsightsBody phone={false} />
+        </>
+      ) : (
+        <>
+          <div className="@container flex items-center gap-2">
+            {tabs}
+            <span className="mx-1 h-5 w-px shrink-0 bg-border" />
+            {search}
+            <div className="ms-auto flex shrink-0 items-center gap-2">
+              <span className="me-2">{caption}</span>
+              {refresh}
+              {addButton}
+            </div>
+          </div>
+          {body}
+        </>
       )}
-      <div className={cn("flex flex-col gap-4", !server && "px-6 pt-5 pb-24")}>
-        {insights ? (
-          <>
-            <div className="flex flex-wrap items-center gap-3">
-              {tabs}
-              <DatabaseInsightsControls phone={false} />
-            </div>
-            <DatabaseInsightsBody phone={false} />
-          </>
-        ) : (
-          <>
-            <div className="@container flex items-center gap-2">
-              {tabs}
-              <span className="mx-1 h-5 w-px shrink-0 bg-border" />
-              {search}
-              <div className="ms-auto flex shrink-0 items-center gap-2">
-                <span className="me-2">{caption}</span>
-                {refresh}
-                {addButton}
-              </div>
-            </div>
-            {body}
-          </>
-        )}
-      </div>
-    </>
+    </div>
   )
 }
 

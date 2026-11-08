@@ -811,6 +811,114 @@ export interface Ban {
   until?: string;
 }
 
+export interface BucketCORSRule {
+  /** @maxItems 100 */
+  expose_headers: string[];
+  /** @maxItems 100 */
+  headers: string[];
+  /**
+   * @format int64
+   * @min 0
+   * @max 86400
+   */
+  max_age_seconds: number;
+  /**
+   * @maxItems 5
+   * @minItems 1
+   */
+  methods: string[];
+  /**
+   * @maxItems 100
+   * @minItems 1
+   */
+  origins: string[];
+}
+
+export interface BucketDetails {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Who can read without a key: nobody, anyone with a file's link, or anyone (and list it); custom = a policy Morcheh doesn't recognise */
+  access: "private" | "download" | "public" | "custom";
+  cors: BucketCORSRule[];
+  /** @format date-time */
+  created: string | null;
+  encryption: "none" | "sse-s3" | "sse-kms";
+  /** The storage is set to this one bucket */
+  fixed: boolean;
+  kms_key: string;
+  lifecycle: BucketLifecycleRule[];
+  name: string;
+  /** Object lock is on (set when the bucket is made, can't be turned off) */
+  object_lock: boolean;
+  /** The raw bucket policy (JSON); empty = none */
+  policy: string;
+  /** Settings that couldn't be read (versioning, policy, lifecycle, tags, encryption, object_lock, cors, region) and why */
+  problems: Record<string, string>;
+  /** The policy lets anyone write or delete */
+  public_write: boolean;
+  region: string;
+  /** @format int64 */
+  retention_days: number;
+  /** Default retention for new objects; empty = none */
+  retention_mode: "" | "GOVERNANCE" | "COMPLIANCE";
+  tags: Record<string, string>;
+  versioning: "off" | "enabled" | "suspended";
+}
+
+export interface BucketLifecycleRule {
+  /**
+   * Drop unfinished multipart uploads after this many days (0 = never)
+   * @format int64
+   * @min 0
+   * @max 36500
+   */
+  abort_uploads_days: number;
+  /** Has parts Morcheh doesn't show (tag or size filters, dates…); they're kept when saved */
+  advanced: boolean;
+  /** Remove delete markers with no versions left behind them */
+  delete_markers: boolean;
+  enabled: boolean;
+  /**
+   * Delete objects this many days after they were written (0 = never)
+   * @format int64
+   * @min 0
+   * @max 36500
+   */
+  expire_days: number;
+  /**
+   * Empty = a new rule (an id is made up)
+   * @maxLength 255
+   */
+  id: string;
+  /**
+   * Delete old versions this many days after they were replaced (0 = never)
+   * @format int64
+   * @min 0
+   * @max 36500
+   */
+  noncurrent_days: number;
+  /**
+   * Only objects whose key starts with this; empty = the whole bucket
+   * @maxLength 1024
+   */
+  prefix: string;
+  /**
+   * Storage class to move to (GLACIER, STANDARD_IA…)
+   * @maxLength 64
+   */
+  transition_class: string;
+  /**
+   * Move objects to transition_class after this many days (0 = never)
+   * @format int64
+   * @min 0
+   * @max 36500
+   */
+  transition_days: number;
+}
+
 export interface BulkMoveServersRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -1068,6 +1176,26 @@ export interface CreateDnsZoneResponse {
    */
   $schema?: string;
   name: string;
+}
+
+export interface CreateStorageBucketRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * @minLength 3
+   * @maxLength 63
+   */
+  name: string;
+  object_lock?: boolean;
+  /**
+   * Empty = the storage's region
+   * @maxLength 64
+   */
+  region?: string;
+  versioning?: boolean;
 }
 
 export interface CronEnv {
@@ -3901,7 +4029,7 @@ export interface Job {
   finished_at?: string;
   /** @format uuid */
   id: string;
-  /** What it does: transfer, copy, move, storage-copy, storage-move, compress, extract, fetch, fail2ban-install, fail2ban-uninstall, firewall-install, firewall-apply, ansible-run, schedule-sync, script-run, database-backup, database-backup-verify or database-backup-restore */
+  /** What it does: transfer, copy, move, storage-copy, storage-move, compress, extract, fetch, fail2ban-install, fail2ban-uninstall, firewall-install, firewall-apply, ansible-run, schedule-sync, schedule-run, script-run, database-backup, database-backup-verify or database-backup-restore */
   kind: string;
   /** What it printed (newest last); only on GET /jobs/{id} */
   log?: string;
@@ -5258,11 +5386,20 @@ export interface Schedule {
    * @format uri
    */
   $schema?: string;
-  action: "sync";
+  action:
+    | "sync"
+    | "script"
+    | "ansible"
+    | "service"
+    | "reboot"
+    | "fetch"
+    | "archive"
+    | "verify-backup";
   /** @format date-time */
   created_at: string;
   cron: string;
   description: string;
+  /** sync, archive and fetch */
   destinations: ScheduleEndView[];
   enabled: boolean;
   /** @format uuid */
@@ -5276,18 +5413,33 @@ export interface Schedule {
   next_run_at: string | null;
   options: ScheduleOptions;
   problem: string;
+  /** What the task names (servers, script, playbook, database), with names */
+  refs: ScheduleRef[];
   /**
    * Runs use this person's access: whoever saved it last
    * @format uuid
    */
   run_as_id: string | null;
   run_as_name: string;
-  source: ScheduleEndView;
+  /** sync and archive */
+  source?: ScheduleEndView;
+  task: ScheduleTask;
   timezone: string;
   /** @format date-time */
   updated_at: string;
   /** @format uuid */
   workspace_id: string;
+}
+
+export interface ScheduleAnsible {
+  options?: AnsibleOptions;
+  /**
+   * A saved playbook; its text is read at each run
+   * @format uuid
+   */
+  playbook_id: string;
+  /** Read at each run: servers tagged later are included */
+  selection: AnsibleSelection;
 }
 
 export interface ScheduleBody {
@@ -5297,6 +5449,19 @@ export interface ScheduleBody {
    */
   $schema?: string;
   /**
+   * What it does. sync and archive use source and destinations, fetch only destinations (server folders); the rest use task
+   * @default "sync"
+   */
+  action?:
+    | "sync"
+    | "script"
+    | "ansible"
+    | "service"
+    | "reboot"
+    | "fetch"
+    | "archive"
+    | "verify-backup";
+  /**
    * Five fields (minute hour day month weekday), or @hourly, @daily, @weekly, @monthly, @every 2h
    * @minLength 1
    * @maxLength 200
@@ -5304,11 +5469,8 @@ export interface ScheduleBody {
   cron: string;
   /** @maxLength 2000 */
   description?: string;
-  /**
-   * @maxItems 20
-   * @minItems 1
-   */
-  destinations: ScheduleEnd[];
+  /** @maxItems 20 */
+  destinations?: ScheduleEnd[];
   /** Default true */
   enabled?: boolean;
   /**
@@ -5316,8 +5478,9 @@ export interface ScheduleBody {
    * @maxLength 100
    */
   name: string;
-  options: ScheduleOptions;
-  source: ScheduleEnd;
+  options?: ScheduleOptions;
+  source?: ScheduleEnd;
+  task?: ScheduleTask;
   /**
    * IANA zone the times are read in; default UTC
    * @maxLength 64
@@ -5361,6 +5524,21 @@ export interface ScheduleEndView {
   storage_id?: string;
 }
 
+export interface ScheduleFetch {
+  /**
+   * File name to save as; default the address's last part
+   * @maxLength 255
+   */
+  name?: string;
+  /** Replace the file each time; without it a run fails where the file is already there */
+  overwrite?: boolean;
+  /**
+   * @minLength 1
+   * @maxLength 4096
+   */
+  url: string;
+}
+
 export interface ScheduleListBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -5377,7 +5555,7 @@ export interface ScheduleOptions {
    */
   excludes?: string[];
   /**
-   * Snapshots to keep (snapshot mode), 0 = all
+   * Snapshots to keep (snapshot mode), or archives (archive action); 0 = all
    * @format int64
    * @min 0
    * @max 1000
@@ -5390,12 +5568,48 @@ export interface ScheduleOptions {
   mode: "update" | "mirror" | "snapshot";
 }
 
+export interface ScheduleReboot {
+  /**
+   * Shown to logged-in users first (wall)
+   * @maxLength 200
+   */
+  message?: string;
+  /** Skip a server that isn't asking for a reboot (updated kernel or packages) */
+  only_if_required?: boolean;
+  /**
+   * Rebooted one at a time; the next waits until the last is back
+   * @maxItems 50
+   * @minItems 1
+   */
+  server_ids: string[];
+  /** Skip a server someone is logged in to */
+  skip_if_logged_in?: boolean;
+}
+
+export interface ScheduleRef {
+  /** @format uuid */
+  id: string;
+  kind: "server" | "storage" | "script" | "playbook" | "database";
+  missing: boolean;
+  /** Empty when it was deleted */
+  name: string;
+}
+
 export interface ScheduleRun {
   /**
    * A URL to the JSON Schema for this object.
    * @format uri
    */
   $schema?: string;
+  action:
+    | "sync"
+    | "script"
+    | "ansible"
+    | "service"
+    | "reboot"
+    | "fetch"
+    | "archive"
+    | "verify-backup";
   /** @format int64 */
   bytes: number;
   /** @format date-time */
@@ -5416,13 +5630,15 @@ export interface ScheduleRun {
   id: string;
   /** @format uuid */
   job_id: string | null;
+  link?: ScheduleRunLink;
   options: ScheduleOptions;
   /** While it runs */
   progress: Progress;
+  /** One row per destination, server or backup checked */
   results: ScheduleRunDest[];
   /** @format uuid */
   schedule_id: string;
-  source: ScheduleEndView;
+  source?: ScheduleEndView;
   /** @format date-time */
   started_at: string | null;
   state:
@@ -5484,6 +5700,8 @@ export interface ScheduleRunDest {
   missing: boolean;
   /** The server's or storage's name; empty when it was deleted */
   name: string;
+  /** What happened, when it isn't an error */
+  note?: string;
   /**
    * Absolute path. The source may be a file or a folder; a destination is a folder
    * @minLength 1
@@ -5503,16 +5721,84 @@ export interface ScheduleRunDest {
   skipped: number;
   /** @format date-time */
   started_at: string | null;
-  /** partial: some files couldn't be copied */
+  /** partial: some files couldn't be copied. skipped: nothing to do there (a reboot that wasn't needed) */
   state:
     | "pending"
     | "running"
     | "succeeded"
     | "partial"
     | "failed"
-    | "canceled";
+    | "canceled"
+    | "skipped";
   /** @format uuid */
   storage_id?: string;
+}
+
+export interface ScheduleRunLink {
+  /** @format uuid */
+  id: string;
+  kind: "script-run" | "ansible-run" | "database";
+}
+
+export interface ScheduleScript {
+  /** @maxLength 262144 */
+  content?: string;
+  /** Values for the script's parameters (or any variables, without a saved script). Kept with the run and shown to whoever can read it */
+  env?: Record<string, string>;
+  interpreter?: "sh" | "bash" | "python3";
+  /**
+   * For a command run without saving
+   * @maxLength 100
+   */
+  name?: string;
+  run_as?: "user" | "root";
+  /**
+   * A saved script; the fields below are then ignored
+   * @format uuid
+   */
+  script_id?: string;
+  /**
+   * @maxItems 200
+   * @minItems 1
+   */
+  server_ids: string[];
+  /**
+   * @format int32
+   * @min 0
+   * @max 86400
+   */
+  timeout_seconds?: number;
+}
+
+export interface ScheduleService {
+  action: "start" | "stop" | "restart" | "reload";
+  /** Stop a protected service (sshd, dbus, journald…) anyway. Needs Engineer */
+  force?: boolean;
+  /**
+   * @maxItems 200
+   * @minItems 1
+   */
+  server_ids: string[];
+  /**
+   * @minLength 1
+   * @maxLength 256
+   */
+  unit: string;
+}
+
+export interface ScheduleTask {
+  /** action ansible */
+  ansible?: ScheduleAnsible;
+  /** action fetch: what to download into the destination folders */
+  fetch?: ScheduleFetch;
+  /** action reboot */
+  reboot?: ScheduleReboot;
+  /** action script */
+  script?: ScheduleScript;
+  /** action service */
+  service?: ScheduleService;
+  /** action verify-backup */
+  verify?: ScheduleVerify;
 }
 
 export interface ScheduleUpdate {
@@ -5522,6 +5808,19 @@ export interface ScheduleUpdate {
    */
   $schema?: string;
   /**
+   * What it does. sync and archive use source and destinations, fetch only destinations (server folders); the rest use task
+   * @default "sync"
+   */
+  action?:
+    | "sync"
+    | "script"
+    | "ansible"
+    | "service"
+    | "reboot"
+    | "fetch"
+    | "archive"
+    | "verify-backup";
+  /**
    * Five fields (minute hour day month weekday), or @hourly, @daily, @weekly, @monthly, @every 2h
    * @minLength 1
    * @maxLength 200
@@ -5529,11 +5828,8 @@ export interface ScheduleUpdate {
   cron: string;
   /** @maxLength 2000 */
   description?: string;
-  /**
-   * @maxItems 20
-   * @minItems 1
-   */
-  destinations: ScheduleEnd[];
+  /** @maxItems 20 */
+  destinations?: ScheduleEnd[];
   /** Default true */
   enabled?: boolean;
   /**
@@ -5541,18 +5837,29 @@ export interface ScheduleUpdate {
    * @maxLength 100
    */
   name: string;
-  options: ScheduleOptions;
+  options?: ScheduleOptions;
   /**
    * updated_at when you loaded it; 409 when it changed since
    * @format date-time
    */
   revision?: string;
-  source: ScheduleEnd;
+  source?: ScheduleEnd;
+  task?: ScheduleTask;
   /**
    * IANA zone the times are read in; default UTC
    * @maxLength 64
    */
   timezone?: string;
+}
+
+export interface ScheduleVerify {
+  /** @format uuid */
+  database_id: string;
+  /**
+   * Only this plan's backups; default every plan's
+   * @format uuid
+   */
+  plan_id?: string;
 }
 
 export interface Script {
@@ -6632,6 +6939,88 @@ export interface SetServerFavoriteRequest {
    */
   $schema?: string;
   favorite: boolean;
+}
+
+export interface SetStorageBucketAccessRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  access: "private" | "download" | "public" | "custom";
+  /**
+   * custom only: the whole policy (JSON)
+   * @maxLength 20480
+   */
+  policy?: string;
+}
+
+export interface SetStorageBucketCorsRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxItems 100 */
+  rules: BucketCORSRule[];
+}
+
+export interface SetStorageBucketEncryptionRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * sse-kms only; empty = the provider's default key
+   * @maxLength 2048
+   */
+  kms_key?: string;
+  mode: "none" | "sse-s3" | "sse-kms";
+}
+
+export interface SetStorageBucketLifecycleRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxItems 100 */
+  rules: BucketLifecycleRule[];
+}
+
+export interface SetStorageBucketRetentionRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * @format int64
+   * @min 0
+   * @max 36500
+   */
+  days: number;
+  /** Empty = no default retention */
+  mode: "" | "GOVERNANCE" | "COMPLIANCE";
+}
+
+export interface SetStorageBucketTagsRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  tags: Record<string, string>;
+}
+
+export interface SetStorageBucketVersioningRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  enabled: boolean;
 }
 
 export interface SetStorageFavoriteRequest {
@@ -11378,7 +11767,7 @@ export class Api<
       }),
 
     /**
-     * @description You need Engineer on the workspace, Operator on the source and Engineer on every destination. Runs act with your access, checked each time.
+     * @description You need Engineer on the workspace, plus what the action needs done by hand: a sync needs Operator on the source and Engineer on every destination; a script Engineer on its servers; a playbook Owner on them; a service action or reboot Operator; fetch and archive Engineer; checking backups Operator on the database. Runs act with your access, checked each time.
      *
      * @tags Cron jobs
      * @name CreateSchedule
@@ -14615,6 +15004,230 @@ export class Api<
     ) =>
       this.request<StorageEntry, ErrorModel>({
         path: `/storages/${id}/files/content`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  storageBuckets = {
+    /**
+     * @description Only on an S3 storage that shows every bucket. Object lock can only be chosen now; it also turns versioning on.
+     *
+     * @tags Storage buckets
+     * @name CreateStorageBucket
+     * @summary Make a bucket
+     * @request POST:/storages/{id}/buckets
+     */
+    createStorageBucket: (
+      id: string,
+      data: CreateStorageBucketRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<BucketDetails, ErrorModel>({
+        path: `/storages/${id}/buckets`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Deletes every object, old versions and delete markers included, and keeps the bucket and its settings. Objects under object lock retention stay.
+     *
+     * @tags Storage buckets
+     * @name EmptyStorageBucket
+     * @summary Empty a bucket
+     * @request POST:/storages/{id}/buckets/{bucket}/empty
+     */
+    emptyStorageBucket: (
+      id: string,
+      bucket: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<StorageAffectedOutputBody, ErrorModel>({
+        path: `/storages/${id}/buckets/${bucket}/empty`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Each setting is read on its own; one the provider doesn't support is listed in problems.
+     *
+     * @tags Storage buckets
+     * @name GetStorageBucket
+     * @summary A bucket's settings
+     * @request GET:/storages/{id}/buckets/{bucket}
+     */
+    getStorageBucket: (
+      id: string,
+      bucket: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<BucketDetails, ErrorModel>({
+        path: `/storages/${id}/buckets/${bucket}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description private / download / public replace only the policy's anonymous statements and keep the rest; custom sets policy as given (empty removes it). Some providers (R2, B2) refuse bucket policies.
+     *
+     * @tags Storage buckets
+     * @name SetStorageBucketAccess
+     * @summary Who can read a bucket without a key
+     * @request PUT:/storages/{id}/buckets/{bucket}/access
+     */
+    setStorageBucketAccess: (
+      id: string,
+      bucket: string,
+      data: SetStorageBucketAccessRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<BucketDetails, ErrorModel>({
+        path: `/storages/${id}/buckets/${bucket}/access`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Which web pages may call the bucket from a browser. An empty list removes them.
+     *
+     * @tags Storage buckets
+     * @name SetStorageBucketCors
+     * @summary Replace a bucket's CORS rules
+     * @request PUT:/storages/{id}/buckets/{bucket}/cors
+     */
+    setStorageBucketCors: (
+      id: string,
+      bucket: string,
+      data: SetStorageBucketCorsRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<BucketDetails, ErrorModel>({
+        path: `/storages/${id}/buckets/${bucket}/cors`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Objects already there keep the encryption they were written with. MinIO needs a KMS set up for either kind.
+     *
+     * @tags Storage buckets
+     * @name SetStorageBucketEncryption
+     * @summary Default encryption for new objects
+     * @request PUT:/storages/{id}/buckets/{bucket}/encryption
+     */
+    setStorageBucketEncryption: (
+      id: string,
+      bucket: string,
+      data: SetStorageBucketEncryptionRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<BucketDetails, ErrorModel>({
+        path: `/storages/${id}/buckets/${bucket}/encryption`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The whole list; an empty list removes them. A rule with an existing id keeps its parts not shown here.
+     *
+     * @tags Storage buckets
+     * @name SetStorageBucketLifecycle
+     * @summary Replace a bucket's lifecycle rules
+     * @request PUT:/storages/{id}/buckets/{bucket}/lifecycle
+     */
+    setStorageBucketLifecycle: (
+      id: string,
+      bucket: string,
+      data: SetStorageBucketLifecycleRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<BucketDetails, ErrorModel>({
+        path: `/storages/${id}/buckets/${bucket}/lifecycle`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Only on a bucket made with object lock. COMPLIANCE can't be shortened or lifted by anyone, root included, until it runs out.
+     *
+     * @tags Storage buckets
+     * @name SetStorageBucketRetention
+     * @summary Default retention for new objects
+     * @request PUT:/storages/{id}/buckets/{bucket}/retention
+     */
+    setStorageBucketRetention: (
+      id: string,
+      bucket: string,
+      data: SetStorageBucketRetentionRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<BucketDetails, ErrorModel>({
+        path: `/storages/${id}/buckets/${bucket}/retention`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description At most 50; an empty map removes them.
+     *
+     * @tags Storage buckets
+     * @name SetStorageBucketTags
+     * @summary Replace a bucket's tags
+     * @request PUT:/storages/{id}/buckets/{bucket}/tags
+     */
+    setStorageBucketTags: (
+      id: string,
+      bucket: string,
+      data: SetStorageBucketTagsRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<BucketDetails, ErrorModel>({
+        path: `/storages/${id}/buckets/${bucket}/tags`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Once on, versioning can only be suspended: old versions stay until deleted.
+     *
+     * @tags Storage buckets
+     * @name SetStorageBucketVersioning
+     * @summary Turn versioning on or pause it
+     * @request PUT:/storages/{id}/buckets/{bucket}/versioning
+     */
+    setStorageBucketVersioning: (
+      id: string,
+      bucket: string,
+      data: SetStorageBucketVersioningRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<BucketDetails, ErrorModel>({
+        path: `/storages/${id}/buckets/${bucket}/versioning`,
         method: "PUT",
         body: data,
         type: ContentType.Json,

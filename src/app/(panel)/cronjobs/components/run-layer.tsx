@@ -1,8 +1,17 @@
 "use client"
 
-import { FlaskConical, Square, Trash2 } from "lucide-react"
+import {
+  ArrowUpRight,
+  DatabaseBackup,
+  FlaskConical,
+  Server,
+  Square,
+  Trash2,
+} from "lucide-react"
+import Link from "next/link"
 import type { ReactNode } from "react"
 
+import { backupsHref } from "@/app/(panel)/databases/[id]/components/backups/meta"
 import { BottomSheet } from "@/components/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import {
@@ -14,16 +23,23 @@ import {
 } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatSize } from "@/lib/format"
-import type { ScheduleRun, ScheduleRunDest } from "@/lib/services"
+import type {
+  ScheduleRun,
+  ScheduleRunDest,
+  ScheduleRunLink,
+} from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { runActive, useCronjobRun } from "../api"
 import { useCronjobActions } from "./cronjob-actions"
 import {
+  actionMeta,
   duration,
   EndLabel,
+  endName,
   formatInZone,
   modeMeta,
   RunStateBadge,
+  usesDestinations,
 } from "./meta"
 import { useCronjobCan } from "./permissions"
 
@@ -47,7 +63,7 @@ export function RunLayer({
   const title = run
     ? run.dry_run
       ? "Test run"
-      : "Run"
+      : `Run · ${actionMeta[run.action]?.label ?? "Cron job"}`
     : query.isError
       ? "Run not found"
       : "Run"
@@ -169,6 +185,9 @@ const triggerText = (r: ScheduleRun) =>
 function RunBody({ run, timezone }: { run: ScheduleRun; timezone: string }) {
   const active = runActive(run.state)
   const p = run.progress
+  const files = usesDestinations(run.action)
+  const sync = run.action === "sync"
+  const link = run.link && linkOf(run.link)
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -198,13 +217,21 @@ function RunBody({ run, timezone }: { run: ScheduleRun; timezone: string }) {
             )}
           </div>
           <Bar done={p.total ? p.done / p.total : null} />
-          <p className="text-caption text-muted-foreground tabular-nums">
-            {p.items_total
-              ? `${p.items} of ${p.items_total} files`
-              : `${p.items} files`}
-            {p.done > 0 &&
-              ` · ${formatSize(p.done)}${p.total ? ` of ${formatSize(p.total)}` : ""}`}
-          </p>
+          {files ? (
+            <p className="text-caption text-muted-foreground tabular-nums">
+              {p.items_total
+                ? `${p.items} of ${p.items_total} files`
+                : `${p.items} files`}
+              {p.done > 0 &&
+                ` · ${formatSize(p.done)}${p.total ? ` of ${formatSize(p.total)}` : ""}`}
+            </p>
+          ) : (
+            p.items_total > 0 && (
+              <p className="text-caption text-muted-foreground tabular-nums">
+                {p.items} of {p.items_total}
+              </p>
+            )
+          )}
           {p.current && (
             <p className="truncate font-mono text-caption text-ash">
               {p.current}
@@ -222,10 +249,12 @@ function RunBody({ run, timezone }: { run: ScheduleRun; timezone: string }) {
           {active && run.started_at && " so far"}
         </Fact>
         <Fact label="Started by">{triggerText(run)}</Fact>
-        <Fact label="Mode">{modeMeta[run.options.mode]?.short}</Fact>
-        <Fact label="From" wide>
-          <EndLabel end={run.source} />
-        </Fact>
+        {sync && <Fact label="Mode">{modeMeta[run.options.mode]?.short}</Fact>}
+        {run.source && (
+          <Fact label={sync ? "From" : "Folder"} wide>
+            <EndLabel end={run.source} />
+          </Fact>
+        )}
         {!!run.options.excludes?.length && (
           <Fact label="Left out" wide>
             <span className="font-mono text-caption">
@@ -235,20 +264,123 @@ function RunBody({ run, timezone }: { run: ScheduleRun; timezone: string }) {
         )}
       </dl>
 
-      <div className="flex flex-col gap-2">
-        <h3 className="text-body-sm font-medium">
-          {run.results.length === 1
-            ? "Destination"
-            : `${run.results.length} destinations`}
-        </h3>
-        <ul className="flex flex-col gap-2">
-          {run.results.map((d) => (
-            <li key={`${d.server_id ?? d.storage_id}:${d.path}`}>
-              <DestResult d={d} dryRun={run.dry_run} />
-            </li>
-          ))}
-        </ul>
+      {link && (
+        <Link
+          href={link.href}
+          className="flex min-h-12 items-center gap-3 rounded-2xl border border-border px-4 py-3 text-body-sm outline-none hover:bg-subtle focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          <span className="min-w-0 flex-1">
+            <span className="block font-medium">{link.label}</span>
+            <span className="block text-caption text-muted-foreground">
+              {link.hint}
+            </span>
+          </span>
+          <ArrowUpRight className="size-4 shrink-0 text-ash" />
+        </Link>
+      )}
+
+      {run.results.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <h3 className="text-body-sm font-medium">
+            {resultsTitle(run.action, run.results.length)}
+          </h3>
+          <ul className="flex flex-col gap-2">
+            {run.results.map((d, i) => (
+              <li key={`${d.server_id ?? d.storage_id ?? i}:${d.path}`}>
+                {sync ? (
+                  <DestResult d={d} dryRun={run.dry_run} />
+                ) : (
+                  <ResultRow d={d} kind={files ? "end" : run.action} />
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function resultsTitle(action: ScheduleRun["action"], n: number) {
+  const one = n === 1
+  switch (action) {
+    case "sync":
+    case "archive":
+    case "fetch":
+      return one ? "Destination" : `${n} destinations`
+    case "verify-backup":
+      return one ? "Backup checked" : `${n} backups checked`
+    default:
+      return one ? "Server" : `${n} servers`
+  }
+}
+
+// Where a run's own record lives: the script or Ansible run it started, or
+// the database's backups.
+function linkOf(link: ScheduleRunLink) {
+  switch (link.kind) {
+    case "script-run":
+      return {
+        href: `/scripts/runs/${link.id}`,
+        label: "Open the script run",
+        hint: "Each server's output and exit code.",
+      }
+    case "ansible-run":
+      return {
+        href: `/ansible/runs/${link.id}`,
+        label: "Open the Ansible run",
+        hint: "Tasks, output and the recap per server.",
+      }
+    case "database":
+      return {
+        href: backupsHref(link.id, "backups"),
+        label: "Open the database's backups",
+        hint: "Every backup and when it was last checked.",
+      }
+  }
+  return null
+}
+
+// One server, folder or backup of a run that isn't a sync: what happened.
+function ResultRow({
+  d,
+  kind,
+}: {
+  d: ScheduleRunDest
+  kind: "end" | ScheduleRun["action"]
+}) {
+  return (
+    <div className="flex flex-col gap-1.5 rounded-2xl border border-border p-4">
+      <div className="flex items-center justify-between gap-3">
+        {kind === "end" ? (
+          <EndLabel end={d} className="text-body-sm" />
+        ) : (
+          <span className="flex min-w-0 items-center gap-1.5 text-body-sm">
+            {kind === "verify-backup" ? (
+              <DatabaseBackup className="size-3.5 shrink-0 text-ash" />
+            ) : (
+              <Server className="size-3.5 shrink-0 text-ash" />
+            )}
+            <span
+              className={cn(
+                "truncate font-medium",
+                d.missing && "text-destructive",
+              )}
+            >
+              {kind === "verify-backup" ? d.name : endName(d)}
+            </span>
+          </span>
+        )}
+        <RunStateBadge state={d.state} />
       </div>
+      {d.note && (
+        <p className="text-caption break-words text-muted-foreground">
+          {d.note}
+        </p>
+      )}
+      {d.error && (
+        <p className="text-caption break-words text-destructive">{d.error}</p>
+      )}
     </div>
   )
 }

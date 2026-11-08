@@ -47,6 +47,7 @@ import { useFileActions } from "./file-actions"
 import { useFiles } from "./file-manager"
 import { useEntryMenu } from "./file-menu"
 import {
+  BucketIcon,
   basename,
   crumbs,
   dirname,
@@ -493,7 +494,8 @@ function Body({
               <Upload /> Upload
             </Button>
             <Button onClick={actions.newFolder}>
-              <FolderPlus /> New folder
+              {actions.bucketRoot ? <BucketIcon /> : <FolderPlus />}
+              {actions.bucketRoot ? "New bucket" : "New folder"}
             </Button>
           </>
         )}
@@ -582,6 +584,10 @@ function Row({
 
   const meta = location ? (
     dirname(entry.path)
+  ) : entry.bucket ? (
+    <>
+      Bucket · <FolderSize entry={entry} />
+    </>
   ) : entry.type === "symlink" ? (
     `→ ${entry.link_target}`
   ) : (
@@ -930,8 +936,8 @@ function AddSheet({ close }: { close: () => void }) {
       )}
       <li>
         <SheetAction
-          icon={<FolderPlus />}
-          label="New folder"
+          icon={actions.bucketRoot ? <BucketIcon /> : <FolderPlus />}
+          label={actions.bucketRoot ? "New bucket" : "New folder"}
           onClick={() => afterClose(close, actions.newFolder)}
         />
       </li>

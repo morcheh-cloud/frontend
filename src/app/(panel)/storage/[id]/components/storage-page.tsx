@@ -18,7 +18,8 @@ import { useMemo } from "react"
 import { StatusDot, statusMeta } from "@/app/(panel)/servers/components/meta"
 import { FileBrowser } from "@/components/files/file-browser"
 import { storageLister, toStorageEntry } from "@/components/files/listers"
-import type { FileSource } from "@/components/files/source"
+import { BucketIcon } from "@/components/files/meta"
+import type { BucketHooks, FileSource } from "@/components/files/source"
 import { guideForPath } from "@/components/help/guides"
 import { HelpButton } from "@/components/help/help-link"
 import { usePageCrumbs } from "@/components/panel/breadcrumbs"
@@ -46,6 +47,10 @@ import { useStorageCan } from "../../components/permissions"
 import { useStorageActions } from "../../components/storage-actions"
 import { StorageMenuItems, StorageSheet } from "../../components/storage-menu"
 import { ReadOnlyBadge } from "../../components/storage-view"
+import {
+  BucketActionsProvider,
+  useBucketActions,
+} from "./buckets/bucket-actions"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? ""
 
@@ -83,10 +88,22 @@ export function StoragePageView() {
   }
 
   const onDeleted = () => router.replace("/storage")
-  return isPhone ? (
-    <PhonePage storage={storage} checking={checking} onDeleted={onDeleted} />
-  ) : (
-    <DesktopPage storage={storage} checking={checking} onDeleted={onDeleted} />
+  return (
+    <BucketActionsProvider storage={storage}>
+      {isPhone ? (
+        <PhonePage
+          storage={storage}
+          checking={checking}
+          onDeleted={onDeleted}
+        />
+      ) : (
+        <DesktopPage
+          storage={storage}
+          checking={checking}
+          onDeleted={onDeleted}
+        />
+      )}
+    </BucketActionsProvider>
   )
 }
 
@@ -101,6 +118,7 @@ function DesktopPage({ storage: s, checking, onDeleted }: PageProps) {
   const can = useStorageCan()
   useFollowWorkspace(s.workspace_id)
   const source = useStorageSource(s)
+  const buckets = useBucketActions()
 
   return (
     <div className="flex h-[calc(100svh-3rem-1px)] min-h-[32rem] flex-col">
@@ -137,6 +155,15 @@ function DesktopPage({ storage: s, checking, onDeleted }: PageProps) {
           </p>
         </div>
         <div className="flex shrink-0 gap-2">
+          {buckets && s.bucket && (
+            <Button
+              variant="outline"
+              onClick={() => buckets.settings(s.bucket)}
+            >
+              <BucketIcon />
+              Bucket settings
+            </Button>
+          )}
           {can(s, "operator") && (
             <Button
               variant="outline"
@@ -197,6 +224,7 @@ function PhonePage({ storage: s, checking, onDeleted }: PageProps) {
   const [sheetOpen, setSheetOpen] = useOpen("storage-page-sheet")
   const guide = guideForPath(`/storage/${s.id}`)
   const source = useStorageSource(s)
+  const buckets = useBucketActions()
 
   return (
     <>
@@ -242,6 +270,18 @@ function PhonePage({ storage: s, checking, onDeleted }: PageProps) {
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         onDeleted={onDeleted}
+        extra={
+          buckets && s.bucket
+            ? [
+                {
+                  key: "bucket",
+                  icon: <BucketIcon />,
+                  label: "Bucket settings",
+                  onSelect: () => buckets.settings(s.bucket),
+                },
+              ]
+            : undefined
+        }
       />
     </>
   )
@@ -329,6 +369,7 @@ function useStorageSource(s: Storage) {
   const can = useStorageCan()
   const write = can(s, "engineer")
   const reads = can(s, "operator")
+  const bucketHooks = useBucketActions() ?? undefined
   return useMemo(
     () =>
       storageSource(id, {
@@ -336,8 +377,9 @@ function useStorageSource(s: Storage) {
         listOnly: !reads,
         buckets,
         share_links: share_links && write,
+        bucketHooks,
       }),
-    [id, read_only, write, reads, buckets, share_links],
+    [id, read_only, write, reads, buckets, share_links, bucketHooks],
   )
 }
 
@@ -350,6 +392,7 @@ function storageSource(
     listOnly: boolean
     buckets: boolean
     share_links: boolean
+    bucketHooks?: BucketHooks
   },
 ): FileSource {
   const f = api.storageFiles
@@ -360,6 +403,7 @@ function storageSource(
     readOnly: opts.readOnly,
     listOnly: opts.listOnly,
     buckets: opts.buckets,
+    bucketHooks: opts.bucketHooks,
     list: storageLister(id).list,
     read: (path) => f.readStorageFile(id, { path }),
     write: (v) =>

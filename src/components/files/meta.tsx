@@ -1,5 +1,4 @@
 import {
-  Database,
   File,
   FileArchive,
   FileAudio,
@@ -16,6 +15,7 @@ import {
   FolderSymlink,
   Loader2,
   type LucideIcon,
+  Package,
 } from "lucide-react"
 import type { ReactNode } from "react"
 
@@ -150,12 +150,10 @@ export function FileIcon({
   entry: FileEntry
   className?: string
 }) {
+  if (entry.bucket) return <BucketIcon className={className} />
   const kind = kindOf(entry)
-  const Icon = entry.bucket
-    ? Database
-    : kind === "folder" && entry.type === "symlink"
-      ? FolderSymlink
-      : icons[kind]
+  const Icon =
+    kind === "folder" && entry.type === "symlink" ? FolderSymlink : icons[kind]
   return (
     <Icon
       aria-hidden
@@ -168,6 +166,16 @@ export function FileIcon({
   )
 }
 
+// An S3 bucket: a box, so it never reads as a folder.
+export function BucketIcon({ className }: { className?: string }) {
+  return (
+    <Package
+      aria-hidden
+      className={cn("shrink-0 fill-muted text-brand-strong", className)}
+    />
+  )
+}
+
 // A tinted tile around the icon (phone rows).
 export function FileTile({ entry }: { entry: FileEntry }) {
   const folder = isDir(entry)
@@ -175,7 +183,11 @@ export function FileTile({ entry }: { entry: FileEntry }) {
     <span
       className={cn(
         "flex size-10 shrink-0 items-center justify-center rounded-lg",
-        folder ? "bg-brand-soft" : "bg-muted",
+        entry.bucket
+          ? "border border-border bg-subtle"
+          : folder
+            ? "bg-brand-soft"
+            : "bg-muted",
       )}
     >
       <FileIcon entry={entry} className="size-5" />

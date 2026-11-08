@@ -5,7 +5,7 @@ import { ChevronRight, HardDrive, Server } from "lucide-react"
 import { useState } from "react"
 
 import { useAccess } from "@/components/auth/auth"
-import { atLeast } from "@/components/auth/level"
+import { atLeast, type Level, levelLabels } from "@/components/auth/level"
 import { Field } from "@/components/field"
 import { FolderPicker } from "@/components/files/folder-picker"
 import { listerFor } from "@/components/files/listers"
@@ -37,7 +37,7 @@ type Place = {
 // Every storage and server of the selected workspace (the API sends the
 // workspace header), with whether this person may use it for `role`: the
 // source needs Operator, a destination Engineer and a writable storage.
-function usePlaces(role: Role) {
+function usePlaces(role: Role, min?: Level) {
   const { serverLevel, storageLevel } = useAccess()
   // Same key as the "Send to…" dialog: one list in the cache.
   const servers = useQuery({
@@ -45,9 +45,8 @@ function usePlaces(role: Role) {
     queryFn: () => api.servers.listServers({ limit: 500 }),
   })
   const storages = useQuery(storagesQuery)
-  const need = role === "source" ? "operator" : "engineer"
-  const needText =
-    role === "source" ? "Needs Operator access" : "Needs Engineer access"
+  const need: Level = min ?? (role === "source" ? "operator" : "engineer")
+  const needText = `Needs ${levelLabels[need]} access`
   const places: Place[] = [
     ...(servers.data?.items ?? []).map((s) => ({
       endpoint: { server_id: s.id },
@@ -91,22 +90,33 @@ export function EndPicker({
   role,
   value,
   onPick,
+  serversOnly = false,
+  need,
+  title,
+  description,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   role: Role
   value?: EndDraft
   onPick: (end: EndDraft) => void
+  // Archive's folder and a download's destination must be a server.
+  serversOnly?: boolean
+  // Overrides the access the role needs (an archive's folder: Engineer).
+  need?: Level
+  title?: string
+  description?: string
 }) {
   return (
     <ResponsiveDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={role === "source" ? "Copy from" : "Copy to"}
+      title={title ?? (role === "source" ? "Copy from" : "Copy to")}
       description={
-        role === "source"
+        description ??
+        (role === "source"
           ? "The folder (or file) to copy. Its contents are copied, not the folder itself."
-          : "The folder the files go into. Missing folders are created."
+          : "The folder the files go into. Missing folders are created.")
       }
       className="sm:max-w-lg"
     >
@@ -114,6 +124,8 @@ export function EndPicker({
         <PickForm
           role={role}
           value={value}
+          serversOnly={serversOnly}
+          need={need}
           onCancel={() => onOpenChange(false)}
           onPick={(end) => {
             onPick(end)
@@ -128,15 +140,23 @@ export function EndPicker({
 function PickForm({
   role,
   value,
+  serversOnly,
+  need,
   onCancel,
   onPick,
 }: {
   role: Role
   value?: EndDraft
+  serversOnly: boolean
+  need?: Level
   onCancel: () => void
   onPick: (end: EndDraft) => void
 }) {
-  const { places, loading, error } = usePlaces(role)
+  const all = usePlaces(role, need)
+  const { loading, error } = all
+  const places = serversOnly
+    ? all.places.filter((p) => p.kind === "server")
+    : all.places
   const [chosen, setChosen] = useState<string | null>(
     value ? (value.server_id ?? value.storage_id ?? null) : null,
   )
@@ -189,7 +209,9 @@ function PickForm({
             <p className="p-3 text-body-sm text-destructive">{error.message}</p>
           ) : places.length === 0 ? (
             <p className="p-3 text-body-sm text-muted-foreground">
-              This workspace has no servers or storages yet.
+              {serversOnly
+                ? "This workspace has no servers yet."
+                : "This workspace has no servers or storages yet."}
             </p>
           ) : (
             <ul className="divide-y divide-border">

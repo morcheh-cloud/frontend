@@ -1,14 +1,23 @@
 import {
+  Archive,
   Ban,
   CircleAlert,
   CircleCheck,
   CircleDashed,
   CircleX,
   Clock,
+  Cog,
+  Download,
+  FileCode,
+  FolderSync,
   HardDrive,
   Loader2,
+  type LucideIcon,
   OctagonX,
+  Play,
+  Power,
   Server,
+  ShieldCheck,
 } from "lucide-react"
 import {
   createSerializer,
@@ -23,6 +32,7 @@ import type {
   ScheduleEnd,
   ScheduleEndView,
   ScheduleOptions,
+  ScheduleRef,
   ScheduleRun,
   ScheduleRunDest,
 } from "@/lib/services"
@@ -193,7 +203,184 @@ export function flowText(s: Pick<Schedule, "source" | "destinations">) {
     s.destinations.length === 1
       ? endName(s.destinations[0])
       : `${s.destinations.length} places`
-  return `${endName(s.source)} → ${to}`
+  return s.source ? `${endName(s.source)} → ${to}` : `→ ${to}`
+}
+
+// ---- Actions ----
+
+export type Action = Schedule["action"]
+
+export const actionMeta: Record<
+  Action,
+  { label: string; icon: LucideIcon; hint: string; short: string }
+> = {
+  sync: {
+    label: "Copy files",
+    icon: FolderSync,
+    hint: "Copy a folder from a server or storage to other servers and storages.",
+    short: "From a server or storage to others",
+  },
+  archive: {
+    label: "Archive a folder",
+    icon: Archive,
+    hint: "Pack a server folder into a .tar.gz, send it to servers and storages and keep the newest few.",
+    short: "Pack into .tar.gz, keep the newest",
+  },
+  fetch: {
+    label: "Download a file",
+    icon: Download,
+    hint: "Servers download a file from an address into a folder.",
+    short: "Servers download from an address",
+  },
+  script: {
+    label: "Run a script",
+    icon: FileCode,
+    hint: "A saved script or a command, on one or more servers.",
+    short: "A saved script or a command",
+  },
+  ansible: {
+    label: "Run a playbook",
+    icon: Play,
+    hint: "A saved Ansible playbook on servers picked by name, tag or folder.",
+    short: "A saved Ansible playbook",
+  },
+  service: {
+    label: "Service action",
+    icon: Cog,
+    hint: "Start, stop, restart or reload a systemd service on servers.",
+    short: "Start, stop, restart or reload",
+  },
+  reboot: {
+    label: "Reboot servers",
+    icon: Power,
+    hint: "Reboot servers one at a time, optionally only when they need it.",
+    short: "One at a time, only when needed",
+  },
+  "verify-backup": {
+    label: "Verify backups",
+    icon: ShieldCheck,
+    hint: "Check that a database's latest backups can be read and restored.",
+    short: "Check that backups restore",
+  },
+}
+
+// The picker's groups, in order.
+export const actionGroups: { label: string; actions: Action[] }[] = [
+  { label: "Files", actions: ["sync", "archive", "fetch"] },
+  { label: "Run", actions: ["script", "ansible"] },
+  { label: "Servers", actions: ["service", "reboot"] },
+  { label: "Databases", actions: ["verify-backup"] },
+]
+
+export function ActionIcon({
+  action,
+  className,
+}: {
+  action: Action
+  className?: string
+}) {
+  const Icon = actionMeta[action]?.icon ?? FolderSync
+  return <Icon className={className} />
+}
+
+// sync and archive read a source; these three write files to destinations.
+export const usesSource = (a: Action) => a === "sync" || a === "archive"
+export const usesDestinations = (a: Action) =>
+  a === "sync" || a === "archive" || a === "fetch"
+
+// Only a sync has a Test run (counted, nothing changed).
+export const canTest = (a: Action) => a === "sync"
+
+const refWords: Record<ScheduleRef["kind"], string> = {
+  server: "server",
+  storage: "storage",
+  script: "script",
+  playbook: "playbook",
+  database: "database",
+}
+
+export function refName(
+  refs: ScheduleRef[],
+  kind: ScheduleRef["kind"],
+  id: string | undefined,
+) {
+  const r = refs.find((x) => x.kind === kind && x.id === id)
+  if (!r || r.missing || !r.name) return `Deleted ${refWords[kind]}`
+  return r.name
+}
+
+// "web-1", or "3 servers".
+export function serversText(refs: ScheduleRef[], ids: string[] | undefined) {
+  const list = ids ?? []
+  if (list.length === 1) return refName(refs, "server", list[0])
+  return `${list.length} servers`
+}
+
+export const serviceVerbs = {
+  start: "Start",
+  stop: "Stop",
+  restart: "Restart",
+  reload: "Reload",
+} as const
+
+type Summarised = Pick<
+  Schedule,
+  "action" | "source" | "destinations" | "task" | "refs"
+>
+
+// What the job does, on one line: "Restart nginx on 3 servers".
+export function jobSummary(s: Summarised): string {
+  const t = s.task ?? {}
+  switch (s.action) {
+    case "archive":
+      return `Archive ${flowText(s)}`
+    case "fetch":
+      return `${hostOf(t.fetch?.url)} → ${
+        s.destinations.length === 1
+          ? endName(s.destinations[0])
+          : `${s.destinations.length} folders`
+      }`
+    case "script": {
+      const name = t.script?.script_id
+        ? refName(s.refs, "script", t.script.script_id)
+        : t.script?.name || "Command"
+      return `${name} on ${serversText(s.refs, t.script?.server_ids)}`
+    }
+    case "ansible": {
+      const sel = t.ansible?.selection
+      const where = sel?.all
+        ? "every server"
+        : [
+            sel?.server_ids?.length ? serversText(s.refs, sel.server_ids) : "",
+            sel?.tags?.length ? `tag ${sel.tags.join(", ")}` : "",
+            sel?.folder_ids?.length
+              ? `${sel.folder_ids.length} ${sel.folder_ids.length === 1 ? "folder" : "folders"}`
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" + ") || "no servers"
+      return `${refName(s.refs, "playbook", t.ansible?.playbook_id)} on ${where}`
+    }
+    case "service":
+      return `${serviceVerbs[t.service?.action ?? "restart"]} ${
+        t.service?.unit ?? ""
+      } on ${serversText(s.refs, t.service?.server_ids)}`
+    case "reboot":
+      return `Reboot ${serversText(s.refs, t.reboot?.server_ids)}`
+    case "verify-backup":
+      return `Backups of ${refName(s.refs, "database", t.verify?.database_id)}`
+    default:
+      return flowText(s)
+  }
+}
+
+export function hostOf(url: string | undefined) {
+  if (!url) return "Address"
+  try {
+    return new URL(url).host || url
+  } catch {
+    return url
+  }
 }
 
 // ---- Times ----
@@ -274,3 +461,151 @@ export const runParam = { run: parseAsString }
 const runSerializer = createSerializer(runParam)
 export const runHref = (scheduleId: string, runId: string) =>
   runSerializer(`/cronjobs/${scheduleId}`, { run: runId })
+
+const yesNo = (b: boolean | undefined) => (b ? "Yes" : "No")
+
+const names = (refs: ScheduleRef[], ids: string[] | undefined) =>
+  (ids ?? []).map((id) => refName(refs, "server", id)).join("\n") || "—"
+
+const endsText = (ends: ScheduleEndView[]) =>
+  ends.map((d) => `${endName(d)}:${d.path}`).join("\n") || "—"
+
+export type TaskFact = { label: string; value: string }
+
+// What the job does, as label/value rows (the job page, the phone sheet).
+export function taskFacts(
+  s: Summarised & Pick<Schedule, "options">,
+  planName?: string,
+): TaskFact[] {
+  const t = s.task ?? {}
+  switch (s.action) {
+    case "sync":
+      return [
+        {
+          label: "From",
+          value: s.source ? `${endName(s.source)}:${s.source.path}` : "—",
+        },
+        { label: "To", value: endsText(s.destinations) },
+        {
+          label: "Mode",
+          value: modeMeta[s.options.mode]?.label ?? s.options.mode,
+        },
+      ]
+    case "archive":
+      return [
+        {
+          label: "Folder",
+          value: s.source ? `${endName(s.source)}:${s.source.path}` : "—",
+        },
+        { label: "To", value: endsText(s.destinations) },
+        {
+          label: "Keep",
+          value: s.options.keep
+            ? `The newest ${s.options.keep} archives`
+            : "Every archive",
+        },
+      ]
+    case "fetch":
+      return [
+        { label: "Address", value: t.fetch?.url ?? "—" },
+        { label: "Save as", value: t.fetch?.name || "The address's file name" },
+        { label: "Into", value: endsText(s.destinations) },
+        { label: "Replace the file", value: yesNo(t.fetch?.overwrite) },
+      ]
+    case "script": {
+      const sc = t.script
+      return [
+        {
+          label: "Script",
+          value: sc?.script_id
+            ? refName(s.refs, "script", sc.script_id)
+            : `${sc?.name || "Command"} (${sc?.interpreter ?? "bash"}, as ${
+                sc?.run_as === "root" ? "root" : "the login user"
+              })`,
+        },
+        { label: "Servers", value: names(s.refs, sc?.server_ids) },
+        ...(sc?.env && Object.keys(sc.env).length > 0
+          ? [
+              {
+                label: "Values",
+                value: Object.entries(sc.env)
+                  .map(([k, v]) => `${k}=${v}`)
+                  .join("\n"),
+              },
+            ]
+          : []),
+      ]
+    }
+    case "ansible": {
+      const a = t.ansible
+      const sel = a?.selection
+      return [
+        {
+          label: "Playbook",
+          value: refName(s.refs, "playbook", a?.playbook_id),
+        },
+        {
+          label: "Servers",
+          value: sel?.all
+            ? "Every server in the workspace"
+            : [
+                sel?.server_ids?.length ? names(s.refs, sel.server_ids) : "",
+                sel?.tags?.length ? `Tagged ${sel.tags.join(", ")}` : "",
+                sel?.folder_ids?.length
+                  ? `${sel.folder_ids.length} ${sel.folder_ids.length === 1 ? "folder" : "folders"}`
+                  : "",
+              ]
+                .filter(Boolean)
+                .join("\n") || "—",
+        },
+        ...(a?.options?.check
+          ? [{ label: "Check mode", value: "Yes: reports, changes nothing" }]
+          : []),
+      ]
+    }
+    case "service":
+      return [
+        { label: "Service", value: t.service?.unit ?? "—" },
+        {
+          label: "Action",
+          value: serviceVerbs[t.service?.action ?? "restart"],
+        },
+        { label: "Servers", value: names(s.refs, t.service?.server_ids) },
+        ...(t.service?.force
+          ? [{ label: "Even if protected", value: "Yes" }]
+          : []),
+      ]
+    case "reboot":
+      return [
+        {
+          label: "Servers",
+          value: names(s.refs, t.reboot?.server_ids),
+        },
+        {
+          label: "Only when needed",
+          value: yesNo(t.reboot?.only_if_required),
+        },
+        {
+          label: "Skip if someone is logged in",
+          value: yesNo(t.reboot?.skip_if_logged_in),
+        },
+        ...(t.reboot?.message
+          ? [{ label: "Message", value: t.reboot.message }]
+          : []),
+      ]
+    case "verify-backup":
+      return [
+        {
+          label: "Database",
+          value: refName(s.refs, "database", t.verify?.database_id),
+        },
+        {
+          label: "Backups",
+          value: t.verify?.plan_id
+            ? `The latest of ${planName ?? "one plan"}`
+            : "The latest of every plan",
+        },
+      ]
+  }
+  return []
+}

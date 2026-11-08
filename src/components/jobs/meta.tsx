@@ -41,6 +41,7 @@ const icons: Record<string, LucideIcon> = {
   "ansible-run": Play,
   "script-run": FileCode,
   "schedule-sync": CalendarClock,
+  "schedule-run": CalendarClock,
   "storage-scan": ChartPie,
   "database-backup": DatabaseBackup,
   "database-backup-verify": ShieldCheck,
@@ -186,6 +187,7 @@ export function canRetry(job: Job) {
     job.kind !== "ansible-run" &&
     job.kind !== "script-run" &&
     job.kind !== "schedule-sync" &&
+    job.kind !== "schedule-run" &&
     job.kind !== "database-backup" &&
     job.kind !== "database-backup-restore"
   )

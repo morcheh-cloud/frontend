@@ -12,7 +12,13 @@ import { useEffect } from "react"
 import { type InsightsRange, timeZone } from "@/components/insights/format"
 import { STATUS_POLL, storagesQuery } from "@/components/panel/problems"
 import { ApiError, api } from "@/lib/api"
-import type { Storage, StorageBody, StorageTestBody } from "@/lib/services"
+import type {
+  BucketDetails,
+  CreateStorageBucketRequest,
+  Storage,
+  StorageBody,
+  StorageTestBody,
+} from "@/lib/services"
 
 // The list key is shared with the "Send to…" dialog (transfer-dialog.tsx).
 export const keys = {
@@ -219,5 +225,57 @@ export function useMeasureUsage() {
   return useMutation({
     mutationKey: ["measure-storage-usage"],
     mutationFn: (id: string) => api.storage.measureStorageUsage(id),
+  })
+}
+
+// ---- Buckets (S3) ----
+
+export const bucketKeys = {
+  all: (id: string) => ["storage-bucket", id] as const,
+  one: (id: string, name: string) => ["storage-bucket", id, name] as const,
+}
+
+// One bucket's settings. Read only while the layer that shows them is open.
+export function useBucket(id: string, name: string | null) {
+  return useQuery({
+    queryKey: bucketKeys.one(id, name ?? ""),
+    queryFn: () => api.storageBuckets.getStorageBucket(id, name ?? ""),
+    enabled: name !== null,
+    retry: false,
+  })
+}
+
+// Every setting write answers the bucket as it is afterwards: put it
+// straight in the cache.
+export function useBucketChange(id: string, name: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (run: () => Promise<BucketDetails>) => run(),
+    onSuccess: (b) => queryClient.setQueryData(bucketKeys.one(id, name), b),
+  })
+}
+
+export function useCreateBucket(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: CreateStorageBucketRequest) =>
+      api.storageBuckets.createStorageBucket(id, body),
+    onSuccess: (b) => {
+      queryClient.setQueryData(bucketKeys.one(id, b.name), b)
+      return queryClient.invalidateQueries({
+        queryKey: ["storage-files", id, "list", "/"],
+      })
+    },
+  })
+}
+
+export function useEmptyBucket(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (name: string) =>
+      api.storageBuckets.emptyStorageBucket(id, name),
+    // Every listing and size under the bucket is now wrong.
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: ["storage-files", id] }),
   })
 }

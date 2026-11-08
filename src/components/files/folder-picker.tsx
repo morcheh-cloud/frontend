@@ -3,7 +3,6 @@
 import { useQuery } from "@tanstack/react-query"
 import {
   ChevronRight,
-  Database,
   Folder,
   FolderOpen,
   HardDrive,
@@ -23,7 +22,7 @@ import type { ApiError } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { fileKeys } from "./api"
 import type { Lister } from "./listers"
-import { crumbs, isDir } from "./meta"
+import { BucketIcon, crumbs, isDir } from "./meta"
 import type { FileEntry, Listing } from "./source"
 
 type Tree = {
@@ -244,7 +243,7 @@ function Node({
               key={c.path}
               path={c.path}
               name={c.name}
-              icon={c.bucket ? <Database /> : undefined}
+              icon={c.bucket ? <BucketIcon /> : undefined}
               level={level + 1}
             />
           ))}

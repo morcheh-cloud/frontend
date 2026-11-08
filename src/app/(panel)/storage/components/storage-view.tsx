@@ -11,7 +11,6 @@ import {
 } from "@/app/(panel)/servers/components/meta"
 import { guideHref } from "@/components/help/guides"
 import { HelpButton } from "@/components/help/help-link"
-import { PageHeader } from "@/components/panel/page-header"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -40,6 +39,11 @@ const sorted = (items: Storage[]) =>
       Number(b.favorite) - Number(a.favorite) || a.name.localeCompare(b.name),
   )
 
+const tabItems = (count: number) => [
+  { value: "insights" as const, label: "Insights" },
+  { value: "storages" as const, label: `Storages · ${count}` },
+]
+
 export function StorageView() {
   const isPhone = useIsPhone()
   if (isPhone === null) return null
@@ -56,34 +60,27 @@ function StorageDesktop() {
 
   return (
     <>
-      <PageHeader
-        title="Storage"
-        description="S3 buckets, FTP, SFTP and WebDAV shares: browse them and move files between them and your servers."
-        guide="storage"
-        actions={
-          canAdd && (
-            <Button onClick={() => actions.addStorage()}>
+      <h1 className="sr-only">Storage</h1>
+      <div className="flex flex-col gap-4 px-6 pt-5 pb-24">
+        <div className="flex min-h-9 flex-wrap items-center gap-3">
+          {items.length > 0 && (
+            <>
+              <Segmented
+                label="Show"
+                value={tab}
+                onChange={(tab) => setFilters({ tab })}
+                items={tabItems(items.length)}
+              />
+              {tab === "insights" && <InsightsControls phone={false} />}
+            </>
+          )}
+          {canAdd && (
+            <Button className="ms-auto" onClick={() => actions.addStorage()}>
               <Plus />
               Add storage
             </Button>
-          )
-        }
-      />
-      <div className="flex flex-col gap-4 px-6 pt-5 pb-24">
-        {items.length > 0 && (
-          <div className="flex flex-wrap items-center gap-3">
-            <Segmented
-              label="Show"
-              value={tab}
-              onChange={(tab) => setFilters({ tab })}
-              items={[
-                { value: "storages", label: `Storages · ${items.length}` },
-                { value: "insights", label: "Insights" },
-              ]}
-            />
-            {tab === "insights" && <InsightsControls phone={false} />}
-          </div>
-        )}
+          )}
+        </div>
         {list.isPending ? (
           <div className="overflow-hidden rounded-2xl border border-border">
             {Array.from({ length: 4 }, (_, i) => (
@@ -297,10 +294,7 @@ function StorageMobile() {
             label="Show"
             value={tab}
             onChange={(tab) => setFilters({ tab })}
-            items={[
-              { value: "storages", label: `Storages · ${items.length}` },
-              { value: "insights", label: "Insights" },
-            ]}
+            items={tabItems(items.length)}
           />
           {tab === "insights" && (
             <div className="flex items-center gap-2">

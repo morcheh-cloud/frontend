@@ -73,6 +73,7 @@ import { useFileActions } from "./file-actions"
 import { useFiles } from "./file-manager"
 import { type MenuItem, useEntryMenu } from "./file-menu"
 import {
+  BucketIcon,
   crumbs,
   dirname,
   FileIcon,
@@ -205,7 +206,15 @@ function NewMenu() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
         <DropdownMenuItem onClick={actions.newFolder}>
-          <FolderPlus /> Folder
+          {actions.bucketRoot ? (
+            <>
+              <BucketIcon /> Bucket
+            </>
+          ) : (
+            <>
+              <FolderPlus /> Folder
+            </>
+          )}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={actions.newFile}>
           <FilePlus /> Text file
@@ -569,7 +578,8 @@ function Body() {
                   <Upload /> Upload
                 </Button>
                 <Button onClick={actions.newFolder}>
-                  <FolderPlus /> New folder
+                  {actions.bucketRoot ? <BucketIcon /> : <FolderPlus />}
+                  {actions.bucketRoot ? "New bucket" : "New folder"}
                 </Button>
               </>
             )}
@@ -828,6 +838,7 @@ function Table({
                       >
                         {entry.name}
                       </button>
+                      {entry.bucket && <BucketTag />}
                       {entry.type === "symlink" && (
                         <span
                           title={entry.link_target}
@@ -983,7 +994,8 @@ function BackgroundMenu() {
       {write && (
         <>
           <ContextMenuItem onClick={actions.newFolder}>
-            <FolderPlus /> New folder
+            {actions.bucketRoot ? <BucketIcon /> : <FolderPlus />}
+            {actions.bucketRoot ? "New bucket" : "New folder"}
           </ContextMenuItem>
           <ContextMenuItem onClick={actions.newFile}>
             <FilePlus /> New text file
@@ -1342,4 +1354,12 @@ function useShortcuts() {
     window.addEventListener("keydown", fn)
     return () => window.removeEventListener("keydown", fn)
   }, [])
+}
+
+function BucketTag() {
+  return (
+    <span className="shrink-0 rounded-full border border-border px-2 font-label text-caption tracking-label text-ash uppercase">
+      Bucket
+    </span>
+  )
 }

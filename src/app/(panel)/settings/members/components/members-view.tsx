@@ -77,12 +77,7 @@ export function MembersView() {
 
   return (
     <>
-      <PageHeader
-        title="Members"
-        guide="access"
-        description="Who can sign in, and what they can reach."
-        actions={!phone && add}
-      />
+      <PageHeader title="Members" guide="access" />
       {phone ? (
         <div className="flex flex-col gap-3 px-4 pt-4">
           <div className="flex items-center gap-2">
@@ -102,6 +97,7 @@ export function MembersView() {
         <div className="flex items-center gap-3 px-6 pt-5">
           {segmented}
           {search}
+          <div className="ms-auto">{add}</div>
         </div>
       )}
 

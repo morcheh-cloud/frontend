@@ -11,6 +11,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import type { ReactNode } from "react"
+import { jobSummary } from "@/app/(panel)/cronjobs/components/meta"
 import {
   address,
   OsTile,
@@ -481,8 +482,7 @@ function UpcomingCard({ home }: { home: Home }) {
                     {c.name}
                   </span>
                   <span className="truncate text-caption text-muted-foreground">
-                    {c.source.name} → {c.destinations.length}{" "}
-                    {c.destinations.length === 1 ? "place" : "places"}
+                    {jobSummary(c)}
                   </span>
                 </span>
                 <span className="shrink-0 text-caption text-ash">

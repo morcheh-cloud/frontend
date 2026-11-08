@@ -111,7 +111,6 @@ function Detail({ id }: { id: string }) {
           />
         }
         guide="access"
-        description={workspace.description || undefined}
         actions={
           admin && (
             <div className="flex gap-2">

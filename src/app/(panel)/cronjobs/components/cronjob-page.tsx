@@ -1,7 +1,9 @@
 "use client"
 
+import { useQuery } from "@tanstack/react-query"
 import {
   ArrowDown,
+  ArrowUpRight,
   CalendarClock,
   ChevronLeft,
   ChevronRight,
@@ -16,6 +18,8 @@ import { useParams, useRouter } from "next/navigation"
 import { useQueryState } from "nuqs"
 import { type ReactNode, useRef, useState } from "react"
 
+import { backupsHref } from "@/app/(panel)/databases/[id]/components/backups/meta"
+import { backupKeys } from "@/app/(panel)/databases/api"
 import {
   Empty,
   ItemMenu,
@@ -32,7 +36,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useBack } from "@/hooks/useBack"
 import { useIsPhone } from "@/hooks/useIsPhone"
 import { useOpen } from "@/hooks/useOpen"
-import { ApiError } from "@/lib/api"
+import { ApiError, api } from "@/lib/api"
 import { formatSize } from "@/lib/format"
 import type { Schedule, ScheduleRun } from "@/lib/services"
 import { cn } from "@/lib/utils"
@@ -40,6 +44,9 @@ import { type RunsQuery, runActive, useCronjob, useCronjobRuns } from "../api"
 import { useCronjobActions } from "./cronjob-actions"
 import { useCronjobMenu } from "./cronjob-menu"
 import {
+  ActionIcon,
+  actionMeta,
+  canTest,
   cronText,
   duration,
   EndLabel,
@@ -47,6 +54,8 @@ import {
   modeMeta,
   RunStateBadge,
   runParam,
+  taskFacts,
+  usesDestinations,
 } from "./meta"
 import { useCronjobCan } from "./permissions"
 import { RunLayer } from "./run-layer"
@@ -137,15 +146,17 @@ function Page({ s, phone }: { s: Schedule; phone: boolean }) {
 
   const runButtons = can.run && (
     <>
-      <Button
-        variant="outline"
-        className={phone ? "h-11 flex-1" : "h-9"}
-        disabled={blocked}
-        onClick={() => a.run(s, { dryRun: true })}
-      >
-        <FlaskConical />
-        Test run
-      </Button>
+      {canTest(s.action) && (
+        <Button
+          variant="outline"
+          className={phone ? "h-11 flex-1" : "h-9"}
+          disabled={blocked}
+          onClick={() => a.run(s, { dryRun: true })}
+        >
+          <FlaskConical />
+          Test run
+        </Button>
+      )}
       <Button
         className={phone ? "h-11 flex-1" : "h-9"}
         disabled={blocked}
@@ -221,7 +232,9 @@ function Page({ s, phone }: { s: Schedule; phone: boolean }) {
           )}
         </header>
         <div className="flex flex-col gap-1 px-4 pt-4 pb-3">
-          <p className="text-body-sm text-muted-foreground">{status}</p>
+          <p className="text-body-sm text-muted-foreground">
+            {actionMeta[s.action]?.label} · {status}
+          </p>
           {s.description && (
             <p className="text-body-sm text-muted-foreground">
               {s.description}
@@ -245,12 +258,12 @@ function Page({ s, phone }: { s: Schedule; phone: boolean }) {
     <div className="flex flex-col gap-5 px-6 pt-5 pb-12">
       <div className="flex items-center gap-3">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-          <CalendarClock className="size-5" />
+          <ActionIcon action={s.action} className="size-5" />
         </span>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-subheading font-medium">{s.name}</h1>
           <p className="truncate text-caption text-ash">
-            {status}
+            {actionMeta[s.action]?.label} · {status}
             {s.description && ` · ${s.description}`}
           </p>
         </div>
@@ -319,15 +332,29 @@ function Block({
 }
 
 function Flow({ s, phone }: { s: Schedule; phone: boolean }) {
+  if (s.action === "verify-backup") return <VerifyFlow s={s} phone={phone} />
+  if (s.action !== "sync" && s.action !== "archive") {
+    return <TaskBlock s={s} phone={phone} facts={taskFacts(s)} />
+  }
+  const archive = s.action === "archive"
   const mode = modeMeta[s.options.mode]
   return (
-    <Block title="What it copies" phone={phone}>
+    <Block
+      title={archive ? "What it archives" : "What it copies"}
+      phone={phone}
+    >
       <div className="flex flex-col gap-2 text-body-sm">
-        <div className="rounded-lg bg-subtle px-3 py-2.5">
-          <p className="text-caption text-ash">From</p>
-          <EndLabel end={s.source} className="mt-0.5" />
-        </div>
-        <ArrowDown className="mx-auto size-4 text-ash" aria-hidden />
+        {s.source && (
+          <>
+            <div className="rounded-lg bg-subtle px-3 py-2.5">
+              <p className="text-caption text-ash">
+                {archive ? "Folder" : "From"}
+              </p>
+              <EndLabel end={s.source} className="mt-0.5" />
+            </div>
+            <ArrowDown className="mx-auto size-4 text-ash" aria-hidden />
+          </>
+        )}
         <div className="rounded-lg bg-subtle px-3 py-2.5">
           <p className="text-caption text-ash">
             To{s.destinations.length > 1 && ` ${s.destinations.length} places`}
@@ -342,15 +369,29 @@ function Flow({ s, phone }: { s: Schedule; phone: boolean }) {
         </div>
       </div>
       <dl className="mt-4 flex flex-col gap-3 text-body-sm">
-        <div>
-          <dt className="text-caption text-ash">Mode</dt>
-          <dd className="font-medium">
-            {mode.label}
-            {s.options.mode === "snapshot" &&
-              ` · keeps ${s.options.keep ? s.options.keep : "all"}`}
-          </dd>
-          <dd className="text-caption text-muted-foreground">{mode.hint}</dd>
-        </div>
+        {archive ? (
+          <div>
+            <dt className="text-caption text-ash">Keeps</dt>
+            <dd className="font-medium">
+              {s.options.keep
+                ? `The newest ${s.options.keep} archives in each place`
+                : "Every archive"}
+            </dd>
+            <dd className="text-caption text-muted-foreground">
+              Each run adds one .tar.gz named after the time it ran.
+            </dd>
+          </div>
+        ) : (
+          <div>
+            <dt className="text-caption text-ash">Mode</dt>
+            <dd className="font-medium">
+              {mode.label}
+              {s.options.mode === "snapshot" &&
+                ` · keeps ${s.options.keep ? s.options.keep : "all"}`}
+            </dd>
+            <dd className="text-caption text-muted-foreground">{mode.hint}</dd>
+          </div>
+        )}
         {!!s.options.excludes?.length && (
           <div>
             <dt className="text-caption text-ash">Left out</dt>
@@ -366,6 +407,95 @@ function Flow({ s, phone }: { s: Schedule; phone: boolean }) {
             </dd>
           </div>
         )}
+      </dl>
+    </Block>
+  )
+}
+
+function VerifyFlow({ s, phone }: { s: Schedule; phone: boolean }) {
+  const v = s.task?.verify
+  // Only for the plan's name; a person who can't read the plans sees "one
+  // plan" instead.
+  const plans = useQuery({
+    queryKey: backupKeys.plans(v?.database_id ?? ""),
+    queryFn: () =>
+      api.databaseBackups.listDatabaseBackupPlans(v?.database_id ?? ""),
+    enabled: !!v?.plan_id,
+    retry: false,
+  })
+  const plan = plans.data?.items.find((p) => p.id === v?.plan_id)
+  return <TaskBlock s={s} phone={phone} facts={taskFacts(s, plan?.name)} />
+}
+
+// Where the thing a job runs lives, to open it from the job's page.
+function taskLink(s: Schedule) {
+  const t = s.task
+  const gone = (kind: string, id?: string) =>
+    !id || s.refs.some((r) => r.kind === kind && r.id === id && r.missing)
+  switch (s.action) {
+    case "script":
+      return t?.script?.script_id && !gone("script", t.script.script_id)
+        ? { href: `/scripts/${t.script.script_id}`, label: "Open the script" }
+        : null
+    case "ansible":
+      return t?.ansible && !gone("playbook", t.ansible.playbook_id)
+        ? {
+            href: `/ansible/playbooks/${t.ansible.playbook_id}`,
+            label: "Open the playbook",
+          }
+        : null
+    case "verify-backup":
+      return t?.verify && !gone("database", t.verify.database_id)
+        ? {
+            href: backupsHref(t.verify.database_id, "backups"),
+            label: "Open the backups",
+          }
+        : null
+  }
+  return null
+}
+
+function TaskBlock({
+  s,
+  phone,
+  facts,
+}: {
+  s: Schedule
+  phone: boolean
+  facts: { label: string; value: string }[]
+}) {
+  const link = taskLink(s)
+  return (
+    <Block
+      title="What it does"
+      phone={phone}
+      action={
+        link && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="max-md:h-11"
+            render={<Link href={link.href} />}
+            nativeButton={false}
+          >
+            {link.label}
+            <ArrowUpRight />
+          </Button>
+        )
+      }
+    >
+      <p className="mb-3 text-caption text-muted-foreground">
+        {actionMeta[s.action]?.hint}
+      </p>
+      <dl className="flex flex-col gap-3 text-body-sm">
+        {facts.map((f) => (
+          <div key={f.label}>
+            <dt className="text-caption text-ash">{f.label}</dt>
+            <dd className="font-medium break-words whitespace-pre-line">
+              {f.value}
+            </dd>
+          </div>
+        ))}
       </dl>
     </Block>
   )
@@ -493,7 +623,7 @@ function Runs({
                 <span className="mt-0.5 block truncate text-caption text-muted-foreground">
                   {formatInZone(r.started_at ?? r.created_at, s.timezone)}
                   {r.trigger === "manual" && " · Run now"}
-                  {sizeText(r) && ` · ${sizeText(r)}`}
+                  {resultText(r) && ` · ${resultText(r)}`}
                 </span>
               </span>
               <ChevronRight className="size-4 shrink-0 text-ash" />
@@ -511,7 +641,9 @@ function Runs({
               <th className="px-5 py-2 text-start font-normal">Started</th>
               <th className="px-3 py-2 text-start font-normal">State</th>
               <th className="px-3 py-2 text-start font-normal">By</th>
-              <th className="px-3 py-2 text-end font-normal">Copied</th>
+              <th className="px-3 py-2 text-end font-normal">
+                {usesDestinations(s.action) ? "Copied" : "Result"}
+              </th>
               <th className="px-5 py-2 text-end font-normal">Took</th>
             </tr>
           </thead>
@@ -543,7 +675,7 @@ function Runs({
                     : r.created_by_name || "Run now"}
                 </td>
                 <td className="px-3 py-2.5 text-end whitespace-nowrap text-muted-foreground tabular-nums">
-                  {sizeText(r) || "—"}
+                  {resultText(r) || "—"}
                 </td>
                 <td className="px-5 py-2.5 text-end whitespace-nowrap text-muted-foreground tabular-nums">
                   {r.started_at ? duration(r.started_at, r.finished_at) : "—"}
@@ -600,6 +732,23 @@ function Runs({
       )}
     </Block>
   )
+}
+
+// A run's outcome in a few words: files and bytes for the actions that move
+// files, else how many servers or backups went through.
+function resultText(r: ScheduleRun) {
+  if (r.action === "sync" || r.action === "archive" || r.action === "fetch") {
+    return sizeText(r)
+  }
+  if (runActive(r.state) || r.results.length === 0) return ""
+  const done = r.results.filter((d) => d.state === "succeeded").length
+  const skipped = r.results.filter((d) => d.state === "skipped").length
+  return [
+    `${done} of ${r.results.length} done`,
+    skipped ? `${skipped} skipped` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ")
 }
 
 function sizeText(r: ScheduleRun) {

@@ -1,20 +1,12 @@
 "use client"
 
 import { useQueryClient } from "@tanstack/react-query"
-import {
-  CalendarClock,
-  ChevronLeft,
-  Info,
-  Pencil,
-  Plus,
-  TriangleAlert,
-  X,
-} from "lucide-react"
+import { CalendarClock, ChevronLeft, Info, TriangleAlert } from "lucide-react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { type ReactNode, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
-
+import { useScripts } from "@/app/(panel)/scripts/api"
 import { Empty, Segmented } from "@/app/(panel)/servers/[id]/components/parts"
 import {
   type Builder,
@@ -30,7 +22,6 @@ import { ResponsiveDialog } from "@/components/responsive-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { useBack } from "@/hooks/useBack"
 import { useIsPhone } from "@/hooks/useIsPhone"
@@ -44,22 +35,46 @@ import {
   useCronjob,
   useUpdateCronjob,
 } from "../api"
+import {
+  AddButton,
+  Callout,
+  EndRow,
+  FieldError,
+  Section,
+  ToggleRow,
+} from "./editor-parts"
 import { type EndDraft, EndPicker, type Role } from "./end-picker"
 import {
+  type Action,
+  ActionIcon,
+  actionMeta,
   browserZone,
-  EndIcon,
   endId,
-  endName,
   modeMeta,
   modes,
   type SyncMode,
+  usesDestinations,
+  usesSource,
 } from "./meta"
 import { useCronjobCan } from "./permissions"
 import { ScheduleField } from "./schedule-field"
+import {
+  ActionPicker,
+  accessText,
+  checkTask,
+  freshTask,
+  type TaskDraft,
+  type TaskErrors,
+  TaskSections,
+  taskErrorKey,
+  taskFromSaved,
+  toTask,
+} from "./task-fields"
 
 const MAX_DESTINATIONS = 20
 
 type Draft = {
+  action: Action
   name: string
   description: string
   source: EndDraft | null
@@ -73,13 +88,15 @@ type Draft = {
   excludes: string
   keep: string
   enabled: boolean
+  task: TaskDraft
 }
 
 const fromSaved = (s: Schedule): Draft => ({
+  action: s.action ?? "sync",
   name: s.name,
   description: s.description,
-  source: s.source,
-  destinations: s.destinations,
+  source: s.source ?? null,
+  destinations: s.destinations ?? [],
   cron: s.cron,
   builder: toBuilder(s.cron),
   timezone: s.timezone || "UTC",
@@ -87,9 +104,11 @@ const fromSaved = (s: Schedule): Draft => ({
   excludes: (s.options.excludes ?? []).join("\n"),
   keep: String(s.options.keep ?? 0),
   enabled: s.enabled,
+  task: taskFromSaved(s),
 })
 
 const fresh = (): Draft => ({
+  action: "sync",
   name: "",
   description: "",
   source: null,
@@ -101,6 +120,7 @@ const fresh = (): Draft => ({
   excludes: "",
   keep: "7",
   enabled: true,
+  task: freshTask(),
 })
 
 // Only what the API takes: Huma refuses unknown fields like name/missing.
@@ -118,26 +138,65 @@ const excludeList = (text: string) =>
     .map((l) => l.trim())
     .filter(Boolean)
 
-function toBody(d: Draft): ScheduleBody | null {
-  if (!d.source) return null
+// Only what the action uses: a copy's folders, or the task of the others.
+function toBody(d: Draft): ScheduleBody {
+  const a = d.action
+  const keeps = a === "archive" || (a === "sync" && d.mode === "snapshot")
   return {
+    action: a,
     name: d.name.trim(),
     description: d.description.trim(),
-    source: toEnd(d.source),
-    destinations: d.destinations.map(toEnd),
+    source: usesSource(a) && d.source ? toEnd(d.source) : undefined,
+    destinations: usesDestinations(a) ? d.destinations.map(toEnd) : [],
+    task: toTask(a, d.task),
     cron: d.cron.trim(),
     timezone: d.timezone,
     enabled: d.enabled,
     options: {
-      mode: d.mode,
-      excludes: excludeList(d.excludes),
-      keep: d.mode === "snapshot" ? Number(d.keep) || 0 : 0,
+      mode: a === "sync" ? d.mode : "update",
+      excludes: usesSource(a) ? excludeList(d.excludes) : [],
+      keep: keeps ? Number(d.keep) || 0 : 0,
     },
   }
 }
 
 const same = (a: Draft, b: Draft) =>
   JSON.stringify(toBody(a)) === JSON.stringify(toBody(b)) && a.name === b.name
+
+const namePlaceholders: Record<Action, string> = {
+  sync: "Nightly site backup",
+  archive: "Weekly site archive",
+  fetch: "Refresh the blocklist",
+  script: "Clean up old logs",
+  ansible: "Nightly hardening check",
+  service: "Restart the workers",
+  reboot: "Sunday reboots",
+  "verify-backup": "Check last night's backups",
+}
+
+function pickerTitle(a: Action, role: Role) {
+  if (a === "archive")
+    return role === "source" ? "Folder to archive" : "Send to"
+  if (a === "fetch") return "Save in"
+  return role === "source" ? "Copy from" : "Copy to"
+}
+
+function pickerHint(a: Action, role: Role) {
+  if (a === "archive") {
+    return role === "source"
+      ? "A folder on a server. It's packed with its contents."
+      : "The folder the archive goes into. Missing folders are created."
+  }
+  if (a === "fetch") {
+    return "A folder on a server. Missing folders are created."
+  }
+  return undefined
+}
+
+function firstError(e: Errors): string | undefined {
+  const { task, ...rest } = e
+  return Object.values(rest)[0] ?? Object.values(task ?? {})[0]
+}
 
 // /cronjobs/[id]/edit reads its id from the route.
 export function CronjobEditorFromRoute() {
@@ -187,7 +246,7 @@ export function CronjobEditor({ id }: { id?: string }) {
 
 type Errors = Partial<
   Record<"name" | "source" | "destinations" | "cron" | "keep", string>
->
+> & { task?: TaskErrors }
 
 function Editor({
   saved,
@@ -216,6 +275,12 @@ function Editor({
   const [target, setTarget] = useState<{ role: Role; index?: number }>({
     role: "source",
   })
+
+  const scripts = useScripts(ws)
+  const scriptParams =
+    draft.task.scriptKind === "saved"
+      ? (scripts.data?.find((x) => x.id === draft.task.scriptId)?.params ?? [])
+      : []
 
   const create = useCreateCronjob()
   const update = useUpdateCronjob()
@@ -246,9 +311,30 @@ function Editor({
       const next = { ...e }
       for (const k of Object.keys(patch)) {
         if (k === "builder") delete next.cron
+        if (k === "action") delete next.task
         delete next[k as keyof Errors]
       }
       return next
+    })
+  }
+
+  const setTask = (patch: Partial<TaskDraft>) => {
+    setTouched(true)
+    setDraft((d) => ({ ...d, task: { ...d.task, ...patch } }))
+    setErrors((e) => {
+      if (!e.task) return e
+      const task = { ...e.task }
+      for (const k of Object.keys(patch)) {
+        if (k === "scriptId" || k === "scriptKind") delete task.script
+        if (k === "playbookId") delete task.playbook
+        if (k === "picked") delete task.targets
+        if (k === "databaseId") delete task.database
+        if (k === "planId") delete task.plan
+        if (k === "fileName") delete task.fileName
+        if (k === "serviceAction") delete task.force
+        delete task[k as keyof TaskErrors]
+      }
+      return { ...e, task }
     })
   }
 
@@ -283,31 +369,39 @@ function Editor({
   }
 
   function check(): Errors {
+    const a = draft.action
     const e: Errors = {}
     if (!draft.name.trim()) e.name = "Give it a name"
-    if (!draft.source) e.source = "Choose what to copy"
-    if (draft.destinations.length === 0) {
-      e.destinations = "Add at least one place to copy to"
+    if (usesSource(a) && !draft.source) {
+      e.source = a === "archive" ? "Choose the folder" : "Choose what to copy"
+    }
+    if (usesDestinations(a) && draft.destinations.length === 0) {
+      e.destinations =
+        a === "fetch"
+          ? "Add at least one folder to save it in"
+          : "Add at least one place to copy to"
     }
     if (!draft.cron.trim()) e.cron = "Enter a schedule"
     const keep = Number(draft.keep)
     if (
-      draft.mode === "snapshot" &&
+      (a === "archive" || (a === "sync" && draft.mode === "snapshot")) &&
       (!Number.isInteger(keep) || keep < 0 || keep > 1000)
     ) {
       e.keep = "A whole number from 0 to 1000"
     }
+    const task = checkTask(a, draft.task, scriptParams)
+    if (Object.keys(task).length > 0) e.task = task
     return e
   }
 
   function save(opts?: { overwrite?: boolean }) {
     const e = check()
     setErrors(e)
-    const body = toBody(draft)
-    if (Object.keys(e).length > 0 || !body) {
-      toast.error(Object.values(e)[0] ?? "Check the form")
+    if (Object.keys(e).length > 0) {
+      toast.error(firstError(e) ?? "Check the form")
       return
     }
+    const body = toBody(draft)
     const done = (s: Schedule) => {
       setRevision(s.updated_at)
       setTouched(false)
@@ -322,14 +416,16 @@ function Editor({
       const fields = fieldErrors(err)
       const mapped: Errors = {}
       for (const [k, v] of Object.entries(fields)) {
-        if (k === "name") mapped.name = v
+        const tk = taskErrorKey(draft.action, k)
+        if (tk) mapped.task = { ...mapped.task, [tk]: v }
+        else if (k === "name") mapped.name = v
         else if (k === "cron" || k === "timezone") mapped.cron = v
         else if (k.startsWith("source")) mapped.source = v
         else if (k.startsWith("destinations")) mapped.destinations = v
         else if (k.startsWith("options.keep")) mapped.keep = v
       }
       setErrors(mapped)
-      toast.error(Object.values(mapped)[0] ?? err.message)
+      toast.error(firstError(mapped) ?? err.message)
     }
     if (!saved) {
       create.mutate({ ws, body }, { onSuccess: done, onError: failed })
@@ -380,14 +476,85 @@ function Editor({
     )
   }
 
+  const a = draft.action
   const title = draft.name.trim() || saved?.name || "New cron job"
   const runsAs =
     saved?.run_as_id && saved.run_as_id !== user.id
       ? `It runs with ${saved.run_as_name || "someone else"}'s access now. Once you save, it runs with yours.`
-      : "It runs with your access: Operator on the source, Engineer on every destination. If you lose that, it stops and says why."
+      : `It runs with your access: ${accessText[a]}. If you lose that, it stops and says why.`
+  const keeps = a === "archive" || (a === "sync" && draft.mode === "snapshot")
+  const keepField = (
+    <Field
+      label={a === "archive" ? "Archives to keep" : "Snapshots to keep"}
+      hint="Older ones are deleted after a run that worked. 0 keeps them all."
+      error={errors.keep}
+      className="w-56"
+    >
+      {(p) => (
+        <Input
+          {...p}
+          type="number"
+          inputMode="numeric"
+          min={0}
+          max={1000}
+          value={draft.keep}
+          onChange={(e) => set({ keep: e.target.value })}
+          className="tabular-nums"
+        />
+      )}
+    </Field>
+  )
+  const excludesField = (
+    <Field
+      label="Leave out"
+      hint={`One pattern per line. Without a slash it matches a name at any depth (*.log, node_modules); with one, a path from the ${a === "archive" ? "folder" : "source"} (cache/tmp).`}
+    >
+      {(p) => (
+        <Textarea
+          {...p}
+          value={draft.excludes}
+          onChange={(e) => set({ excludes: e.target.value })}
+          placeholder="Nothing is left out"
+          rows={3}
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          className="font-mono placeholder:font-sans placeholder:text-ash"
+        />
+      )}
+    </Field>
+  )
+  const destWord = a === "fetch" ? "folder" : "destination"
 
   const sections = (
     <>
+      <Section
+        title="What it does"
+        hint={saved ? undefined : "Can't be changed once the job is saved."}
+        phone={phone}
+      >
+        {saved ? (
+          <div className="flex items-start gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+              <ActionIcon action={a} className="size-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-body-sm font-medium">{actionMeta[a].label}</p>
+              <p className="text-caption text-muted-foreground">
+                {actionMeta[a].hint} Set when the job was made: for something
+                else, make a new job.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <ActionPicker
+            value={a}
+            onChange={(action) => set({ action })}
+            phone={phone}
+          />
+        )}
+      </Section>
+
       <Section title="Name" phone={phone}>
         <Field label="Name" error={errors.name}>
           {(p) => (
@@ -395,7 +562,7 @@ function Editor({
               {...p}
               value={draft.name}
               onChange={(e) => set({ name: e.target.value })}
-              placeholder="Nightly site backup"
+              placeholder={namePlaceholders[a]}
               maxLength={100}
               className="placeholder:text-ash"
               enterKeyHint="next"
@@ -408,66 +575,91 @@ function Editor({
               {...p}
               value={draft.description}
               onChange={(e) => set({ description: e.target.value })}
-              placeholder="Copies the uploads folder to the backup bucket"
               maxLength={2000}
               rows={2}
-              className="placeholder:text-ash"
             />
           )}
         </Field>
       </Section>
 
-      <Section
-        title="Copy from"
-        hint="A folder's contents (or one file) on a server or storage."
-        phone={phone}
-      >
-        {draft.source ? (
-          <EndRow
-            end={draft.source}
-            onChange={() => pick("source")}
-            label="Change source"
-          />
-        ) : (
-          <AddButton onClick={() => pick("source")}>Choose source</AddButton>
-        )}
-        <FieldError text={errors.source} />
-      </Section>
+      {usesSource(a) && (
+        <Section
+          title={a === "archive" ? "Folder to archive" : "Copy from"}
+          hint={
+            a === "archive"
+              ? "A folder on a server, packed into one .tar.gz on the server itself."
+              : "A folder's contents (or one file) on a server or storage."
+          }
+          phone={phone}
+        >
+          {draft.source ? (
+            <EndRow
+              end={draft.source}
+              onChange={() => pick("source")}
+              label={a === "archive" ? "Change folder" : "Change source"}
+            />
+          ) : (
+            <AddButton onClick={() => pick("source")}>
+              {a === "archive" ? "Choose folder" : "Choose source"}
+            </AddButton>
+          )}
+          <FieldError text={errors.source} />
+        </Section>
+      )}
 
-      <Section
-        title="Copy to"
-        hint={`One or more folders, up to ${MAX_DESTINATIONS}. Each gets the same copy.`}
+      <TaskSections
+        action={a}
+        t={draft.task}
+        set={setTask}
+        errors={errors.task ?? {}}
         phone={phone}
-      >
-        {draft.destinations.length > 0 && (
-          <ul className="flex flex-col gap-2">
-            {draft.destinations.map((d, i) => (
-              <li key={`${endId(d)}:${d.path}`}>
-                <EndRow
-                  end={d}
-                  onChange={() => pick("destination", i)}
-                  label="Change destination"
-                  onRemove={() =>
-                    set({
-                      destinations: draft.destinations.filter(
-                        (_, j) => j !== i,
-                      ),
-                    })
-                  }
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-        {draft.destinations.length < MAX_DESTINATIONS && (
-          <AddButton onClick={() => pick("destination")}>
-            {draft.destinations.length === 0
-              ? "Choose destination"
-              : "Add another destination"}
-          </AddButton>
-        )}
-        <FieldError text={errors.destinations} />
-      </Section>
+        ws={ws}
+      />
+
+      {usesDestinations(a) && (
+        <Section
+          title={
+            a === "archive" ? "Send to" : a === "fetch" ? "Save in" : "Copy to"
+          }
+          hint={
+            a === "fetch"
+              ? `Folders on servers, up to ${MAX_DESTINATIONS}. Each server downloads its own copy.`
+              : a === "archive"
+                ? `Up to ${MAX_DESTINATIONS} folders on servers or storages. Each gets the archive.`
+                : `One or more folders, up to ${MAX_DESTINATIONS}. Each gets the same copy.`
+          }
+          phone={phone}
+        >
+          {draft.destinations.length > 0 && (
+            <ul className="flex flex-col gap-2">
+              {draft.destinations.map((d, i) => (
+                <li key={`${endId(d)}:${d.path}`}>
+                  <EndRow
+                    end={d}
+                    onChange={() => pick("destination", i)}
+                    label={`Change ${destWord}`}
+                    onRemove={() =>
+                      set({
+                        destinations: draft.destinations.filter(
+                          (_, j) => j !== i,
+                        ),
+                      })
+                    }
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+          {draft.destinations.length < MAX_DESTINATIONS && (
+            <AddButton onClick={() => pick("destination")}>
+              {draft.destinations.length === 0
+                ? `Choose ${destWord}`
+                : `Add another ${destWord}`}
+            </AddButton>
+          )}
+          <FieldError text={errors.destinations} />
+        </Section>
+      )}
 
       <Section title="When" phone={phone}>
         <ScheduleField
@@ -480,87 +672,55 @@ function Editor({
         />
       </Section>
 
-      <Section title="How" phone={phone}>
-        <div className="flex flex-col gap-2">
-          <div className="[scrollbar-width:none] overflow-x-auto">
-            <Segmented
-              label="Mode"
-              items={modes}
-              value={draft.mode}
-              onChange={(mode) => set({ mode })}
-            />
-          </div>
-          <p className="text-caption text-muted-foreground">
-            <span className="font-medium text-foreground">
-              {modeMeta[draft.mode].label}.
-            </span>{" "}
-            {modeMeta[draft.mode].hint}
-          </p>
-        </div>
-        {draft.mode === "mirror" && (
-          <Callout icon={<TriangleAlert />} tone="warning">
-            Mirror deletes files at each destination that the source doesn't
-            have. Point it at a folder that holds only this copy, and try a Test
-            run first.
-          </Callout>
-        )}
-        {draft.mode === "snapshot" && (
-          <Field
-            label="Snapshots to keep"
-            hint="Older ones are deleted after a run that worked. 0 keeps them all."
-            error={errors.keep}
-            className="w-56"
-          >
-            {(p) => (
-              <Input
-                {...p}
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={1000}
-                value={draft.keep}
-                onChange={(e) => set({ keep: e.target.value })}
-                className="tabular-nums"
+      {a === "sync" && (
+        <Section title="How" phone={phone}>
+          <div className="flex flex-col gap-2">
+            <div className="[scrollbar-width:none] overflow-x-auto">
+              <Segmented
+                label="Mode"
+                items={modes}
+                value={draft.mode}
+                onChange={(mode) => set({ mode })}
               />
-            )}
-          </Field>
-        )}
-        <Field
-          label="Leave out"
-          hint="One pattern per line. Without a slash it matches a name at any depth (*.log, node_modules); with one, a path from the source (cache/tmp)."
-        >
-          {(p) => (
-            <Textarea
-              {...p}
-              value={draft.excludes}
-              onChange={(e) => set({ excludes: e.target.value })}
-              placeholder="Nothing is left out"
-              rows={3}
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              className="font-mono placeholder:font-sans placeholder:text-ash"
-            />
+            </div>
+            <p className="text-caption text-muted-foreground">
+              <span className="font-medium text-foreground">
+                {modeMeta[draft.mode].label}.
+              </span>{" "}
+              {modeMeta[draft.mode].hint}
+            </p>
+          </div>
+          {draft.mode === "mirror" && (
+            <Callout icon={<TriangleAlert />} tone="warning">
+              Mirror deletes files at each destination that the source doesn't
+              have. Point it at a folder that holds only this copy, and try a
+              Test run first.
+            </Callout>
           )}
-        </Field>
-      </Section>
+          {keeps && keepField}
+          {excludesField}
+        </Section>
+      )}
+
+      {a === "archive" && (
+        <Section
+          title="Archive"
+          hint="Named after the folder and the time: site-2026-11-08_03-00-00.tar.gz."
+          phone={phone}
+        >
+          {keepField}
+          {excludesField}
+        </Section>
+      )}
 
       <Section title="Access" phone={phone}>
-        <div className="flex min-h-11 items-center justify-between gap-4">
-          <label htmlFor="cronjob-enabled">
-            <span className="block text-body-sm font-medium">
-              Run on schedule
-            </span>
-            <span className="block text-caption text-muted-foreground">
-              Off = paused. Run now still works.
-            </span>
-          </label>
-          <Switch
-            id="cronjob-enabled"
-            checked={draft.enabled}
-            onCheckedChange={(enabled) => set({ enabled })}
-          />
-        </div>
+        <ToggleRow
+          id="cronjob-enabled"
+          label="Run on schedule"
+          hint="Off = paused. Run now still works."
+          checked={draft.enabled}
+          onChange={(enabled) => set({ enabled })}
+        />
         <Callout icon={<Info />}>{runsAs}</Callout>
       </Section>
     </>
@@ -605,6 +765,12 @@ function Editor({
       open={picking}
       onOpenChange={setPicking}
       role={target.role}
+      serversOnly={
+        (a === "archive" && target.role === "source") || a === "fetch"
+      }
+      need={a === "archive" ? "engineer" : undefined}
+      title={pickerTitle(a, target.role)}
+      description={pickerHint(a, target.role)}
       value={
         target.role === "source"
           ? (draft.source ?? undefined)
@@ -686,136 +852,6 @@ function Editor({
       <div className="grid max-w-5xl gap-6">{sections}</div>
       {picker}
       {conflictDialog}
-    </div>
-  )
-}
-
-// A titled block: a card on desktop, a plain full-width group on phones.
-function Section({
-  title,
-  hint,
-  phone,
-  children,
-}: {
-  title: string
-  hint?: string
-  phone: boolean
-  children: ReactNode
-}) {
-  return (
-    <section
-      className={cn(
-        "flex flex-col gap-4",
-        phone
-          ? "border-b border-border px-4 py-5"
-          : "rounded-2xl border border-border p-6 lg:grid lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-8",
-      )}
-    >
-      <div>
-        <h2 className="text-body font-medium">{title}</h2>
-        {hint && (
-          <p className="mt-0.5 text-caption text-muted-foreground">{hint}</p>
-        )}
-      </div>
-      <div className="flex min-w-0 flex-col gap-4">{children}</div>
-    </section>
-  )
-}
-
-function EndRow({
-  end,
-  onChange,
-  onRemove,
-  label,
-}: {
-  end: EndDraft
-  onChange: () => void
-  onRemove?: () => void
-  label: string
-}) {
-  return (
-    <div className="flex items-center gap-1 rounded-lg border border-input ps-3">
-      <button
-        type="button"
-        onClick={onChange}
-        aria-label={`${label}: ${endName({ ...end, missing: !!end.missing })} ${end.path}`}
-        className="flex min-h-12 min-w-0 flex-1 items-center gap-3 py-2 text-start outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
-        <EndIcon end={end} className="size-4 shrink-0 text-muted-foreground" />
-        <span className="min-w-0 flex-1">
-          <span
-            className={cn(
-              "block truncate text-body-sm font-medium",
-              end.missing && "text-destructive",
-            )}
-          >
-            {endName({ ...end, missing: !!end.missing })}
-          </span>
-          <span className="block truncate font-mono text-caption text-muted-foreground">
-            {end.path}
-          </span>
-        </span>
-        <Pencil className="size-4 shrink-0 text-ash" />
-      </button>
-      {onRemove ? (
-        <Button
-          variant="ghost"
-          size="icon-lg"
-          aria-label="Remove"
-          className="shrink-0 md:size-9"
-          onClick={onRemove}
-        >
-          <X />
-        </Button>
-      ) : (
-        <span className="w-2" />
-      )}
-    </div>
-  )
-}
-
-function AddButton({
-  onClick,
-  children,
-}: {
-  onClick: () => void
-  children: ReactNode
-}) {
-  return (
-    <Button
-      variant="outline"
-      className="h-11 justify-start self-stretch border-dashed md:h-10 md:self-start"
-      onClick={onClick}
-    >
-      <Plus />
-      {children}
-    </Button>
-  )
-}
-
-function FieldError({ text }: { text?: string }) {
-  if (!text) return null
-  return <p className="text-caption text-destructive">{text}</p>
-}
-
-function Callout({
-  icon,
-  tone,
-  children,
-}: {
-  icon: ReactNode
-  tone?: "warning"
-  children: ReactNode
-}) {
-  return (
-    <div
-      className={cn(
-        "flex gap-2.5 rounded-lg bg-subtle px-3 py-2.5 text-caption text-muted-foreground [&>svg]:mt-px [&>svg]:size-4 [&>svg]:shrink-0",
-        tone === "warning" && "[&>svg]:text-warning",
-      )}
-    >
-      {icon}
-      <p>{children}</p>
     </div>
   )
 }

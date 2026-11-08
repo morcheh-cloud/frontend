@@ -139,11 +139,6 @@ function Editor({ user }: { user: PanelUser }) {
       <PageHeader
         title={waiting ? `Approve ${name}` : `Access for ${name}`}
         guide="access"
-        description={
-          waiting
-            ? `${user.email} · @${user.username}. Choose what they can reach; you can change it any time.`
-            : `@${user.username}. Tick what they can reach, then save.`
-        }
       />
       {user.role === "admin" && (
         <p className="mx-4 mt-4 rounded-lg bg-subtle px-3 py-2 text-body-sm text-muted-foreground md:mx-6">

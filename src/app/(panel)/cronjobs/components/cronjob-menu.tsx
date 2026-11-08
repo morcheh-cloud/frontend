@@ -14,6 +14,7 @@ import type { Item } from "@/app/(panel)/servers/[id]/components/parts"
 import type { Schedule } from "@/lib/services"
 import { runActive } from "../api"
 import { useCronjobActions } from "./cronjob-actions"
+import { canTest } from "./meta"
 import { useCronjobCan } from "./permissions"
 
 // A cron job's actions, for the list's ⋯ menu, its phone sheet and the job
@@ -38,13 +39,17 @@ export function useCronjobMenu(
             disabled: blocked,
             onSelect: () => a.run(s),
           },
-          {
-            key: "test",
-            label: "Test run",
-            icon: <FlaskConical />,
-            disabled: blocked,
-            onSelect: () => a.run(s, { dryRun: true }),
-          },
+          ...(canTest(s.action)
+            ? [
+                {
+                  key: "test",
+                  label: "Test run",
+                  icon: <FlaskConical />,
+                  disabled: blocked,
+                  onSelect: () => a.run(s, { dryRun: true }),
+                },
+              ]
+            : []),
         ]
       : [],
     [

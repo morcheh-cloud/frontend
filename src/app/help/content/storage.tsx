@@ -371,16 +371,241 @@ aws s3 ls s3://backups --endpoint-url https://s3.example.com
     ),
   },
   {
+    id: "buckets",
+    title: "S3 buckets",
+    body: (
+      <>
+        <P>
+          On an S3 storage without a fixed bucket, the top level lists every
+          bucket. Buckets have a box icon and a <UI>Bucket</UI> tag, so they
+          never pass for folders. Everything inside a bucket works like folders
+          and files.
+        </P>
+        <Steps>
+          <div>
+            To make one, open the storage's top level and choose{" "}
+            <UI>New › Bucket</UI> (<UI>New bucket</UI> on a phone).
+          </div>
+          <div>
+            Enter a name: lowercase letters, digits, dots and hyphens, 3–63
+            characters. On AWS the name must be unique across every account.
+          </div>
+          <div>
+            Optionally set a <UI>Region</UI> (empty = the storage's), turn on{" "}
+            <UI>Versioning</UI>, or turn on <UI>Object lock</UI>. Object lock
+            can only be turned on now, when the bucket is made.
+          </div>
+        </Steps>
+        <P>
+          To change a bucket, right-click it, or press its <UI>⋯</UI> (a long
+          press on phones), then choose <UI>Bucket settings</UI>. A storage
+          pinned to one bucket has a <UI>Bucket settings</UI> button in its
+          header instead (in the <UI>⋯</UI> sheet on phones). The settings have
+          five tabs:
+        </P>
+        <Table
+          head={["Tab", "What it holds"]}
+          rows={[
+            [
+              <UI key="o">Overview</UI>,
+              "Region, creation date, size; versioning on or paused; tags; empty or delete the bucket.",
+            ],
+            [
+              <UI key="a">Access</UI>,
+              "Who can read it without a key: Private, Anyone with a link, Public, or your own policy (JSON).",
+            ],
+            [
+              <UI key="l">Lifecycle</UI>,
+              "Rules the provider runs every day: delete objects or old versions after N days, move them to a cheaper class, clean leftovers.",
+            ],
+            [
+              <UI key="c">CORS</UI>,
+              "Which websites may call the bucket from a browser, e.g. a web app uploading straight to it.",
+            ],
+            [
+              <UI key="s">Security</UI>,
+              "Default encryption (SSE-S3 or SSE-KMS) and the object lock retention.",
+            ],
+          ]}
+        />
+        <Table
+          head={["Who", "Can change"]}
+          rows={[
+            ["Viewer, Operator", "Nothing; they see the settings."],
+            [
+              "Engineer",
+              "Make and empty buckets, versioning, tags, lifecycle, CORS.",
+            ],
+            ["Owner", "Access (public or not), encryption, retention."],
+          ]}
+        />
+        <Warn>
+          <UI>Empty bucket…</UI> and <UI>Delete bucket</UI> remove every object,
+          old versions included, and can't be undone. You type the bucket's name
+          to confirm.
+        </Warn>
+        <P>
+          A setting the provider doesn't offer (MinIO has no CORS, and needs a
+          KMS for encryption) says so when you save, and nothing changes. When
+          the provider won't tell Morcheh a setting, the tab shows{" "}
+          <UI>Couldn't read this setting</UI> with its reason.
+        </P>
+      </>
+    ),
+  },
+  {
+    id: "bucket-access",
+    title: "Making a bucket public",
+    body: (
+      <>
+        <P>
+          <UI>Access</UI> decides what anonymous users (no key) may do.
+          Signed-in use through Morcheh, access keys and share links work
+          whatever you pick.
+        </P>
+        <Table
+          head={["Choice", "What anonymous users get"]}
+          rows={[
+            [<UI key="p">Private</UI>, "Nothing."],
+            [
+              <UI key="d">Anyone with a link</UI>,
+              "Download a file whose address they know. They can't list the bucket.",
+            ],
+            [
+              <UI key="u">Public</UI>,
+              "List every file and download it, e.g. a static site's assets.",
+            ],
+            [
+              <UI key="c">Custom policy</UI>,
+              "Exactly what your JSON bucket policy says.",
+            ],
+          ]}
+        />
+        <Example title="A public file's address">
+          <Code>{`https://s3.example.com/assets/img/logo.png   (path style, MinIO)
+https://assets.s3.amazonaws.com/img/logo.png  (AWS)`}</Code>
+        </Example>
+        <P>
+          Picking one of the first three changes only the statements about
+          anonymous users and keeps the rest of the policy. A red notice says
+          when a policy lets anyone write or delete.
+        </P>
+        <Warn>
+          On AWS, <UI>Block Public Access</UI> on the account or the bucket
+          overrides this: turn it off in the AWS console first, or saving Public
+          fails.
+        </Warn>
+      </>
+    ),
+  },
+  {
+    id: "bucket-lifecycle",
+    title: "Lifecycle rules and versioning",
+    body: (
+      <>
+        <P>
+          With <UI>Versioning</UI> on, an overwrite or delete keeps the old
+          version, so a mistake can be undone. The catch is that old versions
+          take space forever, so pair versioning with a lifecycle rule.
+          Versioning can be paused but never fully turned off, and not paused at
+          all under object lock.
+        </P>
+        <Steps>
+          <div>
+            Open <UI>Bucket settings › Lifecycle</UI>.
+          </div>
+          <div>
+            Press a <UI>Quick add</UI> chip (e.g.{" "}
+            <UI>Delete old versions after 30 days</UI>) or <UI>Add rule</UI>,
+            and set the days.
+          </div>
+          <div>
+            Optionally limit it to a prefix such as <C>logs/</C>. Empty means
+            the whole bucket.
+          </div>
+          <div>
+            Press <UI>Save</UI>. Every rule is saved at once, and <UI>Undo</UI>{" "}
+            drops your changes.
+          </div>
+        </Steps>
+        <Recommended
+          rows={[
+            {
+              setting: "Backups bucket",
+              value: "Versioning on + old versions after 30 days",
+              why: "A deleted or overwritten backup can still be brought back for a month.",
+            },
+            {
+              setting: "Logs",
+              value: (
+                <>
+                  Prefix <C>logs/</C>, delete after 90 days
+                </>
+              ),
+              why: "Keeps the bucket from growing without end.",
+            },
+            {
+              setting: "Every bucket",
+              value: "Unfinished uploads after 7 days",
+              why: "Failed multipart uploads take space but never show as files (MinIO clears them by itself).",
+            },
+          ]}
+        />
+        <Tip>
+          A rule made outside Morcheh with tag or size filters says{" "}
+          <UI>more set elsewhere</UI>. Those parts are kept when you save.
+        </Tip>
+      </>
+    ),
+  },
+  {
+    id: "bucket-security",
+    title: "Encryption and object lock",
+    body: (
+      <>
+        <P>
+          <UI>Default encryption</UI> applies to new objects. <UI>SSE-S3</UI>{" "}
+          uses keys the provider manages. <UI>SSE-KMS</UI> uses a key from the
+          provider's key service, with its own permissions and audit log; leave
+          the key empty for the default one.
+        </P>
+        <P>
+          <UI>Object lock</UI> keeps objects from being deleted or overwritten
+          for a set time, which makes backups safe from ransomware or a stolen
+          key. Turn it on when the bucket is made, then pick a default retention
+          under <UI>Security</UI>:
+        </P>
+        <Table
+          head={["Mode", "Meaning"]}
+          rows={[
+            [
+              <UI key="g">Governance</UI>,
+              "Kept for N days, but a user with a special bypass permission can still remove them.",
+            ],
+            [
+              <UI key="c">Compliance</UI>,
+              "Nobody, the root account included, can delete them or shorten the time until the days pass.",
+            ],
+          ]}
+        />
+        <Warn>
+          Start with Governance and a few days. Compliance objects stay, and are
+          billed, for the full time, even if you made a mistake.
+        </Warn>
+      </>
+    ),
+  },
+  {
     id: "insights",
     title: "Insights: charts and statistics",
     body: (
       <>
         <P>
-          The <UI>Insights</UI> tab on the Storage page shows how your storages
-          have been doing: whether they stayed reachable, how fast they
-          answered, how much they hold and what was copied to or from them. Pick{" "}
-          <UI>24 hours</UI>, <UI>7 days</UI> or <UI>30 days</UI> at the top; the
-          page refreshes by itself every minute.
+          The <UI>Insights</UI> tab, which the Storage page opens on, shows how
+          your storages have been doing: whether they stayed reachable, how fast
+          they answered, how much they hold and what was copied to or from them.
+          Pick <UI>24 hours</UI>, <UI>7 days</UI> or <UI>30 days</UI> at the
+          top; the page refreshes by itself every minute.
         </P>
         <Table
           head={["Part", "What it shows"]}

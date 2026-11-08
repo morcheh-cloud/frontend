@@ -6,11 +6,14 @@ import {
   ClipboardCopy,
   Copy,
   Download,
+  Eraser,
   Eye,
   FileInput,
   FolderArchive,
   FolderInput,
   FolderOpen,
+  Globe,
+  History,
   Info,
   Link,
   type LucideIcon,
@@ -18,6 +21,7 @@ import {
   Pencil,
   Scissors,
   Send,
+  Settings2,
   ShieldCheck,
   SquarePen,
   SquareTerminal,
@@ -223,11 +227,50 @@ export function useEntryMenu() {
         },
       )
 
+    // One S3 bucket: its settings, opened at the tab asked for.
+    const bucketGroup: MenuItem[] = []
+    const hooks = source.bucketHooks
+    if (one && entry.bucket && hooks) {
+      bucketGroup.push(
+        {
+          key: "bucket-settings",
+          label: "Bucket settings",
+          icon: Settings2,
+          onSelect: () => hooks.settings(entry.name),
+        },
+        {
+          key: "bucket-access",
+          label: "Who can read it…",
+          icon: Globe,
+          onSelect: () => hooks.settings(entry.name, "access"),
+        },
+        {
+          key: "bucket-lifecycle",
+          label: "Lifecycle rules…",
+          icon: History,
+          onSelect: () => hooks.settings(entry.name, "lifecycle"),
+        },
+      )
+      const { empty } = hooks
+      if (write && empty)
+        bucketGroup.push({
+          key: "bucket-empty",
+          label: "Empty bucket…",
+          icon: Eraser,
+          destructive: true,
+          onSelect: () => empty(entry.name),
+        })
+    }
+
     const deleteGroup: MenuItem[] = write
       ? [
           {
             key: "delete",
-            label: one ? "Delete" : `Delete ${targets.length} items`,
+            label: one
+              ? entry.bucket
+                ? "Delete bucket"
+                : "Delete"
+              : `Delete ${targets.length} items`,
             icon: Trash2,
             shortcut: "Del",
             destructive: true,
@@ -238,7 +281,7 @@ export function useEntryMenu() {
 
     return {
       targets,
-      groups: [openGroup, editGroup, moreGroup, deleteGroup],
+      groups: [openGroup, bucketGroup, editGroup, moreGroup, deleteGroup],
     }
   }
 }

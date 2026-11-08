@@ -23,23 +23,26 @@ export const cronjobs: GuideSection[] = [
       <>
         <P>
           <A href="/cronjobs">Cron jobs</A> are jobs Morcheh runs itself, on a
-          schedule. Each one copies a folder (or one file) from a server or
-          storage to one or more servers or storages: every night, every hour,
-          every 15 minutes, whatever you set.
+          schedule: every night, every hour, every 15 minutes, whatever you set.
+          Each job does one thing, chosen when it's made: copy files, archive a
+          folder, download a file, run a script or a playbook, act on a service,
+          reboot servers or verify database backups (see{" "}
+          <See guide="cronjobs" section="actions" />
+          ).
         </P>
         <List>
           <li>
-            Any direction works: server → storage (backups), storage → server
-            (deploying files), server → server, storage → storage. One source
-            can go to up to 20 destinations at once.
+            Copying works in any direction: server → storage (backups), storage
+            → server (deploying files), server → server, storage → storage. One
+            source can go to up to 20 destinations at once.
           </li>
           <li>
             Nothing is installed on your servers. Morcheh connects with the
             saved SSH login or storage credentials and streams the files itself.
           </li>
           <li>
-            Each run is kept in the job's history with what it copied, skipped
-            and deleted at every destination. A run is also a background task,
+            Each run is kept in the job's history with its result on every
+            destination, server or database. A run is also a background task,
             shown in <See guide="tasks" />.
           </li>
           <li>
@@ -47,6 +50,62 @@ export const cronjobs: GuideSection[] = [
             server's <See guide="cron" /> tab instead.
           </li>
         </List>
+      </>
+    ),
+  },
+  {
+    id: "actions",
+    title: "What a job can do",
+    body: (
+      <>
+        <Table
+          head={["Action", "What it does"]}
+          rows={[
+            [
+              <UI key="sync">Copy files</UI>,
+              "Copies a folder (or one file) from a server or storage to up to 20 servers and storages, in one of three modes (see Modes).",
+            ],
+            [
+              <UI key="archive">Archive a folder</UI>,
+              "Packs a server folder into one .tar.gz on that server (name-2026-11-08_03-00-00.tar.gz), sends it to servers and storages and deletes all but the newest N there.",
+            ],
+            [
+              <UI key="fetch">Download a file</UI>,
+              "Each chosen server downloads an http(s) address into its folder: block lists, GeoIP files, a release. It must reach the address itself.",
+            ],
+            [
+              <UI key="script">Run a script</UI>,
+              "A saved script (with its parameters) or a command typed into the job, on up to 200 servers, 5 at a time. The output is a normal script run.",
+            ],
+            [
+              <UI key="ansible">Run a playbook</UI>,
+              "A saved playbook on servers picked by name, tag or folder. Tags and folders are read at each run, so new servers join on their own.",
+            ],
+            [
+              <UI key="service">Service action</UI>,
+              "Starts, stops, restarts or reloads a systemd service on servers. A server without it is marked failed; the others go on.",
+            ],
+            [
+              <UI key="reboot">Reboot servers</UI>,
+              "Reboots servers one at a time, waiting for each to come back. Can skip those that don't need it or have someone logged in.",
+            ],
+            [
+              <UI key="verify">Verify backups</UI>,
+              "Reads back the latest backup of a database (every plan, or one) on every storage it's kept on and compares its checksum. Nothing is restored.",
+            ],
+          ]}
+        />
+        <P>
+          The action can't be changed later: for something else, make a new job.
+          A saved script or playbook is read again at every run, so edits to it
+          count from the next run. Script, playbook and backup check runs link
+          to their own page (<See guide="scripts" />, <See guide="ansible" />,{" "}
+          <See guide="databases" section="backups" />) from the run's details.
+        </P>
+        <Tip>
+          Only <UI>Copy files</UI> has a <UI>Test run</UI>. To try any other
+          job, press <UI>Run now</UI> on a server you can afford to touch.
+        </Tip>
       </>
     ),
   },
@@ -62,16 +121,16 @@ export const cronjobs: GuideSection[] = [
               <UI>New cron job</UI>.
             </>,
             <>
-              Give it a name, like <C>Nightly uploads backup</C>.
+              Under <UI>What it does</UI> pick the action, then give it a name,
+              like <C>Nightly uploads backup</C>.
             </>,
             <>
-              Under <UI>Copy from</UI> press <UI>Choose source</UI>, pick the
-              server or storage, then the folder. Browse the folder tree or type
-              the path; both stay in step.
-            </>,
-            <>
-              Under <UI>Copy to</UI> add each destination the same way. Missing
-              folders are created on the first run.
+              Fill in the action's part. For copying: under <UI>Copy from</UI>{" "}
+              press <UI>Choose source</UI>, pick the server or storage, then the
+              folder (browse the tree or type the path; both stay in step), and
+              add each destination under <UI>Copy to</UI> the same way. Missing
+              folders are created on the first run. Other actions ask for their
+              script, playbook, service, servers or database instead.
             </>,
             <>
               Set <UI>When</UI>: every few minutes, hourly, daily, weekly,
@@ -79,12 +138,13 @@ export const cronjobs: GuideSection[] = [
               runs shown under it.
             </>,
             <>
-              Pick the mode (see <See guide="cronjobs" section="modes" />
-              ), add anything to leave out, then press <UI>Create</UI>.
+              For copying, pick the mode (see{" "}
+              <See guide="cronjobs" section="modes" />) and add anything to
+              leave out. Then press <UI>Create</UI>.
             </>,
             <>
-              On the job's page, press <UI>Test run</UI> to see what it would
-              do, then <UI>Run now</UI> or wait for its time.
+              On the job's page, press <UI>Test run</UI> (copying only) to see
+              what it would do, then <UI>Run now</UI> or wait for its time.
             </>,
           ]}
         </Steps>
@@ -124,6 +184,48 @@ export const cronjobs: GuideSection[] = [
             Source: <C>app-1</C>, <C>/srv/data</C>. Destination: <C>app-2</C>,{" "}
             <C>/srv/data</C>. When: every hour. Mode: <UI>Mirror</UI>, with{" "}
             <C>*.tmp</C> and <C>cache</C> left out.
+          </P>
+        </Example>
+        <Example title="Weekly archive of a site, 8 kept on S3">
+          <P>
+            Action: <UI>Archive a folder</UI>. Folder: <C>web-1</C>,{" "}
+            <C>/var/www/site</C>. Send to: storage <C>backups</C>,{" "}
+            <C>/archives/site</C>. When: <UI>Every week</UI>, Sunday 02:00.
+            Archives to keep: <C>8</C>, leave out <C>cache</C>. Two months of
+            single-file archives, easy to download whole.
+          </P>
+        </Example>
+        <Example title="Refresh a block list every 6 hours">
+          <P>
+            Action: <UI>Download a file</UI>. Address{" "}
+            <C>https://example.com/lists/blocklist.txt</C>, save in{" "}
+            <C>/etc/nginx/blocklist</C> on every web server,{" "}
+            <UI>Replace the file each time</UI> on. Follow it with a{" "}
+            <UI>Service action</UI> job that reloads <C>nginx</C> 5 minutes
+            later.
+          </P>
+        </Example>
+        <Example title="Clean old logs every night">
+          <P>
+            Action: <UI>Run a script</UI>, <UI>Type a command</UI>, run as{" "}
+            <C>root</C>:
+          </P>
+          <Code>{"find /var/log/app -name '*.log' -mtime +14 -delete"}</Code>
+        </Example>
+        <Example title="Patch reboots on Sunday night">
+          <P>
+            Action: <UI>Reboot servers</UI> on the app servers, with{" "}
+            <UI>Only when a reboot is needed</UI> and{" "}
+            <UI>Not while someone is logged in</UI> on. When: Sunday 04:00. Only
+            servers that got a kernel update reboot, one after another.
+          </P>
+        </Example>
+        <Example title="Check backups every morning">
+          <P>
+            Action: <UI>Verify backups</UI>, database <C>shop</C>, every plan.
+            When: every day at 07:00, after the night's backups. A copy that
+            doesn't read back fails the run, which shows on the menu's red
+            count.
           </P>
         </Example>
         <Example title="Copy one bucket to another provider">
@@ -294,9 +396,34 @@ cache/tmp`}</Code>
           ]}
         />
         <P>
-          Saving a job also needs Operator on the source and Engineer on every
-          destination; the picker greys out the ones you can't use (and
-          read-only storages as destinations).
+          Saving a job also needs access to what it touches; pickers grey out
+          what you can't use (and read-only storages as destinations):
+        </P>
+        <Table
+          head={["Action", "Needs"]}
+          rows={[
+            [
+              "Copy files",
+              "Operator on the source, Engineer on every destination",
+            ],
+            [
+              "Archive a folder",
+              "Engineer on the folder's server and every destination",
+            ],
+            ["Download a file", "Engineer on every server it saves to"],
+            ["Run a script", "Engineer on every server"],
+            ["Run a playbook", "Owner on every server it runs on"],
+            [
+              "Service action",
+              "Operator; Engineer to stop a protected service",
+            ],
+            ["Reboot servers", "Operator on every server"],
+            ["Verify backups", "Operator on the database"],
+          ]}
+        />
+        <P>
+          <UI>Run now</UI> on a reboot job asks first, since it reboots straight
+          away.
         </P>
         <P>
           A job runs with the access of whoever saved it last, shown as{" "}
@@ -368,6 +495,30 @@ cache/tmp`}</Code>
           [
             "Mirror failed: source folder is empty",
             "On purpose: an empty source usually means a mount went missing, so nothing was deleted. Check the source.",
+          ],
+          [
+            "Reboot skipped: “login session(s) open”",
+            "Someone was logged in to that server. It's tried again at the next run; turn Not while someone is logged in off to reboot anyway.",
+          ],
+          [
+            "Reboot failed: “didn't come back within 15 minutes”",
+            "The server wasn't reachable 15 minutes after rebooting, so the servers after it were left alone (Not rebooted). Check its console.",
+          ],
+          [
+            "Service action failed on some servers",
+            "Open the run: usually that server has no unit with that name. Check the exact name on its Services tab (.service is added for you).",
+          ],
+          [
+            "A protected service wasn't stopped",
+            "sshd, dbus, journald and the like keep the server reachable. Edit the job and turn on Even if it's protected (needs Engineer).",
+          ],
+          [
+            "Playbook run failed before starting",
+            "A target server is unreachable or the person it runs as lost Owner on it. Fix the server, or change the job's servers and save.",
+          ],
+          [
+            "Download failed: couldn't fetch",
+            "The server itself couldn't reach the address (firewall, DNS, proxy) or got an error page. Try the address with curl on that server.",
           ],
           [
             "Every file copied every time (FTP)",

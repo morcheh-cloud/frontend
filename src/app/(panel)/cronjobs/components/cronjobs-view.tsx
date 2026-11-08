@@ -24,7 +24,6 @@ import { timeAgo } from "@/app/(panel)/servers/components/meta"
 import { BottomSheet } from "@/components/bottom-sheet"
 import { guideHref } from "@/components/help/guides"
 import { HelpButton } from "@/components/help/help-link"
-import { PageHeader } from "@/components/panel/page-header"
 import { useWorkspace } from "@/components/panel/workspace"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -37,16 +36,19 @@ import { runActive, useCronjobs } from "../api"
 import { useCronjobActions } from "./cronjob-actions"
 import { useCronjobMenu } from "./cronjob-menu"
 import {
+  ActionIcon,
+  actionMeta,
   cronText,
   EndLabel,
   endName,
-  flowText,
   formatInZone,
+  jobSummary,
   modeMeta,
   needsAttention,
   RunStateBadge,
   runHref,
   type Show,
+  taskFacts,
   useCronjobFilters,
 } from "./meta"
 import { useCronjobCan } from "./permissions"
@@ -76,7 +78,10 @@ function View({ phone }: { phone: boolean }) {
       !needle ||
       s.name.toLowerCase().includes(needle) ||
       s.description.toLowerCase().includes(needle) ||
-      [s.source, ...s.destinations].some(
+      jobSummary(s).toLowerCase().includes(needle) ||
+      actionMeta[s.action]?.label.toLowerCase().includes(needle) ||
+      s.refs.some((r) => r.name.toLowerCase().includes(needle)) ||
+      [...(s.source ? [s.source] : []), ...s.destinations].some(
         (e) =>
           endName(e).toLowerCase().includes(needle) ||
           e.path.toLowerCase().includes(needle),
@@ -104,21 +109,7 @@ function View({ phone }: { phone: boolean }) {
         </Button>
       )}
     </header>
-  ) : (
-    <PageHeader
-      title="Cron jobs"
-      description="Jobs Morcheh runs on a schedule: keep folders in sync between servers and storages, in any direction."
-      guide="cronjobs"
-      actions={
-        can.edit && (
-          <Button onClick={create}>
-            <Plus />
-            New cron job
-          </Button>
-        )
-      }
-    />
-  )
+  ) : null
 
   let body: ReactNode
   if (list.isPending) body = <Placeholder phone={phone} />
@@ -170,14 +161,35 @@ function View({ phone }: { phone: boolean }) {
           phone ? "pt-4" : "gap-4 px-6 pt-5",
         )}
       >
-        {all.length > 0 && <Bar phone={phone} items={searched} />}
+        {all.length > 0 && (
+          <Bar
+            phone={phone}
+            items={searched}
+            action={
+              can.edit && (
+                <Button onClick={create}>
+                  <Plus />
+                  New cron job
+                </Button>
+              )
+            }
+          />
+        )}
         {body}
       </div>
     </>
   )
 }
 
-function Bar({ phone, items }: { phone: boolean; items: Schedule[] }) {
+function Bar({
+  phone,
+  items,
+  action,
+}: {
+  phone: boolean
+  items: Schedule[]
+  action?: ReactNode
+}) {
   const [{ q, show }, setFilters] = useCronjobFilters()
   const count = (s: Show) => items.filter((x) => matches(x, s)).length
   const attention = count("attention")
@@ -220,6 +232,7 @@ function Bar({ phone, items }: { phone: boolean; items: Schedule[] }) {
     <div className="flex flex-wrap items-center gap-2">
       {search}
       {filter}
+      {action && <div className="ms-auto flex gap-2">{action}</div>}
     </div>
   )
 }
@@ -250,7 +263,7 @@ function Table({ items }: { items: Schedule[] }) {
         <thead className="border-b border-border bg-subtle text-caption text-muted-foreground">
           <tr>
             <Th>Name</Th>
-            <Th className="hidden @4xl:table-cell">Copies</Th>
+            <Th className="hidden @4xl:table-cell">Does</Th>
             <Th>Schedule</Th>
             <Th className="hidden @3xl:table-cell">Next run</Th>
             <Th>Last run</Th>
@@ -282,8 +295,11 @@ function Row({ s }: { s: Schedule }) {
           href={`/cronjobs/${s.id}`}
           className="flex items-center gap-3 outline-none hover:text-brand focus-visible:text-brand"
         >
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-            <CalendarClock className="size-4" />
+          <span
+            title={actionMeta[s.action]?.label}
+            className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"
+          >
+            <ActionIcon action={s.action} className="size-4" />
           </span>
           <span className="min-w-0">
             <span className="flex items-center gap-1.5">
@@ -303,7 +319,7 @@ function Row({ s }: { s: Schedule }) {
               )}
             </span>
             <span className="block truncate text-caption text-ash @4xl:hidden">
-              {flowText(s)}
+              {jobSummary(s)}
             </span>
             {s.description && (
               <span className="hidden truncate text-caption text-ash @4xl:block">
@@ -314,22 +330,33 @@ function Row({ s }: { s: Schedule }) {
         </Link>
       </td>
       <td className="hidden max-w-96 px-3 @4xl:table-cell">
-        <div className="flex flex-col gap-0.5 text-caption">
-          <EndLabel end={s.source} />
-          <span className="flex min-w-0 items-center gap-1.5">
-            <ArrowRight className="size-3.5 shrink-0 text-ash" />
-            {s.destinations.length === 1 ? (
-              <EndLabel end={s.destinations[0]} />
-            ) : (
-              <span className="truncate text-muted-foreground">
-                {s.destinations.length} places
+        {s.action === "sync" && s.source ? (
+          <div className="flex flex-col gap-0.5 text-caption">
+            <EndLabel end={s.source} />
+            <span className="flex min-w-0 items-center gap-1.5">
+              <ArrowRight className="size-3.5 shrink-0 text-ash" />
+              {s.destinations.length === 1 ? (
+                <EndLabel end={s.destinations[0]} />
+              ) : (
+                <span className="truncate text-muted-foreground">
+                  {s.destinations.length} places
+                </span>
+              )}
+              <span className="shrink-0 text-ash">
+                · {modeMeta[s.options.mode]?.short}
               </span>
-            )}
-            <span className="shrink-0 text-ash">
-              · {modeMeta[s.options.mode].short}
             </span>
-          </span>
-        </div>
+          </div>
+        ) : (
+          <div className="flex min-w-0 flex-col gap-0.5 text-caption">
+            <span className="truncate font-medium">
+              {actionMeta[s.action]?.label}
+            </span>
+            <span className="truncate text-muted-foreground">
+              {jobSummary(s)}
+            </span>
+          </div>
+        )}
       </td>
       <td className="max-w-56 px-3">
         <span className="block truncate">{cronText(s.cron)}</span>
@@ -420,7 +447,7 @@ function Rows({ items }: { items: Schedule[] }) {
                     : "bg-muted text-ash",
                 )}
               >
-                <CalendarClock className="size-5" />
+                <ActionIcon action={s.action} className="size-5" />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-1.5">
@@ -432,7 +459,7 @@ function Rows({ items }: { items: Schedule[] }) {
                   )}
                 </span>
                 <span className="block truncate text-body-sm text-muted-foreground">
-                  {s.enabled ? cronText(s.cron) : "Paused"} · {flowText(s)}
+                  {s.enabled ? cronText(s.cron) : "Paused"} · {jobSummary(s)}
                 </span>
                 {s.last_run && (
                   <span className="mt-0.5 flex items-center gap-2">
@@ -486,13 +513,8 @@ function JobSheet({
       )}
       <Facts
         items={[
-          { label: "From", value: `${endName(s.source)}:${s.source.path}` },
-          {
-            label: "To",
-            value: s.destinations
-              .map((d) => `${endName(d)}:${d.path}`)
-              .join("\n"),
-          },
+          { label: "Does", value: actionMeta[s.action]?.label ?? s.action },
+          ...taskFacts(s),
           { label: "Schedule", value: cronText(s.cron) },
           {
             label: "Next run",

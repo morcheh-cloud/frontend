@@ -48,11 +48,7 @@ export function TasksView() {
 
   return (
     <>
-      <PageHeader
-        title="Tasks"
-        description="Copies, archives, downloads and installs running in the background."
-        guide="tasks"
-      />
+      <PageHeader title="Tasks" guide="tasks" />
       <div className="flex flex-col gap-3 px-4 pt-4 md:flex-row md:items-center md:px-6">
         <div className="flex items-center gap-2">
           <SearchBox

@@ -2,11 +2,11 @@ import { parseAsStringLiteral, useQueryStates } from "nuqs"
 
 import { insightRanges } from "@/components/insights/format"
 
-export const storageTabs = ["storages", "insights"] as const
+export const storageTabs = ["insights", "storages"] as const
 
-// /storage?tab=insights&range=30d
+// /storage?tab=storages · /storage?range=30d (Insights is the default tab)
 export const storagePageFilters = {
-  tab: parseAsStringLiteral(storageTabs).withDefault("storages"),
+  tab: parseAsStringLiteral(storageTabs).withDefault("insights"),
   range: parseAsStringLiteral(insightRanges).withDefault("7d"),
 }
 

@@ -17,7 +17,8 @@ import {
 } from "../api"
 import { runHref } from "./meta"
 
-type Job = Pick<Schedule, "id" | "name" | "workspace_id">
+type Job = Pick<Schedule, "id" | "name" | "workspace_id"> &
+  Partial<Pick<Schedule, "action">>
 
 type Actions = {
   // Starts a run. A test run opens its result; a real one is followed in
@@ -57,20 +58,31 @@ export function CronjobActionsProvider({ children }: { children: ReactNode }) {
   const [toCancel, setToCancel] = useState<string>()
   const [runRmOpen, setRunRmOpen] = useOpen("cronjob-run-remove")
   const [runRm, setRunRm] = useState<{ id: string; after?: () => void }>()
+  const [rebootOpen, setRebootOpen] = useOpen("cronjob-reboot-now")
+  const [toReboot, setToReboot] = useState<Job>()
+
+  const start = (s: Job, dryRun: boolean, done?: () => void) =>
+    runMutation.mutate(
+      { id: s.id, dryRun },
+      {
+        onSuccess: (out) => {
+          done?.()
+          if (out.job) jobs.track(out.job)
+          if (dryRun) router.push(runHref(s.id, out.run.id))
+        },
+        onError: errorToast,
+      },
+    )
 
   const actions: Actions = {
+    // A reboot job run by hand restarts its servers at once: ask first.
     run: (s, opts) => {
-      const dryRun = !!opts?.dryRun
-      runMutation.mutate(
-        { id: s.id, dryRun },
-        {
-          onSuccess: (out) => {
-            if (out.job) jobs.track(out.job)
-            if (dryRun) router.push(runHref(s.id, out.run.id))
-          },
-          onError: errorToast,
-        },
-      )
+      if (s.action === "reboot") {
+        setToReboot(s)
+        setRebootOpen(true)
+        return
+      }
+      start(s, !!opts?.dryRun)
     },
     running: runMutation.isPending,
     setEnabled: (s, enabled) =>
@@ -121,10 +133,21 @@ export function CronjobActionsProvider({ children }: { children: ReactNode }) {
         }}
       />
       <ConfirmDialog
+        open={rebootOpen}
+        onOpenChange={setRebootOpen}
+        title={`Reboot now: ${toReboot?.name ?? "this cron job"}?`}
+        description="Its servers restart right away, with the job's own checks (only when needed, not while someone is logged in). Anything running on them stops."
+        confirmLabel="Reboot now"
+        pending={runMutation.isPending}
+        onConfirm={() => {
+          if (toReboot) start(toReboot, false, () => setRebootOpen(false))
+        }}
+      />
+      <ConfirmDialog
         open={cancelOpen}
         onOpenChange={setCancelOpen}
         title="Stop this run?"
-        description="It stops after the file it's on. Files already copied stay; the rest are copied next time."
+        description="It stops after the step it's on. What's already done stays done; the rest happens next time."
         confirmLabel="Stop"
         pending={cancel.isPending}
         onConfirm={() => {

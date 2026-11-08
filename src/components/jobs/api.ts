@@ -105,6 +105,14 @@ export function refreshAfterJob(qc: QueryClient, job: Job) {
   if (job.kind === "schedule-sync") {
     qc.invalidateQueries({ queryKey: ["cronjobs"] })
   }
+  // Any other cron job: it may have started a script or Ansible run, checked
+  // backups or rebooted servers.
+  if (job.kind === "schedule-run") {
+    for (const root of ["cronjobs", "scripts", "ansible", "database-backups"]) {
+      qc.invalidateQueries({ queryKey: [root] })
+    }
+    qc.invalidateQueries({ queryKey: ["servers"] })
+  }
   // A backup also wrote into its storage's folder (below).
   if (job.kind.startsWith("database-backup")) {
     qc.invalidateQueries({ queryKey: ["database-backups"] })
