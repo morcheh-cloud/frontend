@@ -982,6 +982,29 @@ export interface CPU {
   usage_percent: number;
 }
 
+export interface Capabilities {
+  /** Raw directives in the proxy's own language */
+  advanced: boolean;
+  allow: boolean;
+  /** What its config is called, like nginx config */
+  config_label: string;
+  headers: boolean;
+  /** The config language, for syntax colors */
+  language: string;
+  paths: boolean;
+  types: string[];
+  websockets: boolean;
+}
+
+export interface Certificate {
+  certificate: string;
+  domains: string[];
+  /** @format date-time */
+  expires?: string;
+  key: string;
+  name: string;
+}
+
 export interface ChangePasswordBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -1176,6 +1199,17 @@ export interface CreateDnsZoneResponse {
    */
   $schema?: string;
   name: string;
+}
+
+export interface CreateProxyRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  kind: string;
+  /** @format uuid */
+  server_id: string;
 }
 
 export interface CreateStorageBucketRequest {
@@ -3821,6 +3855,17 @@ export interface Forward {
   zone?: string;
 }
 
+export interface GetProxyLogsResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** No such log on the server yet */
+  missing: boolean;
+  text: string;
+}
+
 export interface GrantBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -3938,6 +3983,14 @@ export interface GroupUpdateBody {
   name?: string;
 }
 
+export interface HeaderRule {
+  /** @maxLength 100 */
+  name: string;
+  to: "request" | "response";
+  /** @maxLength 2000 */
+  value: string;
+}
+
 export interface HealthOutputBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -3946,6 +3999,67 @@ export interface HealthOutputBody {
   $schema?: string;
   /** Overall service status */
   status: string;
+}
+
+export interface HostConfig {
+  /**
+   * Extra directives in the proxy's own language, added inside the site
+   * @maxLength 16384
+   */
+  advanced?: string;
+  /**
+   * Only these addresses or ranges may visit; empty = everyone
+   * @maxItems 200
+   */
+  allow?: string[];
+  /**
+   * Names it answers, like example.com or *.example.com
+   * @maxItems 50
+   * @minItems 1
+   */
+  domains: string[];
+  /** @maxItems 50 */
+  headers?: HeaderRule[];
+  /** Add the requested path and query to the target */
+  keep_path?: boolean;
+  /**
+   * Largest upload; 0 = the proxy's default
+   * @format int64
+   * @min 0
+   * @max 100000
+   */
+  max_body_mb?: number;
+  /**
+   * Paths sent somewhere else than the main upstream
+   * @maxItems 50
+   */
+  paths?: PathRule[];
+  /** Send the visitor's Host header on, not the upstream's */
+  preserve_host?: boolean;
+  /**
+   * 0 = 301
+   * @format int64
+   */
+  redirect_code?: 0 | 301 | 302 | 307 | 308;
+  /** Where visitors are sent, like https://example.com */
+  redirect_to?: string;
+  /** Folder the files are served from */
+  root?: string;
+  /** Answer unknown paths with index.html (single-page apps) */
+  spa?: boolean;
+  /**
+   * How long to wait for the upstream; 0 = the proxy's default
+   * @format int64
+   * @min 0
+   * @max 86400
+   */
+  timeout_seconds?: number;
+  /** Plain http only when left out */
+  tls?: HostTLS;
+  type: "proxy" | "redirect" | "static";
+  /** Where requests go, like http://127.0.0.1:3000 */
+  upstream?: string;
+  websockets?: boolean;
 }
 
 export interface HostNet {
@@ -3972,6 +4086,19 @@ export interface HostStats {
   skipped: number;
   /** @format int64 */
   unreachable: number;
+}
+
+export interface HostTLS {
+  http2?: boolean;
+  /** Path of the certificate (full chain) on the server */
+  certificate?: string;
+  enabled?: boolean;
+  /** Send plain http visitors to https */
+  force_https?: boolean;
+  /** Tell browsers to only use https for a year */
+  hsts?: boolean;
+  /** Path of its private key on the server */
+  key?: string;
 }
 
 export interface IDsBody {
@@ -4029,7 +4156,7 @@ export interface Job {
   finished_at?: string;
   /** @format uuid */
   id: string;
-  /** What it does: transfer, copy, move, storage-copy, storage-move, compress, extract, fetch, fail2ban-install, fail2ban-uninstall, firewall-install, firewall-apply, ansible-run, schedule-sync, schedule-run, script-run, database-backup, database-backup-verify or database-backup-restore */
+  /** What it does: transfer, copy, move, storage-copy, storage-move, compress, extract, fetch, fail2ban-install, fail2ban-uninstall, firewall-install, firewall-apply, ansible-run, schedule-sync, schedule-run, script-run, database-backup, database-backup-verify, database-backup-restore or proxy-setup */
   kind: string;
   /** What it printed (newest last); only on GET /jobs/{id} */
   log?: string;
@@ -4134,6 +4261,42 @@ export interface ListPlaybooksResponse {
    */
   $schema?: string;
   items: Playbook[];
+}
+
+export interface ListProxiesResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: Proxy[];
+}
+
+export interface ListProxyHistoryResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: ProxyChangeSummary[];
+}
+
+export interface ListProxyHostsEverywhereResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: ProxyFleetHost[];
+}
+
+export interface ListProxyKindsResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: ProxyKind[];
 }
 
 export interface ListServerNotesResponse {
@@ -4700,6 +4863,18 @@ export interface PanelWorkspace {
   storage_count: number;
 }
 
+export interface PathRule {
+  /** @maxLength 4096 */
+  advanced?: string;
+  /**
+   * Starts with /; matches it and everything under it
+   * @maxLength 500
+   */
+  path: string;
+  upstream: string;
+  websockets?: boolean;
+}
+
 export interface PinServerNoteRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -4978,6 +5153,30 @@ export interface PreviewHost {
   status: string;
 }
 
+export interface PreviewProxyHostRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  config: HostConfig;
+  /**
+   * The site being edited; empty for a new one
+   * @format uuid
+   */
+  host?: string;
+}
+
+export interface PreviewProxyHostResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  problems: ProxyProblem[];
+  text: string;
+}
+
 export interface PreviewScheduleRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -5073,6 +5272,202 @@ export interface Progress {
    * @format int64
    */
   total: number;
+}
+
+export interface Proxy {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  capabilities: Capabilities;
+  /** @format date-time */
+  created_at: string;
+  /** @format int64 */
+  host_count: number;
+  /**
+   * Sites whose file on the server isn't what the panel last wrote
+   * @format int64
+   */
+  host_problems: number;
+  id: string;
+  kind: string;
+  kind_label: string;
+  /** @format date-time */
+  last_checked_at?: string;
+  server_host: string;
+  server_id: string;
+  server_name: string;
+  server_status: string;
+  status:
+    | "unknown"
+    | "online"
+    | "stopped"
+    | "not_installed"
+    | "not_set_up"
+    | "config_error"
+    | "unreachable"
+    | "error";
+  status_message: string;
+  version: string;
+  workspace_id: string;
+}
+
+export interface ProxyActionRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  action: "test" | "reload" | "start" | "restart" | "stop";
+}
+
+export interface ProxyActionResult {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format int64 */
+  exit_code: number;
+  ok: boolean;
+  output: string;
+}
+
+export interface ProxyChangeDetail {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format date-time */
+  created_at: string;
+  /** @format int64 */
+  host_count: number;
+  /** Every site as it was right after this change */
+  hosts: ProxyHost[];
+  id: string;
+  summary: string;
+  user_name: string;
+}
+
+export interface ProxyChangeSummary {
+  /** @format date-time */
+  created_at: string;
+  /** @format int64 */
+  host_count: number;
+  id: string;
+  summary: string;
+  user_name: string;
+}
+
+export interface ProxyDetail {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  hosts: ProxyHost[];
+  proxy: Proxy;
+}
+
+export interface ProxyFleetHost {
+  host: ProxyHost;
+  kind: string;
+  proxy_status: string;
+  server_id: string;
+  server_name: string;
+  workspace_id: string;
+}
+
+export interface ProxyHost {
+  config: HostConfig;
+  /** @format date-time */
+  created_at: string;
+  created_by_name: string;
+  domains: string[];
+  enabled: boolean;
+  id: string;
+  note: string;
+  proxy_id: string;
+  /** Header values and raw directives left out (needs Operator) */
+  redacted?: boolean;
+  /**
+   * Send it back as revision when saving
+   * @format date-time
+   */
+  updated_at: string;
+  updated_by_name: string;
+}
+
+export interface ProxyHostBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  config: HostConfig;
+  /** Default true */
+  enabled?: boolean;
+  /** @maxLength 2000 */
+  note?: string;
+  /**
+   * updated_at as you read it; 409 when someone saved since
+   * @format date-time
+   */
+  revision?: string;
+}
+
+export interface ProxyHostState {
+  /** Hand-written sites answering the same name */
+  conflicts: ProxySiteRef[];
+  id: string;
+  /** changed = the file on the server differs from what the panel wrote; missing = not on the server */
+  state: "ok" | "changed" | "missing" | "off";
+}
+
+export interface ProxyInspection {
+  ipv6: boolean;
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  certificates: Certificate[];
+  config_error?: string;
+  config_ok: boolean;
+  /** Starts at boot */
+  enabled: boolean;
+  hosts: ProxyHostState[];
+  init: string;
+  installed: boolean;
+  proxy: Proxy;
+  running: boolean;
+  /** The panel's sites are loaded */
+  set_up: boolean;
+  sites: Site[];
+  /** Files in Morcheh's folder the panel doesn't know */
+  unknown: string[];
+  version: string;
+}
+
+export interface ProxyKind {
+  capabilities: Capabilities;
+  kind: string;
+  label: string;
+}
+
+export interface ProxyProblem {
+  /** Where, like body.config.domains[1] */
+  field: string;
+  message: string;
+}
+
+export interface ProxySiteRef {
+  domain: string;
+  file: string;
+  /** @format int64 */
+  line: number;
 }
 
 export interface Reach {
@@ -6923,6 +7318,15 @@ export interface SetDnsZoneEnabledRequest {
   enabled: boolean;
 }
 
+export interface SetProxyHostEnabledRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  enabled: boolean;
+}
+
 export interface SetScheduleEnabledRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -7059,6 +7463,21 @@ export interface ShareStorageFileResponse {
   /** @format date-time */
   expires_at: string;
   url: string;
+}
+
+export interface Site {
+  domains: string[];
+  file: string;
+  /** @format int64 */
+  line: number;
+  listen: string[];
+  /** Written by Morcheh */
+  managed: boolean;
+  redirect?: string;
+  root?: string;
+  text?: string;
+  tls: boolean;
+  upstream?: string;
 }
 
 export interface StartRunBody {
@@ -11745,6 +12164,369 @@ export class Api<
       this.request<PortsReport, ErrorModel>({
         path: `/servers/${id}/ports`,
         method: "GET",
+        format: "json",
+        ...params,
+      }),
+  };
+  reverseProxy = {
+    /**
+     * @description Adds the proxy to the panel and checks the server. Nothing is installed or written yet: call setup for that. Needs Engineer on the server.
+     *
+     * @tags Reverse proxy
+     * @name CreateProxy
+     * @summary Manage a proxy on a server
+     * @request POST:/proxies
+     */
+    createProxy: (data: CreateProxyRequest, params: RequestParams = {}) =>
+      this.request<Proxy, ErrorModel>({
+        path: `/proxies`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Writes it to the server, tests and reloads. 422 when a value is wrong or the proxy refuses it (nothing is saved then).
+     *
+     * @tags Reverse proxy
+     * @name CreateProxyHost
+     * @summary Add a site
+     * @request POST:/proxies/{id}/hosts
+     */
+    createProxyHost: (
+      id: string,
+      data: ProxyHostBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<ProxyDetail, ErrorModel>({
+        path: `/proxies/${id}/hosts`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description With remove_files, first takes Morcheh's sites off the server and reloads (the proxy itself stays installed). Hand-written sites are never touched.
+     *
+     * @tags Reverse proxy
+     * @name DeleteProxy
+     * @summary Stop managing a proxy
+     * @request DELETE:/proxies/{id}
+     */
+    deleteProxy: (
+      id: string,
+      query?: {
+        remove_files?: boolean;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<void, ErrorModel>({
+        path: `/proxies/${id}`,
+        method: "DELETE",
+        query: query,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Reverse proxy
+     * @name DeleteProxyHost
+     * @summary Remove a site
+     * @request DELETE:/proxies/{id}/hosts/{host}
+     */
+    deleteProxyHost: (id: string, host: string, params: RequestParams = {}) =>
+      this.request<ProxyDetail, ErrorModel>({
+        path: `/proxies/${id}/hosts/${host}`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Reverse proxy
+     * @name GetProxy
+     * @summary A proxy and its sites
+     * @request GET:/proxies/{id}
+     */
+    getProxy: (id: string, params: RequestParams = {}) =>
+      this.request<ProxyDetail, ErrorModel>({
+        path: `/proxies/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Reverse proxy
+     * @name GetProxyChange
+     * @summary Every site as it was after one change
+     * @request GET:/proxies/{id}/history/{change}
+     */
+    getProxyChange: (id: string, change: string, params: RequestParams = {}) =>
+      this.request<ProxyChangeDetail, ErrorModel>({
+        path: `/proxies/${id}/history/${change}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Reverse proxy
+     * @name GetProxyLogs
+     * @summary The last lines of a site's log, or the proxy's own
+     * @request GET:/proxies/{id}/logs
+     */
+    getProxyLogs: (
+      id: string,
+      query?: {
+        /**
+         * A site; empty = the proxy's own log
+         * @format uuid
+         */
+        host?: string;
+        /**
+         * @format int64
+         * @min 1
+         * @max 2000
+         * @default 200
+         */
+        lines?: number;
+        /** @default "access" */
+        log?: "access" | "error";
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<GetProxyLogsResponse, ErrorModel>({
+        path: `/proxies/${id}/logs`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Status, every site in its live config (text only for Operator+), certificates found, and whether each panel site's file is what the panel wrote. Also records the check.
+     *
+     * @tags Reverse proxy
+     * @name InspectProxy
+     * @summary Read the proxy's live state from its server
+     * @request GET:/proxies/{id}/inspect
+     */
+    inspectProxy: (id: string, params: RequestParams = {}) =>
+      this.request<ProxyInspection, ErrorModel>({
+        path: `/proxies/${id}/inspect`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Reverse proxy
+     * @name ListProxies
+     * @summary Reverse proxies you can see
+     * @request GET:/proxies
+     */
+    listProxies: (
+      query?: {
+        /**
+         * Only this server's
+         * @format uuid
+         */
+        server_id?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ListProxiesResponse, ErrorModel>({
+        path: `/proxies`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The last 50 are kept.
+     *
+     * @tags Reverse proxy
+     * @name ListProxyHistory
+     * @summary Changes to the proxy's sites, newest first
+     * @request GET:/proxies/{id}/history
+     */
+    listProxyHistory: (id: string, params: RequestParams = {}) =>
+      this.request<ListProxyHistoryResponse, ErrorModel>({
+        path: `/proxies/${id}/history`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Reverse proxy
+     * @name ListProxyHostsEverywhere
+     * @summary Every site on every proxy you can see
+     * @request GET:/proxy-hosts
+     */
+    listProxyHostsEverywhere: (params: RequestParams = {}) =>
+      this.request<ListProxyHostsEverywhereResponse, ErrorModel>({
+        path: `/proxy-hosts`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Reverse proxy
+     * @name ListProxyKinds
+     * @summary Proxy kinds Morcheh can manage
+     * @request GET:/proxy-kinds
+     */
+    listProxyKinds: (params: RequestParams = {}) =>
+      this.request<ListProxyKindsResponse, ErrorModel>({
+        path: `/proxy-kinds`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Renders without saving. Problems with the values come back as a list, not an error.
+     *
+     * @tags Reverse proxy
+     * @name PreviewProxyHost
+     * @summary The config a site would get
+     * @request POST:/proxies/{id}/hosts/preview
+     */
+    previewProxyHost: (
+      id: string,
+      data: PreviewProxyHostRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<PreviewProxyHostResponse, ErrorModel>({
+        path: `/proxies/${id}/hosts/preview`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Start, restart and reload test the config first. Stop needs Engineer.
+     *
+     * @tags Reverse proxy
+     * @name ProxyAction
+     * @summary Test, reload, start, restart or stop the proxy
+     * @request POST:/proxies/{id}/action
+     */
+    proxyAction: (
+      id: string,
+      data: ProxyActionRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<ProxyActionResult, ErrorModel>({
+        path: `/proxies/${id}/action`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Replaces every site with the snapshot and writes them to the server, as one new change.
+     *
+     * @tags Reverse proxy
+     * @name RestoreProxyChange
+     * @summary Go back to how the sites were after a change
+     * @request POST:/proxies/{id}/history/{change}/restore
+     */
+    restoreProxyChange: (
+      id: string,
+      change: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<ProxyDetail, ErrorModel>({
+        path: `/proxies/${id}/history/${change}/restore`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description A site that's off keeps its settings but its file is taken off the server.
+     *
+     * @tags Reverse proxy
+     * @name SetProxyHostEnabled
+     * @summary Turn a site on or off
+     * @request PUT:/proxies/{id}/hosts/{host}/enabled
+     */
+    setProxyHostEnabled: (
+      id: string,
+      host: string,
+      data: SetProxyHostEnabledRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<ProxyDetail, ErrorModel>({
+        path: `/proxies/${id}/hosts/${host}/enabled`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Installs the package if needed, adds Morcheh's include, starts the proxy and writes the panel's sites. Runs as a background job (kind `proxy-setup`); 409 when one is already running.
+     *
+     * @tags Reverse proxy
+     * @name SetupProxy
+     * @summary Install (when missing) and wire up the proxy
+     * @request POST:/proxies/{id}/setup
+     */
+    setupProxy: (id: string, params: RequestParams = {}) =>
+      this.request<Job, ErrorModel>({
+        path: `/proxies/${id}/setup`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Reverse proxy
+     * @name UpdateProxyHost
+     * @summary Change a site
+     * @request PUT:/proxies/{id}/hosts/{host}
+     */
+    updateProxyHost: (
+      id: string,
+      host: string,
+      data: ProxyHostBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<ProxyDetail, ErrorModel>({
+        path: `/proxies/${id}/hosts/${host}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),

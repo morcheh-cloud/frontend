@@ -8,6 +8,7 @@ import {
   cronjobsItem,
   databasesItem,
   dnsItem,
+  proxyItem,
   serversItem,
   servicesItem,
   storageItem,
@@ -21,6 +22,7 @@ export const kindItem: Record<Kind, { label: string; icon: LucideIcon }> = {
   database: { label: "Database", icon: databasesItem.icon },
   storage: { label: "Storage", icon: storageItem.icon },
   dns: { label: "DNS server", icon: dnsItem.icon },
+  proxy: { label: "Reverse proxy", icon: proxyItem.icon },
   cronjob: { label: "Cron job", icon: cronjobsItem.icon },
 }
 
@@ -89,6 +91,14 @@ export function summaries(home: Home): Summary[] {
       total: t.dns.total,
       caption: caption(t.dns, connected),
       alert: t.dns.bad + t.dns.warn,
+    },
+    {
+      key: "proxy",
+      ...proxyItem,
+      tally: t.proxy,
+      total: t.proxy.total,
+      caption: caption(t.proxy, { ok: "running", idle: "new or not set up" }),
+      alert: t.proxy.bad + t.proxy.warn,
     },
     {
       key: "cronjobs",
@@ -176,6 +186,7 @@ const addActions: AddAction[] = [
   { label: "Database", href: "/databases", intent: "add-database" },
   { label: "Storage", href: "/storage", intent: "add-storage" },
   { label: "DNS server", href: "/dns", intent: "add-dns-server" },
+  { label: "Reverse proxy", href: "/proxy", intent: "add-proxy" },
   { label: "Service", href: "/services", intent: "add-service" },
   { label: "Cron job", href: "/cronjobs/new" },
   { label: "Script", href: "/scripts/new" },

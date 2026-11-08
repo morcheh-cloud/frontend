@@ -122,6 +122,13 @@ export function refreshAfterJob(qc: QueryClient, job: Job) {
     qc.invalidateQueries({ queryKey: ["storage-insights"] })
     return
   }
+  // The proxy's status and the fleet's sites (the job's first ref is the
+  // proxy).
+  if (job.kind === "proxy-setup") {
+    qc.invalidateQueries({ queryKey: ["proxies"] })
+    qc.invalidateQueries({ queryKey: ["proxy-hosts"] })
+    return
+  }
   for (const ref of job.refs) {
     if (job.kind === "firewall-install" || job.kind === "firewall-apply") {
       qc.invalidateQueries({ queryKey: ["firewall", ref] })

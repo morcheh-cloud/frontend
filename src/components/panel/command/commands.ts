@@ -146,6 +146,15 @@ export function actions(
       keywords: "new create technitium nameserver ns zone domain records",
     },
     {
+      key: "action:add-proxy",
+      label: "Add reverse proxy",
+      icon: Plus,
+      tile: "brand",
+      href: "/proxy",
+      intent: "add-proxy",
+      keywords: "new create nginx site domain https ssl vhost web server",
+    },
+    {
       key: "action:add-service",
       label: "Add service",
       icon: Plus,

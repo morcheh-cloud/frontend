@@ -6,6 +6,10 @@ import { useCronjobs } from "@/app/(panel)/cronjobs/api"
 import { backupsHref } from "@/app/(panel)/databases/[id]/components/backups/meta"
 import { statusMeta as dbStatusMeta } from "@/app/(panel)/databases/components/meta"
 import { dnsStatusMeta } from "@/app/(panel)/dns/components/meta"
+import {
+  needsSetup,
+  proxyStatusMeta,
+} from "@/app/(panel)/proxy/components/meta"
 import { keys, type ListQuery } from "@/app/(panel)/servers/api"
 import { statusMeta } from "@/app/(panel)/servers/components/meta"
 import { useApps } from "@/app/(panel)/services/api"
@@ -19,18 +23,33 @@ import {
   dnsServersQuery,
   facetsQuery,
   problemStatuses,
+  proxiesQuery,
+  proxyBroken,
   STATUS_POLL,
   storagesQuery,
 } from "@/components/panel/problems"
 import { useWorkspace } from "@/components/panel/workspace"
 import { api } from "@/lib/api"
-import type { App, Database, Job, Schedule, Server } from "@/lib/services"
+import type {
+  App,
+  Database,
+  Job,
+  Proxy as ReverseProxy,
+  Schedule,
+  Server,
+} from "@/lib/services"
 
 // Everything the home page shows, read from the same queries (and cache) as
 // the sections themselves, so opening a section after Home is instant and the
 // numbers always agree with the menu's red counts.
 
-export type Kind = "server" | "database" | "storage" | "dns" | "cronjob"
+export type Kind =
+  | "server"
+  | "database"
+  | "storage"
+  | "dns"
+  | "proxy"
+  | "cronjob"
 export type Tone = "destructive" | "warning"
 
 export type Issue = {
@@ -95,6 +114,7 @@ export function useHome() {
   const databases = useQuery(databasesQuery)
   const backups = useQuery(backupProblemsQuery(workspace?.id ?? ""))
   const dns = useQuery(dnsServersQuery)
+  const proxies = useQuery(proxiesQuery)
   const cronjobs = useCronjobs(workspace?.id)
   const apps = useApps()
   const jobs = useJobList()
@@ -151,6 +171,23 @@ export function useHome() {
       tone: toneOf(s.status),
     })
   }
+  for (const p of proxies.data?.items ?? []) {
+    if (!proxyBroken(p)) continue
+    const sites = p.status === "online"
+    issues.push({
+      key: `proxy:${p.id}`,
+      kind: "proxy",
+      name: `${p.kind_label} on ${p.server_name}`,
+      status: sites
+        ? `${p.host_problems} site${p.host_problems === 1 ? "" : "s"} changed`
+        : proxyStatusMeta[p.status].label,
+      detail: sites
+        ? "Their files on the server aren't what Morcheh wrote."
+        : p.status_message || proxyStatusMeta[p.status].hint,
+      href: `/proxy/${p.id}`,
+      tone: p.status === "stopped" || sites ? "warning" : "destructive",
+    })
+  }
   for (const c of cronjobs.data ?? []) {
     if (!cronjobBroken(c)) continue
     const failed = c.last_run?.state === "failed"
@@ -192,6 +229,7 @@ export function useHome() {
       databases: databaseTally(databases.data?.items),
       storage: statusTally(storages.data?.items),
       dns: statusTally(dns.data?.items),
+      proxy: proxyTally(proxies.data?.items),
       cronjobs: cronTally(cronjobs.data),
     },
     serverTotal: facets.data?.total,
@@ -241,6 +279,17 @@ function add(t: Tally, status: string, n = 1) {
 function statusTally(items: { status: string }[] | undefined): Tally {
   const t = { ...emptyTally, total: items?.length ?? 0 }
   for (const s of items ?? []) add(t, s.status)
+  return t
+}
+
+function proxyTally(items: ReverseProxy[] | undefined): Tally {
+  const t = { ...emptyTally, total: items?.length ?? 0 }
+  for (const p of items ?? []) {
+    if (p.status === "unknown" || needsSetup(p)) t.idle++
+    else if (!proxyBroken(p)) t.ok++
+    else if (p.status === "stopped" || p.status === "online") t.warn++
+    else t.bad++
+  }
   return t
 }
 

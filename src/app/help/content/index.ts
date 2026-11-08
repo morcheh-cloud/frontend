@@ -12,6 +12,7 @@ import { gettingStarted } from "./getting-started"
 import { networkMap } from "./network-map"
 import { ports } from "./ports"
 import { power } from "./power"
+import { reverseProxy } from "./reverse-proxy"
 import { scripts } from "./scripts"
 import { serverNotes } from "./server-notes"
 import { serverOverview } from "./server-overview"
@@ -43,6 +44,7 @@ export const content: Record<string, GuideSection[]> = {
   power,
   databases,
   dns,
+  "reverse-proxy": reverseProxy,
   "service-launcher": serviceLauncher,
   ansible,
   cronjobs,

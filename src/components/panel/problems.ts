@@ -6,6 +6,7 @@ import { api } from "@/lib/api"
 import type {
   Database,
   DNSServer,
+  Proxy as ReverseProxy,
   Schedule,
   Server,
   Storage,
@@ -14,6 +15,7 @@ import {
   cronjobsItem,
   databasesItem,
   dnsItem,
+  proxyItem,
   serversItem,
   storageItem,
 } from "./nav"
@@ -61,6 +63,24 @@ export const dnsServersQuery = queryOptions({
 // A DNS server Morcheh can't reach or log in to. Not yet checked = fine.
 export const dnsServerBroken = (s: Pick<DNSServer, "status">) =>
   s.status !== "online" && s.status !== "unknown"
+
+// Shared with /proxy. The backend re-checks them (PROXY_CHECK_INTERVAL).
+export const proxiesQuery = queryOptions({
+  queryKey: ["proxies"] as const,
+  queryFn: () => api.reverseProxy.listProxies(),
+  refetchInterval: STATUS_POLL,
+})
+
+// A proxy that isn't serving its sites as the panel wrote them. Not checked
+// yet = fine; not set up yet is a step to take, not a fault.
+export const proxyBroken = (
+  p: Pick<ReverseProxy, "status" | "host_problems" | "host_count">,
+) =>
+  p.status === "stopped" ||
+  p.status === "config_error" ||
+  p.status === "unreachable" ||
+  p.status === "error" ||
+  (p.status === "online" && p.host_problems > 0)
 
 // Every database in the workspace, as /databases lists them.
 export const databasesQuery = queryOptions({
@@ -122,6 +142,14 @@ export function useDNSProblems() {
   return data ?? 0
 }
 
+export function useProxyProblems() {
+  const { data } = useQuery({
+    ...proxiesQuery,
+    select: (list) => list.items.filter(proxyBroken).length,
+  })
+  return data ?? 0
+}
+
 export function useDatabaseProblems() {
   const { data } = useQuery({
     ...databasesQuery,
@@ -170,6 +198,7 @@ export function useNavAlerts() {
   const backups = useBackupProblems()
   const cronjobs = useCronjobProblems()
   const dns = useDNSProblems()
+  const proxies = useProxyProblems()
   const alerts = new Map<string, NavAlert>()
   if (servers > 0) {
     alerts.set(serversItem.href, {
@@ -200,6 +229,12 @@ export function useNavAlerts() {
     alerts.set(dnsItem.href, {
       count: dns,
       label: `${plural(dns, "DNS server", "DNS servers")} not connected`,
+    })
+  }
+  if (proxies > 0) {
+    alerts.set(proxyItem.href, {
+      count: proxies,
+      label: `${plural(proxies, "proxy", "proxies")} need attention`,
     })
   }
   if (cronjobs > 0) {

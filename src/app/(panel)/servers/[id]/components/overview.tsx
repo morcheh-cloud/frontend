@@ -11,6 +11,11 @@ import {
 import Link from "next/link"
 import type { ReactNode } from "react"
 
+import {
+  ServerProxyLinks,
+  ServerProxyRows,
+  useServerProxyList,
+} from "@/app/(panel)/proxy/components/server-proxy"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
@@ -49,6 +54,7 @@ function DesktopOverview() {
   const { server, checking, can } = useServerPage()
   const actions = useServerActions()
   const facts = useFacts(server, checking)
+  const proxies = useServerProxyList(server.id)
 
   return (
     <div className="@container">
@@ -80,6 +86,7 @@ function DesktopOverview() {
         </Card>
         <Card title="System">
           <Facts facts={facts.system} />
+          <ServerProxyLinks proxies={proxies} />
         </Card>
         <Card
           title="Connection"
@@ -181,6 +188,7 @@ function MobileOverview() {
   const facts = useFacts(server, checking)
   const stats = useServerStats(server)
   const hasNotes = useHasPinnedNotes()
+  const proxies = useServerProxyList(server.id)
 
   return (
     <div className="pb-6">
@@ -272,6 +280,11 @@ function MobileOverview() {
       <Group title="Organization">
         <FactRows facts={facts.organization} />
       </Group>
+      {proxies.length > 0 && (
+        <Group title="Reverse proxy">
+          <ServerProxyRows proxies={proxies} />
+        </Group>
+      )}
       {hasNotes && (
         <Group title="Notes">
           <PinnedNoteRows />

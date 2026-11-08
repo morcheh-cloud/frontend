@@ -16,6 +16,7 @@ import {
   MonitorPlay,
   Server,
   Settings,
+  Split,
   Waypoints,
   Workflow,
 } from "lucide-react"
@@ -46,6 +47,11 @@ export const dnsItem: NavItem = {
   href: "/dns",
   label: "DNS",
   icon: Globe,
+}
+export const proxyItem: NavItem = {
+  href: "/proxy",
+  label: "Reverse proxy",
+  icon: Split,
 }
 export const databasesItem: NavItem = {
   href: "/databases",
@@ -143,6 +149,7 @@ export const navGroups: NavGroup[] = [
       databasesItem,
       storageItem,
       dnsItem,
+      proxyItem,
       servicesItem,
       ansibleItem,
       scriptsItem,
