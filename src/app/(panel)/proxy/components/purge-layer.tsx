@@ -21,7 +21,7 @@ import type {
 } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { useCacheCount, usePurgeHostCache } from "../api"
-import { hostName } from "./meta"
+import { hostName, proxyName } from "./meta"
 
 // What the Clear cache layer starts on: a saved cache rule, or addresses (from a
 // request in the logs).
@@ -204,7 +204,7 @@ export function PurgeLayer({
       open={open}
       onOpenChange={onOpenChange}
       title="Clear the cache"
-      description={`${hostName(host)} on ${p.server_name}. Visitors' browsers keep their own copies.`}
+      description={`${hostName(host)} on ${proxyName(p)}. Visitors' browsers keep their own copies.`}
       className="sm:max-w-lg"
       footer={
         <>

@@ -14,6 +14,7 @@ import { proxiesQuery, STATUS_POLL } from "@/components/panel/problems"
 import { ApiError, api } from "@/lib/api"
 import type {
   CertRequest,
+  CreateProxyRequest,
   HostConfig,
   ProxyActionRequest,
   ProxyDetail,
@@ -220,10 +221,23 @@ function storeDetail(queryClient: QueryClient, d: ProxyDetail) {
   queryClient.invalidateQueries({ queryKey: proxyKeys.fleet })
 }
 
+// What's on a server before adding a proxy there: the one installed on it
+// and nginx-like containers. Not cached: the server changes under us.
+export function useDetectProxy(server: string, kind: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["proxy-detect", server, kind],
+    queryFn: () => api.reverseProxy.detectProxy(server, { kind }),
+    enabled: enabled && !!server,
+    gcTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
+  })
+}
+
 export function useCreateProxy() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (body: { server_id: string; kind: string }) =>
+    mutationFn: (body: CreateProxyRequest) =>
       api.reverseProxy.createProxy(body),
     onSuccess: (p) => storeProxy(queryClient, p),
   })

@@ -1,9 +1,9 @@
 "use client"
 
-import { useQuery } from "@tanstack/react-query"
 import {
   CirclePause,
   CirclePlay,
+  Container,
   Copy,
   CopyPlus,
   Eraser,
@@ -20,32 +20,15 @@ import {
   Wrench,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
-import {
-  createContext,
-  type FormEvent,
-  type ReactNode,
-  useContext,
-  useState,
-} from "react"
+import { createContext, type ReactNode, useContext, useState } from "react"
 import { toast } from "sonner"
 
 import type { Item } from "@/app/(panel)/servers/[id]/components/parts"
-import { OsTile } from "@/app/(panel)/servers/components/meta"
-import { useAccess } from "@/components/auth/auth"
-import { atLeast } from "@/components/auth/level"
 import { BottomSheet } from "@/components/bottom-sheet"
-import { Field } from "@/components/field"
 import { useJobActions } from "@/components/jobs/jobs-provider"
 import { ConfirmDialog, ResponsiveDialog } from "@/components/responsive-dialog"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import {
   Sheet,
   SheetContent,
@@ -56,7 +39,6 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useIntent } from "@/hooks/useIntent"
 import { useOpen } from "@/hooks/useOpen"
-import { api } from "@/lib/api"
 import type {
   ProxyActionRequest,
   ProxyActionResult,
@@ -66,25 +48,26 @@ import type {
   Site,
 } from "@/lib/services"
 import {
-  useCreateProxy,
   useDeleteHost,
   useDeleteProxy,
-  useProxies,
   useProxyAction,
-  useProxyKinds,
   useRestoreChange,
   useSetHostEnabled,
   useSetupProxy,
 } from "../api"
+import { AddProxyDialog } from "./add-proxy"
+import { ContainerLayer } from "./container-layer"
 import {
   canWrite,
   domainsText,
   duplicateHostHref,
   hostHref,
   hostName,
+  inContainer,
   needsSetup,
   newHostHref,
   proxyHref,
+  proxyName,
   siteUrl,
 } from "./meta"
 import { useProxyCan } from "./permissions"
@@ -105,6 +88,8 @@ type Actions = {
   viewSite: (p: ReverseProxy, site: Site) => void
   // The Clear cache layer for a saved site, optionally on a group/addresses.
   purgeCache: (p: ReverseProxy, host: ProxyHost, preset?: PurgePreset) => void
+  // What the runtime says about a container proxy's container.
+  container: (p: ReverseProxy) => void
 }
 
 const ActionsContext = createContext<Actions | null>(null)
@@ -191,6 +176,9 @@ export function ProxyActionsProvider({ children }: { children: ReactNode }) {
     preset?: PurgePreset
   }>()
 
+  const [boxOpen, setBoxOpen] = useOpen("proxy-container")
+  const [box, setBox] = useState<ReverseProxy>()
+
   const setupMutation = useSetupProxy()
   const action = useProxyAction()
   const removeProxy = useDeleteProxy()
@@ -216,7 +204,7 @@ export function ProxyActionsProvider({ children }: { children: ReactNode }) {
           }
           if (r.ok) {
             toast.success(`${actionWords[a].done} ${p.kind_label}`, {
-              description: p.server_name,
+              description: proxyName(p),
             })
             return
           }
@@ -293,6 +281,10 @@ export function ProxyActionsProvider({ children }: { children: ReactNode }) {
       setPurgeKey((k) => k + 1)
       setPurgeOpen(true)
     },
+    container: (p) => {
+      setBox(p)
+      setBoxOpen(true)
+    },
   }
 
   // "Add reverse proxy" from the command palette, on any page.
@@ -311,6 +303,9 @@ export function ProxyActionsProvider({ children }: { children: ReactNode }) {
           if (setupNow) setup(p)
           whenClosed(setAddOpen, () => router.push(proxyHref(p.id)))
         }}
+        onOpenProxy={(id) =>
+          whenClosed(setAddOpen, () => router.push(proxyHref(id)))
+        }
       />
 
       <ConfirmDialog
@@ -318,8 +313,8 @@ export function ProxyActionsProvider({ children }: { children: ReactNode }) {
         onOpenChange={setAskOpen}
         title={
           toAsk?.action === "stop"
-            ? `Stop ${toAsk.proxy.kind_label} on ${toAsk.proxy.server_name}?`
-            : `Restart ${toAsk?.proxy.kind_label} on ${toAsk?.proxy.server_name}?`
+            ? `Stop ${toAsk.proxy.kind_label} on ${proxyName(toAsk.proxy)}?`
+            : `Restart ${toAsk?.proxy.kind_label} on ${toAsk ? proxyName(toAsk.proxy) : ""}?`
         }
         description={
           toAsk?.action === "stop"
@@ -349,7 +344,7 @@ export function ProxyActionsProvider({ children }: { children: ReactNode }) {
       <ConfirmDialog
         open={removeOpen}
         onOpenChange={setRemoveOpen}
-        title={`Remove ${toRemove?.proxy.kind_label} on ${toRemove?.proxy.server_name}?`}
+        title={`Remove ${toRemove?.proxy.kind_label} on ${toRemove ? proxyName(toRemove.proxy) : ""}?`}
         description={
           <div className="flex flex-col gap-3">
             <p>
@@ -393,7 +388,7 @@ export function ProxyActionsProvider({ children }: { children: ReactNode }) {
         open={hostDeleteOpen}
         onOpenChange={setHostDeleteOpen}
         title={`Delete ${hostToDelete ? hostName(hostToDelete.host) : "this site"}?`}
-        description={`Its file is taken off ${hostToDelete?.proxy.server_name} and ${hostToDelete?.proxy.kind_label} reloads. History keeps a copy, so you can bring it back.`}
+        description={`Its file is taken off ${hostToDelete ? proxyName(hostToDelete.proxy) : ""} and ${hostToDelete?.proxy.kind_label} reloads. History keeps a copy, so you can bring it back.`}
         confirmLabel="Delete site"
         pending={removeHost.isPending}
         onConfirm={() =>
@@ -464,167 +459,11 @@ export function ProxyActionsProvider({ children }: { children: ReactNode }) {
           preset={toPurge.preset}
         />
       )}
+
+      {box && (
+        <ContainerLayer open={boxOpen} onOpenChange={setBoxOpen} proxy={box} />
+      )}
     </ActionsContext>
-  )
-}
-
-function AddProxyDialog({
-  open,
-  onOpenChange,
-  serverId,
-  onAdded,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  serverId?: string
-  onAdded: (p: ReverseProxy, setupNow: boolean) => void
-}) {
-  const { serverLevel } = useAccess()
-  const kinds = useProxyKinds()
-  const proxies = useProxies()
-  const servers = useQuery({
-    queryKey: ["servers", "transfer-targets"],
-    queryFn: () => api.servers.listServers({ limit: 500 }),
-    enabled: open,
-  })
-  const create = useCreateProxy()
-
-  const [server, setServer] = useState(serverId ?? "")
-  const [kind, setKind] = useState("nginx")
-  const [setupNow, setSetupNow] = useState(true)
-  const [error, setError] = useState<string>()
-
-  const taken = new Set(
-    (proxies.data?.items ?? [])
-      .filter((p) => p.kind === kind)
-      .map((p) => p.server_id),
-  )
-  const choices = (servers.data?.items ?? []).map((s) => ({
-    value: s.id,
-    label: s.name,
-    server: s,
-    why: taken.has(s.id)
-      ? "Already added"
-      : !atLeast(serverLevel(s.id, s.workspace_id), "engineer")
-        ? "Needs Engineer"
-        : null,
-  }))
-  const kindItems = (kinds.data?.items ?? []).map((k) => ({
-    value: k.kind,
-    label: k.label,
-  }))
-
-  function submit(e: FormEvent) {
-    e.preventDefault()
-    if (!server) {
-      setError("Pick a server")
-      return
-    }
-    setError(undefined)
-    create.mutate(
-      { server_id: server, kind },
-      {
-        onSuccess: (p) => {
-          toast.success(`${p.kind_label} on ${p.server_name} added`)
-          onAdded(p, setupNow && needsSetup(p))
-        },
-        onError: (err) => setError(err.message),
-      },
-    )
-  }
-
-  return (
-    <ResponsiveDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Add reverse proxy"
-      description="Pick the server it runs on. Morcheh manages it over SSH; to use the machine Morcheh runs on, add it as a server first."
-      footer={
-        <>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button type="submit" form="proxy-add" disabled={create.isPending}>
-            {create.isPending ? "Adding…" : "Add proxy"}
-          </Button>
-        </>
-      }
-    >
-      <form id="proxy-add" onSubmit={submit} className="flex flex-col gap-4">
-        <Field
-          label="Server"
-          error={error}
-          hint={
-            servers.isPending
-              ? "Loading servers…"
-              : choices.length === 0
-                ? "No servers in this workspace yet."
-                : undefined
-          }
-        >
-          {(props) => (
-            <Select
-              items={choices}
-              value={server || null}
-              onValueChange={(v) => v !== null && setServer(v as string)}
-            >
-              <SelectTrigger {...props} className="h-11 w-full md:h-10">
-                <SelectValue placeholder="Choose a server" />
-              </SelectTrigger>
-              <SelectContent alignItemWithTrigger={false} className="max-h-72">
-                {choices.map((c) => (
-                  <SelectItem key={c.value} value={c.value} disabled={!!c.why}>
-                    <OsTile os={c.server.os} className="size-5 rounded" />
-                    <span className="truncate">{c.label}</span>
-                    <span className="ms-auto truncate text-caption text-ash">
-                      {c.why ?? c.server.host}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </Field>
-        {kindItems.length > 1 && (
-          <Field label="Proxy">
-            {(props) => (
-              <Select
-                items={kindItems}
-                value={kind}
-                onValueChange={(v) => v !== null && setKind(v as string)}
-              >
-                <SelectTrigger {...props} className="h-11 w-full md:h-10">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent alignItemWithTrigger={false}>
-                  {kindItems.map((k) => (
-                    <SelectItem key={k.value} value={k.value}>
-                      {k.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </Field>
-        )}
-        {/* biome-ignore lint/a11y/noLabelWithoutControl: Base UI checkbox renders the control inside */}
-        <label className="flex min-h-11 items-start gap-2 text-body-sm md:min-h-0">
-          <Checkbox
-            className="mt-0.5"
-            checked={setupNow}
-            onCheckedChange={(v) => setSetupNow(v)}
-          />
-          <span>
-            Install and set it up now
-            <span className="block text-caption text-muted-foreground">
-              Installs {kindItems.find((k) => k.value === kind)?.label ?? kind}{" "}
-              if it's missing and wires in Morcheh's folder. Sites already on
-              the server keep working.
-            </span>
-          </span>
-        </label>
-      </form>
-    </ResponsiveDialog>
   )
 }
 
@@ -651,7 +490,7 @@ function ResultDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={title}
-      description={`${proxy.kind_label} on ${proxy.server_name}${result.ok ? "" : ` · exit code ${result.exit_code}`}`}
+      description={`${proxy.kind_label} on ${proxyName(proxy)}${result.ok ? "" : ` · exit code ${result.exit_code}`}`}
       className="sm:max-w-2xl"
       footer={
         <Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -743,7 +582,7 @@ function SiteLayer({
       )}
     </div>
   )
-  const description = `${site.tls ? "https" : "http"} · ${proxy.kind_label} on ${proxy.server_name}`
+  const description = `${site.tls ? "https" : "http"} · ${proxy.kind_label} on ${proxyName(proxy)}`
   if (isMobile) {
     return (
       <BottomSheet full open={open} onOpenChange={onOpenChange} title={title}>
@@ -848,13 +687,25 @@ export function useProxyMenu() {
           ]
         : [],
       [
-        ...(engineer && p.status !== "unreachable"
+        ...(engineer &&
+        p.status !== "unreachable" &&
+        !(inContainer(p) && p.status === "not_installed")
           ? [
               {
                 key: "setup",
                 label: needsSetup(p) ? "Set up" : "Run setup again",
                 icon: <Wrench />,
                 onSelect: () => a.setup(p),
+              },
+            ]
+          : []),
+        ...(inContainer(p)
+          ? [
+              {
+                key: "container",
+                label: "Container",
+                icon: <Container />,
+                onSelect: () => a.container(p),
               },
             ]
           : []),

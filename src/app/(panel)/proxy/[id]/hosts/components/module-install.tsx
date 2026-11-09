@@ -9,7 +9,20 @@ import { JobBar } from "@/components/jobs/meta"
 import { Button } from "@/components/ui/button"
 import type { Proxy as ReverseProxy } from "@/lib/services"
 import { type ProxyModule, useModuleJob, useSetupModule } from "../../../api"
+import { inContainer } from "../../../components/meta"
 import { useProxyCan } from "../../../components/permissions"
+
+// Why a container proxy can't get a module from Morcheh: it comes with the
+// image, which Morcheh never changes.
+export function ImageNote({ proxy: p }: { proxy: ReverseProxy }) {
+  return (
+    <p className="mt-1">
+      {p.kind_label} runs in the container {p.container}, so modules come with
+      its image: Morcheh doesn't change images. Use an image that has it, then
+      recreate the container; the proxy picks it up on its next check.
+    </p>
+  )
+}
 
 // A module the proxy doesn't have yet: what it means, and the button that
 // adds it from the server's own packages (job proxy-<module>, Engineer), or
@@ -46,6 +59,14 @@ export function ModuleInstall({
           {job.progress.current || job.progress.phase || job.title}
         </p>
         <JobBar job={job} className="mt-2" />
+      </Callout>
+    )
+  }
+  if (inContainer(p)) {
+    return (
+      <Callout icon={icon} tone={warn ? "warning" : undefined}>
+        <div>{children}</div>
+        <ImageNote proxy={p} />
       </Callout>
     )
   }

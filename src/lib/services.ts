@@ -1484,6 +1484,62 @@ export interface ConnectionTestOutputBody {
     | "error";
 }
 
+export interface ContainerInfo {
+  /** The Compose project it belongs to */
+  compose?: string;
+  /** The Compose project's folder on the server */
+  compose_dir?: string;
+  id: string;
+  image: string;
+  /** The image is a proxy manager that writes nginx's config itself (Nginx Proxy Manager, nginx-proxy, SWAG): Morcheh doesn't take it over */
+  managed?: string;
+  mounts: ContainerMount[];
+  name: string;
+  /** host = shares the server's network; else a bridge (ports must be published) */
+  network_mode: string;
+  networks: ContainerNetwork[];
+  /** @format int64 */
+  pid?: number;
+  ports: ContainerPort[];
+  /** Restart policy: no, always, unless-stopped, on-failure */
+  restart: string;
+  running: boolean;
+  runtime: "docker" | "podman";
+  /** Its Compose service */
+  service?: string;
+  /** running, exited, paused, restarting, created… */
+  state: string;
+}
+
+export interface ContainerMount {
+  /** Where it appears inside the container */
+  destination: string;
+  /** The volume's name */
+  name?: string;
+  read_only?: boolean;
+  /** The folder on the server (for a volume, where the runtime keeps it) */
+  source: string;
+  /** bind, volume or tmpfs */
+  type: string;
+}
+
+export interface ContainerNetwork {
+  aliases?: string[];
+  /** The server's own address on this network: how the container reaches programs on the server */
+  gateway?: string;
+  ip?: string;
+  name: string;
+}
+
+export interface ContainerPort {
+  host_ip?: string;
+  /** @format int64 */
+  host_port: number;
+  /** @format int64 */
+  port: number;
+  proto: "tcp" | "udp";
+}
+
 export interface CreateAppCategoryRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -1545,7 +1601,17 @@ export interface CreateProxyRequest {
    * @format uri
    */
   $schema?: string;
+  /**
+   * The container's name, for docker and podman
+   * @maxLength 128
+   */
+  container?: string;
   kind: string;
+  /**
+   * Where the proxy runs: on the server itself, or in a Docker / Podman container
+   * @default "host"
+   */
+  runtime?: "host" | "docker" | "podman";
   /** @format uuid */
   server_id: string;
 }
@@ -3180,6 +3246,37 @@ export interface DeleteCronJobsRequest {
    * @maxLength 300
    */
   table: string;
+}
+
+export interface DetectedContainer {
+  /** The Compose project it belongs to */
+  compose?: string;
+  /** The Compose project's folder on the server */
+  compose_dir?: string;
+  id: string;
+  image: string;
+  /** The image is a proxy manager that writes nginx's config itself (Nginx Proxy Manager, nginx-proxy, SWAG): Morcheh doesn't take it over */
+  managed?: string;
+  mounts: ContainerMount[];
+  name: string;
+  /** host = shares the server's network; else a bridge (ports must be published) */
+  network_mode: string;
+  networks: ContainerNetwork[];
+  /** @format int64 */
+  pid?: number;
+  ports: ContainerPort[];
+  /** Already in the panel as this proxy */
+  proxy_id?: string;
+  /** Running, not a proxy manager, and serving the web (80/443 published or the server's network) */
+  recommended: boolean;
+  /** Restart policy: no, always, unless-stopped, on-failure */
+  restart: string;
+  running: boolean;
+  runtime: "docker" | "podman";
+  /** Its Compose service */
+  service?: string;
+  /** running, exited, paused, restarting, created… */
+  state: string;
 }
 
 export interface DirListing {
@@ -5091,6 +5188,12 @@ export interface MyAccess {
   workspaces: WorkspaceAccess[];
 }
 
+export interface NativeProxy {
+  installed: boolean;
+  running: boolean;
+  version?: string;
+}
+
 export interface NetAddress {
   family: "ipv4" | "ipv6";
   ip: string;
@@ -5915,6 +6018,8 @@ export interface Proxy {
    */
   $schema?: string;
   capabilities: Capabilities;
+  /** The container's name (docker/podman) */
+  container?: string;
   /** @format date-time */
   created_at: string;
   /** @format int64 */
@@ -5929,6 +6034,8 @@ export interface Proxy {
   kind_label: string;
   /** @format date-time */
   last_checked_at?: string;
+  /** host = installed on the server; docker/podman = runs in a container */
+  runtime: "host" | "docker" | "podman";
   server_host: string;
   server_id: string;
   server_name: string;
@@ -6014,7 +6121,26 @@ export interface ProxyDetail {
   proxy: Proxy;
 }
 
+export interface ProxyDetection {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  containers: DetectedContainer[];
+  down?: string[];
+  kind: string;
+  native: NativeProxy;
+  /** The one on the server is already in the panel as this proxy */
+  native_id?: string;
+  runtimes: string[];
+  /** host: only on the server; container: one container fits; choose: both, or several containers; install: none found; added: everything found is already in the panel */
+  suggestion: "host" | "container" | "choose" | "install" | "added";
+}
+
 export interface ProxyFleetHost {
+  /** The proxy's container, when it runs in one */
+  container?: string;
   host: ProxyHost;
   kind: string;
   proxy_status: string;
@@ -6129,6 +6255,8 @@ export interface ProxyHostState {
   id: string;
   /** changed = the file on the server differs from what the panel wrote; missing = not on the server */
   state: "ok" | "changed" | "missing" | "off";
+  /** A port forward the proxy's container doesn't publish: nothing outside the server reaches it */
+  unpublished?: boolean;
 }
 
 export interface ProxyHostTraffic {
@@ -6164,6 +6292,8 @@ export interface ProxyInspection {
   certificates: Certificate[];
   config_error?: string;
   config_ok: boolean;
+  /** What the runtime says about the proxy's container (docker/podman only) */
+  container?: ContainerInfo;
   /** Starts at boot */
   enabled: boolean;
   /** Country lookup for country rules: ready, off (not turned on yet). Empty when the kind can't */
@@ -13611,6 +13741,30 @@ export class Api<
       this.request<ProxyDetail, ErrorModel>({
         path: `/proxies/${id}/hosts/${host}`,
         method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Looks for the proxy installed on the server and in its Docker / Podman containers, so it can be added the right way. Needs Engineer on the server.
+     *
+     * @tags Reverse proxy
+     * @name DetectProxy
+     * @summary Find a proxy on a server
+     * @request GET:/servers/{id}/proxy-detect
+     */
+    detectProxy: (
+      id: string,
+      query?: {
+        /** @default "nginx" */
+        kind?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ProxyDetection, ErrorModel>({
+        path: `/servers/${id}/proxy-detect`,
+        method: "GET",
+        query: query,
         format: "json",
         ...params,
       }),

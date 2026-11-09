@@ -22,6 +22,7 @@ import { useOpen } from "@/hooks/useOpen"
 import type { Proxy as ReverseProxy } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { useGeoJob, useInspection, useSetupGeo } from "../../../api"
+import { inContainer } from "../../../components/meta"
 import { useProxyCan } from "../../../components/permissions"
 import { inspectable } from "../../components/toolbar"
 import { countryName, findCountries } from "./countries"
@@ -34,7 +35,7 @@ import {
   typeUses,
 } from "./draft"
 import { EditorCard as Card } from "./editor-card"
-import { ModuleInstall } from "./module-install"
+import { ImageNote, ModuleInstall } from "./module-install"
 
 // Security › who can reach the site: two address lists, what happens to
 // everyone else, and countries (needs the GeoIP2 lookup; port forwards use
@@ -279,17 +280,21 @@ function CountriesCard({
               refreshed monthly) to {p.server_name}. You can pick countries now,
               but the site can only be saved with them once it's on.
             </p>
-            {can(p, "engineer") && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="mt-2 h-11 md:h-8"
-                disabled={setup.isPending}
-                onClick={turnOn}
-              >
-                <Earth />
-                Turn on country lookup
-              </Button>
+            {inContainer(p) ? (
+              <ImageNote proxy={p} />
+            ) : (
+              can(p, "engineer") && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-2 h-11 md:h-8"
+                  disabled={setup.isPending}
+                  onClick={turnOn}
+                >
+                  <Earth />
+                  Turn on country lookup
+                </Button>
+              )
             )}
           </Callout>
         )

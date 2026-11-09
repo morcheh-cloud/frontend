@@ -72,9 +72,11 @@ import {
   hostTarget,
   hostTypeMeta,
   newHostHref,
+  ProxyName,
   type ProxyStatus,
   ProxyStatusDot,
   proxyHref,
+  proxyName,
   proxyStatusMeta,
   type SiteTab,
   siteTabMeta,
@@ -128,7 +130,7 @@ function useData() {
   const fleet = useFleetHosts()
   const [{ tab, q, proxy: proxyParam }, setFilters] = useProxyListFilters()
   const all = [...(proxies.data?.items ?? [])].sort(
-    (a, b) => rank(a) - rank(b) || a.server_name.localeCompare(b.server_name),
+    (a, b) => rank(a) - rank(b) || proxyName(a).localeCompare(proxyName(b)),
   )
   const byId = new Map(all.map((p) => [p.id, p]))
   // A proxy that's gone (or not loaded yet) filters nothing.
@@ -154,7 +156,7 @@ function useData() {
     h.host.domains.some((d) => d.toLowerCase().includes(needle)) ||
     hostName(h.host).toLowerCase().includes(needle) ||
     hostTarget(h.host.config).toLowerCase().includes(needle) ||
-    h.server_name.toLowerCase().includes(needle) ||
+    proxyName(h).toLowerCase().includes(needle) ||
     h.host.note.toLowerCase().includes(needle)
 
   const tabRows = scoped.filter(inTab(tab))
@@ -253,9 +255,7 @@ function useAddSite(d: Data) {
               >
                 <ProxyTile className="size-9" />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">
-                    {p.server_name}
-                  </span>
+                  <ProxyName p={p} className="flex font-medium" />
                   <span className="block truncate text-caption text-muted-foreground">
                     {p.kind_label} · {p.host_count} site
                     {p.host_count === 1 ? "" : "s"}
@@ -429,9 +429,11 @@ function ProxyFilterMenu({ d }: { d: Data }) {
         ) : (
           <Server className="size-4" />
         )}
-        <span className="truncate">
-          {current ? current.server_name : "All proxies"}
-        </span>
+        {current ? (
+          <ProxyName p={current} />
+        ) : (
+          <span className="truncate">All proxies</span>
+        )}
         <ChevronDown className="size-4 text-ash" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
@@ -446,7 +448,7 @@ function ProxyFilterMenu({ d }: { d: Data }) {
             {d.all.map((p) => (
               <DropdownMenuRadioItem key={p.id} value={p.id}>
                 <ProxyStatusDot status={p.status} />
-                <span className="min-w-0 flex-1 truncate">{p.server_name}</span>
+                <ProxyName p={p} className="flex-1" />
                 <span className="text-caption text-ash tabular-nums">
                   {p.host_count}
                 </span>
@@ -484,7 +486,7 @@ function Troubled({ d, phone }: { d: Data; phone?: boolean }) {
             >
               <ProxyStatusDot status={p.status} />
               <span className="min-w-0 flex-1 truncate">
-                <span className="font-medium">{p.server_name}</span>
+                <ProxyName p={p} className="font-medium" />
                 <span className="text-muted-foreground">
                   {" "}
                   · {s.label}: {p.status_message || s.hint}
@@ -682,7 +684,7 @@ function SiteCard({
           className="relative inline-flex min-w-0 items-center gap-1.5 outline-none hover:text-brand focus-visible:text-brand"
         >
           <ProxyStatusDot status={row.fleet.proxy_status as ProxyStatus} />
-          <span className="truncate">{row.fleet.server_name}</span>
+          <ProxyName p={row.fleet} />
           <span className="shrink-0 text-ash">
             {p?.kind_label ?? row.fleet.kind}
           </span>
@@ -747,9 +749,7 @@ function ProxiesLayer({
           >
             <ProxyTile className="size-10" />
             <span className="min-w-0 flex-1">
-              <span className="block truncate font-medium">
-                {p.server_name}
-              </span>
+              <ProxyName p={p} className="flex font-medium" />
               <span className="block truncate text-caption text-muted-foreground">
                 {p.kind_label}
                 {p.version && ` ${p.version}`} · {p.host_count} site
@@ -762,7 +762,7 @@ function ProxiesLayer({
           {!phone && (
             <ItemMenu
               groups={menu(p, { open: true })}
-              label={`${p.server_name} actions`}
+              label={`${proxyName(p)} actions`}
             />
           )}
         </li>
@@ -842,7 +842,7 @@ function NoSites({ d, add }: { d: Data; add: ReturnType<typeof useAddSite> }) {
       icon={tabIcons[d.tab]}
       title={
         where
-          ? `No ${meta.label.toLowerCase()} on ${where.server_name}`
+          ? `No ${meta.label.toLowerCase()} on ${proxyName(where)}`
           : `No ${meta.label.toLowerCase()} yet`
       }
       body={tabBlurbs[d.tab]}
@@ -1043,9 +1043,11 @@ function ProxyMobile() {
                 ) : (
                   <Server className="size-4" />
                 )}
-                <span className="max-w-40 truncate">
-                  {filtered ? filtered.server_name : "All proxies"}
-                </span>
+                {filtered ? (
+                  <ProxyName p={filtered} className="max-w-48" />
+                ) : (
+                  <span className="max-w-40 truncate">All proxies</span>
+                )}
                 <ChevronDown className="size-4" />
               </button>
             </nav>
@@ -1108,7 +1110,7 @@ function ProxyMobile() {
               key={p.id}
               icon={<ProxyStatusDot status={p.status} />}
               label={p.server_name}
-              description={`${p.kind_label} · ${p.host_count} site${p.host_count === 1 ? "" : "s"}`}
+              description={`${p.container ? "In a container · " : ""}${p.kind_label} · ${p.host_count} site${p.host_count === 1 ? "" : "s"}`}
               trailing={
                 d.proxyFilter === p.id && (
                   <Check className="size-5 text-brand" />
@@ -1155,8 +1157,9 @@ function MobileRow({ row, onMore }: { row: Row; onMore: () => void }) {
             </span>
             {!h.enabled && <Tag>Off</Tag>}
           </span>
-          <span className="truncate text-body-sm text-muted-foreground">
-            {target} · {row.fleet.server_name}
+          <span className="flex min-w-0 items-center gap-1 text-body-sm text-muted-foreground">
+            <span className="shrink-[2] truncate">{target} ·</span>
+            <ProxyName p={row.fleet} />
           </span>
         </span>
         {live && (

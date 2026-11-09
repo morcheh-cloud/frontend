@@ -37,10 +37,13 @@ import { Switch } from "@/components/ui/switch"
 import { useOpen } from "@/hooks/useOpen"
 import type { Proxy as ReverseProxy } from "@/lib/services"
 import { cn } from "@/lib/utils"
-import { useTestUpstream } from "../../../api"
+import { useInspection, useTestUpstream } from "../../../api"
 import {
   type HostType,
+  hostPathOf,
   hostTypes,
+  inContainer,
+  insidePath,
   notFoundText,
 } from "../../../components/meta"
 import {
@@ -616,15 +619,32 @@ function StaticFields({
 }) {
   const [browse, setBrowse] = useOpen("proxy-host-folder")
   const [picked, setPicked] = useState("/")
+  // In a container, nginx sees its own paths: the field holds the path
+  // inside, and a server folder picked here is moved through the mounts.
+  const boxed = inContainer(p)
+  const box = useInspection(p.id, boxed).data?.container
+  const root = draft.root.trim()
+  const onServer = (inside: string) =>
+    !boxed ? inside : box ? hostPathOf(box, inside) : ""
   const open = () => {
-    setPicked(draft.root.trim().startsWith("/") ? draft.root.trim() : "/")
+    const at = root.startsWith("/") ? onServer(root) : ""
+    setPicked(at || "/")
     setBrowse(true)
   }
+  const pickedInside = boxed ? (box ? insidePath(box, picked) : "") : picked
+  const unmounted =
+    boxed && !!box && root.startsWith("/") && !hostPathOf(box, root)
   return (
     <>
       <Field
         label="Folder"
-        hint={`A full path on ${p.server_name}. Its index.html is the home page.`}
+        hint={
+          boxed
+            ? unmounted
+              ? `Not in a folder mounted into ${p.container}: it must exist inside its image. Its index.html is the home page.`
+              : `A full path as the container ${p.container} sees it. Browse picks a server folder mounted into it. Its index.html is the home page.`
+            : `A full path on ${p.server_name}. Its index.html is the home page.`
+        }
         error={errors.root}
       >
         {(f) => (
@@ -669,7 +689,11 @@ function StaticFields({
         open={browse}
         onOpenChange={setBrowse}
         title="Pick the folder"
-        description={`Folders on ${p.server_name}.`}
+        description={
+          boxed
+            ? `Folders on ${p.server_name}. Only ones mounted into ${p.container} can be used.`
+            : `Folders on ${p.server_name}.`
+        }
         className="sm:max-w-lg"
         footer={
           <>
@@ -677,8 +701,9 @@ function StaticFields({
               Cancel
             </Button>
             <Button
+              disabled={!pickedInside}
               onClick={() => {
-                set({ root: picked })
+                set({ root: pickedInside })
                 setBrowse(false)
               }}
             >
@@ -699,6 +724,27 @@ function StaticFields({
           <p className="truncate text-caption text-muted-foreground">
             Picked: <span className="font-mono text-foreground">{picked}</span>
           </p>
+          {boxed && (
+            <p
+              className={cn(
+                "text-caption",
+                pickedInside ? "text-muted-foreground" : "text-destructive",
+              )}
+            >
+              {pickedInside ? (
+                <>
+                  The container sees it as{" "}
+                  <span className="font-mono text-foreground">
+                    {pickedInside}
+                  </span>
+                </>
+              ) : box ? (
+                `Not mounted into ${p.container}. Mount it (docker run -v or compose volumes), recreate the container, then pick it.`
+              ) : (
+                "Reading the container's mounts…"
+              )}
+            </p>
+          )}
         </div>
       </ResponsiveDialog>
     </>

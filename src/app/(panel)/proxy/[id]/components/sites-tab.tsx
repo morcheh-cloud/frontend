@@ -37,7 +37,6 @@ import {
 import { ActionSheet, Tag, Th } from "../../components/parts"
 import { useProxyCan } from "../../components/permissions"
 import { useHostMenu } from "../../components/proxy-actions"
-import { ProxyLive } from "./live-traffic"
 import { inspectable, Toolbar } from "./toolbar"
 
 // The proxy's own sites, with how each one looks on the server right now.
@@ -114,8 +113,6 @@ export function SitesTab({ detail }: { detail: ProxyDetail }) {
           ))}
       </Toolbar>
 
-      <ProxyLive detail={detail} />
-
       {hosts.length === 0 ? (
         <Empty
           icon={Globe}
@@ -162,10 +159,15 @@ function SiteState({
   if (!host.enabled) return <Tag>Off</Tag>
   if (!state) return null
   const conflicts = state.conflicts.length
-  if (state.state === "ok" && conflicts === 0)
+  if (state.state === "ok" && conflicts === 0 && !state.unpublished)
     return <span className="text-body-sm text-muted-foreground">Live</span>
   return (
     <>
+      {state.unpublished && (
+        <span title="The proxy's container doesn't publish this port, so nothing outside the server reaches it. Publish it in the container's ports (docker run -p or compose) and recreate the container.">
+          <Tag tone="warning">Port not published</Tag>
+        </span>
+      )}
       {state.state !== "ok" && state.state !== "off" && (
         <span title={hostStateMeta[state.state].hint}>
           <Tag tone={hostStateMeta[state.state].tone}>
@@ -188,7 +190,7 @@ function SiteState({
   )
 }
 
-function Domain({ host }: { host: ProxyHost }) {
+export function Domain({ host }: { host: ProxyHost }) {
   const tls = !!host.config.tls?.enabled
   return (
     <span className="flex min-w-0 items-center gap-2">

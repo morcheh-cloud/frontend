@@ -5,6 +5,23 @@ const nextConfig: NextConfig = {
   output: "standalone",
   cacheComponents: true,
   partialPrefetching: true,
+  // Needed by turbopackRustReactCompiler, which only picks the implementation.
+  reactCompiler: true,
+  experimental: {
+    turbopackFileSystemCacheForDev: true,
+    turbopackFileSystemCacheForBuild: true,
+    turbopackRustReactCompiler: true,
+    useOffline: true,
+    turbopackGc: true,
+    // lucide-react is optimized by default.
+    optimizePackageImports: [
+      "@xyflow/react",
+      "@uiw/react-codemirror",
+      "@dnd-kit/core",
+      "@dnd-kit/sortable",
+    ],
+    agentUpgrade: "security",
+  },
   // Network map moved out of Servers; keep old links and bookmarks working.
   async redirects() {
     return [

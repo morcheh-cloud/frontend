@@ -1,6 +1,7 @@
 import {
   ArrowRightLeft,
   Cable,
+  Container,
   CornerUpRight,
   FileX,
   FolderOpen,
@@ -11,6 +12,7 @@ import {
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs"
 
 import type {
+  ContainerInfo,
   HostConfig,
   ProxyHost,
   ProxyHostState,
@@ -270,7 +272,7 @@ export const hostStateMeta: Record<
 }
 
 export const proxyHref = (id: string, tab?: ProxyTab) =>
-  `/proxy/${id}${tab && tab !== "sites" ? `?tab=${tab}` : ""}`
+  `/proxy/${id}${tab && tab !== "report" ? `?tab=${tab}` : ""}`
 export const newHostHref = (id: string, type?: HostType) =>
   `/proxy/${id}/hosts/new${type && type !== "proxy" ? `?type=${type}` : ""}`
 // A new site that starts as a copy of another one.
@@ -305,17 +307,122 @@ export const proxyListFilters = {
 export const useProxyListFilters = () =>
   useQueryStates(proxyListFilters, { history: "replace" })
 
-export const proxyTabs = ["sites", "existing", "logs", "history"] as const
+export const proxyTabs = [
+  "report",
+  "sites",
+  "existing",
+  "logs",
+  "history",
+] as const
 export type ProxyTab = (typeof proxyTabs)[number]
 export const proxyTabLabels: Record<ProxyTab, string> = {
+  report: "Report",
   sites: "Sites",
   existing: "On the server",
   logs: "Logs",
   history: "History",
 }
 export const proxyPageFilters = {
-  tab: parseAsStringLiteral(proxyTabs).withDefault("sites"),
+  tab: parseAsStringLiteral(proxyTabs).withDefault("report"),
   q: parseAsString.withDefault(""),
 }
 export const useProxyPageFilters = () =>
   useQueryStates(proxyPageFilters, { history: "replace" })
+
+// ---- Proxies in a container (docker / podman) ----
+
+export const runtimeLabel: Record<ReverseProxy["runtime"], string> = {
+  host: "On the server",
+  docker: "Docker",
+  podman: "Podman",
+}
+
+export const inContainer = (p: Pick<ReverseProxy, "runtime">) =>
+  p.runtime !== "host"
+
+// Where a proxy runs, in a few words: "Docker · edge" / "On the server".
+export function placeText(p: Pick<ReverseProxy, "runtime" | "container">) {
+  return p.runtime === "host"
+    ? runtimeLabel.host
+    : `${runtimeLabel[p.runtime]} · ${p.container}`
+}
+
+// How a container is reached from outside: the server's network, or the
+// ports it publishes (IPv4/IPv6 twins once).
+export function containerReach(
+  c: Pick<ContainerInfo, "network_mode" | "ports">,
+) {
+  if (c.network_mode === "host") return "Uses the server's network"
+  const seen = new Set<string>()
+  for (const p of c.ports) {
+    seen.add(`${p.host_port}→${p.port}${p.proto === "udp" ? "/udp" : ""}`)
+  }
+  return seen.size ? `Publishes ${[...seen].join(", ")}` : "Publishes no ports"
+}
+
+// A path under one side of the longest mount that holds it, moved to the
+// other side; "" when no mount holds it.
+function across(
+  mounts: ContainerInfo["mounts"],
+  p: string,
+  from: "source" | "destination",
+) {
+  const clean = (x: string) => x.replace(/\/{2,}/g, "/").replace(/(.)\/$/, "$1")
+  const join = (a: string, b: string) => (b ? `${a === "/" ? "" : a}/${b}` : a)
+  const want = clean(p)
+  let best = -1
+  let out = ""
+  for (const m of mounts) {
+    if (!m.source) continue
+    const base = clean(m[from])
+    const under =
+      want === base || want.startsWith(base === "/" ? "/" : `${base}/`)
+    if (!under || base.length <= best) continue
+    best = base.length
+    const to = clean(from === "source" ? m.destination : m.source)
+    out = join(to, want.slice(base.length).replace(/^\//, ""))
+  }
+  return out
+}
+
+// Where a container sees a folder of the server (bind mount or volume),
+// "" when it can't: the backend's InsidePath.
+export const insidePath = (
+  c: Pick<ContainerInfo, "mounts">,
+  hostPath: string,
+) => across(c.mounts, hostPath, "source")
+
+// The server folder behind a path inside the container, "" when none.
+export const hostPathOf = (c: Pick<ContainerInfo, "mounts">, inside: string) =>
+  across(c.mounts, inside, "destination")
+
+// A proxy's name in lists and titles: its server, plus the container when
+// it runs in one (a server may hold both kinds).
+export const proxyName = (
+  p: Pick<ReverseProxy, "server_name"> & { container?: string },
+) => (p.container ? `${p.server_name} · ${p.container}` : p.server_name)
+
+// The same name drawn for a list: the server, then a "Container" badge in
+// place of the container's name (shown on hover) when it runs in one.
+export function ProxyName({
+  p,
+  className,
+}: {
+  p: Pick<ReverseProxy, "server_name"> & { container?: string }
+  className?: string
+}) {
+  return (
+    <span className={cn("inline-flex min-w-0 items-center gap-1.5", className)}>
+      <span className="truncate">{p.server_name}</span>
+      {p.container && (
+        <span
+          title={`Container: ${p.container}`}
+          className="inline-flex h-5 shrink-0 items-center gap-1 rounded-full bg-muted px-2 text-caption font-normal whitespace-nowrap text-muted-foreground"
+        >
+          <Container className="size-3" />
+          Container
+        </span>
+      )}
+    </span>
+  )
+}

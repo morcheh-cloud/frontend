@@ -420,15 +420,17 @@ type SetFilters = ReturnType<typeof useRequestFilters>[1]
 
 // ── Toolbar parts ───────────────────────────────────────────────────────
 
-function DebouncedSearch({
+export function DebouncedSearch({
   value,
   onChange,
   stream,
+  placeholder,
   className,
 }: {
   value: string
   onChange: (value: string) => void
   stream: boolean
+  placeholder?: string
   className?: string
 }) {
   const [text, setText] = useState(value)
@@ -448,7 +450,8 @@ function DebouncedSearch({
       value={text}
       onChange={setText}
       placeholder={
-        stream ? "Search the log" : "Search paths, addresses, agents"
+        placeholder ??
+        (stream ? "Search the log" : "Search paths, addresses, agents")
       }
       label="Search the log"
       className={className}
@@ -456,7 +459,7 @@ function DebouncedSearch({
   )
 }
 
-function LiveButton({
+export function LiveButton({
   live,
   paused,
   frozen,

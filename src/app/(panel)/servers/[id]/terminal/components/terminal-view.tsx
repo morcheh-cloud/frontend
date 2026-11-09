@@ -133,7 +133,7 @@ export function TerminalView({
     let finished = false
     const cleanups: (() => void)[] = []
 
-    const send = (data: string | Uint8Array) => {
+    const send = (data: string | Uint8Array<ArrayBuffer>) => {
       const ws = socketRef.current
       if (ws?.readyState === WebSocket.OPEN) ws.send(data)
     }

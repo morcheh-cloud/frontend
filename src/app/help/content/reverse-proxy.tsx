@@ -1,5 +1,6 @@
 import {
   C,
+  Code,
   Example,
   type GuideSection,
   H3,
@@ -30,8 +31,11 @@ export const reverseProxy: GuideSection[] = [
         </P>
         <P>
           Morcheh reaches the server over SSH, like everything else. Nothing
-          else is installed: no agent, no container. To manage nginx on
-          Morcheh's own machine, add that machine as a server first.
+          else is installed: no agent. nginx can be installed on the server or
+          run in a Docker / Podman container there (see{" "}
+          <See guide="reverse-proxy" section="docker" />
+          ). To manage nginx on Morcheh's own machine, add that machine as a
+          server first.
         </P>
         <Table
           head={["Page", "What you do there"]}
@@ -46,7 +50,7 @@ export const reverseProxy: GuideSection[] = [
             ],
             [
               "A proxy's page",
-              "The proxy's overall live numbers, its sites, what else is on the server, logs and history",
+              "Tabs Report (live numbers and state of the whole proxy) / Sites / On the server / Logs / History",
             ],
             ["A site's page", "The site's settings and the config they make"],
           ]}
@@ -82,10 +86,13 @@ export const reverseProxy: GuideSection[] = [
         </P>
         <P>
           The overall numbers, every site of a proxy added up, are on that
-          proxy's page, above its sites (open it from <UI>Proxies</UI> or the
-          server name at the bottom of a card). If the proxy also has{" "}
-          <UI>Streams</UI>, the switch next to <UI>Live</UI> moves between its
-          sites and its streams.
+          proxy's page, in its <UI>Report</UI> tab (open it from{" "}
+          <UI>Proxies</UI> or the server name at the bottom of a card; see{" "}
+          <See guide="reverse-proxy" section="proxy-report">
+            A proxy's report
+          </See>
+          ). If the proxy also has <UI>Streams</UI>, the switch next to{" "}
+          <UI>Live</UI> moves between its sites and its streams.
         </P>
         <Table
           head={["Number", "What it counts"]}
@@ -129,6 +136,60 @@ export const reverseProxy: GuideSection[] = [
     ),
   },
   {
+    id: "proxy-report",
+    title: "A proxy's report",
+    body: (
+      <>
+        <P>
+          A proxy's page opens on <UI>Report</UI>: the whole nginx at a glance,
+          refreshed every 5 seconds. Its other tabs are <UI>Sites</UI> (the list
+          of its sites, to search, add and edit), <UI>On the server</UI>,{" "}
+          <UI>Logs</UI> and <UI>History</UI>.
+        </P>
+        <Table
+          head={["Part", "What it shows"]}
+          rows={[
+            [
+              <UI key="l">Live numbers</UI>,
+              "Every site added up over the last 30 minutes: requests, per minute, server errors, sent, and a column per minute",
+            ],
+            [
+              <UI key="s">Sites right now</UI>,
+              "Each site that is on, with its own minutes, per minute, total, share of the proxy's traffic, 4xx, 5xx rate and bytes sent. Order by Busiest, Errors or Sent; click a site to open its report",
+            ],
+            [
+              <UI key="p">This proxy</UI>,
+              "Running or not, version, starts at boot; sites on and off by type; how many answer over https; certificates and the next one to end; sites that need a look; hand-written sites; what this nginx can do (HTTP/3, Brotli, WAF, countries…)",
+            ],
+          ]}
+        />
+        <Example title="Find what's behind a burst of errors">
+          <Steps>
+            <>
+              The <UI>Server errors</UI> tile turns red. Under{" "}
+              <UI>Sites right now</UI>, pick <UI>Errors</UI> to bring the site
+              with the most 5xx to the top.
+            </>
+            <>
+              Click it: its report and <UI>Logs</UI> show which addresses fail
+              and since when.
+            </>
+          </Steps>
+        </Example>
+        <Tip>
+          <UI>Need a look</UI> counts sites whose file on the server was changed
+          by hand or is missing, whose domain is also in another file, or whose
+          port the container doesn't publish. Click it to go to <UI>Sites</UI>,
+          where each one carries a tag.
+        </Tip>
+        <P>
+          Streams count connections, not requests, so their share is worked out
+          among the streams only.
+        </P>
+      </>
+    ),
+  },
+  {
     id: "add",
     title: "Add a proxy",
     body: (
@@ -139,14 +200,23 @@ export const reverseProxy: GuideSection[] = [
           </P>
           <P>
             Pick the <UI>Server</UI>. Servers where you don't have Engineer
-            access, or that already have a proxy, are greyed out with the
-            reason.
+            access are greyed out.
           </P>
           <P>
-            Leave <UI>Install and set it up now</UI> ticked. Morcheh installs
-            nginx with the server's package manager if it's missing, makes the
-            folder <C>/etc/nginx/morcheh/</C> and includes it in nginx's config.
-            It runs as a background task (see <See guide="tasks" />
+            Morcheh looks at the server and lists what it found under{" "}
+            <UI>Where it runs</UI>: nginx <UI>Installed on the server</UI>, each
+            container running an nginx image (Docker or Podman, with its Compose
+            project), or <UI>Install on the server</UI> when there's neither.
+            The likely one is tagged <UI>Recommended</UI> and picked for you;
+            when both kinds are there, you choose. One already added shows{" "}
+            <UI>Added</UI> with a button to open it.
+          </P>
+          <P>
+            Leave <UI>Set it up now</UI> ticked. Morcheh installs nginx with the
+            server's package manager if it's missing (never inside a container),
+            makes the folder <C>/etc/nginx/morcheh/</C> and includes it in
+            nginx's config. It runs as a background task (see{" "}
+            <See guide="tasks" />
             ).
           </P>
           <P>
@@ -157,6 +227,137 @@ export const reverseProxy: GuideSection[] = [
           Sites already on the server keep working: setup only adds one{" "}
           <C>include</C> line and never edits or removes other files.
         </Tip>
+      </>
+    ),
+  },
+  {
+    id: "docker",
+    title: "nginx in a container",
+    body: (
+      <>
+        <P>
+          When nginx runs in a Docker or Podman container on the server, add
+          that container as the proxy: Morcheh works on the nginx inside it over
+          the same SSH connection (<C>docker exec</C>), so sites, https, tests,
+          reloads, logs and live numbers all work as they do for an installed
+          nginx. A server can have both: each is its own proxy, named{" "}
+          <C>server · container</C>.
+        </P>
+        <Steps>
+          <P>
+            <UI>Add proxy</UI>, pick the server, then the container under{" "}
+            <UI>Where it runs</UI>. Not listed (an image Morcheh didn't
+            recognise)? Pick <UI>Another container</UI> and type its name.
+          </P>
+          <P>
+            Set it up. Morcheh adds its folder and one <C>include</C> line
+            inside the container, and log rotation on the server. The image
+            isn't changed.
+          </P>
+          <P>
+            The proxy's page shows the container as a chip beside the server's
+            address (and <UI>Container</UI> in the ⋯ menu): image, state,
+            networks, published ports and mounted folders.
+          </P>
+        </Steps>
+        <H3>What's different</H3>
+        <Table
+          head={["", "In a container"]}
+          rows={[
+            [
+              "App address",
+              <>
+                Apps in containers on the same (user-defined) network answer by
+                name: <C>http://app:3000</C>. Apps on the server itself answer
+                on the network's gateway address (often <C>172.18.0.1</C>), not{" "}
+                <C>127.0.0.1</C>, which is the container itself.{" "}
+                <UI>Pick from a server</UI> fills in the right one.
+              </>,
+            ],
+            [
+              "Ports",
+              "Visitors reach only the ports the container publishes. A port forward on a port it doesn't publish is tagged Port not published. A container on the server's network (network_mode: host) has neither limit.",
+            ],
+            [
+              "Certificates",
+              "Kept on the server and copied in. certbot runs on the server and copies renewals in too.",
+            ],
+            [
+              "Static sites",
+              "The folder is the path the container sees. Browse picks a server folder and turns it into that path; folders that aren't mounted into the container can't be used.",
+            ],
+            [
+              "Modules",
+              "Brotli, the web firewall, image resizing and countries come with the image. Morcheh doesn't add them: use an image that has them.",
+            ],
+            [
+              "Stop / Start",
+              "Stop and Start act on the container; Reload and Test on nginx inside it.",
+            ],
+          ]}
+        />
+        <Recommended
+          rows={[
+            {
+              setting: "Restart policy",
+              value: <C>unless-stopped</C>,
+              why: "So it comes back after a reboot or a crash",
+            },
+            {
+              setting: "Network",
+              value: "A named network shared with your apps",
+              why: "Apps answer by name; no ports to publish for them",
+            },
+            {
+              setting: "Ports",
+              value: <C>80, 443, 443/udp</C>,
+              why: "http, https and HTTP/3",
+            },
+          ]}
+        />
+        <Example title="Compose">
+          <Code>{`services:
+  edge:
+    image: nginx:1.29
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    networks: [apps]
+networks:
+  apps:
+    external: true`}</Code>
+        </Example>
+        <Warn>
+          Images that write nginx's config themselves (Nginx Proxy Manager,
+          nginx-proxy, SWAG) can't be added: they'd overwrite Morcheh's changes.
+        </Warn>
+        <Tip>
+          Recreated the container (a new image, <C>compose up</C>)? Morcheh
+          notices on its next check, sets it up again and writes its sites back.
+        </Tip>
+        <H3>Troubleshooting</H3>
+        <List>
+          <li>
+            <UI>No nginx found in …</UI>: the container has no nginx at its
+            usual paths. Check the image, or remove this proxy and add the right
+            container.
+          </li>
+          <li>
+            <UI>The container … isn't running</UI>: press <UI>Start</UI>, or
+            start it with Docker. Without a restart policy it stays down after a
+            reboot.
+          </li>
+          <li>
+            502 for an app on the server: the server's firewall may block the
+            container's network. Allow the network (for example{" "}
+            <C>172.18.0.0/16</C>) to the app's port, or put the app in a
+            container on the same network.
+          </li>
+          <li>
+            <UI>Docker is installed but didn't list its containers</UI>: its
+            service isn't running, or the SSH user can't use it (add it to the{" "}
+            <C>docker</C> group or allow <C>sudo -n</C>).
+          </li>
+        </List>
       </>
     ),
   },
@@ -2728,10 +2929,38 @@ export const reverseProxy: GuideSection[] = [
     body: (
       <>
         <P>
-          The <UI>Logs</UI> tab reads the last lines of a site's{" "}
-          <UI>Requests</UI> (access log) or <UI>Errors</UI> log, or nginx's own.
-          It needs Operator access on the server.
+          A proxy's <UI>Logs</UI> tab reads a site's <UI>Requests</UI> (access
+          log) or <UI>Errors</UI> log, or nginx's own. Pick the log in the first
+          menu. It needs Operator access on the server.
         </P>
+        <Table
+          head={["View", "What you get"]}
+          rows={[
+            [
+              <UI key="t">Table</UI>,
+              "A site's requests only: the same live, searchable list as the site's own Logs tab (status, time range, method, path, address, slow, firewall, columns, details of a request)",
+            ],
+            [
+              <UI key="r">Raw</UI>,
+              "Any log, line by line as nginx wrote it: the last 100 to 2,000 lines, followed live every 5 seconds",
+            ],
+          ]}
+        />
+        <P>
+          In <UI>Raw</UI>, the search marks every match, and the chips keep only
+          some lines: by status (<UI>2xx</UI>… <UI>5xx</UI>, <UI>Errors</UI> =
+          4xx and 5xx) for requests, by level (<UI>Errors</UI> takes in crit,
+          alert and emerg too, <UI>Warnings</UI>, <UI>Notices</UI>) for the
+          error log. Each chip says how many of the lines read it holds. 5xx and
+          error lines are red, 4xx and warnings amber. <UI>Live</UI> follows the
+          end while you stay at the bottom; scroll up to read in peace, or press
+          it to pause. Copy takes the lines shown.
+        </P>
+        <Tip>
+          Use <UI>Table</UI> for a site's traffic (it searches far back and
+          filters on the server) and <UI>Raw</UI> for the error log, nginx's own
+          log or a quick look at the last lines exactly as written.
+        </Tip>
         <P>
           A <C>502 Bad Gateway</C> in Requests with <C>connect() failed</C> in
           Errors means the app isn't answering at its address: check the app,

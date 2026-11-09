@@ -2,6 +2,7 @@
 
 import {
   CirclePlay,
+  Container,
   Ellipsis,
   FileCheck,
   RefreshCw,
@@ -27,9 +28,11 @@ import { cn } from "@/lib/utils"
 import { useInspection, useProxy, useSetupJob } from "../../api"
 import {
   canWrite,
+  inContainer,
   needsSetup,
   ProxyStatusDot,
   type ProxyTab,
+  placeText,
   proxyStatusMeta,
 } from "../../components/meta"
 import {
@@ -44,10 +47,12 @@ import { ProxyTile } from "../../components/proxy-view"
 import { ExistingTab } from "./existing-tab"
 import { HistoryTab } from "./history-tab"
 import { LogsTab } from "./logs-tab"
+import { ReportTab } from "./report-tab"
 import { SitesTab } from "./sites-tab"
 import { useTab } from "./toolbar"
 
-// One reverse proxy: its sites, what else is on the server, logs, history.
+// One reverse proxy: its live report, its sites, what else is on the
+// server, logs, history.
 export function ProxyPageView() {
   const { id } = useParams<{ id: string }>()
   const query = useProxy(id)
@@ -95,7 +100,8 @@ function TabBody({ detail, tab }: { detail: ProxyDetail; tab: ProxyTab }) {
   if (tab === "existing") return <ExistingTab detail={detail} />
   if (tab === "logs") return <LogsTab detail={detail} />
   if (tab === "history") return <HistoryTab proxy={detail.proxy} />
-  return <SitesTab detail={detail} />
+  if (tab === "sites") return <SitesTab detail={detail} />
+  return <ReportTab detail={detail} />
 }
 
 function DesktopPage({ detail }: { detail: ProxyDetail }) {
@@ -132,6 +138,17 @@ function DesktopPage({ detail }: { detail: ProxyDetail }) {
             >
               {p.server_host}
             </Link>
+            {inContainer(p) && (
+              <button
+                type="button"
+                onClick={() => actions.container(p)}
+                title={placeText(p)}
+                className="inline-flex h-5 items-center gap-1 rounded-full bg-muted px-2 text-caption text-muted-foreground outline-none hover:bg-mist hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Container className="size-3" />
+                Container
+              </button>
+            )}
             {p.last_checked_at && (
               <span className="text-caption text-ash">
                 Checked {timeAgo(p.last_checked_at).toLowerCase()}
@@ -205,6 +222,11 @@ function PhonePage({ detail }: { detail: ProxyDetail }) {
           <>
             <ProxyStatusDot status={p.status} />
             {proxyStatusMeta[p.status].label} · {p.kind_label}
+            {inContainer(p) && (
+              <span className="inline-flex items-center gap-1">
+                · <Container className="size-3" /> Container
+              </span>
+            )}
           </>
         }
         path={`/proxy/${p.id}`}
@@ -245,6 +267,7 @@ export function ProxyBanner({
   const inspection = useInspection(p.id, p.status === "config_error")
   const engineer = can(p, "engineer")
   const operator = can(p, "operator")
+  const boxed = inContainer(p)
 
   if (job) {
     return (
@@ -264,7 +287,8 @@ export function ProxyBanner({
         icon={Wrench}
         className={className}
         action={
-          engineer && (
+          engineer &&
+          !(boxed && p.status === "not_installed") && (
             <Button size="sm" onClick={() => actions.setup(p)}>
               Set up
             </Button>
@@ -273,14 +297,21 @@ export function ProxyBanner({
       >
         <p className="font-medium">
           {p.status === "not_installed"
-            ? `${p.kind_label} isn't installed yet`
+            ? boxed
+              ? `No ${p.kind_label} found in ${p.container}`
+              : `${p.kind_label} isn't installed yet`
             : `${p.kind_label} isn't set up for Morcheh yet`}
         </p>
         <p className="text-muted-foreground">
           {p.status === "not_installed"
-            ? "Set up installs it with the server's package manager, then wires in a folder for Morcheh's sites. Sites already on the server keep working."
-            : "Set up adds one include line and a folder for Morcheh's sites. Nothing already there is changed."}
+            ? boxed
+              ? `Morcheh looks for ${p.kind_label} at its usual paths inside the container and doesn't install anything there. Check the container's image, or remove this proxy and add the right container.`
+              : "Set up installs it with the server's package manager, then wires in a folder for Morcheh's sites. Sites already on the server keep working."
+            : boxed
+              ? "Set up adds one include line and a folder for Morcheh's sites inside the container, and log rotation on the server. Nothing already there is changed."
+              : "Set up adds one include line and a folder for Morcheh's sites. Nothing already there is changed."}
           {!engineer &&
+            !(boxed && p.status === "not_installed") &&
             " Someone with Engineer access on the server can do it."}
         </p>
       </Banner>
@@ -338,9 +369,15 @@ export function ProxyBanner({
           )
         }
       >
-        <p className="font-medium">{p.kind_label} is stopped</p>
+        <p className="font-medium">
+          {boxed
+            ? `The container ${p.container} isn't running`
+            : `${p.kind_label} is stopped`}
+        </p>
         <p className="text-muted-foreground">
-          None of its sites answer until it runs again.
+          {boxed
+            ? "None of its sites answer until it runs again. Start runs the container again."
+            : "None of its sites answer until it runs again."}
         </p>
       </Banner>
     )

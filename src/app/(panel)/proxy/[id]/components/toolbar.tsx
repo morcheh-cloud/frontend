@@ -1,5 +1,6 @@
 "use client"
 
+import { useQueryStates } from "nuqs"
 import type { ReactNode } from "react"
 
 import { Segmented } from "@/app/(panel)/servers/[id]/components/parts"
@@ -7,12 +8,20 @@ import { useIsPhone } from "@/hooks/useIsPhone"
 import type { Proxy as ReverseProxy } from "@/lib/services"
 import {
   type ProxyTab,
+  proxyPageFilters,
   proxyTabLabels,
   proxyTabs,
-  useProxyPageFilters,
 } from "../../components/meta"
 import { chipClass } from "../../components/parts"
 import { useProxyCan } from "../../components/permissions"
+import { requestParsers } from "../hosts/components/request-filters"
+import { proxyLogParsers } from "./log-filters"
+
+// Every key a tab keeps in the URL, so leaving a tab drops them all.
+const pageKeys = { ...proxyPageFilters, ...proxyLogParsers, ...requestParsers }
+const cleared = Object.fromEntries(
+  Object.keys(pageKeys).map((k) => [k, null]),
+) as { [K in keyof typeof pageKeys]: null }
 
 // Reading the server only makes sense while it answers and the proxy is in.
 export const inspectable = (p: ReverseProxy) =>
@@ -20,13 +29,17 @@ export const inspectable = (p: ReverseProxy) =>
 
 export function useTab(p: ReverseProxy) {
   const can = useProxyCan()
-  const [{ tab }, setFilters] = useProxyPageFilters()
+  const [{ tab }, setFilters] = useQueryStates(pageKeys, {
+    history: "replace",
+    scroll: false,
+  })
   // Logs need Operator; the rest is for every reader.
   const tabs = proxyTabs.filter((t) => t !== "logs" || can(p, "operator"))
   return {
-    tab: tabs.includes(tab) ? tab : ("sites" as const),
+    tab: tabs.includes(tab) ? tab : ("report" as const),
     tabs,
-    setTab: (t: ProxyTab) => setFilters({ tab: t, q: null }),
+    setTab: (t: ProxyTab) =>
+      setFilters({ ...cleared, tab: t === "report" ? null : t }),
   }
 }
 

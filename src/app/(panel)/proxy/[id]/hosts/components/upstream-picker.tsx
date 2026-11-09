@@ -27,8 +27,14 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useOpen } from "@/hooks/useOpen"
-import type { OpenPort, Proxy as ReverseProxy } from "@/lib/services"
+import type {
+  ContainerInfo,
+  OpenPort,
+  Proxy as ReverseProxy,
+} from "@/lib/services"
 import { cn } from "@/lib/utils"
+import { useInspection } from "../../../api"
+import { inContainer } from "../../../components/meta"
 
 // What a picked port fills in: the address as the proxy's server reaches
 // it, the port, and http or https by a guess.
@@ -39,6 +45,32 @@ const wildcard = (a: string) =>
 const loopback = (a: string) =>
   a.startsWith("127.") || a === "::1" || a === "localhost"
 
+type Reach = { host: string; port?: number } | { reason: string }
+
+// How a proxy in a container (not on the server's network) reaches what
+// listens on its own server: another container on a shared network by its
+// name and own port, the rest over the network's gateway (the server's
+// address on it); 127.0.0.1 is the container itself.
+function reachFromBox(port: OpenPort, box: ContainerInfo): Reach {
+  // Names resolve only on user-defined networks, not the default bridge.
+  const nets = new Set(
+    box.networks.map((n) => n.name).filter((n) => n !== "bridge"),
+  )
+  const c = port.container
+  if (c?.target_port && c.network && nets.has(c.network))
+    return { host: c.name, port: c.target_port }
+  const at = port.addresses
+  if (at.some(wildcard)) {
+    const gateway = box.networks.find((n) => n.gateway)?.gateway
+    return gateway
+      ? { host: gateway }
+      : { reason: "The container's network has no gateway address" }
+  }
+  const other = at.find((a) => !loopback(a))
+  if (other) return { host: other }
+  return { reason: "Bound to 127.0.0.1: the container can't reach it" }
+}
+
 // How the proxy's server reaches a listener: over loopback when it's the
 // same server, else over the other server's address. A listener bound to
 // loopback on another server can't be reached at all.
@@ -46,8 +78,10 @@ function reach(
   port: OpenPort,
   same: boolean,
   serverHost: string,
-): { host: string } | { reason: string } {
+  box?: ContainerInfo,
+): Reach {
   const at = port.addresses
+  if (same && box && box.network_mode !== "host") return reachFromBox(port, box)
   if (same) {
     if (at.some((a) => wildcard(a) || a.startsWith("127.")))
       return { host: "127.0.0.1" }
@@ -175,6 +209,11 @@ function PickerBody({
   const same = serverId === p.server_id
   const serverName = server?.name ?? p.server_name
   const ports = usePorts(serverId)
+  const boxed = inContainer(p)
+  const inspection = useInspection(p.id, boxed)
+  const box = inspection.data?.container
+  const bridged = boxed && box?.network_mode !== "host"
+  const gateway = box?.networks.find((n) => n.gateway)?.gateway
 
   const needle = q.trim().toLowerCase()
   const rows = (ports.data?.ports ?? [])
@@ -245,9 +284,11 @@ function PickerBody({
 
       <div className="flex items-center gap-2 text-caption text-muted-foreground">
         <span className="min-w-0 flex-1">
-          {same
-            ? `On ${serverName} itself: reached over 127.0.0.1.`
-            : `On another server: reached over ${server?.host || "its address"}.`}
+          {!same
+            ? `On another server: reached over ${server?.host || "its address"}.`
+            : bridged
+              ? `The proxy runs in the container ${p.container}: containers on its network are reached by name, the rest of ${serverName} over ${gateway || "the network's gateway"} (the server's firewall must let the container in).`
+              : `On ${serverName} itself: reached over 127.0.0.1.`}
         </span>
         <Button
           type="button"
@@ -262,7 +303,12 @@ function PickerBody({
         </Button>
       </div>
 
-      {ports.isPending ? (
+      {same && bridged && !box ? (
+        <p className="flex items-center gap-2 py-8 text-body-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+          Reading the proxy's container…
+        </p>
+      ) : ports.isPending ? (
         <p className="flex items-center gap-2 py-8 text-body-sm text-muted-foreground">
           <Loader2 className="size-4 animate-spin" />
           Reading what listens on {serverName}…
@@ -293,8 +339,13 @@ function PickerBody({
                       key={`${x.protocol}/${x.port}/${x.addresses.join(",")}`}
                       port={x}
                       icon={g.icon}
-                      to={reach(x, same, server?.host ?? "")}
-                      self={same && x.process?.name === p.kind}
+                      to={reach(x, same, server?.host ?? "", box)}
+                      self={
+                        same &&
+                        (boxed
+                          ? x.container?.name === p.container
+                          : x.process?.name === p.kind)
+                      }
                       onPick={onPick}
                     />
                   ))}
@@ -322,7 +373,7 @@ function PortRow({
 }: {
   port: OpenPort
   icon: LucideIcon
-  to: { host: string } | { reason: string }
+  to: Reach
   // The proxy itself (nginx on 80/443): passing visitors to it loops.
   self: boolean
   onPick: (picked: Picked) => void
@@ -333,6 +384,7 @@ function PortRow({
       ? to.reason
       : ""
   const host = "host" in to ? to.host : ""
+  const at = "host" in to && to.port ? to.port : x.port
   const shown = host.includes(":") ? `[${host}]` : host
   const sub = detail(x)
   const Exposure = exposureMeta[x.exposure].icon
@@ -342,7 +394,7 @@ function PortRow({
         type="button"
         disabled={!!reason}
         onClick={() =>
-          onPick({ host, port: String(x.port), scheme: guessScheme(x) })
+          onPick({ host, port: String(at), scheme: guessScheme(x) })
         }
         className="flex min-h-14 w-full items-center gap-3 rounded-lg p-2 text-start outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 active:bg-muted disabled:pointer-events-none disabled:opacity-50 max-md:-mx-2 max-md:w-[calc(100%+1rem)]"
       >
@@ -359,7 +411,7 @@ function PortRow({
         </span>
         <span className="flex shrink-0 flex-col items-end gap-0.5">
           <span className="font-mono text-caption text-foreground tabular-nums">
-            {reason ? x.port : `${shown}:${x.port}`}
+            {reason ? x.port : `${shown}:${at}`}
           </span>
           <span className="flex items-center gap-1 text-caption text-ash">
             <Exposure className="size-3" />

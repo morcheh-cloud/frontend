@@ -6,13 +6,25 @@ import Link from "next/link"
 import { proxyItem } from "@/components/panel/nav"
 import type { Proxy as ReverseProxy } from "@/lib/services"
 import { useServerProxies } from "../api"
-import { ProxyStatusDot, proxyHref, proxyStatusMeta } from "./meta"
+import {
+  ProxyStatusDot,
+  proxyHref,
+  proxyStatusMeta,
+  runtimeLabel,
+} from "./meta"
 
 // The reverse proxy is its own section, not a server tab: a server's
 // Overview only says one runs there and links to it.
 
 export function useServerProxyList(server: string) {
   return useServerProxies(server).data ?? []
+}
+
+// "nginx", or "nginx in edge (Docker)" when it runs in a container.
+function what(p: ReverseProxy) {
+  return p.container
+    ? `${p.kind_label} in ${p.container} (${runtimeLabel[p.runtime]})`
+    : p.kind_label
 }
 
 function summary(p: ReverseProxy) {
@@ -33,7 +45,7 @@ export function ServerProxyLinks({ proxies }: { proxies: ReverseProxy[] }) {
             className="flex items-center gap-2 rounded-lg bg-subtle px-3 py-2 text-body-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             <Icon className="size-3.5 shrink-0 text-ash" />
-            <span className="font-medium">{p.kind_label} reverse proxy</span>
+            <span className="font-medium">{what(p)} reverse proxy</span>
             <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-muted-foreground">
               <ProxyStatusDot status={p.status} />
               {summary(p)}
@@ -59,7 +71,7 @@ export function ServerProxyRows({ proxies }: { proxies: ReverseProxy[] }) {
           <Icon className="size-4" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-body">{p.kind_label}</span>
+          <span className="block truncate text-body">{what(p)}</span>
           <span className="flex items-center gap-1.5 truncate text-body-sm text-muted-foreground">
             <ProxyStatusDot status={p.status} />
             {summary(p)}
