@@ -17,19 +17,26 @@ const readOnly = [
   EditorView.contentAttributes.of({ "aria-readonly": "true" }),
 ]
 
-// nginx config in CodeMirror: the preview (read-only) or the Advanced box.
+// nginx config in CodeMirror: the preview (read-only), the Advanced box or
+// a whole file written by hand.
 export function NginxCode({
   value,
   onChange,
   placeholder,
   label,
+  lineNumbers,
   className,
+  onView,
 }: {
   value: string
   onChange?: (value: string) => void
   placeholder?: string
   label: string
+  // Shown always when read-only; an editor asks for them (a whole file).
+  lineNumbers?: boolean
   className?: string
+  // The editor itself, to move the cursor from outside (Go to line).
+  onView?: (view: EditorView) => void
 }) {
   const theme = useCodeTheme()
   return (
@@ -37,12 +44,13 @@ export function NginxCode({
       theme={theme}
       value={value}
       onChange={onChange}
+      onCreateEditor={onView}
       extensions={onChange ? editable : readOnly}
       basicSetup={{
         highlightActiveLine: !!onChange,
         highlightActiveLineGutter: !!onChange,
         foldGutter: false,
-        lineNumbers: !onChange,
+        lineNumbers: lineNumbers ?? !onChange,
       }}
       placeholder={placeholder}
       aria-label={label}

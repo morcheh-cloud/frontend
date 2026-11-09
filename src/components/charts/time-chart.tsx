@@ -74,13 +74,16 @@ function tickLabel(b: Buckets, t: number) {
   return monthDay.format(t)
 }
 
-// Bucket starts worth a label: every 6 hours, each midnight, or every day,
-// thinned until they fit.
+// Bucket starts worth a label: every 6 hours, each midnight, or every day
+// (every 5 or 15 minutes over a short span), thinned until they fit.
 function xTicks(b: Buckets, width: number) {
+  const span = b.starts.length * b.size
   let ticks = b.starts
     .map((t, i) => ({ t, i }))
     .filter(({ t }) => {
       const d = new Date(t)
+      if (b.size < hour && span <= 3 * hour)
+        return d.getMinutes() % (span <= hour ? 5 : 15) === 0
       if (b.size < hour) return d.getMinutes() === 0 && d.getHours() % 6 === 0
       if (b.size < day) return d.getHours() === 0 && d.getMinutes() === 0
       return true

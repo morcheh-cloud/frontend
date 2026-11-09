@@ -146,12 +146,14 @@ export function ToggleRow({
   hint,
   checked,
   onChange,
+  disabled,
 }: {
   id: string
   label: string
   hint?: ReactNode
   checked: boolean
   onChange: (checked: boolean) => void
+  disabled?: boolean
 }) {
   return (
     <div className="flex min-h-11 items-center justify-between gap-4">
@@ -163,7 +165,12 @@ export function ToggleRow({
           </span>
         )}
       </label>
-      <Switch id={id} checked={checked} onCheckedChange={onChange} />
+      <Switch
+        id={id}
+        checked={checked}
+        onCheckedChange={onChange}
+        disabled={disabled}
+      />
     </div>
   )
 }

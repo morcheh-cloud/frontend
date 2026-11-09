@@ -2,15 +2,12 @@
 
 import { useQueryClient } from "@tanstack/react-query"
 import {
-  Cable,
-  ChevronDown,
+  ArrowDown,
   ChevronLeft,
   Ellipsis,
-  FileCode,
-  FileX,
   Globe,
   Info,
-  Lock,
+  PencilLine,
   TriangleAlert,
 } from "lucide-react"
 import Link from "next/link"
@@ -23,45 +20,28 @@ import {
   FieldError,
   ToggleRow,
 } from "@/app/(panel)/cronjobs/components/editor-parts"
-import { ChoiceSelect, ListInput } from "@/app/(panel)/dns/components/fields"
-import {
-  Empty,
-  ItemMenu,
-  Segmented,
-} from "@/app/(panel)/servers/[id]/components/parts"
+import { Empty, ItemMenu } from "@/app/(panel)/servers/[id]/components/parts"
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
-import { BottomSheet } from "@/components/bottom-sheet"
 import { Field } from "@/components/field"
 import { usePageCrumbs } from "@/components/panel/breadcrumbs"
 import { useFollowWorkspace } from "@/components/panel/workspace"
 import { ResponsiveDialog } from "@/components/responsive-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useBack } from "@/hooks/useBack"
 import { useIsPhone } from "@/hooks/useIsPhone"
 import { useOpen } from "@/hooks/useOpen"
 import { ApiError, api } from "@/lib/api"
-import type {
-  Certificate,
-  ProxyHost,
-  Proxy as ReverseProxy,
-} from "@/lib/services"
+import type { ProxyHost, Proxy as ReverseProxy } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { proxyKeys, useInspection, useProxy, useSaveHost } from "../../../api"
 import {
   canWrite,
-  domainsText,
   type HostType,
   hostHref,
   hostName,
+  hostTypeMeta,
   hostTypes,
   newHostHref,
   proxyHref,
@@ -72,6 +52,10 @@ import { ActionSheet, Missing, PageLoading } from "../../../components/parts"
 import { useProxyCan } from "../../../components/permissions"
 import { useHostMenu } from "../../../components/proxy-actions"
 import { inspectable } from "../../components/toolbar"
+import { AccessEditor } from "./access-editor"
+import { CacheTab } from "./cache-tab"
+import { ConfigTab } from "./config-tab"
+import { DomainsEditor, type DomainUse } from "./domains-editor"
 import {
   bestCertificate,
   clearErrors,
@@ -81,28 +65,28 @@ import {
   type Errors,
   freshDraft,
   problemsToErrors,
-  type RedirectCode,
   sameDraft,
   toBody,
   toConfig,
   typeUses,
 } from "./draft"
+import { EditorCard as Card } from "./editor-card"
+import {
+  EditorChips,
+  type EditorTab,
+  EditorTabBar,
+  ProtectionHeaders,
+  tabInfo,
+  tabOfError,
+  tabsFor,
+  useEditorTab,
+} from "./editor-tabs"
+import { HttpsTab } from "./https-tab"
 import { NginxCode } from "./nginx-code"
-import { ConfigPreview } from "./preview"
+import { RateLimitEditor } from "./rate-limit"
 import { HeaderRows, PathRows } from "./rows"
-
-const typing = {
-  autoCapitalize: "none",
-  autoCorrect: "off",
-  spellCheck: false,
-} as const
-
-const redirectCodes: { value: `${RedirectCode}`; label: string }[] = [
-  { value: "301", label: "301 · Moved for good" },
-  { value: "302", label: "302 · Moved for now" },
-  { value: "308", label: "308 · Moved for good, keeps the method" },
-  { value: "307", label: "307 · Moved for now, keeps the method" },
-]
+import { PerformanceCard, ProxyProtocolCard, RealIpCard } from "./tuning-cards"
+import { WhatItDoes } from "./what-it-does"
 
 // /proxy/[id]/hosts/new and /proxy/[id]/hosts/[host].
 export function HostEditorPage() {
@@ -162,6 +146,7 @@ export function HostEditorPage() {
       key={host?.id ?? "new"}
       proxy={detail.proxy}
       host={host}
+      others={detail.hosts.filter((h) => h.id !== host?.id)}
       phone={phone}
     />
   )
@@ -170,10 +155,13 @@ export function HostEditorPage() {
 function Editor({
   proxy: p,
   host,
+  others,
   phone,
 }: {
   proxy: ReverseProxy
   host: ProxyHost | undefined
+  // The proxy's other sites, to warn about a name both would answer.
+  others: ProxyHost[]
   phone: boolean
 }) {
   const can = useProxyCan()
@@ -185,6 +173,18 @@ function Editor({
   const types = hostTypes.filter((t) => caps.types.includes(t.value))
   const inspection = useInspection(p.id, inspectable(p))
   const certs = inspection.data?.certificates ?? []
+  const handSites = (inspection.data?.sites ?? []).filter((x) => !x.managed)
+  const usedElsewhere = (d: string): DomainUse | undefined => {
+    const h = others.find((x) => x.domains.includes(d))
+    if (h) return { label: hostName(h), where: "another site on this proxy" }
+    const site = handSites.find((x) => x.domains.includes(d))
+    if (site) {
+      return {
+        label: "a site written on the server",
+        where: `${site.file}:${site.line}`,
+      }
+    }
+  }
   // New sites start as the kind the list's tab was showing.
   const asked = useSearchParams().get("type")
   const startType =
@@ -197,12 +197,9 @@ function Editor({
   const [errors, setErrors] = useState<Errors>({})
   const [refusal, setRefusal] = useState("")
   const [touched, setTouched] = useState(false)
-  const [more, setMore] = useState(() => {
-    const d = host ? draftFromHost(host) : null
-    return !!d && hasMore(d)
-  })
+  const tabs = tabsFor(draft.type, caps)
+  const { tab, setTab } = useEditorTab(tabs)
   const [conflict, setConflict] = useOpen("proxy-host-conflict")
-  const [previewOpen, setPreviewOpen] = useOpen("proxy-host-preview")
   const [menuOpen, setMenuOpen] = useOpen("proxy-host-sheet")
   const save = useSaveHost()
 
@@ -244,10 +241,23 @@ function Editor({
     set({ tls: on })
   }
 
+  // Stay on this tab when it has a refused field, else go to the first
+  // tab that does.
+  function showProblem(keys: string[]) {
+    const wrong = new Set<EditorTab>(keys.map(tabOfError))
+    if (wrong.has(tab)) return
+    const first = tabs.find((t) => wrong.has(t))
+    if (first) {
+      setTab(first)
+      window.scrollTo({ top: 0, behavior: "smooth" })
+    }
+  }
+
   function submit(opts?: { overwrite?: boolean }) {
     const body = toBody(draft)
     if (uses.domains && body.config.domains.length === 0) {
       setErrors({ domains: "Add at least one domain" })
+      setTab("general")
       toast.error("Add at least one domain")
       return
     }
@@ -285,7 +295,7 @@ function Editor({
           const mapped = problemsToErrors(details, draft)
           if (Object.keys(mapped).length > 0) {
             setErrors(mapped)
-            if (Object.keys(mapped).some(isMore)) setMore(true)
+            showProblem(Object.keys(mapped))
             toast.error(Object.values(mapped)[0])
             return
           }
@@ -350,6 +360,19 @@ function Editor({
           Header values and raw directives are hidden from you.
         </Callout>
       )}
+      {draft.custom.trim() && tab !== "config" && (
+        <Callout icon={<PencilLine />} tone="warning">
+          The config is written by hand, so these settings don't change the file
+          on the server.{" "}
+          <button
+            type="button"
+            onClick={() => setTab("config")}
+            className="font-medium text-foreground underline-offset-4 hover:underline"
+          >
+            Open Config
+          </button>
+        </Callout>
+      )}
       {refusal && (
         <div
           role="alert"
@@ -367,414 +390,344 @@ function Editor({
     </>
   )
 
-  const sections = (
-    <>
-      {uses.domains && (
-        <Card
-          title="Domains"
-          hint="One per line. *.example.com covers every name under it. Point each one's DNS at this server."
-          phone={phone}
-        >
-          <Field label="Domains" error={errors.domains}>
-            {(f) => (
-              <ListInput
-                {...f}
+  // One tab's cards at a time; the tab bar says which tabs have something
+  // set or a problem.
+  const tuning = { proxy: p, draft, set, errors, phone }
+  const sections: Record<EditorTab, ReactNode> = {
+    general: (
+      <div
+        className={cn(
+          "flex min-w-0 flex-col",
+          !phone &&
+            "gap-6 xl:grid xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start",
+        )}
+      >
+        <div className={cn("flex min-w-0 flex-col", !phone && "gap-6")}>
+          {uses.domains && (
+            <Card
+              title="Domains"
+              hint="The names visitors type to reach this site. The first one is its main name."
+              count={domainList(draft.domains).length}
+              phone={phone}
+            >
+              <DomainsEditor
                 value={draft.domains}
                 onChange={(domains) => set({ domains })}
-                placeholder={"example.com\nwww.example.com"}
-              />
-            )}
-          </Field>
-        </Card>
-      )}
-
-      <Card title="Where it goes" phone={phone}>
-        {types.length > 1 && (
-          <TypePicker
-            types={types}
-            value={draft.type}
-            onChange={(type) => set({ type })}
-          />
-        )}
-        {draft.type === "proxy" && (
-          <>
-            <Field
-              label="App address"
-              hint="Where the app answers, as the proxy's server sees it."
-              error={errors.upstream}
-            >
-              {(f) => (
-                <Input
-                  {...f}
-                  {...typing}
-                  inputMode="url"
-                  value={draft.upstream}
-                  onChange={(e) => set({ upstream: e.target.value })}
-                  placeholder="http://127.0.0.1:3000"
-                  className="font-mono"
-                />
-              )}
-            </Field>
-            {caps.websockets && (
-              <ToggleRow
-                id="host-websockets"
-                label="WebSockets"
-                hint="Let live connections through (chat, dashboards, terminals)."
-                checked={draft.websockets}
-                onChange={(websockets) => set({ websockets })}
-              />
-            )}
-            <ToggleRow
-              id="host-preserve"
-              label="Pass the visitor's domain"
-              hint="The app sees example.com, not its own address. Most apps want this."
-              checked={draft.preserveHost}
-              onChange={(preserveHost) => set({ preserveHost })}
-            />
-          </>
-        )}
-        {draft.type === "redirect" && (
-          <>
-            <Field label="Send visitors to" error={errors.redirect_to}>
-              {(f) => (
-                <Input
-                  {...f}
-                  {...typing}
-                  inputMode="url"
-                  value={draft.redirectTo}
-                  onChange={(e) => set({ redirectTo: e.target.value })}
-                  placeholder="https://www.example.com"
-                  className="font-mono"
-                />
-              )}
-            </Field>
-            <Field
-              label="Kind of redirect"
-              hint="Moved for good is remembered by browsers and search engines."
-              error={errors.redirect_code}
-            >
-              {(f) => (
-                <ChoiceSelect
-                  id={f.id}
-                  value={`${draft.redirectCode}` as `${RedirectCode}`}
-                  onChange={(v) =>
-                    set({ redirectCode: Number(v) as RedirectCode })
-                  }
-                  items={redirectCodes}
-                />
-              )}
-            </Field>
-            <ToggleRow
-              id="host-keep-path"
-              label="Keep the path"
-              hint="/blog/post goes to the same /blog/post there, not to its home page."
-              checked={draft.keepPath}
-              onChange={(keepPath) => set({ keepPath })}
-            />
-          </>
-        )}
-        {draft.type === "static" && (
-          <>
-            <Field
-              label="Folder"
-              hint="A full path on the proxy's server. Its index.html is the home page."
-              error={errors.root}
-            >
-              {(f) => (
-                <Input
-                  {...f}
-                  {...typing}
-                  value={draft.root}
-                  onChange={(e) => set({ root: e.target.value })}
-                  placeholder="/var/www/example"
-                  className="font-mono"
-                />
-              )}
-            </Field>
-            <ToggleRow
-              id="host-spa"
-              label="Single-page app"
-              hint="Paths that aren't files get index.html (React, Vue, Angular builds)."
-              checked={draft.spa}
-              onChange={(spa) => set({ spa })}
-            />
-          </>
-        )}
-        {draft.type === "notfound" && (
-          <p className="flex gap-2 rounded-lg bg-subtle p-3 text-body-sm text-muted-foreground">
-            <FileX className="mt-0.5 size-4 shrink-0 text-ash" />
-            Every request to these names gets 404 Not Found. Use it to park a
-            domain, or to stop names you don't serve from reaching another site.
-          </p>
-        )}
-        {stream && (
-          <StreamFields
-            draft={draft}
-            set={set}
-            errors={errors}
-            kind={p.kind_label}
-          />
-        )}
-      </Card>
-
-      {uses.tls && (
-        <Card
-          title="HTTPS"
-          hint="Uses a certificate that's already on the server."
-          phone={phone}
-        >
-          <ToggleRow
-            id="host-tls"
-            label="Serve over https"
-            checked={draft.tls}
-            onChange={setTls}
-          />
-          {draft.tls ? (
-            <>
-              {certs.length > 0 && (
-                <CertificatePicker
-                  certs={certs}
-                  domains={domainList(draft.domains)}
-                  value={draft.certificate}
-                  onPick={(c) =>
-                    set({ certificate: c.certificate, key: c.key })
-                  }
-                />
-              )}
-              <Field
-                label="Certificate file"
-                hint="The full chain (fullchain.pem)."
-                error={errors["tls.certificate"]}
-              >
-                {(f) => (
-                  <Input
-                    {...f}
-                    {...typing}
-                    value={draft.certificate}
-                    onChange={(e) => set({ certificate: e.target.value })}
-                    placeholder="/etc/letsencrypt/live/example.com/fullchain.pem"
-                    className="font-mono"
-                  />
-                )}
-              </Field>
-              <Field label="Key file" error={errors["tls.key"]}>
-                {(f) => (
-                  <Input
-                    {...f}
-                    {...typing}
-                    value={draft.key}
-                    onChange={(e) => set({ key: e.target.value })}
-                    placeholder="/etc/letsencrypt/live/example.com/privkey.pem"
-                    className="font-mono"
-                  />
-                )}
-              </Field>
-              <ToggleRow
-                id="host-force-https"
-                label="Send http visitors to https"
-                checked={draft.forceHttps}
-                onChange={(forceHttps) => set({ forceHttps })}
-              />
-              <ToggleRow
-                id="host-http2"
-                label="HTTP/2"
-                hint="Faster pages. Leave on unless the app has trouble with it."
-                checked={draft.http2}
-                onChange={(http2) => set({ http2 })}
-              />
-              <ToggleRow
-                id="host-hsts"
-                label="HSTS"
-                hint="Browsers refuse plain http for this name for a year."
-                checked={draft.hsts}
-                onChange={(hsts) => set({ hsts })}
-              />
-              {draft.hsts && (
-                <Callout icon={<TriangleAlert />} tone="warning">
-                  Hard to take back: if https stops working, visitors who came
-                  before can't reach the site until the certificate is fixed.
-                </Callout>
-              )}
-            </>
-          ) : (
-            <p className="text-caption text-muted-foreground">
-              Plain http only. Turn it on once a certificate for these names is
-              on the server.
-            </p>
-          )}
-        </Card>
-      )}
-
-      <MoreToggle open={more} onToggle={() => setMore(!more)} draft={draft} />
-
-      {more && (
-        <>
-          {caps.paths && uses.paths && (
-            <Card
-              title="Paths"
-              hint="Send a path and everything under it to another app, like /api to a backend."
-              phone={phone}
-            >
-              <PathRows
-                rows={draft.paths}
-                onChange={(paths) => set({ paths })}
-                errors={errors}
-                websockets={caps.websockets}
+                certs={certs}
+                usedElsewhere={usedElsewhere}
+                serverHost={p.server_host}
+                error={errors.domains}
+                readOnly={readOnly}
+                phone={phone}
               />
             </Card>
           )}
-          {caps.headers && uses.headers && (
-            <Card
-              title="Headers"
-              hint="Added to what visitors get back, or to what the app receives."
+
+          <Card
+            title={stream ? "The port" : "What it does"}
+            hint={
+              stream
+                ? "A port on the proxy's server, passed on to another address."
+                : "What happens to a visitor, and where they end up."
+            }
+            phone={phone}
+          >
+            <WhatItDoes
+              draft={draft}
+              set={set}
+              errors={errors}
+              proxy={p}
+              readOnly={readOnly}
               phone={phone}
-            >
-              <HeaderRows
-                rows={draft.headers}
-                onChange={(headers) => set({ headers })}
-                errors={errors}
-                hidden={host?.redacted}
-              />
-            </Card>
-          )}
-          {caps.allow && (
-            <Card
-              title="Only from"
+            />
+          </Card>
+        </div>
+
+        <div className={cn("flex min-w-0 flex-col", !phone && "gap-6")}>
+          <Card title="State" phone={phone}>
+            <ToggleRow
+              id="host-enabled"
+              label={draft.enabled ? "On" : "Off"}
               hint={
-                stream
-                  ? "Leave empty for everyone. Others are cut off."
-                  : "Leave empty for everyone. Others get 403 Forbidden."
+                draft.enabled
+                  ? "Live on the server once saved."
+                  : "Kept here but taken off the server."
               }
-              phone={phone}
-            >
-              <Field
-                label="Addresses and ranges"
-                hint="One per line, like 10.0.0.0/8 or 203.0.113.7."
-                error={errors.allow}
-              >
-                {(f) => (
-                  <ListInput
-                    {...f}
-                    value={draft.allow}
-                    onChange={(allow) => set({ allow })}
-                    placeholder="Everyone"
-                  />
-                )}
-              </Field>
-            </Card>
-          )}
-          {(uses.maxBody || uses.timeout) && (
-            <Card title="Limits" phone={phone}>
-              <div className="grid gap-4 md:grid-cols-2">
-                {uses.maxBody && (
-                  <Field
-                    label="Largest upload (MB)"
-                    hint={`Empty = ${p.kind_label}'s default (1 MB on nginx).`}
-                    error={errors.max_body_mb}
-                  >
-                    {(f) => (
-                      <Input
-                        {...f}
-                        type="number"
-                        inputMode="numeric"
-                        min={0}
-                        max={100000}
-                        value={draft.maxBody}
-                        onChange={(e) => set({ maxBody: e.target.value })}
-                        placeholder="1"
-                        className="tabular-nums"
-                      />
-                    )}
-                  </Field>
-                )}
-                {uses.timeout && (
-                  <Field
-                    label={
-                      stream
-                        ? "Idle timeout (seconds)"
-                        : "Wait for the app (seconds)"
-                    }
-                    hint={
-                      stream
-                        ? "Empty = 600. A connection quiet this long is closed."
-                        : "Empty = 60. Raise it for slow reports or exports."
-                    }
-                    error={errors.timeout_seconds}
-                  >
-                    {(f) => (
-                      <Input
-                        {...f}
-                        type="number"
-                        inputMode="numeric"
-                        min={0}
-                        max={86400}
-                        value={draft.timeout}
-                        onChange={(e) => set({ timeout: e.target.value })}
-                        placeholder={stream ? "600" : "60"}
-                        className="tabular-nums"
-                      />
-                    )}
-                  </Field>
-                )}
-              </div>
-            </Card>
-          )}
-          {caps.advanced && (
-            <Card
-              title="Raw directives"
-              hint={`Added as they are inside this ${stream ? "stream" : "site"}'s block. The whole config is tested before it's loaded, so a mistake can't take ${p.kind_label} down.`}
-              phone={phone}
-            >
-              {host?.redacted ? (
-                <p className="text-body-sm text-muted-foreground">Hidden.</p>
-              ) : (
-                <>
-                  <NginxCode
-                    value={draft.advanced}
-                    onChange={
-                      readOnly ? undefined : (advanced) => set({ advanced })
-                    }
-                    placeholder="# client_body_buffer_size 64k;"
-                    label="Raw directives"
-                    className="min-h-28"
-                  />
-                  <FieldError text={errors.advanced} />
-                </>
-              )}
-            </Card>
-          )}
-        </>
-      )}
-
-      <Card title="Note and state" phone={phone}>
-        <Field label="Note" hint="Optional: what it is, who it's for.">
-          {(f) => (
-            <Textarea
-              {...f}
-              value={draft.note}
-              onChange={(e) => set({ note: e.target.value })}
-              maxLength={2000}
-              rows={2}
+              checked={draft.enabled}
+              onChange={(enabled) => set({ enabled })}
             />
-          )}
-        </Field>
-        <ToggleRow
-          id="host-enabled"
-          label="On"
-          hint="Off keeps the site here but takes it off the server."
-          checked={draft.enabled}
-          onChange={(enabled) => set({ enabled })}
+            <Field label="Note" hint="Optional: what it is, who it's for.">
+              {(f) => (
+                <Textarea
+                  {...f}
+                  value={draft.note}
+                  onChange={(e) => set({ note: e.target.value })}
+                  maxLength={2000}
+                  rows={3}
+                />
+              )}
+            </Field>
+          </Card>
+          <Card title="Route" phone={phone}>
+            <Route
+              draft={draft}
+              proxy={p}
+              onTab={(t) => {
+                setTab(t)
+                window.scrollTo({ top: 0, behavior: "smooth" })
+              }}
+              https={tabs.includes("https")}
+            />
+          </Card>
+        </div>
+      </div>
+    ),
+    https: uses.tls ? (
+      <HttpsTab
+        proxy={p}
+        draft={draft}
+        set={set}
+        setTls={setTls}
+        errors={errors}
+        certs={certs}
+        inspection={inspection.data}
+        phone={phone}
+      />
+    ) : null,
+    security: (
+      <>
+        <AccessEditor
+          proxy={p}
+          draft={draft}
+          set={set}
+          errors={errors}
+          phone={phone}
         />
-      </Card>
-    </>
-  )
+        {caps.headers && uses.headers && (
+          <Card
+            title="Browser protections"
+            hint="Common safety headers sent with every answer. Each one is an ordinary row in Headers, where you can change its value."
+            phone={phone}
+          >
+            <ProtectionHeaders
+              draft={draft}
+              set={set}
+              hidden={host?.redacted}
+            />
+          </Card>
+        )}
+        {caps.tuning && uses.hideVersion && (
+          <Card title="Server details" phone={phone}>
+            <ToggleRow
+              id="tune-hide-version"
+              label={`Hide the ${p.kind_label} version`}
+              hint="Error pages and the Server header stop naming the exact version, so scanners can't match it against known holes."
+              checked={draft.hideVersion}
+              onChange={(hideVersion) => set({ hideVersion })}
+            />
+          </Card>
+        )}
+      </>
+    ),
+    cache: (
+      <CacheTab
+        proxy={p}
+        host={host}
+        draft={draft}
+        set={set}
+        errors={errors}
+        phone={phone}
+      />
+    ),
+    ratelimit: (
+      <RateLimitEditor
+        proxy={p}
+        draft={draft}
+        set={set}
+        errors={errors}
+        phone={phone}
+      />
+    ),
+    paths: (
+      <>
+        {caps.paths && uses.paths && (
+          <Card
+            title="Paths"
+            hint="Send a path and everything under it to another app, like /api to a backend."
+            phone={phone}
+          >
+            <PathRows
+              rows={draft.paths}
+              onChange={(paths) => set({ paths })}
+              errors={errors}
+              websockets={caps.websockets}
+            />
+          </Card>
+        )}
+      </>
+    ),
+    headers: (
+      <>
+        {caps.headers && uses.headers && (
+          <Card
+            title="Headers"
+            hint="Added to what visitors get back, or to what the app receives."
+            phone={phone}
+          >
+            <HeaderRows
+              rows={draft.headers}
+              onChange={(headers) => set({ headers })}
+              errors={errors}
+              hidden={host?.redacted}
+            />
+          </Card>
+        )}
+      </>
+    ),
+    advanced: (
+      <>
+        {caps.tuning && (
+          <>
+            <PerformanceCard {...tuning} />
+            <RealIpCard {...tuning} />
+            <ProxyProtocolCard {...tuning} />
+          </>
+        )}
+        {(uses.maxBody ||
+          uses.timeout ||
+          (caps.tuning && uses.connectTimeout)) && (
+          <Card title="Limits" phone={phone}>
+            <div className="grid gap-4 md:grid-cols-2">
+              {uses.maxBody && (
+                <Field
+                  label="Largest upload (MB)"
+                  hint={`Empty = ${p.kind_label}'s default (1 MB on nginx).`}
+                  error={errors.max_body_mb}
+                >
+                  {(f) => (
+                    <Input
+                      {...f}
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      max={100000}
+                      value={draft.maxBody}
+                      onChange={(e) => set({ maxBody: e.target.value })}
+                      placeholder="1"
+                      className="tabular-nums"
+                    />
+                  )}
+                </Field>
+              )}
+              {uses.timeout && (
+                <Field
+                  label={
+                    stream
+                      ? "Idle timeout (seconds)"
+                      : "Wait for the app (seconds)"
+                  }
+                  hint={
+                    stream
+                      ? "Empty = 600. A connection quiet this long is closed."
+                      : "Empty = 60. Raise it for slow reports or exports."
+                  }
+                  error={errors.timeout_seconds}
+                >
+                  {(f) => (
+                    <Input
+                      {...f}
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      max={86400}
+                      value={draft.timeout}
+                      onChange={(e) => set({ timeout: e.target.value })}
+                      placeholder={stream ? "600" : "60"}
+                      className="tabular-nums"
+                    />
+                  )}
+                </Field>
+              )}
+              {caps.tuning && uses.connectTimeout && (
+                <Field
+                  label="Give up connecting after (seconds)"
+                  hint="Empty = 60. A few seconds shows an error fast when the app is down, instead of a long wait."
+                  error={errors.connect_timeout_seconds}
+                >
+                  {(f) => (
+                    <Input
+                      {...f}
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      max={75}
+                      value={draft.connectTimeout}
+                      onChange={(e) => set({ connectTimeout: e.target.value })}
+                      placeholder="60"
+                      className="tabular-nums"
+                    />
+                  )}
+                </Field>
+              )}
+            </div>
+          </Card>
+        )}
+        {caps.advanced && (
+          <Card
+            title="Raw directives"
+            hint={`Added as they are inside this ${stream ? "stream" : "site"}'s block. The whole config is tested before it's loaded, so a mistake can't take ${p.kind_label} down.`}
+            phone={phone}
+          >
+            {host?.redacted ? (
+              <p className="text-body-sm text-muted-foreground">Hidden.</p>
+            ) : (
+              <>
+                <NginxCode
+                  value={draft.advanced}
+                  onChange={
+                    readOnly ? undefined : (advanced) => set({ advanced })
+                  }
+                  placeholder="# client_body_buffer_size 64k;"
+                  label="Raw directives"
+                  className="min-h-28"
+                />
+                <FieldError text={errors.advanced} />
+              </>
+            )}
+          </Card>
+        )}
+      </>
+    ),
+    config: (
+      <ConfigTab
+        proxy={p}
+        host={host}
+        draft={draft}
+        config={config}
+        set={set}
+        errors={errors}
+        onProblems={(mapped) => {
+          setErrors(mapped)
+          showProblem(Object.keys(mapped))
+        }}
+        readOnly={readOnly}
+        phone={phone}
+      />
+    ),
+  }
 
+  const infos = tabInfo(tabs, draft, errors)
+  const showNotices =
+    !!why ||
+    !!refusal ||
+    !!host?.redacted ||
+    (!!draft.custom.trim() && tab !== "config")
   const form = (
     <fieldset
       disabled={readOnly}
       className={cn("flex min-w-0 flex-col", phone ? "" : "gap-6")}
     >
-      {sections}
+      {sections[tab]}
     </fieldset>
   )
 
@@ -820,11 +773,16 @@ function Editor({
       : stream
         ? "Add stream"
         : "Add site"
+  const status = dirty
+    ? "Unsaved changes"
+    : host
+      ? `Saved ${timeAgo(host.updated_at).toLowerCase()}${host.updated_by_name ? ` by ${host.updated_by_name}` : ""}`
+      : ""
 
   if (phone) {
     return (
       <div className="flex min-h-[calc(100dvh-4rem-env(safe-area-inset-bottom))] flex-col">
-        <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-1 border-b border-border bg-background px-1 pt-[env(safe-area-inset-top)]">
+        <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-1 border-b border-border bg-background px-1 pt-[env(safe-area-inset-top)]">
           <Button
             variant="ghost"
             size="icon-lg"
@@ -833,9 +791,12 @@ function Editor({
           >
             <ChevronLeft className="size-6 rtl:rotate-180" />
           </Button>
-          <h1 className="min-w-0 flex-1 truncate text-body font-medium">
-            {title}
-          </h1>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-body font-medium">{title}</h1>
+            {status && (
+              <p className="truncate text-caption text-ash">{status}</p>
+            )}
+          </div>
           {host && (
             <Button
               variant="ghost"
@@ -857,33 +818,14 @@ function Editor({
             </Button>
           )}
         </header>
-        {(why || refusal || host?.redacted) && (
+        {tabs.length > 1 && (
+          <EditorChips tabs={infos} current={tab} onChange={setTab} />
+        )}
+        {showNotices && (
           <div className="flex flex-col gap-3 px-4 pt-4">{notices}</div>
         )}
         {form}
-        <div className="flex flex-col gap-2 px-4 py-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
-          <Button
-            variant="outline"
-            className="h-11 w-full"
-            onClick={() => setPreviewOpen(true)}
-            disabled={!!host?.redacted}
-          >
-            <FileCode />
-            Show the {p.kind_label} config
-          </Button>
-        </div>
-        <BottomSheet
-          full
-          open={previewOpen}
-          onOpenChange={setPreviewOpen}
-          title={p.capabilities.config_label || `${p.kind_label} config`}
-        >
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-            {previewOpen && (
-              <ConfigPreview proxy={p} hostId={host?.id} config={config} bare />
-            )}
-          </div>
-        </BottomSheet>
+        <div className="pb-[calc(1.5rem+env(safe-area-inset-bottom))]" />
         {host && (
           <ActionSheet
             open={menuOpen}
@@ -897,376 +839,208 @@ function Editor({
     )
   }
 
+  const TypeIcon = hostTypeMeta[draft.type].icon
+  const heading = stream
+    ? draft.listenPort
+      ? streamLabel({
+          protocol: draft.protocol,
+          listen_port: Number(draft.listenPort),
+        })
+      : title
+    : (domainList(draft.domains)[0] ?? title)
+  const extra = stream ? 0 : domainList(draft.domains).length - 1
+
   return (
-    <div className="flex flex-col gap-6 px-6 pt-5 pb-12">
-      <div className="flex items-center gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-          {stream ? (
-            <Cable className="size-5" />
-          ) : draft.tls ? (
-            <Lock className="size-5" />
-          ) : (
-            <Globe className="size-5" />
-          )}
+    <div className="flex flex-col pb-12">
+      <div className="flex w-full items-center gap-4 px-6 pt-5 pb-3">
+        <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-brand-soft text-brand-strong">
+          <TypeIcon className="size-6" />
         </span>
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-subheading font-medium">
-            {stream
-              ? draft.listenPort
-                ? streamLabel({
-                    protocol: draft.protocol,
-                    listen_port: Number(draft.listenPort),
-                  })
-                : title
-              : (domainList(draft.domains)[0] ?? title)}
+          <h1 className="flex min-w-0 items-baseline gap-2 text-subheading font-medium">
+            <span className="truncate">{heading}</span>
+            {extra > 0 && (
+              <span className="shrink-0 text-body-sm font-normal text-muted-foreground">
+                +{extra} more
+              </span>
+            )}
           </h1>
-          <p className="truncate text-caption text-ash">
-            {dirty
-              ? "Unsaved changes"
-              : host
-                ? `Saved ${timeAgo(host.updated_at).toLowerCase()}${host.updated_by_name ? ` by ${host.updated_by_name}` : ""}`
-                : `On ${p.server_name}`}
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body-sm text-muted-foreground">
+            <span className="text-foreground">
+              {hostTypeMeta[draft.type].label}
+            </span>
+            {host && !draft.enabled && <span>Off</span>}
+            <span>
+              on{" "}
+              <Link
+                href={proxyHref(p.id)}
+                className="hover:text-brand hover:underline"
+              >
+                {p.server_name}
+              </Link>{" "}
+              ({p.kind_label})
+            </span>
+            {host && !dirty && status && (
+              <span className="text-caption text-ash">{status}</span>
+            )}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Button
-            variant="outline"
-            className="h-9"
-            render={<Link href={proxyHref(p.id)} />}
-            nativeButton={false}
-          >
-            {why || host?.redacted ? "Back" : "Cancel"}
-          </Button>
-          {!why && !host?.redacted && (
-            <Button
-              className="h-9"
-              disabled={save.isPending || !canSave}
-              onClick={() => submit()}
-            >
-              {saveLabel}
-            </Button>
-          )}
-          {host && siteMenu.some((g) => g.length > 0) && (
-            <ItemMenu
-              groups={siteMenu}
-              label="Site actions"
-              trigger={
-                <Button variant="outline" size="icon" aria-label="Site actions">
-                  <Ellipsis />
-                </Button>
-              }
-            />
-          )}
-        </div>
-      </div>
-      {(why || refusal || host?.redacted) && (
-        <div className="flex max-w-3xl flex-col gap-3">{notices}</div>
-      )}
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,34rem)]">
-        {form}
-        {!host?.redacted && (
-          <ConfigPreview
-            proxy={p}
-            hostId={host?.id}
-            config={config}
-            className="xl:sticky xl:top-[calc(3rem+1px+1.25rem)]"
+        {host && siteMenu.some((g) => g.length > 0) && (
+          <ItemMenu
+            groups={siteMenu}
+            label="Site actions"
+            trigger={
+              <Button variant="outline" size="icon" aria-label="Site actions">
+                <Ellipsis />
+              </Button>
+            }
           />
         )}
       </div>
+      <EditorTabBar
+        tabs={infos}
+        current={tab}
+        onChange={setTab}
+        end={
+          <>
+            {dirty && (
+              <span className="text-caption text-ash">Unsaved changes</span>
+            )}
+            <Button
+              variant="outline"
+              className="h-9"
+              render={<Link href={proxyHref(p.id)} />}
+              nativeButton={false}
+            >
+              {why || host?.redacted ? "Back" : "Cancel"}
+            </Button>
+            {!why && !host?.redacted && (
+              <Button
+                className="h-9"
+                disabled={save.isPending || !canSave}
+                onClick={() => submit()}
+              >
+                {saveLabel}
+              </Button>
+            )}
+          </>
+        }
+      />
+      {showNotices && (
+        <div className="flex max-w-3xl flex-col gap-3 px-6 pt-5">{notices}</div>
+      )}
+      <div className="px-6 pt-5">{form}</div>
       {conflictDialog}
     </div>
   )
 }
 
-// A titled block: a card on desktop, a plain full-width group on phones.
-function Card({
-  title,
-  hint,
-  phone,
-  children,
-}: {
-  title: string
-  hint?: string
-  phone: boolean
-  children: ReactNode
-}) {
-  return (
-    <section
-      className={cn(
-        "flex flex-col gap-4",
-        phone
-          ? "border-b border-border px-4 py-5"
-          : "rounded-2xl border border-border p-6",
-      )}
-    >
-      <div>
-        <h2 className="text-body font-medium">{title}</h2>
-        {hint && (
-          <p className="mt-0.5 text-caption text-muted-foreground">{hint}</p>
-        )}
-      </div>
-      <div className="flex min-w-0 flex-col gap-4">{children}</div>
-    </section>
-  )
-}
-
-function TypePicker({
-  types,
-  value,
-  onChange,
-}: {
-  types: typeof hostTypes
-  value: HostType
-  onChange: (type: HostType) => void
-}) {
-  return (
-    <div
-      role="radiogroup"
-      aria-label="What the site does"
-      className="grid gap-2 md:grid-cols-2 2xl:grid-cols-3"
-    >
-      {types.map((t) => {
-        const Icon = t.icon
-        const on = t.value === value
-        return (
-          // biome-ignore lint/a11y/useSemanticElements: tile options; radio inputs can't be styled as tiles
-          <button
-            key={t.value}
-            type="button"
-            role="radio"
-            aria-checked={on}
-            onClick={() => onChange(t.value)}
-            className={cn(
-              "flex min-h-14 items-start gap-3 rounded-lg border p-3 text-start outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60",
-              on
-                ? "border-brand bg-brand-soft/60"
-                : "border-input hover:bg-subtle active:bg-muted",
-            )}
-          >
-            <Icon
-              className={cn(
-                "mt-0.5 size-4 shrink-0",
-                on ? "text-brand" : "text-muted-foreground",
-              )}
-            />
-            <span className="min-w-0">
-              <span className="block text-body-sm font-medium">{t.label}</span>
-              <span className="block text-caption text-muted-foreground">
-                {t.short}
-              </span>
-            </span>
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
-// A port on the proxy's server, forwarded as is to another address.
-function StreamFields({
-  draft,
-  set,
-  errors,
-  kind,
-}: {
-  draft: Draft
-  set: (patch: Partial<Draft>) => void
-  errors: Errors
-  kind: string
-}) {
-  return (
-    <>
-      <div className="grid gap-4 md:grid-cols-[minmax(0,12rem)_auto]">
-        <Field
-          label="Port"
-          hint="Opened on the proxy's server."
-          error={errors.listen_port}
-        >
-          {(f) => (
-            <Input
-              {...f}
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={65535}
-              value={draft.listenPort}
-              onChange={(e) => set({ listenPort: e.target.value })}
-              placeholder="5432"
-              className="font-mono tabular-nums"
-            />
-          )}
-        </Field>
-        <Field label="Protocol" error={errors.protocol}>
-          {() => (
-            <Segmented
-              label="Protocol"
-              value={draft.protocol}
-              onChange={(protocol) => set({ protocol })}
-              items={[
-                { value: "tcp", label: "TCP" },
-                { value: "udp", label: "UDP" },
-              ]}
-            />
-          )}
-        </Field>
-      </div>
-      <Field
-        label="Forward to"
-        hint="host:port, as the proxy's server reaches it."
-        error={errors.stream_to}
-      >
-        {(f) => (
-          <Input
-            {...f}
-            {...typing}
-            value={draft.streamTo}
-            onChange={(e) => set({ streamTo: e.target.value })}
-            placeholder="10.0.0.12:5432"
-            className="font-mono"
-          />
-        )}
-      </Field>
-      <p className="text-caption text-ash">
-        {kind} passes the connection through untouched: no domains, no https of
-        its own. Open the port in the server's firewall too.
-      </p>
-    </>
-  )
-}
-
-function certLabel(c: Certificate) {
-  return c.domains.length ? domainsText(c.domains) : c.name
-}
-
-function certNote(c: Certificate) {
-  if (!c.expires) return ""
-  const days = Math.floor((new Date(c.expires).getTime() - Date.now()) / 864e5)
-  if (days < 0) return "expired"
-  return `${days} days left`
-}
-
-// Certificates found on the server, the ones covering these names first.
-function CertificatePicker({
-  certs,
-  domains,
-  value,
-  onPick,
-}: {
-  certs: Certificate[]
-  domains: string[]
-  value: string
-  onPick: (c: Certificate) => void
-}) {
-  const best = bestCertificate(certs, domains)
-  const sorted = [...certs].sort(
-    (a, b) =>
-      Number(b.certificate === best?.certificate) -
-        Number(a.certificate === best?.certificate) ||
-      certLabel(a).localeCompare(certLabel(b)),
-  )
-  const items = sorted.map((c) => ({
-    value: c.certificate,
-    label: certLabel(c),
-  }))
-  const current = certs.find((c) => c.certificate === value)
-  return (
-    <Field
-      label="Found on the server"
-      hint={
-        best && best.certificate !== value
-          ? `${certLabel(best)} covers these names.`
-          : "Fills in both files."
-      }
-    >
-      {(f) => (
-        <Select
-          items={items}
-          value={current ? current.certificate : null}
-          onValueChange={(v) => {
-            const c = certs.find((x) => x.certificate === v)
-            if (c) onPick(c)
-          }}
-        >
-          <SelectTrigger id={f.id} className="h-11 w-full md:h-10">
-            <SelectValue placeholder="Pick a certificate" />
-          </SelectTrigger>
-          <SelectContent alignItemWithTrigger={false} className="max-h-72">
-            {sorted.map((c) => (
-              <SelectItem key={c.certificate} value={c.certificate}>
-                <span className="truncate">{certLabel(c)}</span>
-                <span
-                  className={cn(
-                    "ms-auto shrink-0 text-caption",
-                    certNote(c) === "expired" ? "text-destructive" : "text-ash",
-                  )}
-                >
-                  {c.certificate === best?.certificate
-                    ? "Covers these names"
-                    : certNote(c)}
-                </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
-    </Field>
-  )
-}
-
-const isMore = (key: string) =>
-  key.startsWith("headers") ||
-  key.startsWith("paths") ||
-  ["allow", "advanced", "max_body_mb", "timeout_seconds"].includes(key)
-
-function hasMore(d: Draft) {
-  return (
-    d.headers.length > 0 ||
-    d.paths.length > 0 ||
-    !!d.allow.trim() ||
-    !!d.advanced.trim() ||
-    !!d.maxBody ||
-    !!d.timeout
-  )
-}
-
-// Folded by default; when closed it says what's set inside.
-function MoreToggle({
-  open,
-  onToggle,
+// How a visit travels, in order: the address visitors use, the proxy, and
+// where it ends up.
+function Route({
   draft: d,
+  proxy: p,
+  https,
+  onTab,
 }: {
-  open: boolean
-  onToggle: () => void
   draft: Draft
+  proxy: ReverseProxy
+  // The type can be served over https (not a stream).
+  https: boolean
+  onTab: (tab: EditorTab) => void
 }) {
-  const set = [
-    d.paths.length &&
-      `${d.paths.length} path${d.paths.length === 1 ? "" : "s"}`,
-    d.headers.length &&
-      `${d.headers.length} header${d.headers.length === 1 ? "" : "s"}`,
-    d.allow.trim() && "only from some addresses",
-    (d.maxBody || d.timeout) && "limits",
-    d.advanced.trim() && "raw directives",
-  ].filter(Boolean)
+  const domains = domainList(d.domains)
+  const scheme = d.tls ? "https" : "http"
+  const from =
+    d.type === "stream"
+      ? d.listenPort
+        ? `${p.server_host}:${d.listenPort} (${d.protocol.toUpperCase()})`
+        : ""
+      : domains[0]
+        ? `${scheme}://${domains[0]}`
+        : ""
+  const to: Record<HostType, [string, string]> = {
+    proxy: ["Passed on to", d.upstream.trim()],
+    redirect: ["Sent to", d.redirectTo.trim()],
+    static: ["Files from", d.root.trim()],
+    notfound: ["Answered with", "404 Not Found"],
+    stream: ["Forwarded to", d.streamTo.trim()],
+  }
+  const [toLabel, toValue] = to[d.type]
+  const steps: { label: string; value: string; more?: string }[] = [
+    {
+      label: d.type === "stream" ? "Clients connect to" : "Visitors open",
+      value: from,
+      more:
+        domains.length > 1 && d.type !== "stream"
+          ? `+${domains.length - 1} more`
+          : undefined,
+    },
+    { label: p.kind_label, value: `on ${p.server_name}` },
+    {
+      label: toLabel,
+      value: toValue,
+      more: d.paths.length
+        ? `${d.paths.length} path${d.paths.length === 1 ? "" : "s"} go elsewhere`
+        : undefined,
+    },
+  ]
   return (
-    <button
-      type="button"
-      aria-expanded={open}
-      onClick={onToggle}
-      className="flex min-h-12 items-center gap-2 px-4 text-start text-body-sm font-medium outline-none hover:text-brand focus-visible:text-brand md:px-0"
-    >
-      <ChevronDown
-        className={cn(
-          "size-4 shrink-0 transition-transform",
-          !open && "-rotate-90",
-        )}
-      />
-      More options
-      {!open && set.length > 0 && (
-        <span className="truncate font-normal text-muted-foreground">
-          · {set.join(", ")}
-        </span>
+    <div className="flex flex-col gap-3">
+      <ol className="flex flex-col">
+        {steps.map((s, i) => (
+          <li key={s.label} className="flex gap-3">
+            <div className="flex w-4 shrink-0 flex-col items-center">
+              <span
+                className={cn(
+                  "mt-1.5 size-2 shrink-0 rounded-full",
+                  i === 1 ? "bg-mist" : "bg-brand",
+                )}
+              />
+              {i < steps.length - 1 && (
+                <span className="my-1 flex flex-1 flex-col items-center text-mist">
+                  <span className="w-px flex-1 bg-mist" />
+                  <ArrowDown className="size-3" />
+                </span>
+              )}
+            </div>
+            <div
+              className={cn("min-w-0 flex-1", i < steps.length - 1 && "pb-3")}
+            >
+              <p className="text-caption text-muted-foreground">{s.label}</p>
+              <p
+                className={cn(
+                  "truncate text-body-sm",
+                  i === 1 ? "text-foreground" : "font-mono",
+                  !s.value && "text-ash",
+                )}
+                title={s.value}
+              >
+                {s.value || "Not set yet"}
+              </p>
+              {s.more && <p className="text-caption text-ash">{s.more}</p>}
+            </div>
+          </li>
+        ))}
+      </ol>
+      {https && !d.tls && (
+        <button
+          type="button"
+          onClick={() => onTab("https")}
+          className="self-start text-caption font-medium text-brand underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 max-md:min-h-11"
+        >
+          Plain http. Set up HTTPS
+        </button>
       )}
-    </button>
+      {d.custom.trim() && (
+        <button
+          type="button"
+          onClick={() => onTab("config")}
+          className="self-start text-caption font-medium text-brand underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 max-md:min-h-11"
+        >
+          The config is written by hand
+        </button>
+      )}
+    </div>
   )
 }

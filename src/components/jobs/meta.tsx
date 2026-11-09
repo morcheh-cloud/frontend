@@ -6,8 +6,10 @@ import {
   Copy,
   DatabaseBackup,
   Download,
+  Earth,
   FileArchive,
   FileCode,
+  FileKey,
   FolderInput,
   ListChecks,
   type LucideIcon,
@@ -48,6 +50,8 @@ const icons: Record<string, LucideIcon> = {
   "database-backup-verify": ShieldCheck,
   "database-backup-restore": ArchiveRestore,
   "proxy-setup": Split,
+  "proxy-geo": Earth,
+  "proxy-certificate": FileKey,
 }
 
 export function JobIcon({
@@ -120,6 +124,7 @@ export function resultText(job: Job) {
   }
   if (typeof r.size === "number") return formatSize(r.size)
   if (typeof r.destination === "string") return r.destination
+  if (typeof r.certificate === "string") return r.certificate
   return ""
 }
 
@@ -168,7 +173,8 @@ export function placeHref(job: Job) {
   }
   if (t?.run_id) return `/ansible/runs/${t.run_id}`
   if (job.kind === "storage-scan") return "/storage?tab=insights"
-  if (job.kind === "proxy-setup" && job.refs[0]) return `/proxy/${job.refs[0]}`
+  if (job.kind.startsWith("proxy-") && job.refs[0])
+    return `/proxy/${job.refs[0]}`
   if (!t?.path) return null
   const query = filesHref({ path: t.path })
   if (t.server_id) return `/servers/${t.server_id}/files${query}`
@@ -178,7 +184,7 @@ export function placeHref(job: Job) {
 
 export function placeLabel(job: Job) {
   if (job.kind === "storage-scan") return "Open Insights"
-  if (job.kind === "proxy-setup") return "Open proxy"
+  if (job.kind.startsWith("proxy-")) return "Open proxy"
   if (job.target?.database_id) return "Open backups"
   return job.target?.run_id ? "Open run" : "Open folder"
 }

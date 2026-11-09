@@ -55,7 +55,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { useIsPhone } from "@/hooks/useIsPhone"
 import { useOpen } from "@/hooks/useOpen"
-import { formatSize } from "@/lib/format"
 import type {
   ProxyFleetHost,
   ProxyHostTraffic,
@@ -63,6 +62,7 @@ import type {
 } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { useFleetHosts, useProxies, useProxyTraffic } from "../api"
+import { count, LiveState, MiniBars, SiteNumbers, Sparkline } from "./live"
 import {
   byHostName,
   canWrite,
@@ -166,14 +166,6 @@ function useData() {
       traffic: trafficOf.get(h.host.id),
       unread: unread.has(h.host.proxy_id),
     }))
-  // Stats cover the whole tab, not just what the search shows.
-  const stats = sumTraffic(
-    tabRows.flatMap((h) => {
-      const t = trafficOf.get(h.host.id)
-      return t ? [t] : []
-    }),
-  )
-
   return {
     proxies,
     fleet,
@@ -186,7 +178,6 @@ function useData() {
     setFilters,
     counts,
     rows,
-    stats,
     tabTotal: tabRows.length,
     // Proxies in view that aren't serving.
     troubled: all.filter(
@@ -203,186 +194,18 @@ type Data = ReturnType<typeof useData>
 
 // ---- live numbers ----
 
-const sum = (xs: number[] | undefined) => (xs ?? []).reduce((a, b) => a + b, 0)
-
-// Per-minute series added up; the last minute is still running, so it's
-// left out of charts and "now".
-function sumTraffic(list: ProxyHostTraffic[]) {
-  const n = Math.max(0, ...list.map((t) => t.requests.length))
-  const add = (pick: (t: ProxyHostTraffic) => number[]) =>
-    Array.from({ length: n }, (_, i) =>
-      list.reduce((a, t) => a + (pick(t)[i] ?? 0), 0),
-    )
-  const requests = add((t) => t.requests)
-  const serverErrors = add((t) => t.server_errors)
-  const clientErrors = add((t) => t.client_errors)
-  const bytes = add((t) => t.bytes)
-  return {
-    requests: requests.slice(0, -1),
-    serverErrors: serverErrors.slice(0, -1),
-    total: sum(requests),
-    errors: sum(serverErrors),
-    clientErrors: sum(clientErrors),
-    bytes: sum(bytes),
-    bytesSeries: bytes.slice(0, -1),
-    now: requests.at(-2) ?? 0,
-  }
-}
-
-const compact = new Intl.NumberFormat("en", {
-  notation: "compact",
-  maximumFractionDigits: 1,
-})
-const count = (n: number) =>
-  n < 10_000 ? n.toLocaleString("en") : compact.format(n)
-
-function rate(errors: number, total: number) {
-  if (total === 0 || errors === 0) return "0%"
-  const pct = (errors / total) * 100
-  return pct > 0 && pct < 0.1 ? "<0.1%" : `${pct.toFixed(pct < 10 ? 1 : 0)}%`
-}
-
-const errorTone = (errors: number, total: number) => {
-  const pct = total ? (errors / total) * 100 : 0
-  return pct >= 5 ? "destructive" : pct >= 1 ? "warning" : "muted"
-}
-
-function Sparkline({
-  values,
-  tone = "brand",
-  className,
-}: {
-  values: number[]
-  tone?: "brand" | "destructive" | "muted"
-  className?: string
-}) {
-  if (values.length < 2) return <div className={className} />
-  const max = Math.max(1, ...values)
-  const points = values.map((v, i) => [
-    (i / (values.length - 1)) * 100,
-    96 - (v / max) * 88,
-  ])
-  const line = points
-    .map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(2)},${y.toFixed(2)}`)
-    .join(" ")
+function Live({ d, compact }: { d: Data; compact?: boolean }) {
+  const n = d.unreadCount
   return (
-    <svg
-      viewBox="0 0 100 100"
-      preserveAspectRatio="none"
-      aria-hidden
-      className={cn("overflow-visible", className)}
-    >
-      <path
-        d={`${line} L100,100 L0,100 Z`}
-        className={cn(
-          tone === "brand" && "fill-brand/10",
-          tone === "destructive" && "fill-destructive/10",
-          tone === "muted" && "fill-ash/10",
-        )}
-      />
-      <path
-        d={line}
-        fill="none"
-        strokeWidth={1.5}
-        strokeLinejoin="round"
-        vectorEffect="non-scaling-stroke"
-        className={cn(
-          tone === "brand" && "stroke-brand",
-          tone === "destructive" && "stroke-destructive",
-          tone === "muted" && "stroke-ash",
-        )}
-      />
-    </svg>
+    <LiveState
+      data={d.traffic.data}
+      error={d.traffic.error}
+      compact={compact}
+      note={
+        n > 0 ? `${n} ${n === 1 ? "proxy" : "proxies"} not read` : undefined
+      }
+    />
   )
-}
-
-function LiveState({ d, compact }: { d: Data; compact?: boolean }) {
-  const t = d.traffic
-  if (t.isError && !t.data) {
-    return (
-      <span className="text-caption text-ash" title={t.error.message}>
-        Live numbers unavailable
-      </span>
-    )
-  }
-  const collected = t.data?.sources
-    .map((s) => s.collected_at)
-    .filter(Boolean)
-    .sort()
-    .at(-1)
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 text-caption whitespace-nowrap text-ash"
-      title={collected ? `Read ${timeAgo(collected)}` : undefined}
-    >
-      <span className="relative flex size-2">
-        {t.data && (
-          <span className="absolute inset-0 animate-ping rounded-full bg-success opacity-60 motion-reduce:hidden" />
-        )}
-        <span
-          className={cn(
-            "relative size-2 rounded-full",
-            t.data ? "bg-success" : "bg-mist",
-          )}
-        />
-      </span>
-      {compact ? "Live" : `Live · last ${t.data?.minutes ?? 30} min`}
-      {d.unreadCount > 0 &&
-        ` · ${d.unreadCount} ${d.unreadCount === 1 ? "proxy" : "proxies"} not read`}
-    </span>
-  )
-}
-
-function useStatTiles(d: Data) {
-  const s = d.stats
-  const stream = d.tab === "streams"
-  const unit = stream ? "Connections" : "Requests"
-  const tone = errorTone(s.errors, s.total)
-  return [
-    {
-      key: "total",
-      label: unit,
-      value: count(s.total),
-      sub: `last ${d.traffic.data?.minutes ?? 30} minutes`,
-      chart: <Sparkline values={s.requests} className="h-10 w-full" />,
-    },
-    {
-      key: "now",
-      label: stream ? "Connections a minute" : "Requests a minute",
-      value: count(s.now),
-      sub: "in the last full minute",
-    },
-    {
-      key: "errors",
-      label: stream ? "Failed" : "Server errors",
-      value: rate(s.errors, s.total),
-      valueClass:
-        tone === "destructive"
-          ? "text-destructive"
-          : tone === "warning"
-            ? "text-warning"
-            : undefined,
-      sub: stream
-        ? `${count(s.errors)} couldn't reach the target`
-        : `${count(s.errors)} × 5xx · ${count(s.clientErrors)} × 4xx`,
-      chart: s.errors > 0 && (
-        <Sparkline
-          values={s.serverErrors}
-          tone="destructive"
-          className="h-10 w-full"
-        />
-      ),
-    },
-    {
-      key: "bytes",
-      label: "Traffic",
-      value: formatSize(s.bytes),
-      sub: stream ? "sent back" : "sent to visitors",
-      chart: s.bytes > 0 && (
-        <Sparkline values={s.bytesSeries} className="h-10 w-full" />
-      ),
-    },
-  ]
 }
 
 // ---- adding a site ----
@@ -463,7 +286,6 @@ function ProxyDesktop() {
   const canAdd = useCanAddProxy()
   const d = useData()
   const add = useAddSite(d)
-  const tiles = useStatTiles(d)
   const [proxiesOpen, setProxiesOpen] = useOpen("proxy-proxies")
   const fetching = d.proxies.isFetching || d.fleet.isFetching
 
@@ -513,6 +335,7 @@ function ProxyDesktop() {
           label={`Search ${siteTabMeta[d.tab].label.toLowerCase()}`}
         />
         <ProxyFilterMenu d={d} />
+        <Live d={d} compact />
         <span className="flex-1" />
         <Button
           variant="ghost"
@@ -552,34 +375,6 @@ function ProxyDesktop() {
 
       <Troubled d={d} />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        {tiles.map((t) => (
-          <div
-            key={t.key}
-            className="flex min-h-32 flex-col gap-1 rounded-2xl border border-border p-4"
-          >
-            <span className="flex items-center justify-between gap-2 text-caption text-muted-foreground">
-              {t.label}
-              {t.key === "total" && <LiveState d={d} compact />}
-            </span>
-            {d.traffic.isPending ? (
-              <Skeleton className="mt-1 h-7 w-20" />
-            ) : (
-              <span
-                className={cn(
-                  "text-heading leading-none font-light tabular-nums",
-                  t.valueClass,
-                )}
-              >
-                {t.value}
-              </span>
-            )}
-            <span className="text-caption text-ash">{t.sub}</span>
-            {t.chart && <div className="mt-auto pt-2">{t.chart}</div>}
-          </div>
-        ))}
-      </div>
-
       {d.fleet.isPending ? (
         <CardsSkeleton />
       ) : d.fleet.isError && !d.fleet.data ? (
@@ -591,10 +386,15 @@ function ProxyDesktop() {
       ) : d.rows.length === 0 ? (
         <NoSites d={d} add={add} />
       ) : (
-        <ul className="grid grid-cols-[repeat(auto-fill,minmax(19rem,1fr))] gap-3">
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,30rem),1fr))] gap-3">
           {d.rows.map((r) => (
             <li key={r.fleet.host.id} className="contents">
-              <SiteCard row={r} stream={d.tab === "streams"} />
+              <SiteCard
+                row={r}
+                stream={d.tab === "streams"}
+                minutes={d.traffic.data?.minutes ?? 30}
+                loaded={!!d.traffic.data}
+              />
             </li>
           ))}
         </ul>
@@ -747,123 +547,136 @@ function siteTags(row: Row) {
   return tags
 }
 
-function SiteCard({ row, stream }: { row: Row; stream: boolean }) {
+function quietTraffic(
+  h: ProxyFleetHost["host"],
+  minutes: number,
+): ProxyHostTraffic {
+  const zeros = Array.from({ length: minutes + 1 }, () => 0)
+  return {
+    host_id: h.id,
+    proxy_id: h.proxy_id,
+    requests: zeros,
+    server_errors: zeros,
+    client_errors: zeros,
+    bytes: zeros,
+  }
+}
+
+// What the route line says before the target.
+const routeVerb: Record<string, string> = {
+  proxy: "Passes to",
+  redirect: "Redirects to",
+  static: "Serves",
+  stream: "Forwards to",
+  notfound: "Answers",
+}
+
+function SiteCard({
+  row,
+  stream,
+  minutes,
+  loaded,
+}: {
+  row: Row
+  stream: boolean
+  minutes: number
+  // The traffic answer has come.
+  loaded: boolean
+}) {
   const menu = useHostMenu()
   const h = row.fleet.host
   const p = row.proxy
   const type = hostTypeMeta[h.config.type]
   const TypeIcon = type.icon
-  const t = row.traffic
-  const series = t?.requests.slice(0, -1) ?? []
-  const now = series.at(-1) ?? 0
-  const total = sum(t?.requests)
-  const errors = sum(t?.server_errors)
-  const extra = h.domains.length - 1
   const live = p?.capabilities.traffic && h.enabled
+  // A site with no visits yet isn't in the traffic answer: all zeros.
+  const t =
+    row.traffic ??
+    (live && !row.unread && loaded ? quietTraffic(h, minutes) : undefined)
+  const others = stream ? [] : h.domains.slice(1)
+  const target = hostTarget(h.config)
 
   return (
     <article
       className={cn(
-        "relative flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 shadow-sm transition-shadow",
+        "relative flex flex-col rounded-2xl border bg-card shadow-sm transition-shadow",
         "hover:shadow-md has-[a[data-card]:focus-visible]:ring-2 has-[a[data-card]:focus-visible]:ring-ring",
+        h.enabled ? "border-border" : "border-dashed border-mist",
       )}
     >
-      <div className="flex items-start gap-3">
-        <SiteIcon row={row} className="size-10" />
-        <div className="min-w-0 flex-1">
-          <Link
-            data-card
-            href={hostHref(h.proxy_id, h.id)}
-            className={cn(
-              "flex min-w-0 items-baseline gap-1.5 outline-none after:absolute after:inset-0 after:rounded-2xl",
-              !h.enabled && "text-ash",
-            )}
-          >
-            <span className="truncate font-mono text-body font-medium">
-              {h.config.type === "stream"
-                ? hostName(h)
-                : (h.domains[0] ?? "No domain")}
-            </span>
-            {extra > 0 && (
-              <span
-                className="shrink-0 text-caption text-muted-foreground"
-                title={h.domains.slice(1).join("\n")}
-              >
-                +{extra}
-              </span>
-            )}
-          </Link>
-          <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-caption text-muted-foreground">
-            <TypeIcon
-              aria-label={type.label}
-              className="size-3.5 shrink-0 text-ash"
-            />
-            <span className="truncate font-mono">
-              {hostTarget(h.config) || type.label}
-            </span>
-          </p>
-        </div>
-        {p && (
-          <div className="relative -me-2 -mt-1">
-            <ItemMenu groups={menu(p, h)} label={`${hostName(h)} actions`} />
+      <div className="flex flex-col gap-4 p-5">
+        <div className="flex items-start gap-3.5">
+          <SiteIcon row={row} className="size-11" />
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <Link
+              data-card
+              href={hostHref(h.proxy_id, h.id)}
+              className={cn(
+                "truncate font-mono text-body leading-6 font-medium outline-none after:absolute after:inset-0 after:rounded-2xl",
+                !h.enabled && "text-muted-foreground",
+              )}
+            >
+              {stream ? hostName(h) : (h.domains[0] ?? "No domain")}
+            </Link>
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              {siteTags(row).map((x) => (
+                <Tag key={x.key} tone={x.tone}>
+                  {x.label}
+                </Tag>
+              ))}
+              {others.length > 0 && (
+                <span
+                  className="relative min-w-0 truncate text-caption text-muted-foreground"
+                  title={others.join("\n")}
+                >
+                  also {others[0]}
+                  {others.length > 1 && ` +${others.length - 1}`}
+                </span>
+              )}
+            </div>
           </div>
+          {p && (
+            <div className="relative -me-2 -mt-1">
+              <ItemMenu groups={menu(p, h)} label={`${hostName(h)} actions`} />
+            </div>
+          )}
+        </div>
+
+        <p className="flex min-w-0 items-center gap-2.5 rounded-xl bg-subtle px-3 py-2.5 text-body-sm">
+          <TypeIcon aria-hidden className="size-4 shrink-0 text-ash" />
+          <span className="shrink-0 text-muted-foreground">
+            {routeVerb[h.config.type] ?? type.label}
+          </span>
+          <span
+            className="min-w-0 truncate font-mono text-foreground"
+            title={target}
+          >
+            {target || type.label}
+          </span>
+        </p>
+
+        {live && t ? (
+          <div className="flex flex-col gap-3">
+            <SiteNumbers t={t} stream={stream} minutes={minutes} />
+            <MiniBars
+              requests={t.requests.slice(0, -1)}
+              errors={t.server_errors.slice(0, -1)}
+            />
+          </div>
+        ) : (
+          <p className="flex h-[6.25rem] items-center justify-center rounded-xl border border-dashed border-border px-4 text-center text-caption text-ash">
+            {!h.enabled
+              ? "Turned off: this site isn't served"
+              : row.unread
+                ? "Couldn't read this proxy's log"
+                : live
+                  ? "Reading the live numbers…"
+                  : "No live numbers for this proxy"}
+          </p>
         )}
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
-        {siteTags(row).map((x) => (
-          <Tag key={x.key} tone={x.tone}>
-            {x.label}
-          </Tag>
-        ))}
-      </div>
-
-      {live ? (
-        <div className="flex items-end gap-4">
-          <div className="flex shrink-0 flex-col">
-            <span className="text-subheading leading-none font-medium tabular-nums">
-              {count(now)}
-            </span>
-            <span className="mt-1 text-caption text-ash">
-              {stream ? "conn" : "req"}/min
-            </span>
-          </div>
-          <Sparkline
-            values={series}
-            tone={series.some((v) => v > 0) ? "brand" : "muted"}
-            className="h-10 min-w-0 flex-1"
-          />
-          <div className="flex shrink-0 flex-col items-end text-caption">
-            <span className="text-muted-foreground tabular-nums">
-              {count(total)} in 30 min
-            </span>
-            {errors > 0 ? (
-              <span
-                className={cn(
-                  "tabular-nums",
-                  errorTone(errors, total) === "muted"
-                    ? "text-muted-foreground"
-                    : errorTone(errors, total) === "warning"
-                      ? "text-warning"
-                      : "text-destructive",
-                )}
-              >
-                {rate(errors, total)} {stream ? "failed" : "5xx"}
-              </span>
-            ) : (
-              <span className="text-ash">
-                {row.unread ? "Log not read" : "No errors"}
-              </span>
-            )}
-          </div>
-        </div>
-      ) : (
-        <p className="text-caption text-ash">
-          {h.enabled ? "No live numbers for this proxy" : "Turned off"}
-        </p>
-      )}
-
-      <div className="mt-auto flex items-center gap-2 border-t border-border pt-3 text-caption text-muted-foreground">
+      <div className="mt-auto flex items-center gap-2 border-t border-border px-5 py-3 text-caption text-muted-foreground">
         <Link
           href={proxyHref(h.proxy_id)}
           className="relative inline-flex min-w-0 items-center gap-1.5 outline-none hover:text-brand focus-visible:text-brand"
@@ -874,8 +687,13 @@ function SiteCard({ row, stream }: { row: Row; stream: boolean }) {
             {p?.kind_label ?? row.fleet.kind}
           </span>
         </Link>
-        <span className="ms-auto shrink-0 text-ash" title={h.updated_by_name}>
-          {timeAgo(h.updated_at)}
+        <span
+          className="ms-auto shrink-0 text-ash"
+          title={
+            h.updated_by_name ? `Changed by ${h.updated_by_name}` : undefined
+          }
+        >
+          Changed {timeAgo(h.updated_at)}
         </span>
       </div>
     </article>
@@ -1035,7 +853,7 @@ function NoSites({ d, add }: { d: Data; add: ReturnType<typeof useAddSite> }) {
 
 function CardsSkeleton() {
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(19rem,1fr))] gap-3">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,30rem),1fr))] gap-3">
       {Array.from({ length: 6 }, (_, i) => (
         <div
           // biome-ignore lint/suspicious/noArrayIndexKey: static placeholders
@@ -1102,7 +920,6 @@ function ProxyMobile() {
   const d = useData()
   const add = useAddSite(d)
   const hostMenu = useHostMenu()
-  const tiles = useStatTiles(d)
   const [proxiesOpen, setProxiesOpen] = useOpen("proxy-proxies")
   const [filterOpen, setFilterOpen] = useOpen("proxy-filter")
   const [sheetOpen, setSheetOpen] = useOpen("proxy-row-sheet")
@@ -1225,40 +1042,10 @@ function ProxyMobile() {
                 <ChevronDown className="size-4" />
               </button>
             </nav>
+            <div className="px-4">
+              <Live d={d} />
+            </div>
           </div>
-
-          <section aria-label="Live numbers" className="mt-4">
-            <div className="flex items-center px-4 pb-2">
-              <LiveState d={d} />
-            </div>
-            <div className="grid grid-cols-2 border-y border-border">
-              {tiles.map((t, i) => (
-                <div
-                  key={t.key}
-                  className={cn(
-                    "flex flex-col gap-0.5 p-4",
-                    i % 2 === 0 && "border-e border-border",
-                    i < 2 && "border-b border-border",
-                  )}
-                >
-                  <span className="text-caption text-muted-foreground">
-                    {t.label}
-                  </span>
-                  <span
-                    className={cn(
-                      "text-subheading font-medium tabular-nums",
-                      t.valueClass,
-                    )}
-                  >
-                    {d.traffic.isPending ? "–" : t.value}
-                  </span>
-                  <span className="truncate text-caption text-ash">
-                    {t.sub}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </section>
 
           {d.troubled.length > 0 && (
             <div className="mt-4">

@@ -21,13 +21,13 @@ import {
 
 const MAX_ROWS = 50
 
-const typing = {
+export const typing = {
   autoCapitalize: "none",
   autoCorrect: "off",
   spellCheck: false,
 } as const
 
-function RemoveButton({
+export function RemoveButton({
   label,
   onClick,
 }: {

@@ -11,6 +11,7 @@ import { isActive, useJobList } from "@/components/jobs/api"
 import { proxiesQuery, STATUS_POLL } from "@/components/panel/problems"
 import { ApiError, api } from "@/lib/api"
 import type {
+  CertRequest,
   HostConfig,
   ProxyActionRequest,
   ProxyDetail,
@@ -32,6 +33,7 @@ export const proxyKeys = {
     ["proxies", id, "logs", host, log, lines] as const,
   fleet: ["proxy-hosts"] as const,
   kinds: ["proxy-kinds"] as const,
+  authorities: ["proxy-certificate-authorities"] as const,
   traffic: (proxy: string) => ["proxy-traffic", proxy] as const,
 }
 
@@ -227,6 +229,20 @@ export function useSetupProxy() {
   })
 }
 
+// Turning the IP-to-country lookup on runs as job proxy-geo.
+export function useGeoJob(id: string) {
+  const jobs = useJobList()
+  return jobs.data?.find(
+    (j) => j.kind === "proxy-geo" && j.refs[0] === id && isActive(j),
+  )
+}
+
+export function useSetupGeo() {
+  return useMutation({
+    mutationFn: (id: string) => api.reverseProxy.setupProxyGeo(id),
+  })
+}
+
 export function useDeleteProxy() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -286,6 +302,30 @@ export function useSaveHost() {
   })
 }
 
+// Runs the site's config through the proxy's own test (nginx -t) on the
+// server with the other sites beside it; nothing is saved or reloaded.
+export function useTestHost() {
+  return useMutation({
+    mutationFn: ({
+      id,
+      host,
+      config,
+    }: {
+      id: string
+      host?: string
+      config: HostConfig
+    }) => api.reverseProxy.testProxyHost(id, { host, config }),
+  })
+}
+
+// Empties a site's own cache on the proxy (Capabilities.cache).
+export function usePurgeHostCache() {
+  return useMutation({
+    mutationFn: ({ id, host }: { id: string; host: string }) =>
+      api.reverseProxy.purgeProxyHostCache(id, host),
+  })
+}
+
 export function useSetHostEnabled() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -317,5 +357,27 @@ export function useRestoreChange() {
     mutationFn: ({ id, change }: { id: string; change: string }) =>
       api.reverseProxy.restoreProxyChange(id, change),
     onSuccess: (d) => storeDetail(queryClient, d),
+  })
+}
+
+// The ACME authorities offered by name; the same list for every proxy.
+export function useCertificateAuthorities(proxy: string, enabled = true) {
+  return useQuery({
+    queryKey: proxyKeys.authorities,
+    queryFn: () =>
+      api.reverseProxy
+        .listProxyCertificateAuthorities(proxy)
+        .then((r) => r.authorities),
+    staleTime: Number.POSITIVE_INFINITY,
+    enabled,
+  })
+}
+
+// Getting, making or saving a certificate runs as job proxy-certificate; its
+// result names the files.
+export function useCreateCertificate() {
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: CertRequest }) =>
+      api.reverseProxy.createProxyCertificate(id, body),
   })
 }

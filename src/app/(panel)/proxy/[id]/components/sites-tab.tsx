@@ -37,6 +37,7 @@ import {
 import { ActionSheet, Tag, Th } from "../../components/parts"
 import { useProxyCan } from "../../components/permissions"
 import { useHostMenu } from "../../components/proxy-actions"
+import { ProxyLive } from "./live-traffic"
 import { inspectable, Toolbar } from "./toolbar"
 
 // The proxy's own sites, with how each one looks on the server right now.
@@ -112,6 +113,8 @@ export function SitesTab({ detail }: { detail: ProxyDetail }) {
             </Link>
           ))}
       </Toolbar>
+
+      <ProxyLive detail={detail} />
 
       {hosts.length === 0 ? (
         <Empty

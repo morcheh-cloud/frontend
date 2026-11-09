@@ -956,6 +956,17 @@ export interface BulkTagServersRequest {
   remove?: string[];
 }
 
+export interface CA {
+  directory: string;
+  /** Needs External Account Binding (a key ID and HMAC key from the CA's dashboard) */
+  eab: boolean;
+  id: string;
+  label: string;
+  note?: string;
+  /** Issues untrusted test certificates, with high limits */
+  test?: boolean;
+}
+
 export interface CPU {
   /** @format double */
   load1: number;
@@ -982,22 +993,132 @@ export interface CPU {
   usage_percent: number;
 }
 
+export interface Cache {
+  /**
+   * Browsers keep css, js, images, fonts and media this many days; 0 = leave the answer's own header
+   * @format int64
+   * @min 0
+   * @max 365
+   */
+  asset_days?: number;
+  /** Keep the upstream's answers on the proxy's disk and serve them from there (proxy) */
+  enabled?: boolean;
+  /** Cache even when the upstream says not to (Cache-Control, Expires); answers setting a cookie are still never kept */
+  ignore_upstream?: boolean;
+  /**
+   * Disk space the cache may use; 0 = 1024
+   * @format int64
+   * @min 0
+   * @max 1048576
+   */
+  max_size_mb?: number;
+  /**
+   * How long an answer stays fresh when the upstream doesn't say; 0 = 10
+   * @format int64
+   * @min 0
+   * @max 43200
+   */
+  minutes?: number;
+  /** Browsers check for a newer page (html) every time */
+  pages_fresh?: boolean;
+  /** When the upstream is down, slow or failing, answer from the cache; refresh in the background */
+  serve_stale?: boolean;
+  /**
+   * Requests carrying a cookie whose name starts with one of these skip the cache (signed-in people), like wordpress_logged_in
+   * @maxItems 20
+   */
+  skip_cookies?: string[];
+  /**
+   * Paths never cached, with everything under them, like /admin
+   * @maxItems 50
+   */
+  skip_paths?: string[];
+  /** Add X-Cache-Status (HIT, MISS, BYPASS…) to answers */
+  status_header?: boolean;
+}
+
 export interface Capabilities {
   /** Raw directives in the proxy's own language */
   advanced: boolean;
+  /** Lists of addresses let in or refused */
   allow: boolean;
+  /** Takes cache (browsers, and the proxy's own cache for proxy sites) and can clear it */
+  cache: boolean;
+  /** Can get certificates on the server (ACME CAs like Let's Encrypt, self-signed, uploaded) */
+  certificates: boolean;
   /** What its config is called, like nginx config */
   config_label: string;
+  /** Can let in or refuse visitors by country (sites only) */
+  countries: boolean;
   headers: boolean;
   /** The config language, for syntax colors */
   language: string;
   paths: boolean;
+  /** Can limit requests, connections and speed */
+  rate_limit: boolean;
   /** Can forward TCP/UDP ports (type stream) */
   streams: boolean;
+  /** Takes HostTLS's extra settings (profile, HTTP/3, OCSP, session cache, client certificates) */
+  tls_options: boolean;
   /** Reports live request counts per site */
   traffic: boolean;
+  /** Takes the tuning options: gzip, no_buffering, connect_timeout_seconds, real_ip, proxy_protocol, hide_version */
+  tuning: boolean;
   types: string[];
   websockets: boolean;
+}
+
+export interface CertRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** One of the listed CAs, or custom */
+  ca?: string;
+  /**
+   * PEM: the certificate, then its intermediates
+   * @maxLength 200000
+   */
+  certificate?: string;
+  /**
+   * Validity of a self-signed certificate; 0 = 365
+   * @format int64
+   * @min 0
+   * @max 3650
+   */
+  days?: number;
+  /** ACME directory URL, for ca = custom */
+  directory?: string;
+  /**
+   * Names it covers. Uploads read them from the certificate when left out
+   * @maxItems 100
+   */
+  domains?: string[];
+  /**
+   * Kept sealed with the job (so Retry works), never in plain text
+   * @maxLength 500
+   */
+  eab_hmac?: string;
+  /** @maxLength 500 */
+  eab_kid?: string;
+  /** Where the CA sends expiry warnings; optional */
+  email?: string;
+  /** Get a new one even when the current one isn't due for renewal */
+  force?: boolean;
+  /**
+   * PEM private key, without a password; kept sealed with the job, never in plain text
+   * @maxLength 100000
+   */
+  key?: string;
+  /** empty = ecdsa */
+  key_type?: "" | "ecdsa" | "rsa";
+  /**
+   * Folder name; empty = the first domain
+   * @maxLength 100
+   */
+  name?: string;
+  source: "acme" | "self-signed" | "upload";
 }
 
 export interface Certificate {
@@ -1005,8 +1126,12 @@ export interface Certificate {
   domains: string[];
   /** @format date-time */
   expires?: string;
+  /** Who signed it, like Let's Encrypt; Self-signed when it signed itself */
+  issuer?: string;
   key: string;
   name: string;
+  /** certbot = renewed by certbot on the server; morcheh = uploaded or self-signed through the panel, never renewed */
+  source: "certbot" | "morcheh";
 }
 
 export interface ChangePasswordBody {
@@ -4012,17 +4137,49 @@ export interface HostConfig {
    */
   advanced?: string;
   /**
-   * Only these addresses or ranges may visit; empty = everyone
-   * @maxItems 200
+   * Addresses or ranges always let in
+   * @maxItems 500
    */
   allow?: string[];
+  /** What browsers keep, and answers the proxy keeps itself (Capabilities.Cache) */
+  cache?: Cache;
+  /**
+   * How long to try reaching the upstream; 0 = the proxy's default (proxy, stream)
+   * @format int64
+   * @min 0
+   * @max 75
+   */
+  connect_timeout_seconds?: number;
+  /**
+   * Two-letter country codes (ISO 3166-1), like DE
+   * @maxItems 250
+   */
+  countries?: string[];
+  /** allow = only these countries get in; deny = these are refused */
+  country_mode?: "" | "allow" | "deny";
+  /**
+   * The whole config file written by hand; when set it's written instead of the generated one
+   * @maxLength 65536
+   */
+  custom?: string;
+  /** Everyone else: allow or deny. Empty = deny when allow has entries, else allow */
+  default_access?: "" | "allow" | "deny";
+  /**
+   * Addresses or ranges always refused
+   * @maxItems 500
+   */
+  deny?: string[];
   /**
    * Names it answers, like example.com or *.example.com; empty for a stream
    * @maxItems 50
    */
   domains: string[];
+  /** Compress text answers (proxy, static) */
+  gzip?: boolean;
   /** @maxItems 50 */
   headers?: HeaderRule[];
+  /** Leave the proxy's version out of headers and error pages (sites only) */
+  hide_version?: boolean;
   /** Add the requested path and query to the target */
   keep_path?: boolean;
   /**
@@ -4039,6 +4196,8 @@ export interface HostConfig {
    * @max 100000
    */
   max_body_mb?: number;
+  /** Pass data straight through without buffering it (proxy): live updates, streamed answers, big uploads */
+  no_buffering?: boolean;
   /**
    * Paths sent somewhere else than the main upstream
    * @maxItems 50
@@ -4048,6 +4207,12 @@ export interface HostConfig {
   preserve_host?: boolean;
   /** tcp (default) or udp */
   protocol?: "" | "tcp" | "udp";
+  /** Tell the upstream the visitor's address with the PROXY protocol (stream) */
+  proxy_protocol?: boolean;
+  /** Limits on requests, connections and speed */
+  rate_limit?: RateLimit;
+  /** Read the visitor's address from a CDN or load balancer in front (sites only) */
+  real_ip?: RealIP;
   /**
    * 0 = 301
    * @format int64
@@ -4104,15 +4269,43 @@ export interface HostStats {
 
 export interface HostTLS {
   http2?: boolean;
+  /** Also answer over HTTP/3 (QUIC, UDP port 443); needs nginx 1.25 or newer built with it */
+  http3?: boolean;
   /** Path of the certificate (full chain) on the server */
   certificate?: string;
+  /** Path of a CA file on the server: visitors must show a certificate it signed */
+  client_ca?: string;
   enabled?: boolean;
+  /**
+   * Status of that redirect; 0 = 301. 308 keeps the method and body of a POST
+   * @format int64
+   */
+  force_code?: 0 | 301 | 302 | 307 | 308;
   /** Send plain http visitors to https */
   force_https?: boolean;
-  /** Tell browsers to only use https for a year */
+  /** Tell browsers to only use https */
   hsts?: boolean;
+  /**
+   * How long browsers remember it, in seconds; 0 = a year
+   * @format int64
+   * @min 0
+   * @max 63072000
+   */
+  hsts_max_age?: number;
+  /** Ask to be built into browsers (hstspreload.org) */
+  hsts_preload?: boolean;
+  /** The rule covers every subdomain too */
+  hsts_subdomains?: boolean;
   /** Path of its private key on the server */
   key?: string;
+  /** OCSP stapling: send the certificate's revocation status along (only for certificates that list an OCSP address) */
+  ocsp?: boolean;
+  /** modern = TLS 1.3 only; intermediate = TLS 1.2 and 1.3 with strong ciphers; old = also TLS 1.0/1.1 for very old clients; empty = the proxy's defaults */
+  profile?: "" | "modern" | "intermediate" | "old";
+  /** Remember TLS sessions for a day so returning visitors connect faster */
+  session_cache?: boolean;
+  /** on = a client certificate is required; optional = asked for, not required; empty = off */
+  verify_client?: "" | "on" | "optional";
 }
 
 export interface IDsBody {
@@ -4170,7 +4363,7 @@ export interface Job {
   finished_at?: string;
   /** @format uuid */
   id: string;
-  /** What it does: transfer, copy, move, storage-copy, storage-move, compress, extract, fetch, fail2ban-install, fail2ban-uninstall, firewall-install, firewall-apply, ansible-run, schedule-sync, schedule-run, script-run, database-backup, database-backup-verify, database-backup-restore or proxy-setup */
+  /** What it does: transfer, copy, move, storage-copy, storage-move, compress, extract, fetch, fail2ban-install, fail2ban-uninstall, firewall-install, firewall-apply, ansible-run, schedule-sync, schedule-run, script-run, database-backup, database-backup-verify, database-backup-restore, proxy-setup, proxy-geo or proxy-certificate */
   kind: string;
   /** What it printed (newest last); only on GET /jobs/{id} */
   log?: string;
@@ -5348,6 +5541,15 @@ export interface ProxyActionResult {
   output: string;
 }
 
+export interface ProxyCAListBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  authorities: CA[];
+}
+
 export interface ProxyChangeDetail {
   /**
    * A URL to the JSON Schema for this object.
@@ -5401,6 +5603,8 @@ export interface ProxyHost {
   created_by_name: string;
   domains: string[];
   enabled: boolean;
+  /** Its config file is written by hand (config.custom) */
+  handwritten?: boolean;
   id: string;
   note: string;
   proxy_id: string;
@@ -5454,17 +5658,23 @@ export interface ProxyHostTraffic {
 }
 
 export interface ProxyInspection {
+  /** The proxy was built with HTTP/3 (QUIC) */
+  http3: boolean;
   ipv6: boolean;
   /**
    * A URL to the JSON Schema for this object.
    * @format uri
    */
   $schema?: string;
+  /** certbot's version when it's installed (it renews certificates) */
+  certbot?: string;
   certificates: Certificate[];
   config_error?: string;
   config_ok: boolean;
   /** Starts at boot */
   enabled: boolean;
+  /** Country lookup for country rules: ready, off (not turned on yet). Empty when the kind can't */
+  geo: "" | "ready" | "off";
   hosts: ProxyHostState[];
   init: string;
   installed: boolean;
@@ -5524,6 +5734,99 @@ export interface ProxyTrafficSource {
   proxy_id: string;
 }
 
+export interface RateLimit {
+  /**
+   * Connections one visitor may hold open at once; 0 = no limit
+   * @format int64
+   * @min 0
+   * @max 100000
+   */
+  conn_per_ip?: number;
+  /**
+   * Connections the whole site may hold open at once; 0 = no limit
+   * @format int64
+   * @min 0
+   * @max 1000000
+   */
+  conn_total?: number;
+  /**
+   * Speed sent to a visitor, per connection, in KB/s; 0 = no limit
+   * @format int64
+   * @min 0
+   * @max 10000000
+   */
+  download_kbs?: number;
+  /** Only log who would have been limited */
+  dry_run?: boolean;
+  /**
+   * Addresses or ranges never limited
+   * @maxItems 200
+   */
+  exempt?: string[];
+  /**
+   * The first MB of each answer go at full speed; sites only
+   * @format int64
+   * @min 0
+   * @max 100000
+   */
+  full_speed_mb?: number;
+  /**
+   * Request limits; sites only
+   * @maxItems 20
+   */
+  rules?: RateRule[];
+  /**
+   * Answer to refused requests; 0 = 429
+   * @format int64
+   */
+  status?: 0 | 429 | 503 | 444;
+  /**
+   * Speed read from a visitor, per connection, in KB/s; port forwards only
+   * @format int64
+   * @min 0
+   * @max 10000000
+   */
+  upload_kbs?: number;
+}
+
+export interface RateRule {
+  /**
+   * Extra requests let through at once above the rate
+   * @format int64
+   * @min 0
+   * @max 100000
+   */
+  burst?: number;
+  /**
+   * With mode delay: how many of the burst go at once
+   * @format int64
+   * @min 0
+   * @max 100000
+   */
+  delay?: number;
+  /** ip (default) counts each visitor apart; site counts every visitor together */
+  key?: "" | "ip" | "site";
+  /**
+   * Only these request methods count; empty = all
+   * @maxItems 7
+   */
+  methods?: string[];
+  /** What the burst does: nodelay (default) serves it at once, queue slows it to the rate, delay serves the first ones at once and slows the rest */
+  mode?: "" | "nodelay" | "queue" | "delay";
+  /**
+   * Empty = the whole site; else this path and everything under it
+   * @maxLength 500
+   */
+  path?: string;
+  per: "second" | "minute";
+  /**
+   * @format int64
+   * @min 1
+   * @max 1000000
+   */
+  rate: number;
+}
+
 export interface Reach {
   /** @format uuid */
   from: string;
@@ -5565,6 +5868,21 @@ export interface ReachProbe {
     | "unavailable";
   /** Why this address was tried: a shared LAN or VPN, the address Morcheh uses, or one of the server's own */
   via: "lan" | "vpn" | "host" | "address";
+}
+
+export interface RealIP {
+  /**
+   * Addresses or ranges of the CDN or load balancer
+   * @maxItems 200
+   */
+  from?: string[];
+  /** Header holding the visitor's address; empty = X-Forwarded-For */
+  header?:
+    | ""
+    | "X-Forwarded-For"
+    | "X-Real-IP"
+    | "CF-Connecting-IP"
+    | "True-Client-IP";
 }
 
 export interface RecordingListBody {
@@ -8362,6 +8680,20 @@ export interface TerminalSession {
   /** @format int64 */
   rows: number;
   title: string;
+}
+
+export interface TestProxyHostRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  config: HostConfig;
+  /**
+   * The site being edited; empty for a new one
+   * @format uuid
+   */
+  host?: string;
 }
 
 export interface TransferFilesBody {
@@ -12242,6 +12574,28 @@ export class Api<
       }),
 
     /**
+     * @description `acme`: certbot asks the CA over HTTP-01 (the names must point at this server, port 80 open); certbot is installed when missing and renews the certificate itself. `self-signed`: made with openssl. `upload`: the PEM pair is checked and written to /etc/ssl/morcheh/<name>. Secrets (EAB HMAC key, private key) are kept sealed with the job, never in plain text. Runs as a background job (kind `proxy-certificate`); its result has the certificate and key paths.
+     *
+     * @tags Reverse proxy
+     * @name CreateProxyCertificate
+     * @summary Get, make or save a certificate on the proxy's server
+     * @request POST:/proxies/{id}/certificates
+     */
+    createProxyCertificate: (
+      id: string,
+      data: CertRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/proxies/${id}/certificates`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description Writes it to the server, tests and reloads. 422 when a value is wrong or the proxy refuses it (nothing is saved then).
      *
      * @tags Reverse proxy
@@ -12438,6 +12792,22 @@ export class Api<
       }),
 
     /**
+     * @description `custom` (any ACME directory URL) is also accepted.
+     *
+     * @tags Reverse proxy
+     * @name ListProxyCertificateAuthorities
+     * @summary Certificate authorities the panel can ask over ACME
+     * @request GET:/proxies/{id}/certificates/authorities
+     */
+    listProxyCertificateAuthorities: (id: string, params: RequestParams = {}) =>
+      this.request<ProxyCAListBody, ErrorModel>({
+        path: `/proxies/${id}/certificates/authorities`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description The last 50 are kept.
      *
      * @tags Reverse proxy
@@ -12530,6 +12900,26 @@ export class Api<
       }),
 
     /**
+     * @description Removes every answer the proxy kept for the site; the next visits ask the upstream again. Browsers keep their own copies.
+     *
+     * @tags Reverse proxy
+     * @name PurgeProxyHostCache
+     * @summary Empty a site's cache
+     * @request POST:/proxies/{id}/hosts/{host}/cache/purge
+     */
+    purgeProxyHostCache: (
+      id: string,
+      host: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<ProxyActionResult, ErrorModel>({
+        path: `/proxies/${id}/hosts/${host}/cache/purge`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description Replaces every site with the snapshot and writes them to the server, as one new change.
      *
      * @tags Reverse proxy
@@ -12584,6 +12974,44 @@ export class Api<
       this.request<Job, ErrorModel>({
         path: `/proxies/${id}/setup`,
         method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Adds nginx's GeoIP2 module, downloads DB-IP's free country database (CC BY 4.0) and refreshes it monthly. Runs as a background job (kind `proxy-geo`); 409 when a setup is already running.
+     *
+     * @tags Reverse proxy
+     * @name SetupProxyGeo
+     * @summary Turn on the IP-to-country lookup for country rules
+     * @request POST:/proxies/{id}/geo
+     */
+    setupProxyGeo: (id: string, params: RequestParams = {}) =>
+      this.request<Job, ErrorModel>({
+        path: `/proxies/${id}/geo`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Puts every site's file in place with this one as sent, runs the proxy's own config test and puts the old files back. Nothing is reloaded or saved. ok=false carries the proxy's message.
+     *
+     * @tags Reverse proxy
+     * @name TestProxyHost
+     * @summary Test a site on the server without saving
+     * @request POST:/proxies/{id}/hosts/test
+     */
+    testProxyHost: (
+      id: string,
+      data: TestProxyHostRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<ProxyActionResult, ErrorModel>({
+        path: `/proxies/${id}/hosts/test`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),

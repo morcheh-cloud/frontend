@@ -5,6 +5,7 @@ import {
   CirclePause,
   CirclePlay,
   Copy,
+  Eraser,
   ExternalLink,
   Eye,
   EyeOff,
@@ -54,7 +55,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useIntent } from "@/hooks/useIntent"
 import { useOpen } from "@/hooks/useOpen"
-import { api } from "@/lib/api"
+import { ApiError, api } from "@/lib/api"
 import type {
   ProxyActionRequest,
   ProxyActionResult,
@@ -70,6 +71,7 @@ import {
   useProxies,
   useProxyAction,
   useProxyKinds,
+  usePurgeHostCache,
   useRestoreChange,
   useSetHostEnabled,
   useSetupProxy,
@@ -851,10 +853,30 @@ export function useProxyMenu() {
 }
 
 // A site's actions. `open` adds Edit as the first row (lists only).
+// Empties a saved site's proxy cache and says how it went.
+export function usePurgeCache() {
+  const purge = usePurgeHostCache()
+  const run = (p: ReverseProxy, host: ProxyHost) =>
+    purge.mutateAsync({ id: p.id, host: host.id }).then(
+      (r) =>
+        r.ok
+          ? toast.success(r.output.trim() || "Cache cleared.")
+          : toast.error("Couldn't clear the cache", {
+              description: r.output.trim() || `Exit code ${r.exit_code}`,
+            }),
+      (err) =>
+        toast.error("Couldn't clear the cache", {
+          description: err instanceof ApiError ? err.message : String(err),
+        }),
+    )
+  return { run, pending: purge.isPending }
+}
+
 export function useHostMenu() {
   const a = useProxyActions()
   const can = useProxyCan()
   const router = useRouter()
+  const purge = usePurgeCache()
   return (
     p: ReverseProxy,
     host: ProxyHost,
@@ -906,6 +928,19 @@ export function useHostMenu() {
           icon: <Copy />,
           onSelect: () => copyText(address, stream ? "Address" : "Domain"),
         },
+        ...(host.config.cache?.enabled && can(p, "operator") && canWrite(p)
+          ? [
+              {
+                key: "purge",
+                label: "Clear cache",
+                icon: <Eraser />,
+                onSelect: () => {
+                  toast.info("Clearing the cache…")
+                  purge.run(p, host)
+                },
+              },
+            ]
+          : []),
       ],
       engineer
         ? [

@@ -124,7 +124,12 @@ export function refreshAfterJob(qc: QueryClient, job: Job) {
   }
   // The proxy's status and the fleet's sites (the job's first ref is the
   // proxy).
-  if (job.kind === "proxy-setup") {
+  // A certificate shows in the proxy's inspection (["proxies", id, …]).
+  if (
+    job.kind === "proxy-setup" ||
+    job.kind === "proxy-geo" ||
+    job.kind === "proxy-certificate"
+  ) {
     qc.invalidateQueries({ queryKey: ["proxies"] })
     qc.invalidateQueries({ queryKey: ["proxy-hosts"] })
     return
