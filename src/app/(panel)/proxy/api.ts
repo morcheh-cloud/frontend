@@ -257,17 +257,38 @@ export function useSetupGeo() {
   })
 }
 
-// Adding the Brotli module runs as job proxy-brotli.
-export function useBrotliJob(id: string) {
+// Modules a proxy can add (job proxy-<module>).
+export type ProxyModule = "brotli" | "waf" | "image-filter" | "stream-geo"
+
+// The job adding a module to this proxy, while it runs.
+export function useModuleJob(id: string, module: ProxyModule) {
   const jobs = useJobList()
   return jobs.data?.find(
-    (j) => j.kind === "proxy-brotli" && j.refs[0] === id && isActive(j),
+    (j) => j.kind === `proxy-${module}` && j.refs[0] === id && isActive(j),
   )
 }
 
-export function useSetupBrotli() {
+export function useSetupModule() {
   return useMutation({
-    mutationFn: (id: string) => api.reverseProxy.setupProxyBrotli(id),
+    mutationFn: ({ id, module }: { id: string; module: ProxyModule }) =>
+      api.reverseProxy.setupProxyModule(id, module),
+  })
+}
+
+// Requests a site's firewall flagged, newest first (read from the server).
+export function useWafEvents(id: string, host: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["proxies", id, "waf", host] as const,
+    queryFn: ({ signal }) =>
+      api.reverseProxy.listProxyHostWafEvents(
+        id,
+        host,
+        { limit: 200 },
+        { signal },
+      ),
+    enabled,
+    retry: false,
+    refetchInterval: STATUS_POLL * 3,
   })
 }
 

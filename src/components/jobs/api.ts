@@ -129,6 +129,9 @@ export function refreshAfterJob(qc: QueryClient, job: Job) {
     job.kind === "proxy-setup" ||
     job.kind === "proxy-geo" ||
     job.kind === "proxy-brotli" ||
+    job.kind === "proxy-waf" ||
+    job.kind === "proxy-image-filter" ||
+    job.kind === "proxy-stream-geo" ||
     job.kind === "proxy-certificate"
   ) {
     qc.invalidateQueries({ queryKey: ["proxies"] })

@@ -831,13 +831,12 @@ export const reverseProxy: GuideSection[] = [
           The same entry can't be in both lists.
         </P>
         <P>
-          Countries (sites only, not streams): pick countries with{" "}
-          <UI>Choose countries</UI> and say whether they're the{" "}
-          <UI>Only these</UI> that get in, or the ones to <UI>Block these</UI>.
-          The address lists are checked first, so <UI>Always let in</UI> still
-          works for someone travelling abroad. With <UI>Only these</UI>,{" "}
-          <UI>Everyone else</UI> decides visitors whose country isn't known
-          (private addresses, very new ranges).
+          Countries: pick countries with <UI>Choose countries</UI> and say
+          whether they're the <UI>Only these</UI> that get in, or the ones to{" "}
+          <UI>Block these</UI>. The address lists are checked first, so{" "}
+          <UI>Always let in</UI> still works for someone travelling abroad. With{" "}
+          <UI>Only these</UI>, <UI>Everyone else</UI> decides visitors whose
+          country isn't known (private addresses, very new ranges).
         </P>
         <Steps>
           {[
@@ -862,6 +861,14 @@ export const reverseProxy: GuideSection[] = [
           turning it on fails with a message and nothing is changed; sites with
           countries can't be saved on that proxy until it's on.
         </Warn>
+        <P>
+          Port forwards (streams) take countries too, on their own{" "}
+          <UI>Security</UI> tab. They use a separate module of nginx's stream
+          side, so the card asks once more: press{" "}
+          <UI>Turn on countries for port forwards</UI> (Engineer). A refused
+          connection is simply closed, there's no error page for a raw TCP or
+          UDP port.
+        </P>
         <Recommended
           rows={[
             {
@@ -876,6 +883,109 @@ export const reverseProxy: GuideSection[] = [
             },
           ]}
         />
+      </>
+    ),
+  },
+  {
+    id: "waf",
+    title: "Web application firewall",
+    body: (
+      <>
+        <P>
+          <UI>Web application firewall</UI> (on the <UI>Security</UI> tab of a
+          proxy, static or storage site) reads every request before it reaches
+          the app and stops the usual attacks: SQL injection, cross-site
+          scripting, path traversal, shell commands in parameters, known
+          scanners. It is ModSecurity with the OWASP Core Rule Set, the same
+          rules big hosting companies use.
+        </P>
+        <Steps>
+          {[
+            <>
+              The first time, the card says the firewall isn't on this proxy:
+              press <UI>Add the firewall</UI> (Engineer). A background task
+              installs ModSecurity and the rule set with the server's package
+              manager and reloads nginx.
+            </>,
+            <>
+              Set <UI>Mode</UI> to <UI>Log only</UI> and Save. Requests that
+              would be refused are only written down.
+            </>,
+            <>
+              Use the site normally for a few days, then open{" "}
+              <UI>Flagged requests</UI>. Anything your own app sent there is a
+              false alarm: press <UI>Turn off</UI> on its rule (or add the path
+              to <UI>Paths it leaves alone</UI>) and Save.
+            </>,
+            <>
+              When the list only shows real attacks, switch to <UI>Block</UI>.
+              Refused requests get <C>403 Forbidden</C>.
+            </>,
+          ]}
+        </Steps>
+        <H3>Settings</H3>
+        <Table
+          head={["Setting", "What it does"]}
+          rows={[
+            [
+              "Mode",
+              "Off / Log only (writes down, lets through) / Block (refuses with 403)",
+            ],
+            [
+              "Paranoia level",
+              "1 catches the common attacks with very few false alarms; 2–4 catch more and flag more innocent requests",
+            ],
+            [
+              "Refuse at score",
+              "Each matching rule adds points; a request reaching this score is refused. Lower = stricter. Empty = 5",
+            ],
+            [
+              "Paths it leaves alone",
+              "Path prefixes not checked at all, like an upload endpoint or an admin area that trips rules",
+            ],
+            [
+              "Rules turned off",
+              "Rule ids that are false alarms for this site, like 942100",
+            ],
+          ]}
+        />
+        <P>
+          In <UI>Flagged requests</UI> each request shows the rules that
+          matched, what they found and where. Rules 949xxx, 959xxx and 980xxx
+          only add up the score (<UI>Score total</UI>); they can't be turned
+          off, since that would turn the whole firewall off. Turn off the rules
+          listed above them instead.
+        </P>
+        <Recommended
+          rows={[
+            {
+              setting: "Mode",
+              value: "Log only for a week, then Block",
+              why: "Every app has a few requests that look like attacks.",
+            },
+            {
+              setting: "Paranoia level",
+              value: "1",
+              why: "2 or 3 only for sensitive sites, after tuning at 1.",
+            },
+            {
+              setting: "Refuse at score",
+              value: "Empty (5)",
+              why: "Raise it only while tuning a busy site in Block.",
+            },
+          ]}
+        />
+        <Warn>
+          The firewall reads request bodies, so very large uploads take a bit
+          longer, and an API that receives code, SQL or HTML on purpose (a CMS
+          editor, a query console) will trip rules: list its path in{" "}
+          <UI>Paths it leaves alone</UI>.
+        </Warn>
+        <Tip>
+          If the package isn't available for the server's system, adding the
+          firewall fails with a message and nothing changes; a site with the
+          firewall on can't be saved on that proxy until it's added.
+        </Tip>
       </>
     ),
   },
@@ -1809,6 +1919,77 @@ export const reverseProxy: GuideSection[] = [
           A slow or down test server doesn't fail visitors' requests, but it can
           hold the next request on the same connection for up to 10 seconds. If
           the site feels slower, lower the share or stop the mirror.
+        </Tip>
+      </>
+    ),
+  },
+  {
+    id: "images",
+    title: "Resize images",
+    body: (
+      <>
+        <P>
+          <UI>Resize images</UI> (on the <UI>Advanced</UI> tab of a proxy,
+          static or storage site) makes smaller pictures on the fly: add{" "}
+          <C>?w=</C> (width) and/or <C>?h=</C> (height) to an image's address
+          and nginx sends it at that size. No thumbnails to make by hand, no
+          change to the app. Works for jpg, png, gif and webp.
+        </P>
+        <Example title="With the default sizes">
+          <List>
+            <li>
+              <C>/photo.jpg?w=320</C>: 320 pixels wide, height to match.
+            </li>
+            ,
+            <li>
+              <C>/photo.jpg?w=640&amp;h=320</C>: fits inside 640×320 (or fills
+              it exactly with <UI>Crop to size</UI>).
+            </li>
+            ,
+            <li>
+              <C>/photo.jpg</C> or <C>?w=333</C> (not an allowed size): the
+              original, untouched.
+            </li>
+            ,
+          </List>
+        </Example>
+        <Steps>
+          {[
+            <>
+              The first time, press <UI>Add image resizing</UI> (Engineer): a
+              background task installs nginx's image filter module and reloads
+              nginx.
+            </>,
+            <>
+              Turn on <UI>Resize images on the fly</UI>, adjust the settings and
+              Save.
+            </>,
+          ]}
+        </Steps>
+        <Table
+          head={["Setting", "What it does"]}
+          rows={[
+            [
+              "When both are set",
+              "Keep proportions fits the picture inside the size; Crop to size fills it and cuts off the rest (thumbnails)",
+            ],
+            [
+              "Allowed sizes",
+              "The only widths/heights served; any other size gets the original, so nobody can make the server resize to every size there is. Empty = 160, 320, 640, 960, 1280, 1920",
+            ],
+            ["Quality", "JPEG and WebP quality, 1–100. Empty = 80"],
+            [
+              "Largest original (MB)",
+              "Bigger pictures are sent untouched. Empty = 10",
+            ],
+          ]}
+        />
+        <Tip>
+          Resizing takes CPU on every request. Turn on the site's{" "}
+          <See guide="reverse-proxy" section="cache">
+            cache
+          </See>{" "}
+          too, so each size is made once and then served from disk.
         </Tip>
       </>
     ),

@@ -91,6 +91,7 @@ import {
 } from "./editor-tabs"
 import { HardeningCard } from "./hardening-card"
 import { HttpsTab } from "./https-tab"
+import { ImagesCard } from "./images-card"
 import { LoginTab } from "./login-tab"
 import { LogsTab } from "./logs-tab"
 import { NginxCode } from "./nginx-code"
@@ -108,6 +109,7 @@ import {
   TracingCard,
 } from "./tuning-cards"
 import { UpstreamTlsCard } from "./upstream-tls"
+import { WafCard } from "./waf-card"
 import { WhatItDoes } from "./what-it-does"
 
 // /proxy/[id]/hosts/new and /proxy/[id]/hosts/[host].
@@ -306,14 +308,30 @@ function Editor({
         },
       },
       {
-        onSuccess: () => {
+        // Saving keeps the editor open: an existing site takes the saved
+        // copy (and its new revision), a new one moves to its own page on
+        // the same tab.
+        onSuccess: (d) => {
           setTouched(false)
+          setErrors({})
+          setRefusal("")
+          if (host) {
+            const saved = d.hosts.find((h) => h.id === host.id)
+            if (saved) {
+              setRevision(saved.updated_at)
+              setDraft(draftFromHost(saved))
+            }
+            toast.success("Saved and loaded")
+            return
+          }
           toast.success(
-            host
-              ? "Saved and loaded"
-              : `${hostName({ config: body.config, domains: body.config.domains })} is live`,
+            `${hostName({ config: body.config, domains: body.config.domains })} is live`,
           )
-          done()
+          const created = d.hosts.find(
+            (h) => !others.some((o) => o.id === h.id),
+          )
+          if (created) router.replace(hostHref(p.id, created.id, tab))
+          else done()
         },
         onError: (err) => {
           if (
@@ -658,6 +676,7 @@ function Editor({
           errors={errors}
           phone={phone}
         />
+        <WafCard {...tuning} host={host} />
         {caps.hardening && (
           <HardeningCard
             draft={draft}
@@ -789,6 +808,7 @@ function Editor({
           </>
         )}
         <MirrorCard {...tuning} />
+        <ImagesCard {...tuning} />
         {(uses.maxBody ||
           uses.timeout ||
           (caps.tuning && uses.connectTimeout)) && (

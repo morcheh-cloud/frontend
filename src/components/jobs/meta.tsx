@@ -1,6 +1,7 @@
 import {
   ArchiveRestore,
   ArrowLeftRight,
+  BrickWallShield,
   CalendarClock,
   ChartPie,
   Copy,
@@ -12,6 +13,7 @@ import {
   FileKey,
   FolderInput,
   Gauge,
+  Image as ImageIcon,
   ListChecks,
   type LucideIcon,
   PackageOpen,
@@ -53,6 +55,9 @@ const icons: Record<string, LucideIcon> = {
   "proxy-setup": Split,
   "proxy-geo": Earth,
   "proxy-brotli": Gauge,
+  "proxy-waf": BrickWallShield,
+  "proxy-image-filter": ImageIcon,
+  "proxy-stream-geo": Earth,
   "proxy-certificate": FileKey,
 }
 

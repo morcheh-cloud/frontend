@@ -34,9 +34,11 @@ import {
   typeUses,
 } from "./draft"
 import { EditorCard as Card } from "./editor-card"
+import { ModuleInstall } from "./module-install"
 
 // Security › who can reach the site: two address lists, what happens to
-// everyone else, and countries (sites only, needs the GeoIP2 lookup).
+// everyone else, and countries (needs the GeoIP2 lookup; port forwards use
+// the stream-geo module).
 
 const accessItems = [
   { value: "allow" as const, label: "Let in" },
@@ -219,7 +221,8 @@ function CountriesCard({
   phone: boolean
 }) {
   const inspection = useInspection(p.id, inspectable(p))
-  const geo = inspection.data?.geo
+  const stream = d.type === "stream"
+  const geo = stream ? inspection.data?.stream_geo : inspection.data?.geo
   const job = useGeoJob(p.id)
   const setup = useSetupGeo()
   const jobs = useJobActions()
@@ -240,7 +243,24 @@ function CountriesCard({
       count={list.length}
       phone={phone}
     >
-      {job ? (
+      {stream ? (
+        geo === "off" && (
+          <ModuleInstall
+            proxy={p}
+            module="stream-geo"
+            icon={<Earth />}
+            busy="Turning on countries for port forwards…"
+            button="Turn on countries for port forwards"
+            warn={list.length > 0}
+          >
+            Countries for port forwards aren't on for this proxy yet. Turning
+            them on adds nginx's stream GeoIP2 module to {p.server_name} (and
+            the free country database if the sites don't have it yet). You can
+            pick countries now, but the forward can only be saved with them once
+            it's on.
+          </ModuleInstall>
+        )
+      ) : job ? (
         <Callout icon={<Earth />}>
           <p className="font-medium text-foreground">
             Turning on country lookup…

@@ -1247,7 +1247,7 @@ export interface Capabilities {
   certificates: boolean;
   /** What its config is called, like nginx config */
   config_label: string;
-  /** Can let in or refuse visitors by country (sites only) */
+  /** Can let in or refuse visitors by country (port forwards too, with the stream-geo module) */
   countries: boolean;
   /** Takes hardening, request_id and catch_all */
   hardening: boolean;
@@ -4453,6 +4453,8 @@ export interface HostConfig {
   headers?: HeaderRule[];
   /** Leave the proxy's version out of headers and error pages (sites only) */
   hide_version?: boolean;
+  /** Resize images on the fly (proxy, static, storage; needs the image-filter module) */
+  images?: Images;
   /** Show these pages for the upstream's own errors too (proxy) */
   intercept_errors?: boolean;
   /** Add the requested path and query to the target */
@@ -4528,6 +4530,8 @@ export interface HostConfig {
   upstream?: string;
   /** How an https upstream is reached (proxy) */
   upstream_tls?: UpstreamTLS;
+  /** Web application firewall (proxy, static, storage; needs the waf module) */
+  waf?: WAF;
   websockets?: boolean;
 }
 
@@ -4612,6 +4616,32 @@ export interface IDsBody {
   ids: string[];
 }
 
+export interface Images {
+  /** Resize jpg, png, gif and webp images asked for with ?w= and ?h= */
+  enabled?: boolean;
+  /**
+   * Largest original resized, in MB; 0 = 10
+   * @format int64
+   * @min 0
+   * @max 100
+   */
+  max_size_mb?: number;
+  /** resize keeps the proportions; crop fills the exact size. Empty = resize */
+  mode?: "" | "resize" | "crop";
+  /**
+   * JPEG and WebP quality; 0 = 80
+   * @format int64
+   * @min 0
+   * @max 100
+   */
+  quality?: number;
+  /**
+   * Widths and heights allowed in ?w= and ?h=; empty = 160, 320, 640, 960, 1280, 1920
+   * @maxItems 30
+   */
+  sizes?: number[];
+}
+
 export interface ItemResult {
   /** The item (any JSON value) */
   item: any;
@@ -4653,7 +4683,7 @@ export interface Job {
   finished_at?: string;
   /** @format uuid */
   id: string;
-  /** What it does: transfer, copy, move, storage-copy, storage-move, compress, extract, fetch, fail2ban-install, fail2ban-uninstall, firewall-install, firewall-apply, ansible-run, schedule-sync, schedule-run, script-run, database-backup, database-backup-verify, database-backup-restore, proxy-setup, proxy-geo, proxy-brotli or proxy-certificate */
+  /** What it does: transfer, copy, move, storage-copy, storage-move, compress, extract, fetch, fail2ban-install, fail2ban-uninstall, firewall-install, firewall-apply, ansible-run, schedule-sync, schedule-run, script-run, database-backup, database-backup-verify, database-backup-restore, proxy-setup, proxy-geo, proxy-brotli, proxy-waf, proxy-image-filter, proxy-stream-geo or proxy-certificate */
   kind: string;
   /** What it printed (newest last); only on GET /jobs/{id} */
   log?: string;
@@ -4798,6 +4828,15 @@ export interface ListProxyHistoryResponse {
    */
   $schema?: string;
   items: ProxyChangeSummary[];
+}
+
+export interface ListProxyHostWafEventsResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  events: WAFEvent[];
 }
 
 export interface ListProxyHostsEverywhereResponse {
@@ -6130,6 +6169,8 @@ export interface ProxyInspection {
   /** Country lookup for country rules: ready, off (not turned on yet). Empty when the kind can't */
   geo: "" | "ready" | "off";
   hosts: ProxyHostState[];
+  /** The image filter module is loaded (resizing pictures) */
+  image_filter: boolean;
   init: string;
   installed: boolean;
   proxy: Proxy;
@@ -6139,11 +6180,15 @@ export interface ProxyInspection {
   /** The panel's sites are loaded */
   set_up: boolean;
   sites: Site[];
+  /** Country rules for port forwards: ready, off (not turned on yet). Empty when the kind can't */
+  stream_geo: "" | "ready" | "off";
   /** Port forwards: ready; no_module = the stream module is missing; not_wired = setup hasn't added the stream block; taken = nginx.conf has its own stream block. Empty when the kind has no streams */
   streams: "" | "ready" | "no_module" | "not_wired" | "taken";
   /** Files in Morcheh's folder the panel doesn't know */
   unknown: string[];
   version: string;
+  /** The web application firewall works: ModSecurity is loaded and Morcheh's rule set is written */
+  waf: boolean;
 }
 
 export interface ProxyKeptPagesResult {
@@ -9856,6 +9901,60 @@ export interface UsersOverview {
   uid_min: number;
   users: User[];
   warnings: string[];
+}
+
+export interface WAF {
+  /** Empty = off; detect = only log what it would refuse; block = refuse it (403) */
+  mode?: "" | "detect" | "block";
+  /**
+   * Paranoia level 1-4; 0 = 1
+   * @format int64
+   * @min 0
+   * @max 4
+   */
+  paranoia?: number;
+  /**
+   * Path prefixes the firewall doesn't check, like /api/upload
+   * @maxItems 50
+   */
+  skip_paths?: string[];
+  /**
+   * Rule ids turned off for this site, like 942100
+   * @maxItems 200
+   */
+  skip_rules?: number[];
+  /**
+   * Anomaly score that refuses a request; 0 = 5 (the rule set's default)
+   * @format int64
+   * @min 0
+   * @max 100
+   */
+  threshold?: number;
+}
+
+export interface WAFEvent {
+  /** The request's unique id */
+  id: string;
+  ip: string;
+  method: string;
+  rules: WAFMatch[];
+  /**
+   * What the visitor got (403 = refused by the firewall)
+   * @format int64
+   */
+  status: number;
+  /** When, as the server logged it */
+  time: string;
+  /** Path and query string */
+  uri: string;
+}
+
+export interface WAFMatch {
+  /** What matched, and where */
+  data?: string;
+  id: string;
+  message: string;
+  severity?: string;
 }
 
 export interface WorkspaceAccess {
@@ -13801,6 +13900,36 @@ export class Api<
       }),
 
     /**
+     * @description Read from the site's ModSecurity audit log on the server (only requests that matched a rule). Empty when the firewall is off or nothing matched yet.
+     *
+     * @tags Reverse proxy
+     * @name ListProxyHostWafEvents
+     * @summary Requests the site's firewall flagged, newest first
+     * @request GET:/proxies/{id}/hosts/{host}/waf-events
+     */
+    listProxyHostWafEvents: (
+      id: string,
+      host: string,
+      query?: {
+        /**
+         * @format int64
+         * @min 1
+         * @max 500
+         * @default 100
+         */
+        limit?: number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ListProxyHostWafEventsResponse, ErrorModel>({
+        path: `/proxies/${id}/hosts/${host}/waf-events`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * No description
      *
      * @tags Reverse proxy
@@ -13943,22 +14072,6 @@ export class Api<
       }),
 
     /**
-     * @description Installs nginx's Brotli module from the system's packages (Debian/Ubuntu libnginx-mod-http-brotli-filter, Alpine nginx-mod-http-brotli), reloads, and writes the panel's sites again. Runs as a background job (kind `proxy-brotli`); 409 when a setup is already running.
-     *
-     * @tags Reverse proxy
-     * @name SetupProxyBrotli
-     * @summary Add the Brotli compression module
-     * @request POST:/proxies/{id}/brotli
-     */
-    setupProxyBrotli: (id: string, params: RequestParams = {}) =>
-      this.request<Job, ErrorModel>({
-        path: `/proxies/${id}/brotli`,
-        method: "POST",
-        format: "json",
-        ...params,
-      }),
-
-    /**
      * @description Adds nginx's GeoIP2 module, downloads DB-IP's free country database (CC BY 4.0) and refreshes it monthly. Runs as a background job (kind `proxy-geo`); 409 when a setup is already running.
      *
      * @tags Reverse proxy
@@ -13969,6 +14082,26 @@ export class Api<
     setupProxyGeo: (id: string, params: RequestParams = {}) =>
       this.request<Job, ErrorModel>({
         path: `/proxies/${id}/geo`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Installs one of nginx's extra modules from the system's packages, reloads, and writes the panel's sites again: `brotli` (Brotli compression), `waf` (ModSecurity with the OWASP Core Rule Set; Debian/Ubuntu), `image-filter` (resizing pictures) or `stream-geo` (country rules for port forwards; also downloads the country database). Runs as a background job (kind `proxy-<module>`); 409 when a setup is already running.
+     *
+     * @tags Reverse proxy
+     * @name SetupProxyModule
+     * @summary Add a module to the proxy
+     * @request POST:/proxies/{id}/modules/{module}
+     */
+    setupProxyModule: (
+      id: string,
+      module: "brotli" | "waf" | "image-filter" | "stream-geo",
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/proxies/${id}/modules/${module}`,
         method: "POST",
         format: "json",
         ...params,

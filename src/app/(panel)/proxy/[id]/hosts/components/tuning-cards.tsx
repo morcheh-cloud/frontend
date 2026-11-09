@@ -1,7 +1,6 @@
 "use client"
 
 import { Cloud, Copy, Gauge, Info, ShieldAlert } from "lucide-react"
-import { toast } from "sonner"
 
 import {
   Callout,
@@ -9,15 +8,12 @@ import {
 } from "@/app/(panel)/cronjobs/components/editor-parts"
 import { ListInput } from "@/app/(panel)/dns/components/fields"
 import { Field } from "@/components/field"
-import { useJobActions } from "@/components/jobs/jobs-provider"
-import { JobBar } from "@/components/jobs/meta"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import type { ProxyInspection, Proxy as ReverseProxy } from "@/lib/services"
-import { useBrotliJob, useSetupBrotli } from "../../../api"
-import { useProxyCan } from "../../../components/permissions"
 import { type Draft, type Errors, type RealIpHeader, typeUses } from "./draft"
 import { EditorCard as Card } from "./editor-card"
+import { ModuleInstall } from "./module-install"
 import { Choice } from "./rate-limit"
 
 // The Advanced tab's tuning: compression, streaming, the visitor's real
@@ -311,8 +307,7 @@ export function MirrorCard({ proxy: p, draft, set, errors, phone }: Props) {
   )
 }
 
-// The Brotli module is missing: install it from the system's packages (job
-// proxy-brotli), or show that job running.
+// The Brotli module is missing: install it from the system's packages.
 function BrotliModule({
   proxy: p,
   warn,
@@ -320,49 +315,18 @@ function BrotliModule({
   proxy: ReverseProxy
   warn: boolean
 }) {
-  const job = useBrotliJob(p.id)
-  const setup = useSetupBrotli()
-  const jobs = useJobActions()
-  const can = useProxyCan()
-
-  if (job) {
-    return (
-      <Callout icon={<Gauge />}>
-        <p className="font-medium text-foreground">Installing Brotli…</p>
-        <p className="truncate">
-          {job.progress.current || job.progress.phase || job.title}
-        </p>
-        <JobBar job={job} className="mt-2" />
-      </Callout>
-    )
-  }
-  const install = () =>
-    setup.mutate(p.id, {
-      onSuccess: (j) => jobs.track(j),
-      onError: (e) => toast.error(e.message),
-    })
   return (
-    <Callout
+    <ModuleInstall
+      proxy={p}
+      module="brotli"
       icon={warn ? <ShieldAlert /> : <Gauge />}
-      tone={warn ? "warning" : undefined}
+      busy="Installing Brotli…"
+      button="Install Brotli module"
+      warn={warn}
     >
-      <p>
-        {warn
-          ? `The Brotli module isn't loaded on ${p.server_name}, so only gzip is used until it's installed.`
-          : `Installing it adds the module from ${p.server_name}'s own packages and reloads ${p.kind_label}; sites keep running.`}
-      </p>
-      {can(p, "engineer") && (
-        <Button
-          size="sm"
-          variant="outline"
-          className="mt-2 h-11 md:h-8"
-          disabled={setup.isPending}
-          onClick={install}
-        >
-          <Gauge />
-          Install Brotli module
-        </Button>
-      )}
-    </Callout>
+      {warn
+        ? `The Brotli module isn't loaded on ${p.server_name}, so only gzip is used until it's installed.`
+        : `Installing it adds the module from ${p.server_name}'s own packages and reloads ${p.kind_label}; sites keep running.`}
+    </ModuleInstall>
   )
 }

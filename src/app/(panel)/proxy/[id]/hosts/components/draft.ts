@@ -300,6 +300,18 @@ export type Draft = {
   hStatus: HardeningStatus
   requestId: boolean
   brotli: boolean
+  // Security: ModSecurity + OWASP Core Rule Set ("" = off).
+  wafMode: WafMode
+  wafParanoia: number
+  wafThreshold: number
+  wafSkipPaths: string
+  wafSkipRules: string
+  // Advanced: pictures resized with ?w= and ?h=.
+  images: boolean
+  imagesMode: "resize" | "crop"
+  imagesSizes: string
+  imagesQuality: string
+  imagesMaxMb: string
   // Load balancing (proxy, stream): more servers beside the main address.
   poolMain: PoolServerDraft
   poolServers: PoolServerDraft[]
@@ -327,6 +339,8 @@ export type Draft = {
 }
 
 let rowSeq = 0
+export type WafMode = "" | "detect" | "block"
+
 export const rowKey = () => `r${++rowSeq}`
 
 export const freshHeader = (): HeaderDraft => ({
@@ -514,6 +528,16 @@ export const freshDraft = (type: HostType = "proxy"): Draft => ({
   hStatus: 404,
   requestId: false,
   brotli: false,
+  wafMode: "",
+  wafParanoia: 1,
+  wafThreshold: 5,
+  wafSkipPaths: "",
+  wafSkipRules: "",
+  images: false,
+  imagesMode: "resize",
+  imagesSizes: "",
+  imagesQuality: "",
+  imagesMaxMb: "",
   poolMain: freshPoolServer(),
   poolServers: [],
   lbMethod: "round_robin",
@@ -680,6 +704,18 @@ function featuresFromConfig(c: HostConfig) {
     hStatus: (hd?.status || 404) as HardeningStatus,
     requestId: !!c.request_id,
     brotli: !!c.brotli,
+    wafMode: (c.waf?.mode ?? "") as WafMode,
+    wafParanoia: c.waf?.paranoia || 1,
+    wafThreshold: c.waf?.threshold || 5,
+    wafSkipPaths: (c.waf?.skip_paths ?? []).join("\n"),
+    wafSkipRules: (c.waf?.skip_rules ?? []).join("\n"),
+    images: !!c.images?.enabled,
+    imagesMode: (c.images?.mode === "crop" ? "crop" : "resize") as
+      | "resize"
+      | "crop",
+    imagesSizes: (c.images?.sizes ?? []).join(", "),
+    imagesQuality: text(c.images?.quality),
+    imagesMaxMb: text(c.images?.max_size_mb),
     catchAll: !!c.catch_all,
     notFoundCode: (c.not_found_code || 404) as NotFoundCode,
   }
@@ -864,7 +900,8 @@ export const typeUses = (t: Draft["type"]) => ({
   paths: serves(t),
   maxBody: t !== "stream" && t !== "notfound" && t !== "storage",
   timeout: t === "proxy" || t === "stream" || t === "storage",
-  countries: t !== "stream",
+  // Port forwards too, with the stream-geo module.
+  countries: true,
   rateLimit: serves(t) || t === "stream",
   gzip: serves(t),
   noBuffering: t === "proxy",
@@ -882,6 +919,8 @@ export const typeUses = (t: Draft["type"]) => ({
   hardening: t !== "stream",
   requestId: t !== "stream",
   brotli: serves(t),
+  waf: serves(t),
+  images: serves(t),
   catchAll: t === "notfound",
   balance: t === "proxy" || t === "stream",
   mirror: t === "proxy",
@@ -1361,6 +1400,29 @@ function addFeatures(c: HostConfig, d: Draft) {
   }
   if (uses.requestId && d.requestId) c.request_id = true
   if (uses.brotli && d.brotli) c.brotli = true
+  if (uses.waf && d.wafMode) {
+    const paths = splitList(d.wafSkipPaths)
+    const rules = splitList(d.wafSkipRules).map(Number)
+    c.waf = {
+      mode: d.wafMode,
+      paranoia: d.wafParanoia,
+      threshold: d.wafThreshold,
+      skip_paths: paths.length ? paths : undefined,
+      skip_rules: rules.length ? rules : undefined,
+    }
+  }
+  if (uses.images && d.images) {
+    const sizes = splitList(d.imagesSizes).map(Number)
+    c.images = {
+      enabled: true,
+      mode: d.imagesMode,
+      sizes: sizes.length
+        ? [...new Set(sizes)].sort((a, b) => a - b)
+        : undefined,
+      quality: number(d.imagesQuality),
+      max_size_mb: number(d.imagesMaxMb),
+    }
+  }
   if (uses.mirror && d.mirrorTo.trim()) {
     c.mirror = {
       to: d.mirrorTo.trim(),
@@ -1408,6 +1470,9 @@ export function problemsToErrors(
     "cache.vary_cookies": splitList(d.varyCookies),
     "auth.forward.headers": splitList(d.fwdHeaders),
     "maintenance.allow": splitList(d.maintAllow),
+    "waf.skip_paths": splitList(d.wafSkipPaths),
+    "waf.skip_rules": splitList(d.wafSkipRules),
+    "images.sizes": splitList(d.imagesSizes),
   }
   const rules = keptRules(d)
   const headers = keptHeaders(d)
@@ -1500,6 +1565,16 @@ export function clearErrors(e: Errors, patch: Partial<Draft>): Errors {
     bucket: ["storage.bucket"],
     folder: ["storage.folder"],
     mirrorTo: ["mirror.to"],
+    wafMode: ["waf.mode"],
+    wafParanoia: ["waf.paranoia"],
+    wafThreshold: ["waf.threshold"],
+    wafSkipPaths: ["waf.skip_paths"],
+    wafSkipRules: ["waf.skip_rules"],
+    images: ["images.enabled"],
+    imagesMode: ["images.mode"],
+    imagesSizes: ["images.sizes"],
+    imagesQuality: ["images.quality"],
+    imagesMaxMb: ["images.max_size_mb"],
     mirrorPercent: ["mirror.percent"],
     tls: ["tls.certificate", "tls.key"],
     certificate: ["tls.certificate"],

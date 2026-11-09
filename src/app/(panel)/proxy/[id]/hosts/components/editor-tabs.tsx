@@ -129,7 +129,8 @@ export function tabOfError(key: string): EditorTab {
       "country_mode",
       "hide_version",
     ].includes(key) ||
-    key.startsWith("hardening")
+    key.startsWith("hardening") ||
+    key.startsWith("waf")
   )
     return "security"
   if (key === "custom") return "config"
@@ -146,7 +147,8 @@ export function tabOfError(key: string): EditorTab {
       "brotli",
       "advanced",
     ].includes(key) ||
-    key.startsWith("mirror")
+    key.startsWith("mirror") ||
+    key.startsWith("images")
   )
     return "advanced"
   return "general"
@@ -188,7 +190,11 @@ export function tabInfo(
       d.paths.length + d.headers.length
         ? `${d.paths.length + d.headers.length}`
         : undefined,
-    security: limited(d) ? "Limited" : undefined,
+    security: limited(d)
+      ? "Limited"
+      : d.wafMode === "block"
+        ? "Firewall"
+        : undefined,
     login: loginBadge(d),
     pages: pagesBadge(d),
     ratelimit: rateBadge(d),
