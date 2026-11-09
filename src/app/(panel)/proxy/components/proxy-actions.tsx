@@ -56,7 +56,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useIntent } from "@/hooks/useIntent"
 import { useOpen } from "@/hooks/useOpen"
-import { ApiError, api } from "@/lib/api"
+import { api } from "@/lib/api"
 import type {
   ProxyActionRequest,
   ProxyActionResult,
@@ -72,7 +72,6 @@ import {
   useProxies,
   useProxyAction,
   useProxyKinds,
-  usePurgeHostCache,
   useRestoreChange,
   useSetHostEnabled,
   useSetupProxy,
@@ -89,6 +88,7 @@ import {
   siteUrl,
 } from "./meta"
 import { useProxyCan } from "./permissions"
+import { PurgeLayer, type PurgePreset } from "./purge-layer"
 
 type Action = ProxyActionRequest["action"]
 
@@ -103,6 +103,8 @@ type Actions = {
   deleteHost: (p: ReverseProxy, host: ProxyHost, done?: () => void) => void
   restore: (p: ReverseProxy, change: ProxyChangeSummary) => void
   viewSite: (p: ReverseProxy, site: Site) => void
+  // The Clear cache layer for a saved site, optionally on a group/addresses.
+  purgeCache: (p: ReverseProxy, host: ProxyHost, preset?: PurgePreset) => void
 }
 
 const ActionsContext = createContext<Actions | null>(null)
@@ -180,6 +182,14 @@ export function ProxyActionsProvider({ children }: { children: ReactNode }) {
 
   const [siteOpen, setSiteOpen] = useOpen("proxy-site")
   const [site, setSite] = useState<{ proxy: ReverseProxy; site: Site }>()
+
+  const [purgeOpen, setPurgeOpen] = useOpen("proxy-purge")
+  const [purgeKey, setPurgeKey] = useState(0)
+  const [toPurge, setToPurge] = useState<{
+    proxy: ReverseProxy
+    host: ProxyHost
+    preset?: PurgePreset
+  }>()
 
   const setupMutation = useSetupProxy()
   const action = useProxyAction()
@@ -277,6 +287,11 @@ export function ProxyActionsProvider({ children }: { children: ReactNode }) {
     viewSite: (p, s) => {
       setSite({ proxy: p, site: s })
       setSiteOpen(true)
+    },
+    purgeCache: (p, host, preset) => {
+      setToPurge({ proxy: p, host, preset })
+      setPurgeKey((k) => k + 1)
+      setPurgeOpen(true)
     },
   }
 
@@ -436,6 +451,17 @@ export function ProxyActionsProvider({ children }: { children: ReactNode }) {
           onOpenChange={setSiteOpen}
           proxy={site.proxy}
           site={site.site}
+        />
+      )}
+
+      {toPurge && (
+        <PurgeLayer
+          key={`purge-${purgeKey}`}
+          open={purgeOpen}
+          onOpenChange={setPurgeOpen}
+          proxy={toPurge.proxy}
+          host={toPurge.host}
+          preset={toPurge.preset}
         />
       )}
     </ActionsContext>
@@ -854,31 +880,11 @@ export function useProxyMenu() {
   }
 }
 
-// A site's actions. `open` adds Edit as the first row (lists only).
-// Empties a saved site's proxy cache and says how it went.
-export function usePurgeCache() {
-  const purge = usePurgeHostCache()
-  const run = (p: ReverseProxy, host: ProxyHost) =>
-    purge.mutateAsync({ id: p.id, host: host.id }).then(
-      (r) =>
-        r.ok
-          ? toast.success(r.output.trim() || "Cache cleared.")
-          : toast.error("Couldn't clear the cache", {
-              description: r.output.trim() || `Exit code ${r.exit_code}`,
-            }),
-      (err) =>
-        toast.error("Couldn't clear the cache", {
-          description: err instanceof ApiError ? err.message : String(err),
-        }),
-    )
-  return { run, pending: purge.isPending }
-}
-
+// A site's actions.
 export function useHostMenu() {
   const a = useProxyActions()
   const can = useProxyCan()
   const router = useRouter()
-  const purge = usePurgeCache()
   return (
     p: ReverseProxy,
     host: ProxyHost,
@@ -936,16 +942,17 @@ export function useHostMenu() {
           icon: <Copy />,
           onSelect: () => copyText(address, stream ? "Address" : "Domain"),
         },
-        ...(host.config.cache?.enabled && can(p, "operator") && canWrite(p)
+        // Off, not hidden, while the site keeps nothing.
+        ...(host.config.type === "proxy" && can(p, "operator") && canWrite(p)
           ? [
               {
                 key: "purge",
-                label: "Clear cache",
+                label: "Clear cache…",
                 icon: <Eraser />,
-                onSelect: () => {
-                  toast.info("Clearing the cache…")
-                  purge.run(p, host)
-                },
+                disabled:
+                  !host.config.cache?.enabled &&
+                  !host.config.cache?.always_online?.mode,
+                onSelect: () => a.purgeCache(p, host),
               },
             ]
           : []),

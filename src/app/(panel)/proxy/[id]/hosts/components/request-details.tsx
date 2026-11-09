@@ -18,6 +18,7 @@ import {
 import { formatSize } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import type { RequestRow } from "../../../api"
+import { clientLabel } from "./log-columns"
 import type { RequestFilters } from "./request-filters"
 
 // Everything one log line says: a side sheet on desktop, a bottom sheet on
@@ -152,8 +153,9 @@ function RequestDetails({
     { label: "Request ID", value: r.request_id, wide: true, mono: true },
   ])
   const client = facts([
+    { label: "Client", value: clientLabel(r.agent) },
     { label: "Came from", value: r.referer, wide: true, mono: true },
-    { label: "Browser or client", value: r.agent, wide: true },
+    { label: "User agent", value: r.agent, wide: true },
   ])
 
   return (

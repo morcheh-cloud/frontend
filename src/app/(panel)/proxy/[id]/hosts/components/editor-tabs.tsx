@@ -145,7 +145,8 @@ export function tabOfError(key: string): EditorTab {
       "request_id",
       "brotli",
       "advanced",
-    ].includes(key)
+    ].includes(key) ||
+    key.startsWith("mirror")
   )
     return "advanced"
   return "general"
@@ -220,6 +221,7 @@ const limited = (d: Draft) =>
 function cacheBadge(d: Draft) {
   const uses = typeUses(d.type)
   if (uses.proxyCache && d.cache) return "On"
+  if (uses.proxyCache && d.onlineMode) return "Backup"
   return uses.browserCache && (d.assetDays.trim() || d.pagesFresh)
     ? "Browsers"
     : undefined

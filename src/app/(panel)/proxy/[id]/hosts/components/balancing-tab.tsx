@@ -52,6 +52,7 @@ import {
 } from "./draft"
 import { EditorCard as Card } from "./editor-card"
 import { Choice, NumberInput } from "./rate-limit"
+import { PickFromServer } from "./upstream-picker"
 
 // Load balancing: the site's requests (or a stream's connections) spread
 // over several servers running the same app. Server 1's address is the
@@ -267,6 +268,11 @@ function usePoolRows(
     focusKey.current = row.key
     set({ poolServers: [...servers, row] })
   }
+  // A server picked from what listens on a server (Ports).
+  const addPicked = (a: { host: string; port: string }) => {
+    if (servers.length >= MAX_SERVERS) return
+    set({ poolServers: [...servers, freshPoolServer(a)] })
+  }
   // A pasted list (one per line, or comma separated) becomes rows; one
   // address with its port fills both fields.
   const paste = (key: string, e: ClipboardEvent<HTMLInputElement>) => {
@@ -320,7 +326,7 @@ function usePoolRows(
       ),
     })
   }
-  return { at, isMain, setServer, add, paste, tidy, remove }
+  return { at, isMain, setServer, add, addPicked, paste, tidy, remove }
 }
 
 // What server 1's port shows when empty: the scheme's own.
@@ -828,6 +834,17 @@ export function PoolInline({
         <FieldError text={errors["balance.servers"]} />
         <div className="flex flex-wrap items-center gap-2">
           {addButton}
+          {!readOnly && (
+            <PickFromServer
+              id="proxy-host-pick-pool"
+              proxy={proxy}
+              protocol={draft.protocol === "udp" ? "udp" : "tcp"}
+              label="Add from a server"
+              className="h-11 md:h-8"
+              disabled={servers.length >= MAX_SERVERS}
+              onPick={rows.addPicked}
+            />
+          )}
           {testable && (
             <Button
               type="button"

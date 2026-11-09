@@ -101,6 +101,7 @@ import { HeaderRows, PathRows } from "./rows"
 import { SiteTraffic } from "./site-traffic"
 import { TemplatePicker } from "./templates"
 import {
+  MirrorCard,
   PerformanceCard,
   ProxyProtocolCard,
   RealIpCard,
@@ -748,7 +749,14 @@ function Editor({
               errors={errors}
               websockets={caps.websockets}
               actions={caps.path_actions}
-              login={!!draft.authMode && caps.auth && uses.auth}
+              login={
+                draft.authMode && caps.auth && uses.auth
+                  ? draft.authOnlyPaths
+                    ? "paths"
+                    : "site"
+                  : ""
+              }
+              access={caps.allow}
             />
           </Card>
         )}
@@ -780,6 +788,7 @@ function Editor({
             <TracingCard {...tuning} />
           </>
         )}
+        <MirrorCard {...tuning} />
         {(uses.maxBody ||
           uses.timeout ||
           (caps.tuning && uses.connectTimeout)) && (
@@ -1156,6 +1165,10 @@ function Route({
     proxy: ["Passed on to", d.upstream.trim()],
     redirect: ["Sent to", d.redirectTo.trim()],
     static: ["Files from", d.root.trim()],
+    storage: [
+      "Files from the bucket",
+      d.bucket.trim() ? `${d.bucket.trim()}${d.folder.trim()}` : "",
+    ],
     notfound: ["Answered with", notFoundText(d.notFoundCode)],
     stream: ["Forwarded to", d.streamTo.trim()],
   }

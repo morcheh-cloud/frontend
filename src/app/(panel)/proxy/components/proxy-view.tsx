@@ -539,6 +539,8 @@ function siteTags(row: Row) {
         : { key: "tls", label: "HTTP only" },
     )
     if (c.type === "static") tags.push({ key: "static", label: "Files" })
+    if (c.type === "storage") tags.push({ key: "storage", label: "Bucket" })
+    if (c.mirror?.to) tags.push({ key: "mirror", label: "Mirrored" })
     if (c.websockets) tags.push({ key: "ws", label: "WebSockets" })
     if (c.allow?.length) tags.push({ key: "allow", label: "Restricted" })
   }

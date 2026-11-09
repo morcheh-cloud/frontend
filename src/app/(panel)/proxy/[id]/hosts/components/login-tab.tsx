@@ -20,6 +20,7 @@ import {
   type Draft,
   type Errors,
   freshUser,
+  guarded,
   keptUsers,
   splitList,
 } from "./draft"
@@ -39,6 +40,11 @@ const modes = [
   { value: "", label: "Off" },
   { value: "basic", label: "Password" },
   { value: "forward", label: "Sign-in service" },
+] as const
+
+const scopes = [
+  { value: "site", label: "Whole site" },
+  { value: "paths", label: "Chosen paths" },
 ] as const
 
 const MAX_USERS = 100
@@ -75,11 +81,16 @@ const presets = [
 // for each request.
 export function LoginTab(props: Props) {
   const { draft, set, errors, phone } = props
+  const marked = draft.paths.filter((p) => guarded(p) && p.login).length
   return (
     <>
       <Card
         title="Ask for a login"
-        hint="Visitors sign in before they see anything. Paths marked No login in Routing stay open."
+        hint={
+          draft.authOnlyPaths
+            ? "Visitors sign in only on the paths marked Sign in in Routing; the rest of the site stays open."
+            : "Visitors sign in before they see anything. Paths marked No login in Routing stay open."
+        }
         phone={phone}
       >
         <div>
@@ -91,6 +102,29 @@ export function LoginTab(props: Props) {
           />
         </div>
         <FieldError text={errors["auth.mode"]} />
+        {draft.authMode && (
+          <div className="flex flex-col gap-2">
+            <span className="text-body-sm font-medium">Where to ask</span>
+            <div>
+              <Segmented
+                label="Where to ask"
+                items={scopes}
+                value={draft.authOnlyPaths ? "paths" : "site"}
+                onChange={(v: "site" | "paths") =>
+                  set({ authOnlyPaths: v === "paths" })
+                }
+              />
+            </div>
+            {draft.authOnlyPaths && (
+              <p className="text-caption text-muted-foreground">
+                {marked
+                  ? `${marked} path${marked === 1 ? " asks" : "s ask"} to sign in. Turn Sign in on or off for each path in Routing › Paths.`
+                  : "No path asks yet: in Routing › Paths, add a path (like /admin/) and turn on Sign in."}
+              </p>
+            )}
+            <FieldError text={errors["auth.only_paths"]} />
+          </div>
+        )}
         {draft.authMode === "" && (
           <p className="text-caption text-muted-foreground">
             Anyone who can reach the site can open it. Use Security to limit who

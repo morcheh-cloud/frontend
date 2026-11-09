@@ -6,6 +6,7 @@ import {
   FolderOpen,
   Loader2,
   type LucideIcon,
+  Package,
 } from "lucide-react"
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs"
 
@@ -130,6 +131,12 @@ export const hostTypes: {
     short: "Serve a folder on the server",
   },
   {
+    value: "storage",
+    label: "Storage",
+    icon: Package,
+    short: "Publish a bucket from Storage, like a MinIO or S3 one",
+  },
+  {
     value: "notfound",
     label: "404 page",
     icon: FileX,
@@ -152,6 +159,8 @@ export function hostTarget(c: HostConfig) {
   if (c.type === "redirect") return c.redirect_to ?? ""
   if (c.type === "static") return c.root ?? ""
   if (c.type === "stream") return c.stream_to ?? ""
+  if (c.type === "storage")
+    return c.storage ? `${c.storage.bucket}${c.storage.folder ?? ""}` : ""
   if (c.type === "notfound") return notFoundText(c.not_found_code)
   return c.upstream ?? ""
 }
@@ -212,7 +221,7 @@ export const siteTabMeta: Record<
 > = {
   hosts: {
     label: "Proxy hosts",
-    types: ["proxy", "static"],
+    types: ["proxy", "static", "storage"],
     add: "proxy",
     noun: "proxy host",
   },

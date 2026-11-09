@@ -11,6 +11,7 @@ import {
   FileCode,
   FileKey,
   FolderInput,
+  Gauge,
   ListChecks,
   type LucideIcon,
   PackageOpen,
@@ -51,6 +52,7 @@ const icons: Record<string, LucideIcon> = {
   "database-backup-restore": ArchiveRestore,
   "proxy-setup": Split,
   "proxy-geo": Earth,
+  "proxy-brotli": Gauge,
   "proxy-certificate": FileKey,
 }
 

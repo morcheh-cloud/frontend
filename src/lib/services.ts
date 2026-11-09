@@ -37,6 +37,39 @@ export interface AffectedOutputBody {
   affected: number;
 }
 
+export interface AlwaysOnline {
+  /**
+   * A copy no one asks for is dropped after this many days; 0 = 7
+   * @format int64
+   * @min 0
+   * @max 365
+   */
+  keep_days?: number;
+  /** Keep copies even when the app marks a page private or no-store (cache off only; with the cache on its own setting decides) */
+  keep_private?: boolean;
+  /** empty = off; backup = every visit asks the app, copies only when it fails; fast = answer from the copy at once and refresh it in the background; copies = never ask the app (maintenance), pages without a copy fail */
+  mode?: "" | "backup" | "fast" | "copies";
+  /**
+   * Use the copy when the app takes longer than this to start answering a page (GET/HEAD); 0 = wait the site's own timeout. Other requests keep the site's timeout
+   * @format int64
+   * @min 0
+   * @max 300
+   */
+  slow_seconds?: number;
+  /**
+   * App answers that also count as down (500, 502, 503, 504, 429); no answer at all always does
+   * @maxItems 5
+   */
+  statuses?: number[];
+  /**
+   * How long to try reaching the app before using the copy; 0 = 5
+   * @format int64
+   * @min 0
+   * @max 60
+   */
+  wait_seconds?: number;
+}
+
 export interface AnsibleHost {
   host: string;
   /** What it's called in the playbook's output */
@@ -419,6 +452,8 @@ export interface Auth {
   forward?: ForwardAuth;
   /** basic = user names and passwords; forward = ask a sign-in service; empty = off */
   mode?: "" | "basic" | "forward";
+  /** Ask only on the paths marked login, not on the whole site */
+  only_paths?: boolean;
   /**
    * Text the browser's sign-in box shows (basic); empty = Restricted
    * @maxLength 100
@@ -1092,6 +1127,8 @@ export interface CPU {
 }
 
 export interface Cache {
+  /** Keep the site answering from its last good copies while the app is down (proxy; works with the cache off too) */
+  always_online?: AlwaysOnline;
   /**
    * Browsers keep css, js, images, fonts and media this many days; 0 = leave the answer's own header
    * @format int64
@@ -1101,6 +1138,11 @@ export interface Cache {
   asset_days?: number;
   /** Keep the upstream's answers on the proxy's disk and serve them from there (proxy) */
   enabled?: boolean;
+  /**
+   * Cache rules: named sets of addresses with their own cache time (or never kept), cleared together; a group may also pick answers by a header the app sends (clearing only)
+   * @maxItems 30
+   */
+  groups?: CacheGroup[];
   /** Cache even when the upstream says not to (Cache-Control, Expires); answers setting a cookie are still never kept */
   ignore_upstream?: boolean;
   /**
@@ -1119,6 +1161,13 @@ export interface Cache {
   minutes?: number;
   /** Browsers check for a newer page (html) every time */
   pages_fresh?: boolean;
+  /** What of the query string tells answers apart: empty = all of it, none = ignored (one copy per path), only = just QueryParams */
+  query?: "" | "none" | "only";
+  /**
+   * With query only: the parameters that count, like page or lang; others (utm_source…) share one copy
+   * @maxItems 20
+   */
+  query_params?: string[];
   /** When the upstream is down, slow or failing, answer from the cache; refresh in the background */
   serve_stale?: boolean;
   /**
@@ -1133,6 +1182,54 @@ export interface Cache {
   skip_paths?: string[];
   /** Add X-Cache-Status (HIT, MISS, BYPASS…) to answers */
   status_header?: boolean;
+  /**
+   * Cookies whose value keeps copies apart, like lang or currency
+   * @maxItems 3
+   */
+  vary_cookies?: string[];
+  /** Separate copies for phones, tablets and computers (told apart by User-Agent) */
+  vary_device?: boolean;
+  /**
+   * Request headers whose value keeps copies apart, like X-Country
+   * @maxItems 3
+   */
+  vary_headers?: string[];
+  /** Separate copies per visitor language: the first one in Accept-Language, like en or fa */
+  vary_language?: boolean;
+  /** Separate copies per operating system: windows, macos, linux, android, ios, chromeos, other */
+  vary_os?: boolean;
+}
+
+export interface CacheGroup {
+  /**
+   * An answer header the app sends, like Cache-Tag (clearing only)
+   * @maxLength 64
+   */
+  header?: string;
+  /**
+   * Answers at these addresses stay fresh this long; 0 = the site's time
+   * @format int64
+   * @min 0
+   * @max 43200
+   */
+  minutes?: number;
+  /**
+   * Like Blog or Product images
+   * @maxLength 60
+   */
+  name: string;
+  /** Answers at these addresses are never kept */
+  never?: boolean;
+  /**
+   * Addresses, as in PurgeFilter.Paths
+   * @maxItems 100
+   */
+  paths?: string[];
+  /**
+   * That header's value (or one item of a comma-separated list); * = any characters; empty = any value
+   * @maxLength 200
+   */
+  value?: string;
 }
 
 export interface Capabilities {
@@ -1157,9 +1254,11 @@ export interface Capabilities {
   headers: boolean;
   /** The config language, for syntax colors */
   language: string;
+  /** Takes mirror: a copy of requests sent to a test server (proxy) */
+  mirror: boolean;
   /** Takes maintenance and error_pages */
   pages: boolean;
-  /** Paths take match and action (redirect, static, deny, return), strip_prefix and public */
+  /** Paths take match and action (redirect, static, deny, return), strip_prefix, public, login, access and addresses */
   path_actions: boolean;
   paths: boolean;
   /** Can limit requests, connections and speed */
@@ -4304,7 +4403,7 @@ export interface HostConfig {
   auth?: Auth;
   /** Load balancing over more servers (proxy, stream) */
   balance?: Balance;
-  /** Also compress with Brotli when the server's nginx has the module (proxy, static) */
+  /** Also compress with Brotli when the server's nginx has the module (proxy, static, storage) */
   brotli?: boolean;
   /** What browsers keep, and answers the proxy keeps itself (Capabilities.Cache) */
   cache?: Cache;
@@ -4374,6 +4473,8 @@ export interface HostConfig {
    * @max 100000
    */
   max_body_mb?: number;
+  /** A copy of requests sent to a test server (proxy; Capabilities.Mirror) */
+  mirror?: Mirror;
   /** Pass data straight through without buffering it (proxy): live updates, streamed answers, big uploads */
   no_buffering?: boolean;
   /**
@@ -4409,6 +4510,8 @@ export interface HostConfig {
   root?: string;
   /** Answer unknown paths with index.html (single-page apps) */
   spa?: boolean;
+  /** The bucket a storage site serves (type storage) */
+  storage?: StorageSite;
   /** Where connections go, as host:port */
   stream_to?: string;
   /**
@@ -4420,7 +4523,7 @@ export interface HostConfig {
   timeout_seconds?: number;
   /** Plain http only when left out */
   tls?: HostTLS;
-  type: "proxy" | "redirect" | "static" | "notfound" | "stream";
+  type: "proxy" | "redirect" | "static" | "notfound" | "stream" | "storage";
   /** Where requests go, like http://127.0.0.1:3000 */
   upstream?: string;
   /** How an https upstream is reached (proxy) */
@@ -4550,7 +4653,7 @@ export interface Job {
   finished_at?: string;
   /** @format uuid */
   id: string;
-  /** What it does: transfer, copy, move, storage-copy, storage-move, compress, extract, fetch, fail2ban-install, fail2ban-uninstall, firewall-install, firewall-apply, ansible-run, schedule-sync, schedule-run, script-run, database-backup, database-backup-verify, database-backup-restore, proxy-setup, proxy-geo or proxy-certificate */
+  /** What it does: transfer, copy, move, storage-copy, storage-move, compress, extract, fetch, fail2ban-install, fail2ban-uninstall, firewall-install, firewall-apply, ansible-run, schedule-sync, schedule-run, script-run, database-backup, database-backup-verify, database-backup-restore, proxy-setup, proxy-geo, proxy-brotli or proxy-certificate */
   kind: string;
   /** What it printed (newest last); only on GET /jobs/{id} */
   log?: string;
@@ -4602,6 +4705,28 @@ export interface JobPlace {
 
 export interface JobRemoved {
   id: string;
+}
+
+export interface KeptPage {
+  /**
+   * Since the copy was fetched from the app, or last confirmed by it
+   * @format int64
+   */
+  age_seconds: number;
+  /** @format int64 */
+  bytes: number;
+  host: string;
+  /** Path and query string */
+  path: string;
+  /**
+   * The app's answer, like 200
+   * @format int64
+   */
+  status?: number;
+  /** The page, like https://example.com/blog?page=2 */
+  url: string;
+  /** Which separate copy, like mobile,android (Cache.Varies) */
+  variant?: string;
 }
 
 export interface KillDatabaseSessionRequest {
@@ -4836,6 +4961,20 @@ export interface Memory {
    * @format int64
    */
   used_bytes: number;
+}
+
+export interface Mirror {
+  /**
+   * Share of requests copied; 0 = all
+   * @format int64
+   * @min 0
+   * @max 100
+   */
+  percent?: number;
+  /** Leave request bodies out of the copies */
+  skip_body?: boolean;
+  /** Test server that gets a copy of requests, like http://10.0.0.9:8080; empty = off */
+  to?: string;
 }
 
 export interface Module {
@@ -5281,8 +5420,15 @@ export interface PanelWorkspace {
 }
 
 export interface PathRule {
+  /** Who can open it: empty = as the site; only = only Addresses; except = everyone but Addresses; everyone = anyone, the site's address lists don't apply here (proxy and static paths) */
+  access?: "" | "only" | "except" | "everyone";
   /** Empty = proxy */
   action?: "" | "proxy" | "redirect" | "static" | "deny" | "return";
+  /**
+   * Addresses or ranges for access only / except
+   * @maxItems 200
+   */
+  addresses?: string[];
   /** @maxLength 4096 */
   advanced?: string;
   /**
@@ -5290,6 +5436,8 @@ export interface PathRule {
    * @maxLength 4096
    */
   body?: string;
+  /** Ask to sign in on this path, when the site's sign-in is set to chosen paths only (proxy and static paths) */
+  login?: boolean;
   /** Empty = prefix */
   match?: "" | "prefix" | "exact" | "regex";
   /**
@@ -5998,6 +6146,24 @@ export interface ProxyInspection {
   version: string;
 }
 
+export interface ProxyKeptPagesResult {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format int64 */
+  bytes: number;
+  /** @format int64 */
+  exit_code?: number;
+  ok: boolean;
+  /** The script's output when it failed */
+  output?: string;
+  pages: KeptPage[];
+  /** @format int64 */
+  total: number;
+}
+
 export interface ProxyKind {
   capabilities: Capabilities;
   kind: string;
@@ -6008,6 +6174,59 @@ export interface ProxyProblem {
   /** Where, like body.config.domains[1] */
   field: string;
   message: string;
+}
+
+export interface ProxyPurgeBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Only count what would be cleared */
+  dry_run?: boolean;
+  /**
+   * A saved group of the site (cache.groups), instead of paths and header
+   * @maxLength 60
+   */
+  group?: string;
+  /**
+   * Only answers the app sent with this header, like Cache-Tag
+   * @maxLength 64
+   */
+  header?: string;
+  /**
+   * Addresses: /blog/post (that page, everything under it, any query string), * for any characters (/img/*.png), ?query (/search?q=*), a domain in front (shop.example.com/cart) or a whole URL
+   * @maxItems 200
+   */
+  paths?: string[];
+  /**
+   * That header's value, or one item of its comma-separated list; * = any characters; empty = any value
+   * @maxLength 200
+   */
+  value?: string;
+}
+
+export interface ProxyPurgeResult {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Their size on disk
+   * @format int64
+   */
+  bytes: number;
+  /** @format int64 */
+  exit_code: number;
+  /**
+   * Answers cleared (or, with dry_run, that would be)
+   * @format int64
+   */
+  matched: number;
+  ok: boolean;
+  /** What happened, in words; the script's output when it failed */
+  output: string;
 }
 
 export interface ProxyReportBin {
@@ -8920,6 +9139,19 @@ export interface StorageRenameRequest {
   name: string;
   /** @minLength 1 */
   path: string;
+}
+
+export interface StorageSite {
+  /** Bucket the site serves */
+  bucket: string;
+  /** Filled in by the server: where the files are read from, like https://s3.example.com */
+  endpoint?: string;
+  /** Folder inside the bucket, like /site; empty = the whole bucket */
+  folder?: string;
+  /** Filled in by the server: the bucket goes in the path, not the host name */
+  path_style?: boolean;
+  /** The S3 storage (from the Storage section) the files come from */
+  storage_id: string;
 }
 
 export interface StorageStatusEvent {
@@ -13457,6 +13689,37 @@ export class Api<
       }),
 
     /**
+     * @description The answers the proxy keeps for the site (its cache, or Always online's copies), newest first, with how old each copy is: what visitors would still get while the app is down.
+     *
+     * @tags Reverse proxy
+     * @name ListProxyHostKeptPages
+     * @summary The pages a site keeps a copy of
+     * @request GET:/proxies/{id}/hosts/{host}/cache/pages
+     */
+    listProxyHostKeptPages: (
+      id: string,
+      host: string,
+      query?: {
+        /**
+         * Most pages listed, newest first
+         * @format int64
+         * @min 1
+         * @max 1000
+         * @default 300
+         */
+        limit?: number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ProxyKeptPagesResult, ErrorModel>({
+        path: `/proxies/${id}/hosts/${host}/cache/pages`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description Lines of the site's access log in a time range, filtered, newest first. Pass the answer's cursor back to get only what was written since (live view).
      *
      * @tags Reverse proxy
@@ -13598,21 +13861,24 @@ export class Api<
       }),
 
     /**
-     * @description Removes every answer the proxy kept for the site; the next visits ask the upstream again. Browsers keep their own copies.
+     * @description Removes the answers the proxy kept for the site (all of them, those of some addresses, of a saved group or carrying an answer header); the next visits ask the upstream again. Browsers keep their own copies. `dry_run` only counts them.
      *
      * @tags Reverse proxy
      * @name PurgeProxyHostCache
-     * @summary Empty a site's cache
+     * @summary Clear a site's cache, or part of it
      * @request POST:/proxies/{id}/hosts/{host}/cache/purge
      */
     purgeProxyHostCache: (
       id: string,
       host: string,
+      data: ProxyPurgeBody,
       params: RequestParams = {},
     ) =>
-      this.request<ProxyActionResult, ErrorModel>({
+      this.request<ProxyPurgeResult, ErrorModel>({
         path: `/proxies/${id}/hosts/${host}/cache/purge`,
         method: "POST",
+        body: data,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),
@@ -13671,6 +13937,22 @@ export class Api<
     setupProxy: (id: string, params: RequestParams = {}) =>
       this.request<Job, ErrorModel>({
         path: `/proxies/${id}/setup`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Installs nginx's Brotli module from the system's packages (Debian/Ubuntu libnginx-mod-http-brotli-filter, Alpine nginx-mod-http-brotli), reloads, and writes the panel's sites again. Runs as a background job (kind `proxy-brotli`); 409 when a setup is already running.
+     *
+     * @tags Reverse proxy
+     * @name SetupProxyBrotli
+     * @summary Add the Brotli compression module
+     * @request POST:/proxies/{id}/brotli
+     */
+    setupProxyBrotli: (id: string, params: RequestParams = {}) =>
+      this.request<Job, ErrorModel>({
+        path: `/proxies/${id}/brotli`,
         method: "POST",
         format: "json",
         ...params,

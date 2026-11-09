@@ -1,12 +1,12 @@
 "use client"
 
-import { X } from "lucide-react"
+import { ShieldCheck, X } from "lucide-react"
 
 import {
   AddButton,
   FieldError,
 } from "@/app/(panel)/cronjobs/components/editor-parts"
-import { ChoiceSelect } from "@/app/(panel)/dns/components/fields"
+import { ChoiceSelect, ListInput } from "@/app/(panel)/dns/components/fields"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
@@ -15,7 +15,9 @@ import {
   type Errors,
   freshHeader,
   freshPath,
+  guarded,
   type HeaderDraft,
+  type PathAccess,
   type PathDraft,
   type PathMatch,
 } from "./draft"
@@ -77,6 +79,23 @@ const denyItems = [
   { value: 444 as const, label: "Close the connection (444)" },
 ]
 
+// "site" stands for "" (as the site), which a select can't hold.
+const accessItems = [
+  { value: "site" as const, label: "Same as the site" },
+  { value: "only" as const, label: "Only these addresses" },
+  { value: "except" as const, label: "Everyone but these" },
+  { value: "everyone" as const, label: "Everyone" },
+]
+
+const accessHint: Record<PathAccess, string> = {
+  "": "",
+  only: "Only these addresses open this path; everyone else gets 403. It replaces the site's address lists here.",
+  except:
+    "These addresses get 403 here; everyone else gets in. It replaces the site's address lists here.",
+  everyone:
+    "Open to every address, even when Security limits the site (country rules still apply). Handy for webhooks and health checks.",
+}
+
 const pathPlaceholder: Record<PathMatch, string> = {
   prefix: "/api/",
   exact: "/health",
@@ -115,6 +134,7 @@ export function PathRows({
   websockets,
   actions,
   login,
+  access,
 }: {
   rows: PathDraft[]
   onChange: (rows: PathDraft[]) => void
@@ -122,8 +142,11 @@ export function PathRows({
   websockets: boolean
   // The proxy can do more than send a path to another app.
   actions: boolean
-  // The site asks for a login: a path can skip it.
-  login: boolean
+  // How the site asks for a login: everywhere (a path can skip it), on
+  // chosen paths (a path can ask), or not at all.
+  login: "" | "site" | "paths"
+  // A path can say which addresses open it.
+  access: boolean
 }) {
   const patch = (key: string, p: Partial<PathDraft>) =>
     onChange(rows.map((r) => (r.key === key ? { ...r, ...p } : r)))
@@ -153,7 +176,7 @@ export function PathRows({
                   onChange={(v) => patch(r.key, { stripPrefix: v })}
                 />
               ),
-              actions && login && (
+              actions && login === "site" && (
                 <Flag
                   key="public"
                   label="No login"
@@ -162,7 +185,18 @@ export function PathRows({
                   onChange={(v) => patch(r.key, { public: v })}
                 />
               ),
+              actions && login === "paths" && guarded(r) && (
+                <Flag
+                  key="login"
+                  label="Sign in"
+                  title="Visitors sign in before they open this path (Login tab)"
+                  checked={r.login}
+                  onChange={(v) => patch(r.key, { login: v })}
+                />
+              ),
             ].filter(Boolean)
+            const checks = actions && access && guarded(r)
+            const listed = r.access === "only" || r.access === "except"
             return (
               <li
                 key={r.key}
@@ -232,10 +266,45 @@ export function PathRows({
                     />
                   </div>
                 )}
-                {actions && flags.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-x-5">
+                {actions && (checks || flags.length > 0) && (
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                    {checks && (
+                      <div className="flex w-full items-center gap-2 md:w-auto">
+                        <ShieldCheck
+                          aria-hidden
+                          className={cn(
+                            "size-4 shrink-0",
+                            r.access ? "text-brand" : "text-ash",
+                          )}
+                        />
+                        <div className="min-w-0 flex-1 md:w-60 md:flex-none">
+                          <ChoiceSelect
+                            value={r.access || "site"}
+                            onChange={(v) =>
+                              patch(r.key, {
+                                access: v === "site" ? "" : v,
+                              })
+                            }
+                            items={accessItems}
+                          />
+                        </div>
+                      </div>
+                    )}
                     {flags}
                   </div>
+                )}
+                {checks && listed && (
+                  <ListInput
+                    aria-invalid={invalid}
+                    value={r.addresses}
+                    onChange={(addresses) => patch(r.key, { addresses })}
+                    placeholder={"192.168.1.0/24\n203.0.113.7"}
+                  />
+                )}
+                {checks && r.access && (
+                  <p className="text-caption text-muted-foreground">
+                    {accessHint[r.access]}
+                  </p>
                 )}
                 {r.advanced && (
                   <p className="text-caption text-ash">

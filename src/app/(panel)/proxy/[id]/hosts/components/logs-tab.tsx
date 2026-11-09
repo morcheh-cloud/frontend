@@ -44,6 +44,12 @@ import type { ProxyHost, Proxy as ReverseProxy } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { type RequestRow, useHostRequests } from "../../../api"
 import { chipClass, Th } from "../../../components/parts"
+import {
+  ColumnsMenu,
+  clientLabel,
+  type LogColumn,
+  useLogColumns,
+} from "./log-columns"
 import { NoLog, OldFormatNotice, shortDate } from "./log-notices"
 import { RequestDetailsLayer } from "./request-details"
 import {
@@ -131,6 +137,8 @@ export function LogsTab({
     }
   }
   const classes = statusClassesFor(stream)
+  const multiDomain = host.domains.length > 1
+  const columns = useLogColumns(stream, multiDomain)
 
   const toolbar = phone ? (
     <PhoneBar
@@ -188,6 +196,7 @@ export function LogsTab({
         frozen={!!f.until}
         onToggle={() => setPaused(!paused)}
       />
+      <ColumnsMenu columns={columns} stream={stream} />
       <Button
         variant="ghost"
         size="icon"
@@ -280,7 +289,8 @@ export function LogsTab({
       <RowsTable
         rows={data.items}
         stream={stream}
-        multiDomain={host.domains.length > 1}
+        multiDomain={multiDomain}
+        columns={columns.shown}
         onPick={show}
       />
     )
@@ -1046,32 +1056,42 @@ function RowsTable({
   rows,
   stream,
   multiDomain,
+  columns,
   onPick,
 }: {
   rows: RequestRow[]
   stream: boolean
   multiDomain: boolean
+  columns: LogColumn[]
   onPick: (r: RequestRow) => void
 }) {
+  // The domain sits beside the path unless it has its own column.
+  const inlineDomain = multiDomain && !columns.some((c) => c.id === "domain")
+  const minWidth = 9 + 5 + 16 + columns.reduce((n, c) => n + c.width, 0)
   return (
-    <div className="overflow-x-auto rounded-2xl border border-border">
-      <table className="w-full table-fixed text-body-sm">
+    <div className="overflow-x-auto rounded-2xl border border-border [contain:inline-size]">
+      <table
+        className="w-full table-fixed text-body-sm"
+        style={{ minWidth: `${minWidth}rem` }}
+      >
         <colgroup>
           <col className="w-36" />
           <col className="w-20" />
           <col />
-          <col className="w-40" />
-          <col className="w-24" />
-          <col className="w-24" />
+          {columns.map((c) => (
+            <col key={c.id} style={{ width: `${c.width}rem` }} />
+          ))}
         </colgroup>
         <thead className="border-b border-border bg-subtle">
           <tr>
             <Th>Time</Th>
             <Th>Status</Th>
             <Th>{stream ? "Protocol" : "Request"}</Th>
-            <Th>Address</Th>
-            <Th className="text-end">{stream ? "Open for" : "Took"}</Th>
-            <Th className="text-end">Sent</Th>
+            {columns.map((c) => (
+              <Th key={c.id} className={cn("truncate", c.end && "text-end")}>
+                {c.id === "took" && stream ? "Open for" : (c.head ?? c.label)}
+              </Th>
+            ))}
           </tr>
         </thead>
         <tbody>
@@ -1084,20 +1104,20 @@ function RowsTable({
               )}
             >
               <td
-                className="px-4 py-2 whitespace-nowrap text-muted-foreground tabular-nums"
+                className="px-3 py-2 whitespace-nowrap text-muted-foreground tabular-nums"
                 title={new Date(r.time).toString()}
               >
                 {timeText(r.time)}
               </td>
               <td
                 className={cn(
-                  "px-4 py-2 font-mono font-medium tabular-nums",
+                  "px-3 py-2 font-mono font-medium tabular-nums",
                   statusTone(r.status),
                 )}
               >
                 {r.status}
               </td>
-              <td className="min-w-0 px-4 py-2">
+              <td className="min-w-0 px-3 py-2">
                 <button
                   type="button"
                   onClick={() => onPick(r)}
@@ -1113,7 +1133,7 @@ function RowsTable({
                       <span className="truncate font-mono text-caption">
                         {r.path || "—"}
                       </span>
-                      {multiDomain && r.domain && (
+                      {inlineDomain && r.domain && (
                         <span className="ms-auto shrink-0 text-caption text-ash">
                           {r.domain}
                         </span>
@@ -1122,34 +1142,25 @@ function RowsTable({
                   )}
                 </button>
               </td>
-              <td className="truncate px-4 py-2 font-mono text-caption">
-                {r.ip}
-              </td>
-              <td className="px-4 py-2 text-end whitespace-nowrap tabular-nums">
-                {took(r)}
-              </td>
-              <td className="px-4 py-2 text-end whitespace-nowrap text-muted-foreground tabular-nums">
-                {formatSize(r.bytes)}
-              </td>
+              {columns.map((c) => (
+                <td
+                  key={c.id}
+                  title={c.title?.(r)}
+                  className={cn(
+                    "truncate px-3 py-2 tabular-nums",
+                    c.end && "text-end",
+                    c.mono && "font-mono text-caption",
+                    c.id === "sent" && "text-muted-foreground",
+                  )}
+                >
+                  {c.value(r, stream)}
+                </td>
+              ))}
             </tr>
           ))}
         </tbody>
       </table>
     </div>
-  )
-}
-
-function took(r: RequestRow) {
-  if (r.duration_ms === undefined) return <span className="text-ash">—</span>
-  return (
-    <span
-      className={cn(
-        r.duration_ms >= 1000 && "text-warning",
-        r.duration_ms >= 5000 && "text-destructive",
-      )}
-    >
-      {formatMs(r.duration_ms)}
-    </span>
   )
 }
 
@@ -1197,6 +1208,7 @@ function PhoneRows({
               {timeText(r.time)} · {r.ip}
               {r.duration_ms !== undefined && ` · ${formatMs(r.duration_ms)}`}
               {` · ${formatSize(r.bytes)}`}
+              {!stream && r.agent && ` · ${clientLabel(r.agent)}`}
             </span>
           </button>
         </li>

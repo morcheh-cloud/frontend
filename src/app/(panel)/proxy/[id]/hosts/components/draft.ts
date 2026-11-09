@@ -29,9 +29,30 @@ export type HeaderDraft = {
   value: string
 }
 
+// How a cache rule keeps its answers: as the site does, for its own time,
+// or never.
+export type RuleKeep = "" | "time" | "never"
+
+// A cache rule (Cache tab): a named part of the cache with its own time,
+// cleared in one go.
+export type CacheGroupDraft = {
+  key: string
+  name: string
+  paths: string
+  header: string
+  value: string
+  keep: RuleKeep
+  minutes: string
+}
+
+// What of the query string tells kept answers apart.
+export type CacheQuery = "" | "none" | "only"
+
 export type PathMatch = "prefix" | "exact" | "regex"
 export type PathAction = "proxy" | "redirect" | "static" | "deny" | "return"
 export type DenyStatus = 403 | 404 | 410 | 444
+// Who can open a path: "" = as the site's lists say.
+export type PathAccess = "" | "only" | "except" | "everyone"
 
 export type PathDraft = {
   key: string
@@ -51,6 +72,11 @@ export type PathDraft = {
   body: string
   // No sign-in on this path when the site asks for one.
   public: boolean
+  // Sign-in here when the site asks on chosen paths only.
+  login: boolean
+  access: PathAccess
+  // Addresses or ranges for access only / except, one per line.
+  addresses: string
   // Raw directives for this path only.
   advanced: string
 }
@@ -156,6 +182,15 @@ export type Draft = {
   listenPort: string
   protocol: "tcp" | "udp"
   streamTo: string
+  // storage: a bucket (and folder) of an S3 storage from the Storage section.
+  storageId: string
+  bucket: string
+  folder: string
+  // Advanced: copy requests to a test server (proxy).
+  mirrorTo: string
+  mirrorBodies: boolean
+  // Share of requests copied, 1–100.
+  mirrorPercent: number
   tls: boolean
   certificate: string
   key: string
@@ -210,16 +245,33 @@ export type Draft = {
   cache: boolean
   cacheMinutes: string
   cacheSizeMb: string
-  serveStale: boolean
   ignoreUpstream: boolean
+  // Always online: copies of pages handed out while the app is down (also
+  // without the cache).
+  onlineMode: OnlineMode
+  onlineDays: string
+  onlineWait: string
+  onlineSlow: string
+  onlineStatuses: number[]
+  onlinePrivate: boolean
   skipPaths: string
   skipCookies: string
   cacheStatus: boolean
+  cacheQuery: CacheQuery
+  cacheParams: string
+  cacheGroups: CacheGroupDraft[]
+  varyDevice: boolean
+  varyOs: boolean
+  varyLanguage: boolean
+  varyHeaders: string
+  varyCookies: string
   // Login: basic (names and passwords) or forward (a sign-in service).
   authMode: AuthMode
   authRealm: string
   authUsers: AuthUserDraft[]
   authSkipAllowed: boolean
+  // Ask only on the paths marked Sign in (Routing), not the whole site.
+  authOnlyPaths: boolean
   fwdUrl: string
   fwdSignin: string
   fwdHeaders: string
@@ -299,6 +351,9 @@ export const freshPath = (p: Partial<PathDraft> = {}): PathDraft => ({
   status: "200",
   body: "",
   public: false,
+  login: false,
+  access: "",
+  addresses: "",
   advanced: "",
   ...p,
 })
@@ -357,6 +412,12 @@ export const freshDraft = (type: HostType = "proxy"): Draft => ({
   listenPort: "",
   protocol: "tcp",
   streamTo: "",
+  storageId: "",
+  bucket: "",
+  folder: "",
+  mirrorTo: "",
+  mirrorBodies: true,
+  mirrorPercent: 100,
   tls: false,
   certificate: "",
   key: "",
@@ -405,15 +466,29 @@ export const freshDraft = (type: HostType = "proxy"): Draft => ({
   cache: false,
   cacheMinutes: "",
   cacheSizeMb: "",
-  serveStale: true,
   ignoreUpstream: false,
+  onlineMode: "",
+  onlineDays: "",
+  onlineWait: "",
+  onlineSlow: "",
+  onlineStatuses: [],
+  onlinePrivate: false,
   skipPaths: "",
   skipCookies: "",
   cacheStatus: true,
+  cacheQuery: "",
+  cacheParams: "",
+  cacheGroups: [],
+  varyDevice: false,
+  varyOs: false,
+  varyLanguage: false,
+  varyHeaders: "",
+  varyCookies: "",
   authMode: "",
   authRealm: "",
   authUsers: [],
   authSkipAllowed: false,
+  authOnlyPaths: false,
   fwdUrl: "",
   fwdSignin: "",
   fwdHeaders: "",
@@ -477,6 +552,12 @@ export function draftFromHost(h: ProxyHost): Draft {
     listenPort: c.listen_port ? String(c.listen_port) : "",
     protocol: c.protocol === "udp" ? "udp" : "tcp",
     streamTo: c.stream_to ?? "",
+    storageId: c.storage?.storage_id ?? "",
+    bucket: c.storage?.bucket ?? "",
+    folder: c.storage?.folder ?? "",
+    mirrorTo: c.mirror?.to ?? "",
+    mirrorBodies: !c.mirror?.skip_body,
+    mirrorPercent: c.mirror?.percent || 100,
     tls: !!c.tls?.enabled,
     certificate: c.tls?.certificate ?? "",
     key: c.tls?.key ?? "",
@@ -540,6 +621,9 @@ function pathFromConfig(p: PathRule): PathDraft {
     status: action === "return" ? text(p.status) || "200" : "200",
     body: p.body ?? "",
     public: !!p.public,
+    login: !!p.login,
+    access: p.access ?? "",
+    addresses: (p.addresses ?? []).join("\n"),
     advanced: p.advanced ?? "",
   })
 }
@@ -563,6 +647,7 @@ function featuresFromConfig(c: HostConfig) {
       }),
     ),
     authSkipAllowed: !!a?.skip_for_allowed,
+    authOnlyPaths: !!a?.only_paths,
     fwdUrl: f?.url ?? "",
     fwdSignin: f?.signin_url ?? "",
     fwdHeaders: (f?.headers ?? []).join("\n"),
@@ -649,6 +734,21 @@ export function draftFromCopy(h: ProxyHost): Draft {
   }
 }
 
+// Always online as saved. A site from before it had "serve the last copy"
+// on the cache, which now reads as Fast + backup.
+function onlineFromConfig(c: HostConfig["cache"]) {
+  const o = c?.always_online
+  const legacy = !o?.mode && !!c?.enabled && !!c?.serve_stale
+  return {
+    onlineMode: (legacy ? "fast" : (o?.mode ?? "")) as OnlineMode,
+    onlineDays: text(o?.keep_days),
+    onlineWait: text(o?.wait_seconds),
+    onlineSlow: text(o?.slow_seconds),
+    onlineStatuses: legacy ? [500, 502, 503, 504] : (o?.statuses ?? []),
+    onlinePrivate: !!o?.keep_private,
+  }
+}
+
 // A site without the proxy's cache keeps the fresh defaults, so turning it
 // on starts from them.
 function cacheFromConfig(c: HostConfig["cache"], base: Draft) {
@@ -659,11 +759,29 @@ function cacheFromConfig(c: HostConfig["cache"], base: Draft) {
     cache: on,
     cacheMinutes: text(c?.minutes),
     cacheSizeMb: text(c?.max_size_mb),
-    serveStale: on ? !!c?.serve_stale : base.serveStale,
+    ...onlineFromConfig(c),
     ignoreUpstream: !!c?.ignore_upstream,
     skipPaths: (c?.skip_paths ?? []).join("\n"),
     skipCookies: (c?.skip_cookies ?? []).join("\n"),
     cacheStatus: on ? !!c?.status_header : base.cacheStatus,
+    cacheQuery: (c?.query ?? "") as CacheQuery,
+    cacheParams: (c?.query_params ?? []).join("\n"),
+    cacheGroups: (c?.groups ?? []).map(
+      (g): CacheGroupDraft => ({
+        key: rowKey(),
+        name: g.name,
+        paths: (g.paths ?? []).join("\n"),
+        header: g.header ?? "",
+        value: g.value ?? "",
+        keep: g.never ? "never" : g.minutes ? "time" : "",
+        minutes: text(g.minutes),
+      }),
+    ),
+    varyDevice: !!c?.vary_device,
+    varyOs: !!c?.vary_os,
+    varyLanguage: !!c?.vary_language,
+    varyHeaders: (c?.vary_headers ?? []).join("\n"),
+    varyCookies: (c?.vary_cookies ?? []).join("\n"),
   }
 }
 
@@ -735,33 +853,38 @@ const number = (text: string) => {
 }
 
 // What each type takes besides its own fields.
+// Types that serve pages: an app, a folder or a bucket.
+export const serves = (t: Draft["type"]) =>
+  t === "proxy" || t === "static" || t === "storage"
+
 export const typeUses = (t: Draft["type"]) => ({
   domains: t !== "stream",
   tls: t !== "stream",
   headers: t !== "stream",
-  paths: t === "proxy" || t === "static",
-  maxBody: t !== "stream" && t !== "notfound",
-  timeout: t === "proxy" || t === "stream",
+  paths: serves(t),
+  maxBody: t !== "stream" && t !== "notfound" && t !== "storage",
+  timeout: t === "proxy" || t === "stream" || t === "storage",
   countries: t !== "stream",
-  rateLimit: t === "proxy" || t === "static" || t === "stream",
-  gzip: t === "proxy" || t === "static",
+  rateLimit: serves(t) || t === "stream",
+  gzip: serves(t),
   noBuffering: t === "proxy",
-  connectTimeout: t === "proxy" || t === "stream",
+  connectTimeout: t === "proxy" || t === "stream" || t === "storage",
   realIp: t !== "stream",
   proxyProtocol: t === "stream",
   hideVersion: t !== "stream",
-  browserCache: t === "proxy" || t === "static",
+  browserCache: serves(t),
   proxyCache: t === "proxy",
-  auth: t === "proxy" || t === "static",
+  auth: serves(t),
   upstreamTls: t === "proxy",
   maintenance: t !== "stream" && t !== "notfound",
   errorPages: t !== "stream",
   interceptErrors: t === "proxy",
   hardening: t !== "stream",
   requestId: t !== "stream",
-  brotli: t === "proxy" || t === "static",
+  brotli: serves(t),
   catchAll: t === "notfound",
   balance: t === "proxy" || t === "stream",
+  mirror: t === "proxy",
 })
 
 // Methods that can't have a backup server.
@@ -912,6 +1035,7 @@ export function toAuth(d: Draft): Auth | undefined {
         password: u.password || undefined,
       })),
       skip_for_allowed: skip || undefined,
+      only_paths: d.authOnlyPaths || undefined,
     }
   }
   const headers = splitList(d.fwdHeaders)
@@ -924,6 +1048,7 @@ export function toAuth(d: Draft): Auth | undefined {
       pass_path: d.fwdPassPath.trim() || undefined,
     },
     skip_for_allowed: skip || undefined,
+    only_paths: d.authOnlyPaths || undefined,
   }
 }
 
@@ -955,8 +1080,21 @@ function toPath(p: PathDraft): PathRule {
       r.status = Number(p.status.trim()) || 0
       r.body = p.body || undefined
   }
+  if (guarded(p)) {
+    r.login = p.login || undefined
+    if (p.access) r.access = p.access
+    if (p.access === "only" || p.access === "except") {
+      const list = splitList(p.addresses)
+      if (list.length) r.addresses = list
+    }
+  }
   return r
 }
+
+// Paths whose visitors can be checked: redirects, blocks and fixed answers
+// go out before any address check or sign-in would run.
+export const guarded = (p: PathDraft) =>
+  p.action === "proxy" || p.action === "static"
 
 // The cache as sent; undefined when it does nothing.
 export function toCache(d: Draft): HostConfig["cache"] {
@@ -971,15 +1109,69 @@ export function toCache(d: Draft): HostConfig["cache"] {
       enabled: true,
       minutes: number(d.cacheMinutes),
       max_size_mb: number(d.cacheSizeMb),
-      serve_stale: d.serveStale || undefined,
       ignore_upstream: d.ignoreUpstream || undefined,
       skip_paths: listOrNone(d.skipPaths),
       skip_cookies: listOrNone(d.skipCookies),
       status_header: d.cacheStatus || undefined,
+      query: d.cacheQuery || undefined,
+      query_params:
+        d.cacheQuery === "only" ? listOrNone(d.cacheParams) : undefined,
+      groups: keptGroups(d).length
+        ? keptGroups(d).map((g) => ({
+            name: g.name.trim(),
+            paths: listOrNone(g.paths),
+            header: g.header.trim() || undefined,
+            value: g.value.trim() || undefined,
+            minutes: g.keep === "time" ? number(g.minutes) : undefined,
+            never: g.keep === "never" || undefined,
+          }))
+        : undefined,
+      vary_device: d.varyDevice || undefined,
+      vary_os: d.varyOs || undefined,
+      vary_language: d.varyLanguage || undefined,
+      vary_headers: listOrNone(d.varyHeaders),
+      vary_cookies: listOrNone(d.varyCookies),
     })
   }
-  return c.asset_days || c.pages_fresh || c.enabled ? c : undefined
+  if (uses.proxyCache && d.onlineMode) {
+    c.always_online = {
+      mode: d.onlineMode,
+      keep_days: number(d.onlineDays),
+      wait_seconds: number(d.onlineWait),
+      slow_seconds: number(d.onlineSlow),
+      statuses: d.onlineStatuses.length
+        ? onlineStatuses.filter((s) => d.onlineStatuses.includes(s))
+        : undefined,
+      keep_private: (!d.cache && d.onlinePrivate) || undefined,
+    }
+    // Without the cache, what's never kept still applies to the copies.
+    if (!d.cache)
+      Object.assign(c, {
+        skip_paths: listOrNone(d.skipPaths),
+        skip_cookies: listOrNone(d.skipCookies),
+      })
+  }
+  return c.asset_days || c.pages_fresh || c.enabled || c.always_online
+    ? c
+    : undefined
 }
+
+// Always online: "" = off; backup = ask the app, copies only when it fails;
+// fast = answer from the copy and refresh it behind; copies = never ask.
+export type OnlineMode = "" | "backup" | "fast" | "copies"
+// App answers that may count as down, in the backend's order.
+export const onlineStatuses = [500, 502, 503, 504, 429]
+// What turning Always online on starts with.
+export const onlineStart = (): Partial<Draft> => ({
+  onlineMode: "backup",
+  onlineStatuses: [502, 503, 504],
+})
+
+// Cache rules worth sending: a row left fully blank is dropped.
+export const keptGroups = (d: Draft) =>
+  d.cacheGroups.filter(
+    (g) => g.name.trim() || g.paths.trim() || g.header.trim(),
+  )
 
 const listOrNone = (text: string) => {
   const l = splitList(text)
@@ -1043,6 +1235,14 @@ export function toConfig(d: Draft): HostConfig {
     c.redirect_to = d.redirectTo.trim()
     c.redirect_code = d.redirectCode
     c.keep_path = d.keepPath
+  } else if (d.type === "storage") {
+    c.storage = {
+      storage_id: d.storageId,
+      bucket: d.bucket.trim(),
+      folder: d.folder.trim() || undefined,
+    }
+    c.spa = d.spa
+    c.timeout_seconds = number(d.timeout)
   } else {
     c.root = d.root.trim()
     c.spa = d.spa
@@ -1161,6 +1361,13 @@ function addFeatures(c: HostConfig, d: Draft) {
   }
   if (uses.requestId && d.requestId) c.request_id = true
   if (uses.brotli && d.brotli) c.brotli = true
+  if (uses.mirror && d.mirrorTo.trim()) {
+    c.mirror = {
+      to: d.mirrorTo.trim(),
+      skip_body: !d.mirrorBodies || undefined,
+      percent: d.mirrorPercent < 100 ? d.mirrorPercent : undefined,
+    }
+  }
   if (uses.catchAll) {
     if (d.catchAll) c.catch_all = true
     c.not_found_code = d.notFoundCode
@@ -1196,6 +1403,9 @@ export function problemsToErrors(
     "real_ip.from": splitList(d.realIpFrom),
     "cache.skip_paths": splitList(d.skipPaths),
     "cache.skip_cookies": splitList(d.skipCookies),
+    "cache.query_params": splitList(d.cacheParams),
+    "cache.vary_headers": splitList(d.varyHeaders),
+    "cache.vary_cookies": splitList(d.varyCookies),
     "auth.forward.headers": splitList(d.fwdHeaders),
     "maintenance.allow": splitList(d.maintAllow),
   }
@@ -1205,6 +1415,7 @@ export function problemsToErrors(
   const users = keptUsers(d)
   const pages = keptPages(d)
   const servers = keptServers(d)
+  const groups = keptGroups(d)
   for (const p of problems) {
     const where = p.location ?? p.field
     if (!where || !p.message) continue
@@ -1213,6 +1424,15 @@ export function problemsToErrors(
     if (rule) {
       const k = rules[Number(rule[1])]?.key ?? rule[1]
       out[`rate.${k}.${rule[2] ?? "rate"}`] ??= p.message
+      continue
+    }
+    const group = /^cache\.groups\[(\d+)\]\.(\w+)(?:\[(\d+)\])?/.exec(f)
+    if (group) {
+      const g = groups[Number(group[1])]
+      const entry = group[3] ? splitList(g?.paths ?? "")[Number(group[3])] : ""
+      out[`cache.groups.${g?.key ?? group[1]}.${group[2]}`] ??= entry
+        ? `${entry}: ${p.message}`
+        : p.message
       continue
     }
     const server = /^balance\.servers\[(\d+)\](?:\.(\w+))?/.exec(f)
@@ -1237,6 +1457,9 @@ export function problemsToErrors(
         key = `headers.${headers[i]?.key ?? i}`
       } else if (m[1] === "paths") {
         key = `paths.${paths[i]?.key ?? i}`
+        const a = /^paths\[\d+\]\.addresses\[(\d+)\]/.exec(f)
+        const entry = a && splitList(paths[i]?.addresses ?? "")[Number(a[1])]
+        if (entry) message = `${entry}: ${message}`
       } else if (m[1] === "auth.users") {
         key = `auth.users.${users[i]?.key ?? i}`
       } else if (m[1] === "error_pages") {
@@ -1273,6 +1496,11 @@ export function clearErrors(e: Errors, patch: Partial<Draft>): Errors {
     redirectTo: ["redirect_to"],
     redirectCode: ["redirect_code"],
     root: ["root"],
+    storageId: ["storage.storage_id", "storage.bucket"],
+    bucket: ["storage.bucket"],
+    folder: ["storage.folder"],
+    mirrorTo: ["mirror.to"],
+    mirrorPercent: ["mirror.percent"],
     tls: ["tls.certificate", "tls.key"],
     certificate: ["tls.certificate"],
     key: ["tls.key"],
@@ -1310,12 +1538,22 @@ export function clearErrors(e: Errors, patch: Partial<Draft>): Errors {
     assetDays: ["cache.asset_days"],
     skipPaths: ["cache.skip_paths"],
     skipCookies: ["cache.skip_cookies"],
+    onlineMode: ["cache.always_online.mode"],
+    onlineDays: ["cache.always_online.keep_days"],
+    onlineWait: ["cache.always_online.wait_seconds"],
+    onlineSlow: ["cache.always_online.slow_seconds"],
+    onlineStatuses: ["cache.always_online.statuses"],
+    cacheQuery: ["cache.query_params"],
+    cacheParams: ["cache.query_params"],
+    varyHeaders: ["cache.vary_headers"],
+    varyCookies: ["cache.vary_cookies"],
     authMode: ["auth.mode", "auth.users"],
     authRealm: ["auth.realm"],
     fwdUrl: ["auth.forward.url", "auth.mode"],
     fwdSignin: ["auth.forward.signin_url"],
     fwdHeaders: ["auth.forward.headers"],
     fwdPassPath: ["auth.forward.pass_path"],
+    authOnlyPaths: ["auth.only_paths"],
     upName: ["upstream_tls.name"],
     upCa: ["upstream_tls.ca"],
     upCert: ["upstream_tls.certificate", "upstream_tls.key"],
@@ -1354,9 +1592,11 @@ export function clearErrors(e: Errors, patch: Partial<Draft>): Errors {
     ["authUsers", "auth.users"],
     ["errorPages", "error_pages"],
     ["paths", "paths."],
+    ["paths", "auth.only_paths"],
     ["headers", "headers."],
     ["poolServers", "pool."],
     ["lbMethod", "pool."],
+    ["cacheGroups", "cache.groups."],
   ]
   for (const [k, prefix] of rows) {
     if (!patch[k]) continue

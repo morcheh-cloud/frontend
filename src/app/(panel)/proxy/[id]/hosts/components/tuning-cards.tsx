@@ -1,6 +1,7 @@
 "use client"
 
-import { Cloud, Info, ShieldAlert } from "lucide-react"
+import { Cloud, Copy, Gauge, Info, ShieldAlert } from "lucide-react"
+import { toast } from "sonner"
 
 import {
   Callout,
@@ -8,8 +9,13 @@ import {
 } from "@/app/(panel)/cronjobs/components/editor-parts"
 import { ListInput } from "@/app/(panel)/dns/components/fields"
 import { Field } from "@/components/field"
+import { useJobActions } from "@/components/jobs/jobs-provider"
+import { JobBar } from "@/components/jobs/meta"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import type { ProxyInspection, Proxy as ReverseProxy } from "@/lib/services"
+import { useBrotliJob, useSetupBrotli } from "../../../api"
+import { useProxyCan } from "../../../components/permissions"
 import { type Draft, type Errors, type RealIpHeader, typeUses } from "./draft"
 import { EditorCard as Card } from "./editor-card"
 import { Choice } from "./rate-limit"
@@ -87,7 +93,7 @@ export function PerformanceCard({
           label="Brotli compression"
           hint={
             noBrotli && !draft.brotli
-              ? `${p.kind_label} on ${p.server_name} doesn't have the Brotli module (Debian/Ubuntu: libnginx-mod-http-brotli-filter).`
+              ? `${p.kind_label} on ${p.server_name} doesn't have the Brotli module yet.`
               : "About 15–20% smaller than gzip for browsers that take it; others still get gzip."
           }
           checked={draft.brotli}
@@ -95,11 +101,8 @@ export function PerformanceCard({
           disabled={noBrotli && !draft.brotli}
         />
       )}
-      {uses.brotli && draft.brotli && noBrotli && (
-        <Callout icon={<ShieldAlert />} tone="warning">
-          The Brotli module isn't loaded on {p.server_name}, so only gzip is
-          used. It starts working once the module is installed.
-        </Callout>
+      {uses.brotli && noBrotli && (
+        <BrotliModule proxy={p} warn={draft.brotli} />
       )}
       {uses.noBuffering && (
         <ToggleRow
@@ -108,15 +111,22 @@ export function PerformanceCard({
           hint="Nothing is held back: for live updates (server-sent events), streamed downloads and AI chat answers that arrive word by word. Large uploads go to the app as they come, too."
           checked={draft.noBuffering}
           onChange={(noBuffering) =>
-            set(noBuffering ? { noBuffering, cache: false } : { noBuffering })
+            set(
+              noBuffering
+                ? { noBuffering, cache: false, onlineMode: "" }
+                : { noBuffering },
+            )
           }
         />
       )}
-      {uses.noBuffering && draft.noBuffering && draft.cache && (
-        <Callout icon={<Info />}>
-          This turns off the proxy cache, which needs whole answers.
-        </Callout>
-      )}
+      {uses.noBuffering &&
+        draft.noBuffering &&
+        (draft.cache || draft.onlineMode) && (
+          <Callout icon={<Info />}>
+            This turns off the proxy cache and Always online, which need whole
+            answers.
+          </Callout>
+        )}
     </Card>
   )
 }
@@ -220,5 +230,139 @@ export function TracingCard({ draft, set, phone }: Props) {
         onChange={(requestId) => set({ requestId })}
       />
     </Card>
+  )
+}
+
+const shares = [100, 50, 25, 10, 5, 1]
+
+// A copy of every request (or a share of them) goes to a test server too;
+// its answers are thrown away. For trying a new version on real traffic.
+export function MirrorCard({ proxy: p, draft, set, errors, phone }: Props) {
+  if (!p.capabilities.mirror || !typeUses(draft.type).mirror) return null
+  const on = draft.mirrorTo.trim() !== ""
+  const items = [...new Set([...shares, draft.mirrorPercent])]
+    .sort((a, b) => b - a)
+    .map((n) => ({
+      value: String(n),
+      label: n === 100 ? "Every request" : `${n}% of requests`,
+    }))
+  return (
+    <Card
+      title="Copy traffic to a test server"
+      hint="Every request also goes to a second server, like a new version of the app. Its answers are thrown away: visitors only ever see the real app's."
+      phone={phone}
+    >
+      <Field
+        label="Test server"
+        hint="Only the address: the requested path is added to it. Empty = off."
+        error={errors["mirror.to"]}
+      >
+        {(f) => (
+          <Input
+            {...f}
+            inputMode="url"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="done"
+            value={draft.mirrorTo}
+            onChange={(e) => set({ mirrorTo: e.target.value })}
+            placeholder="http://10.0.0.9:8080"
+            className="font-mono"
+          />
+        )}
+      </Field>
+      {on && (
+        <>
+          <Field
+            label="How many"
+            hint="Copies are picked at random."
+            error={errors["mirror.percent"]}
+          >
+            {(f) => (
+              <Choice
+                id={f.id}
+                items={items}
+                value={String(draft.mirrorPercent)}
+                onChange={(v) => set({ mirrorPercent: Number(v) })}
+              />
+            )}
+          </Field>
+          <ToggleRow
+            id="tune-mirror-bodies"
+            label="Copy request bodies"
+            hint={`Form posts and uploads reach the test server too. ${p.kind_label} then reads a whole body before passing the request on.`}
+            checked={draft.mirrorBodies}
+            onChange={(mirrorBodies) => set({ mirrorBodies })}
+          />
+          <Callout icon={<ShieldAlert />} tone="warning">
+            Writes are copied too: a sign-up, a payment or a delete runs on the
+            test server as well. Point it at test data, never at the real
+            database or mail service.
+          </Callout>
+          <Callout icon={<Copy />}>
+            Copies carry <span className="font-mono">X-Morcheh-Mirror: 1</span>.
+            A slow test server holds up the next request on the same connection
+            (up to 10 s): keep it close and quick.
+          </Callout>
+        </>
+      )}
+    </Card>
+  )
+}
+
+// The Brotli module is missing: install it from the system's packages (job
+// proxy-brotli), or show that job running.
+function BrotliModule({
+  proxy: p,
+  warn,
+}: {
+  proxy: ReverseProxy
+  warn: boolean
+}) {
+  const job = useBrotliJob(p.id)
+  const setup = useSetupBrotli()
+  const jobs = useJobActions()
+  const can = useProxyCan()
+
+  if (job) {
+    return (
+      <Callout icon={<Gauge />}>
+        <p className="font-medium text-foreground">Installing Brotli…</p>
+        <p className="truncate">
+          {job.progress.current || job.progress.phase || job.title}
+        </p>
+        <JobBar job={job} className="mt-2" />
+      </Callout>
+    )
+  }
+  const install = () =>
+    setup.mutate(p.id, {
+      onSuccess: (j) => jobs.track(j),
+      onError: (e) => toast.error(e.message),
+    })
+  return (
+    <Callout
+      icon={warn ? <ShieldAlert /> : <Gauge />}
+      tone={warn ? "warning" : undefined}
+    >
+      <p>
+        {warn
+          ? `The Brotli module isn't loaded on ${p.server_name}, so only gzip is used until it's installed.`
+          : `Installing it adds the module from ${p.server_name}'s own packages and reloads ${p.kind_label}; sites keep running.`}
+      </p>
+      {can(p, "engineer") && (
+        <Button
+          size="sm"
+          variant="outline"
+          className="mt-2 h-11 md:h-8"
+          disabled={setup.isPending}
+          onClick={install}
+        >
+          <Gauge />
+          Install Brotli module
+        </Button>
+      )}
+    </Callout>
   )
 }

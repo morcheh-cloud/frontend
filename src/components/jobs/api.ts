@@ -128,6 +128,7 @@ export function refreshAfterJob(qc: QueryClient, job: Job) {
   if (
     job.kind === "proxy-setup" ||
     job.kind === "proxy-geo" ||
+    job.kind === "proxy-brotli" ||
     job.kind === "proxy-certificate"
   ) {
     qc.invalidateQueries({ queryKey: ["proxies"] })

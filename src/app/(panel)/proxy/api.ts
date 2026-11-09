@@ -19,6 +19,7 @@ import type {
   ProxyDetail,
   ProxyHostBody,
   ProxyHostReport,
+  ProxyPurgeBody,
   ProxyRequest,
   ProxyRequestClasses,
   ProxyRequests,
@@ -42,6 +43,7 @@ export const proxyKeys = {
   kinds: ["proxy-kinds"] as const,
   authorities: ["proxy-certificate-authorities"] as const,
   traffic: (proxy: string) => ["proxy-traffic", proxy] as const,
+  cache: (id: string, host: string) => ["proxies", id, "cache", host] as const,
   requests: (id: string, host: string, filters: RequestQuery) =>
     ["proxies", id, "requests", host, filters] as const,
   report: (id: string, host: string, range: ReportRange, tz?: string) =>
@@ -255,6 +257,20 @@ export function useSetupGeo() {
   })
 }
 
+// Adding the Brotli module runs as job proxy-brotli.
+export function useBrotliJob(id: string) {
+  const jobs = useJobList()
+  return jobs.data?.find(
+    (j) => j.kind === "proxy-brotli" && j.refs[0] === id && isActive(j),
+  )
+}
+
+export function useSetupBrotli() {
+  return useMutation({
+    mutationFn: (id: string) => api.reverseProxy.setupProxyBrotli(id),
+  })
+}
+
 export function useDeleteProxy() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -346,11 +362,62 @@ export function useTestUpstream() {
   })
 }
 
-// Empties a site's own cache on the proxy (Capabilities.cache).
+// Clears a site's kept answers on the proxy (Capabilities.cache): all of
+// them, or what `body` picks.
 export function usePurgeHostCache() {
+  const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, host }: { id: string; host: string }) =>
-      api.reverseProxy.purgeProxyHostCache(id, host),
+    mutationFn: ({
+      id,
+      host,
+      body = {},
+    }: {
+      id: string
+      host: string
+      body?: ProxyPurgeBody
+    }) => api.reverseProxy.purgeProxyHostCache(id, host, body),
+    onSuccess: (_, { id, host }) =>
+      queryClient.invalidateQueries({ queryKey: proxyKeys.cache(id, host) }),
+  })
+}
+
+// Counts the kept answers `body` picks, without clearing them (dry run).
+export function useCacheCount(
+  id: string,
+  host: string,
+  body: Omit<ProxyPurgeBody, "dry_run">,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: [...proxyKeys.cache(id, host), body] as const,
+    queryFn: ({ signal }) =>
+      api.reverseProxy.purgeProxyHostCache(
+        id,
+        host,
+        { ...body, dry_run: true },
+        { signal },
+      ),
+    enabled,
+    retry: false,
+    gcTime: 0,
+  })
+}
+
+// The pages a saved site keeps a copy of, newest first (Operator): what
+// visitors still get while the app is down.
+export function useKeptPages(
+  id: string,
+  host: string,
+  limit: number,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: [...proxyKeys.cache(id, host), "pages", limit] as const,
+    queryFn: ({ signal }) =>
+      api.reverseProxy.listProxyHostKeptPages(id, host, { limit }, { signal }),
+    enabled,
+    retry: false,
+    gcTime: 0,
   })
 }
 

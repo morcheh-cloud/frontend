@@ -51,10 +51,13 @@ import {
   type NotFoundCode,
   type RedirectCode,
   toConfig,
+  withMain,
 } from "./draft"
 import { MainAddress } from "./main-address"
+import { StorageFields } from "./storage-fields"
+import { PickFromServer } from "./upstream-picker"
 
-const typing = {
+export const typing = {
   autoCapitalize: "none",
   autoCorrect: "off",
   spellCheck: false,
@@ -164,6 +167,16 @@ export function WhatItDoes({
           phone={phone}
         />
       )}
+      {draft.type === "storage" && (
+        <StorageFields
+          draft={draft}
+          set={set}
+          errors={errors}
+          proxy={p}
+          readOnly={readOnly}
+          phone={phone}
+        />
+      )}
       {draft.type === "notfound" && (
         <NotFoundFields
           draft={draft}
@@ -178,6 +191,7 @@ export function WhatItDoes({
           set={set}
           errors={errors}
           proxy={p}
+          readOnly={readOnly}
           pool={pool}
         />
       )}
@@ -259,7 +273,7 @@ function TypeChooser({
 }
 
 // An input with an icon at its start.
-function IconInput({
+export function IconInput({
   icon: Icon,
   ...props
 }: React.ComponentProps<typeof Input> & { icon: LucideIcon }) {
@@ -297,7 +311,13 @@ function SchemeFix({
 
 // The type's switches: cards side by side on desktop, a plain list on
 // phones.
-function Options({ phone, children }: { phone: boolean; children: ReactNode }) {
+export function Options({
+  phone,
+  children,
+}: {
+  phone: boolean
+  children: ReactNode
+}) {
   return (
     <div
       className={cn(
@@ -311,7 +331,7 @@ function Options({ phone, children }: { phone: boolean; children: ReactNode }) {
   )
 }
 
-function Option({
+export function Option({
   id,
   icon: Icon,
   label,
@@ -406,7 +426,18 @@ function ProxyFields({
               "Where the app answers, as the proxy's server sees it. Paste a whole address to fill every part."
             }
           />
-          {!readOnly && <TestUpstream proxy={p} draft={draft} />}
+          {!readOnly && (
+            <TestUpstream proxy={p} draft={draft}>
+              <PickFromServer
+                id="proxy-host-pick-upstream"
+                proxy={p}
+                protocol="tcp"
+                onPick={({ host, port, scheme }) =>
+                  set(withMain(draft, { host, port, scheme }))
+                }
+              />
+            </TestUpstream>
+          )}
           {pool}
         </>
       )}
@@ -759,16 +790,19 @@ function NotFoundFields({
 function TestUpstream({
   proxy: p,
   draft,
+  children,
 }: {
   proxy: ReverseProxy
   draft: Draft
+  // Other buttons of the row (Pick from a server).
+  children?: ReactNode
 }) {
   const test = useTestUpstream()
   const [tested, setTested] = useState("")
   const upstream = draft.upstream.trim()
   const result = tested === upstream ? test.data : undefined
   const failed = tested === upstream ? test.error : null
-  if (!/^https?:\/\/./i.test(upstream)) return null
+  const testable = /^https?:\/\/./i.test(upstream)
   const run = () => {
     setTested(upstream)
     test.mutate({
@@ -778,19 +812,22 @@ function TestUpstream({
     })
   }
   return (
-    <div className="-mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="h-9 md:h-8"
-        onClick={run}
-        disabled={test.isPending}
-      >
-        {test.isPending ? <Loader2 className="animate-spin" /> : <Plug />}
-        Test the address
-      </Button>
-      {!test.isPending && result && (
+    <div className="-mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+      {children}
+      {testable && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-9 md:h-8"
+          onClick={run}
+          disabled={test.isPending}
+        >
+          {test.isPending ? <Loader2 className="animate-spin" /> : <Plug />}
+          Test the address
+        </Button>
+      )}
+      {testable && !test.isPending && result && (
         <p
           role="status"
           className={cn(
@@ -805,7 +842,7 @@ function TestUpstream({
               `Answered ${result.status} in ${result.millis} ms`}
         </p>
       )}
-      {!test.isPending && failed && (
+      {testable && !test.isPending && failed && (
         <p role="status" className="text-caption text-destructive">
           {failed.message}
         </p>
@@ -820,12 +857,14 @@ function StreamFields({
   set,
   errors,
   proxy: p,
+  readOnly,
   pool,
 }: {
   draft: Draft
   set: (patch: Partial<Draft>) => void
   errors: Errors
   proxy: ReverseProxy
+  readOnly: boolean
   pool?: ReactNode
 }) {
   return (
@@ -876,6 +915,18 @@ function StreamFields({
             error={errors.stream_to}
             hint="As the proxy's server reaches it."
           />
+          {!readOnly && (
+            <div className="-mt-2">
+              <PickFromServer
+                id="proxy-host-pick-stream"
+                proxy={p}
+                protocol={draft.protocol === "udp" ? "udp" : "tcp"}
+                onPick={({ host, port }) =>
+                  set(withMain(draft, { host, port }))
+                }
+              />
+            </div>
+          )}
           {pool}
         </>
       )}

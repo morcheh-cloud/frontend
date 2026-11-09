@@ -2,6 +2,7 @@ import {
   C,
   Example,
   type GuideSection,
+  H3,
   List,
   P,
   Recommended,
@@ -744,6 +745,31 @@ export const reverseProxy: GuideSection[] = [
           In a request&apos;s details, <UI>Only this address</UI> and{" "}
           <UI>Only this path</UI> narrow the list to it.
         </P>
+        <P>
+          The table shows the visitor&apos;s <UI>IP</UI>, the time taken and the
+          size sent by default. The columns button (next to <UI>Live</UI>, on
+          computers) adds more from the same line: the browser or client
+          (shortened, like <C>Chrome 131 · Windows</C> or <C>curl 8.5</C>; the
+          whole agent on hover), where the visitor came from, the signed-in
+          user, domain, HTTP version, bytes received, request ID, cache state,
+          and which upstream answered, with its status and time. Your choice is
+          kept on this browser; <UI>Back to default</UI> resets it. On phones
+          each row shows the address, time, size and client under the path.
+        </P>
+        <Recommended
+          rows={[
+            {
+              setting: "Chasing errors",
+              value: "Upstream address + status",
+              why: "A 502 with no upstream status means the app never answered.",
+            },
+            {
+              setting: "Spotting abuse",
+              value: "IP + Browser or client",
+              why: "Bots and scripts stand out at a glance.",
+            },
+          ]}
+        />
         <Example title="Find what broke after a deploy">
           <Steps>
             <P>
@@ -994,10 +1020,6 @@ export const reverseProxy: GuideSection[] = [
           head={["Switch", "What it does"]}
           rows={[
             [
-              <UI key="s">Serve the last copy when the app is down</UI>,
-              "Visitors keep getting pages while the app restarts or errors; an old copy is refreshed in the background",
-            ],
-            [
               <UI key="i">Ignore the app's own cache headers</UI>,
               <>
                 Keeps answers even when the app sends{" "}
@@ -1019,9 +1041,25 @@ export const reverseProxy: GuideSection[] = [
           first answer says <C>MISS</C>, the second <C>HIT</C>.
         </Example>
         <P>
-          After a release, <UI>Clear cache</UI> (on the Proxy cache card, or in
-          the site's ⋯ menu; Operator access) empties the site's cache on the
-          server at once.
+          <UI>Query string</UI> says what of <C>?…</C> keeps answers apart.{" "}
+          <UI>Every query string counts</UI> (the default) is always safe.{" "}
+          <UI>Ignore the query string</UI> serves <C>/page?utm_source=x</C> the
+          copy of <C>/page</C>, only right when the app never changes a page by
+          its query string. <UI>Only these parameters count</UI> keeps{" "}
+          <C>/list?page=2</C> and <C>/list?page=3</C> apart but ignores tracking
+          parameters (<C>utm_*</C>, <C>fbclid</C>), so shared links don't fill
+          the cache with copies of one page. Answers kept before a change aren't
+          used after it.
+        </P>
+        <P>
+          To give parts of the site their own time see{" "}
+          <See guide="reverse-proxy" section="cache-rules" />; to keep one copy
+          per device or language see{" "}
+          <See guide="reverse-proxy" section="separate-copies" />; to keep pages
+          up while the app is down see{" "}
+          <See guide="reverse-proxy" section="always-online" />. After a
+          release, clear the cache: see{" "}
+          <See guide="reverse-proxy" section="clear-cache" />.
         </P>
         <Recommended
           rows={[
@@ -1041,9 +1079,9 @@ export const reverseProxy: GuideSection[] = [
               why: "For public pages (a blog, docs, a shop's catalogue); even a minute takes most of the load off the app",
             },
             {
-              setting: "Serve the last copy",
-              value: "On",
-              why: "A restart of the app goes unnoticed",
+              setting: "Always online",
+              value: "Backup only",
+              why: "A restart or crash of the app goes unnoticed (see Always online below)",
             },
           ]}
         />
@@ -1053,6 +1091,354 @@ export const reverseProxy: GuideSection[] = [
           look old after a change, clear the cache; if a personal page shows up
           for someone else, turn the cache off and list that path first.
         </Warn>
+      </>
+    ),
+  },
+  {
+    id: "cache-rules",
+    title: "Cache rules",
+    body: (
+      <>
+        <P>
+          <UI>Cache rules</UI> (Cache tab, once the proxy cache is on) give
+          parts of the site their own cache time: images for a week, the news
+          pages for a minute, the API never. Each rule has a name, its addresses
+          and <UI>Keep answers</UI>: <UI>For its own time</UI> (minutes, hours
+          or days, up to 30 days), <UI>Never keep</UI>, or{" "}
+          <UI>As the rest of the site</UI> (a rule only for clearing). Every
+          rule can also be cleared on its own: <UI>Clear</UI> on the rule, or{" "}
+          <UI>A cache rule</UI> in the Clear cache window.
+        </P>
+        <Steps>
+          <>
+            Turn on <UI>Keep the app's answers</UI> on the Proxy cache card.
+          </>
+          <>
+            Under <UI>Cache rules</UI> press <UI>Add rule</UI>, or a ready one:{" "}
+            <UI>Images</UI> (7 days), <UI>Styles and scripts</UI> (1 day),{" "}
+            <UI>API</UI> (never) or <UI>Tagged by the app</UI>.
+          </>
+          <>
+            Name it, pick how long to keep its answers and list its paths, one
+            per line.
+          </>
+          <>Save the site.</>
+        </Steps>
+        <Table
+          head={["Path", "Covers"]}
+          rows={[
+            [<C key="1">/api</C>, "/api and everything under it (not /apis)"],
+            [<C key="2">/news/</C>, "Everything under /news/"],
+            [<C key="3">*.css</C>, "Every stylesheet of the site"],
+            [<C key="4">/img/*</C>, "Anything under /img/"],
+          ]}
+        />
+        <Example title="A news site">
+          The rest of the site keeps 10 minutes. Rule <UI>Latest news</UI> with{" "}
+          <C>/news/</C> for 1 minute, <UI>Images</UI> for 7 days, and{" "}
+          <UI>Account</UI> with <C>/account</C> never kept.
+        </Example>
+        <P>
+          When an address fits several rules the first one wins: move rules with
+          the arrows to put the narrower ones first. Rules with a time take
+          paths only (no domain or <C>?query</C>); a rule that only clears may
+          also pick answers by a header the app sends (see{" "}
+          <See guide="reverse-proxy" section="clear-cache" />
+          ).
+        </P>
+        <Warn>
+          The app's own <C>Cache-Control</C> or <C>Expires</C> still wins over a
+          rule's time unless <UI>Ignore the app's own cache headers</UI> is on.
+          Rules apply to the site's main address, not to paths set on the
+          Routing tab.
+        </Warn>
+      </>
+    ),
+  },
+  {
+    id: "separate-copies",
+    title: "Separate copies by device, system or language",
+    body: (
+      <>
+        <P>
+          When the app answers the same address differently per visitor (a
+          mobile layout, a page in the visitor's language, prices in their
+          currency), one kept copy would be shown to everyone.{" "}
+          <UI>Separate copies</UI> (Cache tab, once the proxy cache is on) keeps
+          a copy per kind of visitor instead.
+        </P>
+        <Table
+          head={["Choice", "Copies"]}
+          rows={[
+            [
+              <UI key="d">By device type</UI>,
+              "phone, tablet, desktop (from the browser's User-Agent)",
+            ],
+            [
+              <UI key="o">By operating system</UI>,
+              "windows, macos, linux, android, ios, chromeos, other",
+            ],
+            [
+              <UI key="l">By language</UI>,
+              "The first language the browser asks for, like en or fa",
+            ],
+            [
+              <UI key="h">By request headers</UI>,
+              <>
+                Up to 3, like <C>X-Country</C> set by a CDN
+              </>,
+            ],
+            [
+              <UI key="c">By cookies</UI>,
+              <>
+                Up to 3 cookie names, like <C>lang</C> or <C>currency</C>
+              </>,
+            ],
+          ]}
+        />
+        <Example title="A shop with a mobile layout and two languages">
+          Turn on <UI>By device type</UI> and add the cookie <C>lang</C>. A page
+          is then kept up to six times (3 devices × 2 languages) and each
+          visitor gets the right one.
+        </Example>
+        <P>
+          With <UI>Show whether an answer came from the cache</UI> on, answers
+          also carry <C>X-Cache-Variant</C>, like <C>phone,android</C>, to show
+          which copy was used. Clearing an address clears all its copies.
+        </P>
+        <Warn>
+          Every choice multiplies the copies kept and the trips to the app: pick
+          only what really changes the page. An iPad on iPadOS says it is a Mac,
+          so it counts as desktop / macos. Changing these choices starts the
+          cache over.
+        </Warn>
+      </>
+    ),
+  },
+  {
+    id: "always-online",
+    title: "Always online",
+    body: (
+      <>
+        <P>
+          <UI>Always online</UI> (Cache tab, proxy hosts) keeps the last good
+          answer of every page. When the app is down, restarting or failing,
+          visitors get that copy instead of an error page; once the app works
+          again the copies are brought up to date in the background. It works
+          with the proxy cache off: then nothing is served from a copy while the
+          app is fine.
+        </P>
+        <Table
+          head={["Mode", "What visitors get"]}
+          rows={[
+            [
+              <UI key="b">Backup only</UI>,
+              "Every visit goes to the app as usual. Its last good answer is kept and handed out only when the app fails. The recommended mode",
+            ],
+            [
+              <UI key="f">Fast, with backup</UI>,
+              "The copy at once, while it is refreshed in the background: a page can be one visit old, and the app gets far fewer visits",
+            ],
+            [
+              <UI key="c">Copies only</UI>,
+              "For maintenance: the app is not asked at all. Pages with a copy work, the rest show an error (502). Switch back when you're done",
+            ],
+          ]}
+        />
+        <Steps>
+          <>
+            Open the site, tab <UI>Cache</UI>, card <UI>Always online</UI>, and
+            pick <UI>Backup only</UI>.
+          </>
+          <>
+            Under <UI>Also count as down</UI> leave <C>502</C>, <C>503</C> and{" "}
+            <C>504</C> ticked; tick <C>500</C> too if the app answers <C>500</C>{" "}
+            when its database is down.
+          </>
+          <>
+            Add sign-in paths and cookies to the <UI>Never keep</UI> lists (the{" "}
+            <UI>WordPress</UI> and <UI>Admin and API</UI> buttons fill the usual
+            ones), then save.
+          </>
+          <>
+            Open the site's pages once (or let visitors do it), then press{" "}
+            <UI>Pages with a copy</UI> to see what is covered.
+          </>
+        </Steps>
+        <Table
+          head={["Setting", "What it does"]}
+          rows={[
+            [
+              <UI key="k">Keep each copy for</UI>,
+              "A copy no one asks for is dropped after this many days (7 if empty, up to 365)",
+            ],
+            [
+              <UI key="w">Wait for the app</UI>,
+              "How long to try reaching the app before using the copy (5 seconds if empty)",
+            ],
+            [
+              <UI key="sl">Use the copy if the app is slower than</UI>,
+              <>
+                Also use the copy when the app is up but hasn't started
+                answering a page within this many seconds, even if it would have
+                answered <C>200</C> later. Empty = off (the site's own{" "}
+                <UI>Wait for the app</UI> in Limits, 60 s by default)
+              </>,
+            ],
+            [
+              <UI key="s">Also count as down</UI>,
+              <>
+                App answers that count as a failure: <C>500</C>, <C>502</C>,{" "}
+                <C>503</C>, <C>504</C>, <C>429</C>. No answer, a refused
+                connection or a timeout always counts
+              </>,
+            ],
+            [
+              <UI key="p">Keep pages the app marks private</UI>,
+              <>
+                Cache off only: also keep answers sent with{" "}
+                <C>Cache-Control: private</C> or <C>no-store</C>
+              </>,
+            ],
+          ]}
+        />
+        <P>
+          <UI>Pages with a copy</UI> (Operator access) lists every kept page,
+          newest first, with how old its copy is and its size, so you know what
+          visitors would still see. With <UI>Separate copies</UI> on, each copy
+          is listed with the kind of visitor it is for.
+        </P>
+        <Example title="An app that restarts with every release">
+          <UI>Backup only</UI> with the defaults: during the 20 seconds the app
+          restarts, visitors get the pages as they were a moment before, and
+          nobody sees a <C>502</C>.
+        </Example>
+        <Example title="An app that sometimes hangs for a minute">
+          Set <UI>Use the copy if the app is slower than</UI> to <C>15</C>: a
+          page the app hasn't started sending after 15 seconds is answered from
+          its copy at once. Forms, uploads, WebSockets and signed-in requests
+          (an <C>Authorization</C> header, or paths and cookies under{" "}
+          <UI>Never keep</UI>) still wait the site's full time, so a slow save
+          is never cut off. A page that has no copy yet gets a <C>504</C> after
+          the 15 seconds.
+        </Example>
+        <Recommended
+          rows={[
+            {
+              setting: "Mode",
+              value: "Backup only",
+              why: "Nothing changes while the app works, so it's safe for any site",
+            },
+            {
+              setting: "Also count as down",
+              value: "502, 503, 504",
+              why: "The answers a stopped or overloaded app gives",
+            },
+            {
+              setting: "Wait for the app",
+              value: "3–5 seconds",
+              why: "Shorter makes a dead app show the copy sooner",
+            },
+            {
+              setting: "Use the copy if the app is slower than",
+              value: "Above your slowest page (15–30 s)",
+              why: "It counts until the first byte; set it lower than a normal slow page and those pages turn into copies or 504s",
+            },
+          ]}
+        />
+        <Warn>
+          Only pages visitors opened while the app worked have a copy, and only
+          plain visits (GET): sign-ins, forms, carts and anything else sent to
+          the app still fail while it's down. Answers made for one signed-in
+          person are never kept unless you turn on{" "}
+          <UI>Keep pages the app marks private</UI>; list sign-in cookies under{" "}
+          <UI>Never keep</UI> first. It can't be on together with{" "}
+          <UI>Pass answers straight through</UI> (Advanced). Sites saved with
+          the old <UI>Serve the last copy</UI> switch now show{" "}
+          <UI>Fast, with backup</UI>.
+        </Warn>
+      </>
+    ),
+  },
+  {
+    id: "clear-cache",
+    title: "Clearing the cache",
+    body: (
+      <>
+        <P>
+          <UI>Clear cache…</UI> (on the Proxy cache card, or in the site's ⋯
+          menu; Operator access) opens a window that first says how much is kept
+          now, then lets you pick what to clear. As you type it counts the kept
+          answers that match, so you see what goes before you press{" "}
+          <UI>Clear</UI>. Visitors' browsers keep their own copies (Browsers
+          card) until those run out.
+        </P>
+        <P>
+          The Proxy cache card always shows <UI>Kept answers</UI> and{" "}
+          <UI>On disk</UI> for the saved site (the arrows count again). While
+          the cache is off, the site isn't saved yet or nothing is kept, they
+          read 0 and <UI>Clear cache…</UI> (and each rule's <UI>Clear</UI>, and
+          the ⋯ menu item) stay greyed out; hover one to see why.
+        </P>
+        <Table
+          head={["Choice", "What goes"]}
+          rows={[
+            [<UI key="e">Everything</UI>, "Every kept answer of this site"],
+            [
+              <UI key="a">Some addresses</UI>,
+              "The pages and folders you list, one per line",
+            ],
+            [
+              <UI key="h">By a header the app sends</UI>,
+              <>
+                Answers the app tagged, like <C>Cache-Tag: product-12</C>
+              </>,
+            ],
+            [
+              <UI key="g">A cache rule</UI>,
+              "The answers of one of the Cache tab's rules (shown when there is one)",
+            ],
+          ]}
+        />
+        <Table
+          head={["Address", "Clears"]}
+          rows={[
+            [
+              <C key="1">/blog</C>,
+              "/blog, everything under it, with any query string (not /blogs)",
+            ],
+            [<C key="2">/img/*.png</C>, "PNG files anywhere under /img/"],
+            [<C key="3">*.css</C>, "Every stylesheet of the site"],
+            [<C key="4">/search?q=*</C>, "Searches, but not /search?page=2"],
+            [
+              <C key="5">shop.example.com/cart</C>,
+              "/cart on that domain only, when the site has several",
+            ],
+            [
+              <C key="6">https://example.com/</C>,
+              "Only answers kept for https visitors",
+            ],
+          ]}
+        />
+        <P>
+          A cache rule (see <See guide="reverse-proxy" section="cache-rules" />)
+          is cleared in one go: press <UI>Clear</UI> on the rule, or pick it in
+          the window. A rule kept <UI>As the rest of the site</UI> exists just
+          for that, and may pick answers by a header the app sends instead of,
+          or as well as, addresses (then both must match).
+        </P>
+        <Example title="Clear one product's pages after an edit">
+          Have the app send <C>Cache-Tag: product-12, category-3</C> with each
+          page it builds from product 12. Then pick{" "}
+          <UI>By a header the app sends</UI> with header <C>Cache-Tag</C>, value{" "}
+          <C>product-12</C> clears every page showing it, whatever its address.
+          A value matches one item of the list; <C>*</C> = any characters (
+          <C>product-*</C>).
+        </Example>
+        <Tip>
+          The cache is cleared on the proxy's server by reading the kept files,
+          so a very large cache (many GB) takes a few seconds to count.
+        </Tip>
       </>
     ),
   },
@@ -1099,7 +1485,17 @@ export const reverseProxy: GuideSection[] = [
             ],
             [
               <UI key="z">Brotli</UI>,
-              "Also compress with Brotli, about 15–20% smaller than gzip for text. Needs nginx's brotli module: without it the switch is greyed out and only gzip is used",
+              <>
+                Also compress with Brotli, about 15–20% smaller than gzip for
+                text. Needs nginx's Brotli module: without it the switch is
+                greyed out and only gzip is used. <UI>Install Brotli module</UI>{" "}
+                (Engineer) adds it from the server's own packages (Debian 12+ /
+                Ubuntu 23.04+: <C>libnginx-mod-http-brotli-filter</C>, Alpine:{" "}
+                <C>nginx-mod-http-brotli</C>), reloads nginx and writes the
+                sites again, as a background task. An nginx from nginx.org or
+                built by hand is left alone: add <C>ngx_brotli</C> to it
+                yourself, then <UI>Check</UI> the proxy
+              </>,
             ],
             [
               <UI key="i">Give each request an ID</UI>,
@@ -1223,6 +1619,196 @@ export const reverseProxy: GuideSection[] = [
         <Tip>
           The settings cover every https address of the site, including paths
           sent to another app on the <UI>Routing</UI> tab.
+        </Tip>
+      </>
+    ),
+  },
+  {
+    id: "pick-upstream",
+    title: "Pick the app from a server",
+    body: (
+      <>
+        <P>
+          You don't have to know the app's port by heart. Under the address of a
+          proxy host or a stream, press <UI>Pick from a server</UI>: a list of
+          what listens on the proxy's server opens, read from its <UI>Ports</UI>{" "}
+          (see <See guide="ports" />
+          ), grouped as <UI>Docker containers</UI>, <UI>Services</UI> and{" "}
+          <UI>Other programs</UI>. Press one and its address and port are filled
+          in.
+        </P>
+        <Steps>
+          <P>
+            Pick the server at the top. It starts on the proxy's own server; any
+            other server you can see is in the list too.
+          </P>
+          <P>
+            Search by name, image or port, then press the row. Each row shows
+            the address that will be filled in.
+          </P>
+          <P>
+            Check the protocol (http or https is a guess: ports 443 and 8443
+            become https) and press <UI>Test the address</UI>.
+          </P>
+        </Steps>
+        <Table
+          head={["Where the app is", "Address filled in"]}
+          rows={[
+            [
+              "On the proxy's server",
+              <>
+                <C>127.0.0.1</C> (or <C>::1</C> when it listens only there), so
+                the traffic never leaves the server
+              </>,
+            ],
+            [
+              "On another server, listening on every address",
+              "That server's address, as written in Servers",
+            ],
+            ["On another server, listening on one address", "That address"],
+            [
+              "On another server, only on 127.0.0.1",
+              "Greyed out: only that server itself can reach it",
+            ],
+          ]}
+        />
+        <P>
+          On a load-balanced site, <UI>Add from a server</UI> under the list
+          adds the picked one as a new server row. A stream lists TCP or UDP
+          ports, as its protocol says.
+        </P>
+        <Tip>
+          A Docker container shows up only when it publishes a port (
+          <C>-p 8080:80</C>, <C>ports:</C> in compose). One on an internal
+          Docker network alone isn't listening on the server, so it isn't
+          listed: publish its port on <C>127.0.0.1</C> and pick that.
+        </Tip>
+      </>
+    ),
+  },
+  {
+    id: "storage-site",
+    title: "Publish a bucket from Storage",
+    body: (
+      <>
+        <P>
+          The <UI>Storage</UI> site type puts a bucket of an S3 storage you
+          added in <UI>Storage</UI> (MinIO, AWS S3, R2…) on a domain: a built
+          front end, downloads, images. nginx on the proxy's server fetches each
+          file from the bucket and answers with it, with https and every setting
+          of the site (rate limit, login, cache, IP lists) in front.
+        </P>
+        <Steps>
+          <P>
+            Add a site, set its domains, and pick <UI>Storage</UI> under{" "}
+            <UI>What it does</UI>.
+          </P>
+          <P>
+            Pick the storage and the bucket. A storage tied to one bucket fills
+            it in by itself.
+          </P>
+          <P>
+            Optionally pick a <UI>Folder</UI> inside the bucket (<UI>Browse</UI>{" "}
+            opens the bucket); the site then serves only that folder, as its
+            root.
+          </P>
+          <P>
+            Check the bucket's access: the bucket must let anyone download its
+            files. When it doesn't, press <UI>Let anyone download files</UI>{" "}
+            (Owner on the storage), or set it in the bucket's settings (see{" "}
+            <See guide="storage" section="bucket-access" />
+            ).
+          </P>
+          <P>Save.</P>
+        </Steps>
+        <Table
+          head={["Request", "What visitors get"]}
+          rows={[
+            [<C key="a">/app.js</C>, "The object app.js (under the folder)"],
+            [
+              <C key="b">/docs/</C>,
+              <>
+                <C>docs/index.html</C>
+              </>,
+            ],
+            [
+              "A file that isn't there",
+              <>
+                404, or the site's own 404 page (<UI>Pages</UI> tab). With{" "}
+                <UI>Single-page app</UI> on: the folder's <C>index.html</C>, for
+                apps that route in the browser
+              </>,
+            ],
+            ["POST, PUT, DELETE…", "405: the site only reads"],
+          ]}
+        />
+        <Warn>
+          Everything in the bucket (or the folder) becomes public, the same as
+          its public access already allows. Keep private files in another
+          bucket.
+        </Warn>
+        <Tip>
+          The storage's address is written into the site when you save it. If
+          you change the storage's address later, open the site and save it
+          again.
+        </Tip>
+      </>
+    ),
+  },
+  {
+    id: "mirror",
+    title: "Copy traffic to a test server",
+    body: (
+      <>
+        <P>
+          <UI>Traffic mirror</UI> (on the <UI>Advanced</UI> tab of a proxy host)
+          sends a copy of the site's requests to another server, while visitors
+          keep getting their answers from the real app. Use it to try a new
+          version under real traffic, warm a cache, or compare two builds. The
+          test server's answers are thrown away.
+        </P>
+        <Steps>
+          <P>
+            Type the test server's address in <UI>Test server</UI>, like{" "}
+            <C>http://10.0.0.7:3000</C>.
+          </P>
+          <P>
+            Choose <UI>How many</UI>: every request, or a share (50%, 10%, 1%)
+            to keep the load on the test server low.
+          </P>
+          <P>
+            Leave <UI>Copy request bodies</UI> on to send uploads and form posts
+            too, or turn it off to copy only the address and headers.
+          </P>
+          <P>Save. Clear the address to stop.</P>
+        </Steps>
+        <P>
+          Copies carry the header <C>X-Morcheh-Mirror: 1</C>, so the test app
+          (and its logs) can tell them apart.
+        </P>
+        <Warn>
+          Writes are copied too: a POST that sends an email, charges a card or
+          changes data happens again on the test server. Point it at a test
+          database and turn off outgoing email and payments there.
+        </Warn>
+        <Recommended
+          rows={[
+            {
+              setting: "How many",
+              value: "10% to start",
+              why: "Enough to see problems without doubling the load.",
+            },
+            {
+              setting: "Copy request bodies",
+              value: "Off, unless you test uploads or forms",
+              why: "With bodies, nginx reads each whole body before passing the request on.",
+            },
+          ]}
+        />
+        <Tip>
+          A slow or down test server doesn't fail visitors' requests, but it can
+          hold the next request on the same connection for up to 10 seconds. If
+          the site feels slower, lower the share or stop the mirror.
         </Tip>
       </>
     ),
@@ -1430,9 +2016,12 @@ export const reverseProxy: GuideSection[] = [
     body: (
       <>
         <P>
-          The <UI>Login</UI> tab puts a sign-in in front of the whole site, even
-          when the app has none of its own (an admin tool, a staging copy, a
-          dashboard).
+          The <UI>Login</UI> tab puts a sign-in in front of the site, even when
+          the app has none of its own (an admin tool, a staging copy, a
+          dashboard). <UI>Where to ask</UI> picks <UI>Whole site</UI> (every
+          path, except the ones marked <UI>No login</UI>) or{" "}
+          <UI>Chosen paths</UI> (only the paths whose <UI>Sign in</UI> switch is
+          on, on <UI>Routing</UI>; at least one must be).
         </P>
         <Table
           head={["Choice", "How it works"]}
@@ -1476,6 +2065,11 @@ export const reverseProxy: GuideSection[] = [
           <li>
             A path marked <UI>No login</UI> on <UI>Routing</UI> stays open, e.g.{" "}
             <C>/api/webhook</C> or <C>/health</C>.
+          </li>
+          <li>
+            With <UI>Chosen paths</UI>, only e.g. <C>/admin/</C> asks; the rest
+            of the site stays open. Sign-in works on paths that{" "}
+            <UI>Send to an app</UI> or <UI>Serve files</UI>.
           </li>
           <li>
             <UI>No login from the Always let in list</UI>: visitors from the
@@ -1570,6 +2164,63 @@ export const reverseProxy: GuideSection[] = [
             <C>403</C>.
           </P>
         </Example>
+        <H3>Who can open a path</H3>
+        <P>
+          A path that <UI>Sends to an app</UI> or <UI>Serves files</UI> has a{" "}
+          <UI>Who can open it</UI> choice (the shield):
+        </P>
+        <Table
+          head={["Choice", "Who gets in"]}
+          rows={[
+            [
+              <UI key="s">Same as the site</UI>,
+              "Whatever Security says for the whole site",
+            ],
+            [
+              <UI key="o">Only these addresses</UI>,
+              "Only the listed addresses or ranges; everyone else gets 403",
+            ],
+            [
+              <UI key="e">Everyone but these</UI>,
+              "Everyone except the listed addresses",
+            ],
+            [
+              <UI key="a">Everyone</UI>,
+              "Every address, even when Security limits the site",
+            ],
+          ]}
+        />
+        <P>
+          List one address or range per line (<C>203.0.113.7</C>,{" "}
+          <C>10.0.0.0/8</C>, IPv6 too). The path's own list replaces the site's{" "}
+          <UI>Always let in</UI> / <UI>Always block</UI> lists for that path;
+          country rules still apply everywhere. With a login as well, a visitor
+          needs both: an allowed address and a sign-in.
+        </P>
+        <Example title="Admin only from the office, webhooks open">
+          <P>
+            <UI>Starts with</UI> <C>/admin/</C> → <UI>Only these addresses</UI>{" "}
+            <C>198.51.100.0/24</C> (the office), and on the Login tab{" "}
+            <UI>Chosen paths</UI> with <UI>Sign in</UI> on for <C>/admin/</C>.{" "}
+            <UI>Starts with</UI> <C>/webhooks/</C> → <UI>Everyone</UI>, so
+            GitHub or a payment provider can reach it while Security lets only
+            your countries into the rest of the site.
+          </P>
+        </Example>
+        <Tip>
+          Lock admin and staff paths with <UI>Only these addresses</UI> (office
+          or VPN range) plus a sign-in; keep webhook and health paths as narrow
+          as you can (<UI>Is exactly</UI>) before opening them to{" "}
+          <UI>Everyone</UI>.
+        </Tip>
+        <Tip>
+          No shield on a row? Redirect, Block and Answer with run before nginx
+          checks addresses or sign-ins, so they can't be limited: limit the site
+          instead, or send the path to the app. A visitor still refused on an
+          allowed path is usually behind a CDN or load balancer: set{" "}
+          <UI>Behind a CDN or load balancer</UI> (Advanced) so nginx sees their
+          own address.
+        </Tip>
       </>
     ),
   },
