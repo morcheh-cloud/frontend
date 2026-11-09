@@ -295,9 +295,9 @@ function usePoolRows(
   }
   // Leaving the address field: a URL or host:port typed there is taken
   // apart.
-  const tidy = (s: PoolServerDraft) => {
+  const tidy = (s: PoolServerDraft, text?: string) => {
     const cur = at(s)
-    const clean = cleanAddress(cur.host)
+    const clean = cleanAddress(text ?? cur.host)
     const split = splitHostPort(clean)
     const next = split.port ? split : { host: clean, port: cur.port }
     if (next.host !== cur.host || next.port !== cur.port) setServer(s.key, next)
@@ -324,7 +324,7 @@ function usePoolRows(
 }
 
 // What server 1's port shows when empty: the scheme's own.
-function mainPortHint(draft: Draft) {
+export function mainPortHint(draft: Draft) {
   if (draft.type === "stream") return "5432"
   return mainParts(draft).scheme.toLowerCase() === "https://" ? "443" : "80"
 }
@@ -333,6 +333,34 @@ function mainPortHint(draft: Draft) {
 function addressError(draft: Draft, errors: Errors, s: PoolServerDraft) {
   if (s.key !== draft.poolMain.key) return errors[`pool.${s.key}.address`]
   return draft.type === "stream" ? errors.stream_to : errors.upstream
+}
+
+// Server 1's address lives inside the upstream URL, where a half-typed
+// host:port or a pasted URL would read as an IPv6 address: such text waits
+// in the field and is taken apart when the field is left.
+const held = (v: string) =>
+  /:\/\/|[/?#]/.test(v) || (v.match(/:/g)?.length ?? 0) === 1
+
+export function useHeldText(
+  value: string,
+  onChange: (v: string) => void,
+  onLeave: (v: string) => void,
+  enabled = true,
+) {
+  const [typed, setTyped] = useState<string | null>(null)
+  return {
+    value: typed ?? value,
+    onChange: (v: string) => {
+      if (enabled && held(v)) return setTyped(v)
+      setTyped(null)
+      onChange(v)
+    },
+    onBlur: () => {
+      setTyped(null)
+      onLeave(typed ?? value)
+    },
+    clear: () => setTyped(null),
+  }
 }
 
 // Focuses a row's address once, when it was just added.
@@ -383,7 +411,7 @@ function SchemePath({
     parts.scheme.toLowerCase() === "https://" ? "https://" : "http://"
   return (
     <div className="grid gap-3 @xl:grid-cols-[auto_minmax(0,1fr)] @xl:items-start">
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col items-start gap-1.5">
         <span className="text-body-sm font-medium">Protocol</span>
         <Segmented
           label="Protocol the servers are asked with"
@@ -423,7 +451,7 @@ function SchemePath({
 }
 
 // Digits only, up to 65535.
-function PortInput({
+export function PortInput({
   value,
   onChange,
   ...props
@@ -792,7 +820,7 @@ export function PoolInline({
               autoFocus={focusKey.current === s.key}
               onChange={(patch) => rows.setServer(s.key, patch)}
               onPaste={(e) => rows.paste(s.key, e)}
-              onTidy={() => rows.tidy(s)}
+              onTidy={(text) => rows.tidy(s, text)}
               onRemove={readOnly ? undefined : () => rows.remove(s.key)}
             />
           ))}
@@ -857,10 +885,16 @@ function PoolRow({
   autoFocus?: boolean
   onChange: (patch: Partial<PoolServerDraft>) => void
   onPaste?: (e: ClipboardEvent<HTMLInputElement>) => void
-  onTidy?: () => void
+  onTidy?: (text?: string) => void
   onRemove?: () => void
 }) {
   const ref = useAutoFocus(autoFocus)
+  const host = useHeldText(
+    at.host,
+    (v) => onChange({ host: v }),
+    (v) => onTidy?.(v),
+    main,
+  )
   const id = `pool-inline-${s.key}`
   const address = main ? mainServer(draft) : serverAddress(draft, s)
   const t = useServerTest({ proxy, draft, address, main, testAll })
@@ -936,9 +970,9 @@ function PoolRow({
               id={`${id}-host`}
               aria-label={`Server ${index} address`}
               aria-invalid={error ? true : undefined}
-              value={at.host}
-              onChange={(e) => onChange({ host: e.target.value })}
-              onBlur={onTidy}
+              value={host.value}
+              onChange={(e) => host.onChange(e.target.value)}
+              onBlur={host.onBlur}
               onPaste={onPaste}
               placeholder={main ? "127.0.0.1" : "10.0.0.6"}
               className="font-mono"

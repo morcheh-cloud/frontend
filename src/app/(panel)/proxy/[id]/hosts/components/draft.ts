@@ -804,7 +804,12 @@ export function joinHostPort(host: string, port: string) {
 export function mainParts(d: Draft) {
   if (d.type === "stream")
     return { ...splitHostPort(d.streamTo), scheme: "", rest: "" }
-  const m = /^([a-z][a-z0-9+.-]*:\/\/)?([^/?#]*)(.*)$/i.exec(d.upstream.trim())
+  return urlParts(d.upstream)
+}
+
+// scheme://host:port/rest taken apart; every part may be empty.
+export function urlParts(text: string) {
+  const m = /^([a-z][a-z0-9+.-]*:\/\/)?([^/?#]*)(.*)$/i.exec(text.trim())
   return {
     ...splitHostPort(m?.[2] ?? ""),
     scheme: m?.[1] ?? "",
@@ -821,7 +826,10 @@ export function withMain(
     if (v !== undefined) c[k as keyof typeof c] = v
   const at = joinHostPort(c.host, c.port)
   if (d.type === "stream") return { streamTo: at }
-  return { upstream: `${c.scheme || "http://"}${at}${c.rest}` }
+  // Nothing typed but the usual scheme: still empty, so "required" holds.
+  const scheme = c.scheme.toLowerCase() || "http://"
+  if (!at && !c.rest && scheme === "http://") return { upstream: "" }
+  return { upstream: `${scheme}${at}${c.rest}` }
 }
 
 // The main server's port, used by a row whose port is left empty.

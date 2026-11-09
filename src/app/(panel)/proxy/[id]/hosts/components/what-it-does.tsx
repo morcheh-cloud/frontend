@@ -52,6 +52,7 @@ import {
   type RedirectCode,
   toConfig,
 } from "./draft"
+import { MainAddress } from "./main-address"
 
 const typing = {
   autoCapitalize: "none",
@@ -396,32 +397,14 @@ function ProxyFields({
         pool
       ) : (
         <>
-          <Field
-            label="App address"
+          <MainAddress
+            draft={draft}
+            set={set}
+            error={errors.upstream}
             hint={
               where ||
-              "Where the app answers, as the proxy's server sees it. Start with http:// or https://."
+              "Where the app answers, as the proxy's server sees it. Paste a whole address to fill every part."
             }
-            error={errors.upstream}
-          >
-            {(f) => (
-              <IconInput
-                {...f}
-                {...typing}
-                icon={Plug}
-                inputMode="url"
-                enterKeyHint="done"
-                value={draft.upstream}
-                onChange={(e) => set({ upstream: e.target.value })}
-                placeholder="http://127.0.0.1:3000"
-                className="font-mono"
-              />
-            )}
-          </Field>
-          <SchemeFix
-            value={draft.upstream}
-            scheme="http"
-            onFix={(upstream) => set({ upstream })}
           />
           {!readOnly && <TestUpstream proxy={p} draft={draft} />}
           {pool}
@@ -887,24 +870,12 @@ function StreamFields({
         pool
       ) : (
         <>
-          <Field
-            label="Forward to"
-            hint="host:port, as the proxy's server reaches it."
+          <MainAddress
+            draft={draft}
+            set={set}
             error={errors.stream_to}
-          >
-            {(f) => (
-              <IconInput
-                {...f}
-                {...typing}
-                icon={ArrowRight}
-                enterKeyHint="done"
-                value={draft.streamTo}
-                onChange={(e) => set({ streamTo: e.target.value })}
-                placeholder="10.0.0.12:5432"
-                className="font-mono"
-              />
-            )}
-          </Field>
+            hint="As the proxy's server reaches it."
+          />
           {pool}
         </>
       )}

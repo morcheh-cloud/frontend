@@ -203,11 +203,14 @@ export const reverseProxy: GuideSection[] = [
             [
               <UI key="p">Proxy</UI>,
               <>
-                <UI>App address</UI>, as the proxy's server reaches it, e.g.{" "}
-                <C>http://127.0.0.1:3000</C> or <C>http://10.0.0.12:8080</C>.
-                Under it Morcheh says whether the app runs on the proxy's server
-                itself or across the network. Typed without <C>http://</C>?
-                Press <UI>Use http://…</UI> under the box
+                <UI>App address</UI>, as the proxy's server reaches it, in
+                parts: <UI>Protocol</UI> (<C>http</C> or <C>https</C>),{" "}
+                <UI>Address</UI> (e.g. <C>127.0.0.1</C> or <C>10.0.0.12</C>),{" "}
+                <UI>Port</UI> (e.g. <C>3000</C>; empty = 80, or 443 on https)
+                and an optional <UI>Path</UI>. Paste or type a whole address
+                like <C>http://10.0.0.12:8080/api</C> into Address and it is
+                split into the fields. Under it Morcheh says whether the app
+                runs on the proxy's server itself or across the network
               </>,
             ],
             [
@@ -247,10 +250,10 @@ export const reverseProxy: GuideSection[] = [
               <UI key="t">Stream</UI>,
               <>
                 No domains: a <UI>Port</UI> on the proxy's server, <UI>TCP</UI>{" "}
-                or <UI>UDP</UI>, and <UI>Forward to</UI> e.g.{" "}
-                <C>10.0.0.12:5432</C>. Anything that isn't http: databases, SSH,
-                game or mail servers. Open the port in the server's firewall too
-                (the note under the fields links there)
+                or <UI>UDP</UI>, and <UI>Forward to</UI> as Address + Port, e.g.{" "}
+                <C>10.0.0.12</C> and <C>5432</C>. Anything that isn't http:
+                databases, SSH, game or mail servers. Open the port in the
+                server's firewall too (the note under the fields links there)
               </>,
             ],
           ]}
