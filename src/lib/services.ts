@@ -831,6 +831,71 @@ export interface BackupRunBrief {
   state: string;
 }
 
+export interface Balance {
+  /** hash: adding or removing a server moves only a few keys (ketama) */
+  consistent?: boolean;
+  /**
+   * Seconds the failures are counted in, and how long the server stays out; 0 = 10
+   * @format int64
+   * @min 0
+   * @max 3600
+   */
+  fail_timeout?: number;
+  /** hash: what the server is picked by; empty = ip */
+  hash_key?: "" | "ip" | "uri" | "cookie" | "header" | "arg";
+  /**
+   * hash: the cookie, header or argument name
+   * @maxLength 64
+   */
+  hash_name?: string;
+  /**
+   * Idle connections kept open to the servers, per worker (sites); 0 = none
+   * @format int64
+   * @min 0
+   * @max 1024
+   */
+  keepalive?: number;
+  /** Options of the main server (its address comes from upstream / stream_to) */
+  main?: UpstreamServer;
+  /**
+   * Failures that take a server out for a while; 0 = 1
+   * @format int64
+   * @min 0
+   * @max 100
+   */
+  max_fails?: number;
+  /** How a server is picked; empty = round_robin. ip_hash is for sites only */
+  method?: "" | "round_robin" | "least_conn" | "ip_hash" | "hash" | "random";
+  /** Never try another server when one fails */
+  no_retry?: boolean;
+  /** random: pick two at random and send to the one with fewer connections */
+  random_two?: boolean;
+  /**
+   * When to try the next server (sites): error, timeout, invalid_header, http_500, http_502, http_503, http_504, http_403, http_404, http_429, non_idempotent; empty = error and timeout
+   * @maxItems 11
+   */
+  retry_on?: string[];
+  /**
+   * Seconds after which no other server is tried; 0 = no limit
+   * @format int64
+   * @min 0
+   * @max 3600
+   */
+  retry_timeout?: number;
+  /**
+   * More servers beside the main address, as host:port; any = load balancing on
+   * @maxItems 50
+   */
+  servers?: UpstreamServer[];
+  /**
+   * Most servers tried for one request; 0 = all of them
+   * @format int64
+   * @min 0
+   * @max 20
+   */
+  tries?: number;
+}
+
 export interface Ban {
   ip: string;
   /**
@@ -1077,6 +1142,8 @@ export interface Capabilities {
   allow: boolean;
   /** Takes auth: basic sign-in, and forward when the server's proxy can */
   auth: boolean;
+  /** Takes balance: load balancing over several servers (proxy, stream) */
+  balancing: boolean;
   /** Takes cache (browsers, and the proxy's own cache for proxy sites) and can clear it */
   cache: boolean;
   /** Can get certificates on the server (ACME CAs like Let's Encrypt, self-signed, uploaded) */
@@ -4235,6 +4302,8 @@ export interface HostConfig {
   allow?: string[];
   /** Visitors sign in first (proxy, static) */
   auth?: Auth;
+  /** Load balancing over more servers (proxy, stream) */
+  balance?: Balance;
   /** Also compress with Brotli when the server's nginx has the module (proxy, static) */
   brotli?: boolean;
   /** What browsers keep, and answers the proxy keeps itself (Capabilities.Cache) */
@@ -9276,6 +9345,34 @@ export interface UpdateDnsRecordRequest {
   $schema?: string;
   current: DNSRecordBody;
   new: DNSRecordBody;
+}
+
+export interface UpstreamServer {
+  /** host:port, like 10.0.0.6:3000; empty for the main server */
+  address?: string;
+  /** Only used when the others are down (not with ip_hash, hash or random) */
+  backup?: boolean;
+  /** Taken out by hand: gets nothing */
+  down?: boolean;
+  /**
+   * Most connections at once; 0 = no limit
+   * @format int64
+   * @min 0
+   * @max 100000
+   */
+  max_conns?: number;
+  /**
+   * What it is, for people
+   * @maxLength 200
+   */
+  note?: string;
+  /**
+   * Share of the traffic compared with the others; 0 = 1
+   * @format int64
+   * @min 0
+   * @max 1000
+   */
+  weight?: number;
 }
 
 export interface UpstreamTLS {

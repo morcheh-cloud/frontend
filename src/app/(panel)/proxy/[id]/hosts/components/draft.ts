@@ -5,6 +5,7 @@ export { splitList }
 import type { HostType } from "@/app/(panel)/proxy/components/meta"
 import type {
   Auth,
+  Balance,
   Certificate,
   HeaderRule,
   HostConfig,
@@ -15,6 +16,7 @@ import type {
   RateLimit,
   RateRule,
   RealIP,
+  UpstreamServer,
 } from "@/lib/services"
 
 export type RedirectCode = 301 | 302 | 307 | 308
@@ -105,6 +107,35 @@ export type RateRuleDraft = {
   by: "ip" | "site"
   methods: string[]
 }
+
+// One server of a balanced site; the main one's address is the upstream.
+export type PoolServerDraft = {
+  key: string
+  address: string
+  weight: string
+  maxConns: string
+  backup: boolean
+  down: boolean
+  note: string
+}
+
+export type LbMethod = Exclude<NonNullable<Balance["method"]>, "">
+export type LbHashKey = "ip" | "uri" | "cookie" | "header" | "arg"
+
+// When a site tries the next server; empty = error and timeout.
+export const retryConditions = [
+  "error",
+  "timeout",
+  "invalid_header",
+  "http_500",
+  "http_502",
+  "http_503",
+  "http_504",
+  "http_403",
+  "http_404",
+  "http_429",
+  "non_idempotent",
+] as const
 
 // What the form holds. Lists stay text until they're sent.
 export type Draft = {
@@ -214,6 +245,22 @@ export type Draft = {
   hStatus: HardeningStatus
   requestId: boolean
   brotli: boolean
+  // Load balancing (proxy, stream): more servers beside the main address.
+  poolMain: PoolServerDraft
+  poolServers: PoolServerDraft[]
+  lbMethod: LbMethod
+  lbHashKey: LbHashKey
+  lbHashName: string
+  lbConsistent: boolean
+  lbRandomTwo: boolean
+  lbKeepalive: string
+  lbMaxFails: string
+  lbFailTimeout: string
+  // false = never try another server when one fails.
+  lbRetry: boolean
+  lbRetryOn: string[]
+  lbTries: string
+  lbRetryTimeout: string
   // 404 hosts: answer every name no other site has.
   catchAll: boolean
   notFoundCode: NotFoundCode
@@ -265,6 +312,19 @@ export const freshErrorPage = (codes: number[] = []): ErrorPageDraft => ({
   codes,
   title: "",
   message: "",
+})
+
+export const freshPoolServer = (
+  p: Partial<PoolServerDraft> = {},
+): PoolServerDraft => ({
+  key: rowKey(),
+  address: "",
+  weight: "",
+  maxConns: "",
+  backup: false,
+  down: false,
+  note: "",
+  ...p,
 })
 
 export const freshRateRule = (): RateRuleDraft => ({
@@ -375,6 +435,20 @@ export const freshDraft = (type: HostType = "proxy"): Draft => ({
   hStatus: 404,
   requestId: false,
   brotli: false,
+  poolMain: freshPoolServer(),
+  poolServers: [],
+  lbMethod: "round_robin",
+  lbHashKey: "ip",
+  lbHashName: "",
+  lbConsistent: true,
+  lbRandomTwo: false,
+  lbKeepalive: "",
+  lbMaxFails: "",
+  lbFailTimeout: "",
+  lbRetry: true,
+  lbRetryOn: [],
+  lbTries: "",
+  lbRetryTimeout: "",
   catchAll: false,
   notFoundCode: 404,
   note: "",
@@ -437,6 +511,7 @@ export function draftFromHost(h: ProxyHost): Draft {
     hideVersion: !!c.hide_version,
     ...cacheFromConfig(c.cache, base),
     ...featuresFromConfig(c),
+    ...balanceFromConfig(c.balance, base),
     note: h.note,
     enabled: h.enabled,
     custom: c.custom ?? "",
@@ -518,6 +593,38 @@ function featuresFromConfig(c: HostConfig) {
     brotli: !!c.brotli,
     catchAll: !!c.catch_all,
     notFoundCode: (c.not_found_code || 404) as NotFoundCode,
+  }
+}
+
+const serverFromConfig = (s?: UpstreamServer): PoolServerDraft =>
+  freshPoolServer({
+    address: s?.address ?? "",
+    weight: text(s?.weight),
+    maxConns: text(s?.max_conns),
+    backup: !!s?.backup,
+    down: !!s?.down,
+    note: s?.note ?? "",
+  })
+
+// A site without balancing keeps the fresh defaults, so adding a server
+// starts from them.
+function balanceFromConfig(b: Balance | undefined, base: Draft) {
+  if (!b?.servers?.length) return {}
+  return {
+    poolMain: serverFromConfig(b.main),
+    poolServers: b.servers.map(serverFromConfig),
+    lbMethod: (b.method || "round_robin") as LbMethod,
+    lbHashKey: (b.hash_key || "ip") as LbHashKey,
+    lbHashName: b.hash_name ?? "",
+    lbConsistent: b.method === "hash" ? !!b.consistent : base.lbConsistent,
+    lbRandomTwo: !!b.random_two,
+    lbKeepalive: text(b.keepalive),
+    lbMaxFails: text(b.max_fails),
+    lbFailTimeout: text(b.fail_timeout),
+    lbRetry: !b.no_retry,
+    lbRetryOn: b.retry_on ?? [],
+    lbTries: text(b.tries),
+    lbRetryTimeout: text(b.retry_timeout),
   }
 }
 
@@ -604,6 +711,9 @@ const keptPages = (d: Draft) =>
   d.errorPages.filter(
     (p) => p.codes.length || p.title.trim() || p.message.trim(),
   )
+// Servers with an address; the others aren't sent.
+export const keptServers = (d: Draft) =>
+  typeUses(d.type).balance ? d.poolServers.filter((s) => s.address.trim()) : []
 // Rules count on sites only; a row with no rate isn't sent.
 export const keptRules = (d: Draft) =>
   d.type === "stream" ? [] : d.rateRules.filter((r) => r.rate.trim())
@@ -645,7 +755,68 @@ export const typeUses = (t: Draft["type"]) => ({
   requestId: t !== "stream",
   brotli: t === "proxy" || t === "static",
   catchAll: t === "notfound",
+  balance: t === "proxy" || t === "stream",
 })
+
+// Methods that can't have a backup server.
+export const noBackup = (m: LbMethod) =>
+  m === "ip_hash" || m === "hash" || m === "random"
+
+// The main address as host:port, the port filled in from the scheme, as
+// the backend writes it in the upstream block.
+export function mainServer(d: Draft) {
+  if (d.type === "stream") return d.streamTo.trim()
+  try {
+    const u = new URL(d.upstream.trim())
+    if (!u.hostname) return ""
+    const port = u.port || (u.protocol === "https:" ? "443" : "80")
+    return `${u.hostname}:${port}`
+  } catch {
+    return ""
+  }
+}
+
+const toServer = (s: PoolServerDraft, main = false): UpstreamServer => ({
+  address: main ? undefined : s.address.trim().toLowerCase(),
+  weight: number(s.weight),
+  max_conns: number(s.maxConns),
+  backup: s.backup || undefined,
+  down: s.down || undefined,
+  note: s.note.trim() || undefined,
+})
+
+// The balancing as sent; undefined with no other server.
+export function toBalance(d: Draft): Balance | undefined {
+  const servers = keptServers(d)
+  if (!servers.length) return undefined
+  const stream = d.type === "stream"
+  const m = d.lbMethod
+  const hash = m === "hash"
+  const key = stream ? "ip" : d.lbHashKey
+  const b: Balance = {
+    servers: servers.map((s) => toServer(s)),
+    method: m,
+    hash_key: hash ? key : undefined,
+    hash_name:
+      hash && key !== "ip" && key !== "uri"
+        ? d.lbHashName.trim() || undefined
+        : undefined,
+    consistent: (hash && d.lbConsistent) || undefined,
+    random_two: (m === "random" && d.lbRandomTwo) || undefined,
+    keepalive: stream ? undefined : number(d.lbKeepalive),
+    max_fails: number(d.lbMaxFails),
+    fail_timeout: number(d.lbFailTimeout),
+  }
+  const main = toServer(d.poolMain, true)
+  if (Object.values(main).some(Boolean)) b.main = main
+  if (!d.lbRetry) b.no_retry = true
+  else {
+    if (!stream && d.lbRetryOn.length) b.retry_on = d.lbRetryOn
+    b.tries = number(d.lbTries)
+    b.retry_timeout = number(d.lbRetryTimeout)
+  }
+  return b
+}
 
 // An https address among the site's upstream and its paths'.
 export const httpsUpstream = (d: Draft) =>
@@ -927,6 +1098,8 @@ function addFeatures(c: HostConfig, d: Draft) {
     if (d.catchAll) c.catch_all = true
     c.not_found_code = d.notFoundCode
   }
+  const balance = toBalance(d)
+  if (balance) c.balance = balance
 }
 
 export const toBody = (d: Draft): ProxyHostBody => ({
@@ -964,6 +1137,7 @@ export function problemsToErrors(
   const paths = keptPaths(d)
   const users = keptUsers(d)
   const pages = keptPages(d)
+  const servers = keptServers(d)
   for (const p of problems) {
     const where = p.location ?? p.field
     if (!where || !p.message) continue
@@ -972,6 +1146,12 @@ export function problemsToErrors(
     if (rule) {
       const k = rules[Number(rule[1])]?.key ?? rule[1]
       out[`rate.${k}.${rule[2] ?? "rate"}`] ??= p.message
+      continue
+    }
+    const server = /^balance\.servers\[(\d+)\](?:\.(\w+))?/.exec(f)
+    if (server) {
+      const k = servers[Number(server[1])]?.key ?? server[1]
+      out[`pool.${k}.${server[2] ?? "address"}`] ??= p.message
       continue
     }
     const m = /^([\w.]+)\[(\d+)\]/.exec(f)
@@ -1077,6 +1257,23 @@ export function clearErrors(e: Errors, patch: Partial<Draft>): Errors {
     maintRetry: ["maintenance.retry_minutes"],
     hMethods: ["hardening.methods"],
     hStatus: ["hardening.status"],
+    poolMain: ["balance.main.backup", "balance.servers"],
+    poolServers: ["balance.servers"],
+    lbMethod: [
+      "balance.method",
+      "balance.hash_key",
+      "balance.hash_name",
+      "balance.main.backup",
+    ],
+    lbHashKey: ["balance.hash_key", "balance.hash_name"],
+    lbHashName: ["balance.hash_name"],
+    lbKeepalive: ["balance.keepalive"],
+    lbMaxFails: ["balance.max_fails"],
+    lbFailTimeout: ["balance.fail_timeout"],
+    lbRetry: ["balance.retry_on", "balance.tries", "balance.retry_timeout"],
+    lbRetryOn: ["balance.retry_on"],
+    lbTries: ["balance.tries"],
+    lbRetryTimeout: ["balance.retry_timeout"],
     catchAll: ["catch_all", "domains"],
     notFoundCode: ["not_found_code"],
     note: ["note"],
@@ -1091,6 +1288,8 @@ export function clearErrors(e: Errors, patch: Partial<Draft>): Errors {
     ["errorPages", "error_pages"],
     ["paths", "paths."],
     ["headers", "headers."],
+    ["poolServers", "pool."],
+    ["lbMethod", "pool."],
   ]
   for (const [k, prefix] of rows) {
     if (!patch[k]) continue

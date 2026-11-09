@@ -57,6 +57,7 @@ import { useProxyCan } from "../../../components/permissions"
 import { useHostMenu } from "../../../components/proxy-actions"
 import { inspectable } from "../../components/toolbar"
 import { AccessEditor } from "./access-editor"
+import { BalancingTab, PoolInline } from "./balancing-tab"
 import { CacheTab } from "./cache-tab"
 import { ConfigTab } from "./config-tab"
 import { DomainsEditor, type DomainUse } from "./domains-editor"
@@ -69,6 +70,7 @@ import {
   draftFromHost,
   type Errors,
   freshDraft,
+  keptServers,
   problemsToErrors,
   sameDraft,
   toBody,
@@ -228,7 +230,7 @@ function Editor({
   const [refusal, setRefusal] = useState("")
   const [touched, setTouched] = useState(!!source)
   const [template, setTemplate] = useState("")
-  const tabs = tabsFor(draft.type, caps, !!host)
+  const tabs = tabsFor(draft.type, caps, !!host, draft.poolServers.length > 0)
   const { tab, setTab } = useEditorTab(tabs)
   const [conflict, setConflict] = useOpen("proxy-host-conflict")
   const [menuOpen, setMenuOpen] = useOpen("proxy-host-sheet")
@@ -484,6 +486,10 @@ function Editor({
     phone,
     inspection: inspection.data,
   }
+  const openTab = (t: EditorTab) => {
+    setTab(t)
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
   const sections: Record<EditorTab, ReactNode> = {
     report:
       host && operator ? (
@@ -562,6 +568,19 @@ function Editor({
               proxy={p}
               readOnly={readOnly}
               phone={phone}
+              pool={
+                caps.balancing &&
+                uses.balance && (
+                  <PoolInline
+                    draft={draft}
+                    set={set}
+                    errors={errors}
+                    readOnly={readOnly}
+                    phone={phone}
+                    onOpen={() => openTab("balancing")}
+                  />
+                )
+              }
               defaultTaken={
                 defaultSite
                   ? `${defaultSite.file}:${defaultSite.line}`
@@ -602,15 +621,22 @@ function Editor({
             <Route
               draft={draft}
               proxy={p}
-              onTab={(t) => {
-                setTab(t)
-                window.scrollTo({ top: 0, behavior: "smooth" })
-              }}
+              onTab={openTab}
               https={tabs.includes("https")}
             />
           </Card>
         </div>
       </div>
+    ),
+    balancing: (
+      <BalancingTab
+        proxy={p}
+        draft={draft}
+        set={set}
+        errors={errors}
+        phone={phone}
+        onGeneral={() => openTab("general")}
+      />
     ),
     https: uses.tls ? (
       <HttpsTab
@@ -1136,6 +1162,7 @@ function Route({
     stream: ["Forwarded to", d.streamTo.trim()],
   }
   const [toLabel, toValue] = to[d.type]
+  const pool = keptServers(d).length
   const steps: { label: string; value: string; more?: string }[] = [
     {
       label: d.type === "stream" ? "Clients connect to" : "Visitors open",
@@ -1149,9 +1176,15 @@ function Route({
     {
       label: toLabel,
       value: toValue,
-      more: d.paths.length
-        ? `${d.paths.length} path${d.paths.length === 1 ? "" : "s"} go elsewhere`
-        : undefined,
+      more:
+        [
+          pool ? `+${pool} more server${pool === 1 ? "" : "s"}` : "",
+          d.paths.length
+            ? `${d.paths.length} path${d.paths.length === 1 ? "" : "s"} go elsewhere`
+            : "",
+        ]
+          .filter(Boolean)
+          .join(" · ") || undefined,
     },
   ]
   return (

@@ -1225,6 +1225,186 @@ export const reverseProxy: GuideSection[] = [
     ),
   },
   {
+    id: "load-balancing",
+    title: "Load balancing",
+    body: (
+      <>
+        <P>
+          When the same app runs on several servers, a proxy site (or a stream)
+          can spread its traffic over all of them: more capacity, and the site
+          stays up when one server goes down. The address in <UI>General</UI> is
+          always the first server (server 1). With no other servers nothing is
+          balanced: every request goes to that one address.
+        </P>
+        <Steps>
+          <P>
+            In <UI>General</UI>, under the <UI>App address</UI> (or{" "}
+            <UI>Forward to</UI> for a stream), press <UI>Add another server</UI>{" "}
+            and type its address as <C>host:port</C>, like <C>10.0.0.6:3000</C>.
+            Pasting a list (one per line, or comma separated) adds a row for
+            each; a pasted URL is trimmed to its host and port.
+          </P>
+          <P>
+            The <UI>Load balancing</UI> tab appears (also reached by{" "}
+            <UI>Weights, backups and failover</UI>). Press <UI>Test all</UI>:
+            each server is asked for the site's address from the proxy's server,
+            with the same scheme and path as the main one.
+          </P>
+          <P>
+            Pick <UI>How a server is picked</UI>, then save. The tab's badge
+            shows how many servers share the site.
+          </P>
+        </Steps>
+        <P>
+          Each server has a <UI>Weight</UI> (its share compared with the others;
+          the row shows the share it gets), <UI>Most connections</UI> at once,
+          and a role:
+        </P>
+        <Table
+          head={["Role", "What it means"]}
+          rows={[
+            [<UI key="o">In use</UI>, "Gets its share of the traffic"],
+            [
+              <UI key="b">Backup</UI>,
+              "Gets traffic only while every server in use is down. Only with Take turns and Fewest connections",
+            ],
+            [
+              <UI key="f">Off</UI>,
+              "Gets nothing, but stays in the list: for maintenance, without losing its settings",
+            ],
+          ]}
+        />
+        <P>Ways a server is picked:</P>
+        <Table
+          head={["Way", "When to use it"]}
+          rows={[
+            [
+              <UI key="r">Take turns</UI>,
+              "The usual choice: each server gets the next request in turn, weights counted",
+            ],
+            [
+              <UI key="l">Fewest connections</UI>,
+              "Some requests take much longer than others (reports, uploads, websockets)",
+            ],
+            [
+              <UI key="i">Same visitor, same server</UI>,
+              "The app keeps logins or carts in memory. Picked by the visitor's network (first three parts of an IPv4 address). Sites only",
+            ],
+            [
+              <UI key="h">By a key</UI>,
+              "The same visitor address, page, cookie, header or query value always goes to the same server: per-tenant servers, or caches that should each hold their own pages. Streams use the client's address",
+            ],
+            [
+              <UI key="n">Random</UI>,
+              "Several proxies in front of the same servers. Pick the less busy of two spreads it more evenly",
+            ],
+          ]}
+        />
+        <Tip>
+          With <UI>By a key</UI>, keep{" "}
+          <UI>Move few keys when servers change</UI> on: adding or removing a
+          server then moves only that server's share, instead of reshuffling
+          every visitor.
+        </Tip>
+        <P>
+          <UI>When a server fails</UI>: a server that fails the set number of
+          times within the time given is taken out for that time, then tried
+          again. nginx learns this from real requests: it doesn't check servers
+          on its own.
+        </P>
+        <P>
+          <UI>Try another server</UI>: when a server can't be reached, times out
+          or (if picked) answers with one of the chosen error codes, before
+          anything reached the visitor, the request goes to the next server. The
+          visitor sees an error only when every server failed. POST and PATCH
+          are never sent twice unless <UI>Also POST and PATCH</UI> is picked.
+        </P>
+        <Warn>
+          Turn on <UI>Also POST and PATCH</UI> only for apps where sending a
+          form twice is safe: otherwise an order or a payment can happen twice.
+        </Warn>
+        <P>
+          <UI>Connections to the servers</UI> (sites): idle connections kept
+          open, so requests don't wait for a new one each time.
+        </P>
+        <Recommended
+          rows={[
+            {
+              setting: <UI>How a server is picked</UI>,
+              value: "Take turns",
+              why: "Fewest connections when requests vary a lot in length",
+            },
+            {
+              setting: <UI>Failures before it's taken out</UI>,
+              value: "3",
+              why: "One slow answer shouldn't take a healthy server out",
+            },
+            {
+              setting: <UI>Taken out for</UI>,
+              value: "30 seconds",
+              why: "Long enough for a restart, short enough to come back soon",
+            },
+            {
+              setting: <UI>Servers tried at most</UI>,
+              value: "2 or 3",
+              why: "Caps how long a visitor waits when several servers are down",
+            },
+            {
+              setting: <UI>Idle connections kept</UI>,
+              value: "32",
+              why: "Faster answers on busy sites, fewer ports used",
+            },
+          ]}
+        />
+        <Example title="An app on three servers, one kept in reserve">
+          <P>
+            General's address is <C>http://10.0.0.5:3000</C>. Add{" "}
+            <C>10.0.0.6:3000</C> with weight 2 (a bigger machine) and{" "}
+            <C>10.0.0.7:3000</C> as <UI>Backup</UI>. With <UI>Take turns</UI>,
+            .5 gets a third of the requests, .6 two thirds, and .7 only when
+            both are down. To update .5, set it to <UI>Off</UI>, save, update
+            it, set it back to <UI>In use</UI>.
+          </P>
+        </Example>
+        <P>
+          How it's written: an <C>upstream</C> block named after the site (
+          <C>…_pool</C>) with a shared <C>zone</C>, and <C>proxy_pass</C>{" "}
+          pointed at it. The <C>Host</C> header and the https name stay the main
+          address's, so the app sees the same request whichever server answers.
+          Paths on the <UI>Routing</UI> tab that go to the main address use the
+          pool too; paths sent to another app don't. See the result on the{" "}
+          <UI>Config</UI> tab.
+        </P>
+        <Table
+          head={["Problem", "What to do"]}
+          rows={[
+            [
+              "Visitors get logged out now and then",
+              "The app keeps sessions in memory: use Same visitor, same server, By a key with the session cookie, or a shared session store in the app",
+            ],
+            [
+              "One server gets almost everything",
+              "Check the weights and roles; with Same visitor, same server, visitors behind one company network count as one",
+            ],
+            [
+              "Backups can't be saved",
+              "Backups only work with Take turns and Fewest connections",
+            ],
+            [
+              "A server name doesn't follow DNS changes",
+              "nginx looks names up when it starts or reloads: use IP addresses, or reload after a change",
+            ],
+          ]}
+        />
+        <Tip>
+          Not available in free nginx (they need nginx Plus): active health
+          checks that probe servers on their own, sticky cookies, slow start and
+          least time.
+        </Tip>
+      </>
+    ),
+  },
+  {
     id: "login",
     title: "Login",
     body: (

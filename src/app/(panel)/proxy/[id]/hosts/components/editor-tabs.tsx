@@ -10,6 +10,7 @@ import {
   KeyRound,
   Lock,
   type LucideIcon,
+  Network,
   Route,
   ScrollText,
   Settings2,
@@ -34,6 +35,7 @@ import {
   type Errors,
   freshHeader,
   keptRules,
+  keptServers,
   keptUsers,
   splitList,
   typeUses,
@@ -46,6 +48,7 @@ import {
 export const editorTabs = [
   "report",
   "general",
+  "balancing",
   "https",
   "security",
   "login",
@@ -66,6 +69,7 @@ export const editorTabMeta: Record<
   report: { label: "Report", icon: ChartColumn },
   logs: { label: "Logs", icon: ScrollText },
   general: { label: "General", icon: Settings2 },
+  balancing: { label: "Load balancing", icon: Network },
   https: { label: "HTTPS", icon: Lock },
   security: { label: "Security", icon: ShieldCheck },
   login: { label: "Login", icon: KeyRound },
@@ -85,12 +89,16 @@ export function tabsFor(
   caps: ReverseProxy["capabilities"],
   // A saved site (a new one has no log yet).
   saved: boolean,
+  // Other servers are listed (added from General), so balancing has
+  // something to set.
+  pooled = false,
 ) {
   const uses = typeUses(type)
   const shown: Record<EditorTab, boolean> = {
     report: saved && caps.traffic,
     logs: saved && caps.traffic,
     general: true,
+    balancing: !!caps.balancing && uses.balance && pooled,
     https: uses.tls,
     security:
       caps.allow ||
@@ -109,6 +117,7 @@ export function tabsFor(
 
 // The tab that holds a field the backend refused.
 export function tabOfError(key: string): EditorTab {
+  if (key.startsWith("balance") || key.startsWith("pool.")) return "balancing"
   if (key.startsWith("tls")) return "https"
   if (key.startsWith("headers") || key.startsWith("paths")) return "routing"
   if (key.startsWith("auth")) return "login"
@@ -183,6 +192,9 @@ export function tabInfo(
   const wrong = new Set(Object.keys(errors).map(tabOfError))
   const badge: Partial<Record<EditorTab, string>> = {
     https: d.tls ? "On" : undefined,
+    balancing: keptServers(d).length
+      ? `${keptServers(d).length + 1}`
+      : undefined,
     routing:
       d.paths.length + d.headers.length
         ? `${d.paths.length + d.headers.length}`

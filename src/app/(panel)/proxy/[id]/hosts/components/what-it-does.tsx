@@ -113,6 +113,7 @@ export function WhatItDoes({
   proxy: p,
   readOnly,
   phone,
+  pool,
   defaultTaken,
 }: {
   draft: Draft
@@ -121,6 +122,8 @@ export function WhatItDoes({
   proxy: ReverseProxy
   readOnly: boolean
   phone: boolean
+  // The other servers of a balanced site, under the address.
+  pool?: ReactNode
   // A hand-written site already answers names nobody else does.
   defaultTaken?: string
 }) {
@@ -144,6 +147,7 @@ export function WhatItDoes({
           proxy={p}
           readOnly={readOnly}
           phone={phone}
+          pool={pool}
         />
       )}
       {draft.type === "redirect" && (
@@ -168,7 +172,13 @@ export function WhatItDoes({
         />
       )}
       {draft.type === "stream" && (
-        <StreamFields draft={draft} set={set} errors={errors} proxy={p} />
+        <StreamFields
+          draft={draft}
+          set={set}
+          errors={errors}
+          proxy={p}
+          pool={pool}
+        />
       )}
     </div>
   )
@@ -362,6 +372,7 @@ function ProxyFields({
   proxy: p,
   readOnly,
   phone,
+  pool,
 }: {
   draft: Draft
   set: (patch: Partial<Draft>) => void
@@ -369,6 +380,7 @@ function ProxyFields({
   proxy: ReverseProxy
   readOnly: boolean
   phone: boolean
+  pool?: ReactNode
 }) {
   const host = hostOf(draft.upstream)
   const where = !host
@@ -379,7 +391,9 @@ function ProxyFields({
   return (
     <>
       <Field
-        label="App address"
+        label={
+          draft.poolServers.length ? "App address · server 1" : "App address"
+        }
         hint={
           where ||
           "Where the app answers, as the proxy's server sees it. Start with http:// or https://."
@@ -406,6 +420,7 @@ function ProxyFields({
         onFix={(upstream) => set({ upstream })}
       />
       {!readOnly && <TestUpstream proxy={p} draft={draft} />}
+      {pool}
       <Options phone={phone}>
         {p.capabilities.websockets && (
           <Option
@@ -816,11 +831,13 @@ function StreamFields({
   set,
   errors,
   proxy: p,
+  pool,
 }: {
   draft: Draft
   set: (patch: Partial<Draft>) => void
   errors: Errors
   proxy: ReverseProxy
+  pool?: ReactNode
 }) {
   return (
     <>
@@ -861,7 +878,9 @@ function StreamFields({
         </Field>
       </div>
       <Field
-        label="Forward to"
+        label={
+          draft.poolServers.length ? "Forward to · server 1" : "Forward to"
+        }
         hint="host:port, as the proxy's server reaches it."
         error={errors.stream_to}
       >
@@ -878,6 +897,7 @@ function StreamFields({
           />
         )}
       </Field>
+      {pool}
       <div className="flex gap-3 rounded-xl bg-subtle p-4 text-body-sm">
         <ShieldAlert className="mt-0.5 size-4 shrink-0 text-ash" />
         <p className="min-w-0 text-muted-foreground">
