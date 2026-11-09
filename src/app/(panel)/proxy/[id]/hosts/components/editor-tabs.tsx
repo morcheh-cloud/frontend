@@ -1,6 +1,8 @@
 "use client"
 
 import {
+  ChartColumn,
+  ChevronDown,
   DatabaseZap,
   FileCode,
   FileWarning,
@@ -9,14 +11,21 @@ import {
   Lock,
   type LucideIcon,
   Route,
+  ScrollText,
   Settings2,
   ShieldCheck,
   SlidersHorizontal,
 } from "lucide-react"
 import { parseAsStringLiteral, useQueryState } from "nuqs"
-import { useEffect, useRef } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
 
 import { ToggleRow } from "@/app/(panel)/cronjobs/components/editor-parts"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import type { Proxy as ReverseProxy } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { chipClass } from "../../../components/parts"
@@ -30,10 +39,12 @@ import {
   typeUses,
 } from "./draft"
 
-// The site editor's tabs: what a site does first, then one tab per kind
-// of setting. Which ones show depends on the site's type and the proxy.
+// The site editor's tabs: a saved site opens on its Report; then what the
+// site does, one tab per kind of setting, and its Logs just before Config.
+// Which ones show depends on the site's type and the proxy.
 
 export const editorTabs = [
+  "report",
   "general",
   "https",
   "security",
@@ -43,6 +54,7 @@ export const editorTabs = [
   "routing",
   "pages",
   "advanced",
+  "logs",
   "config",
 ] as const
 export type EditorTab = (typeof editorTabs)[number]
@@ -51,6 +63,8 @@ export const editorTabMeta: Record<
   EditorTab,
   { label: string; icon: LucideIcon }
 > = {
+  report: { label: "Report", icon: ChartColumn },
+  logs: { label: "Logs", icon: ScrollText },
   general: { label: "General", icon: Settings2 },
   https: { label: "HTTPS", icon: Lock },
   security: { label: "Security", icon: ShieldCheck },
@@ -63,12 +77,19 @@ export const editorTabMeta: Record<
   config: { label: "Config", icon: FileCode },
 }
 
+// The two views of what visitors did, not settings.
+export const viewTabs: readonly EditorTab[] = ["report", "logs"]
+
 export function tabsFor(
   type: Draft["type"],
   caps: ReverseProxy["capabilities"],
+  // A saved site (a new one has no log yet).
+  saved: boolean,
 ) {
   const uses = typeUses(type)
   const shown: Record<EditorTab, boolean> = {
+    report: saved && caps.traffic,
+    logs: saved && caps.traffic,
     general: true,
     https: uses.tls,
     security:
@@ -130,18 +151,20 @@ export function tabOfError(key: string): EditorTab {
   return "general"
 }
 
+export const tabParser = parseAsStringLiteral(editorTabs)
+
 export function useEditorTab(tabs: readonly EditorTab[]) {
   const [tab, setTab] = useQueryState(
     "tab",
-    parseAsStringLiteral(editorTabs)
-      .withDefault("general")
-      .withOptions({ history: "replace", scroll: false }),
+    tabParser.withOptions({ history: "replace", scroll: false }),
   )
+  // The first tab (Report on a saved site, General on a new one) needs no
+  // ?tab=; one the site no longer has (https after switching to a stream)
+  // falls back to it.
+  const first = tabs[0] ?? "general"
   return {
-    // A tab the type no longer has (e.g. https after switching to a stream)
-    // falls back to General.
-    tab: tabs.includes(tab) ? tab : ("general" as const),
-    setTab: (t: EditorTab) => setTab(t === "general" ? null : t),
+    tab: tab && tabs.includes(tab) ? tab : first,
+    setTab: (t: EditorTab) => setTab(t === first ? null : t),
   }
 }
 
@@ -234,7 +257,8 @@ function Badge({ info }: { info: TabInfo }) {
 }
 
 // Desktop: a sticky tab bar under the header, like a server's sections,
-// with the page's buttons at its end so Save stays in reach.
+// with the page's buttons at its end so Save stays in reach. What doesn't
+// fit goes into "More"; the current tab and any with a problem stay in view.
 export function EditorTabBar({
   tabs,
   current,
@@ -246,35 +270,171 @@ export function EditorTabBar({
   onChange: (tab: EditorTab) => void
   end?: React.ReactNode
 }) {
+  const rowRef = useRef<HTMLDivElement>(null)
+  const endRef = useRef<HTMLDivElement>(null)
+  const measureRef = useRef<HTMLDivElement>(null)
+  // Tabs that fit in the bar; null until measured (then every tab shows).
+  const [shown, setShown] = useState<Set<EditorTab> | null>(null)
+  // Badges change the widths, so they're part of what's measured.
+  const signature = tabs
+    .map((t) => `${t.tab}:${t.badge ?? ""}:${t.error ? 1 : 0}`)
+    .join("|")
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `signature` stands for `tabs`, a new array on every render
+  useLayoutEffect(() => {
+    const row = rowRef.current
+    const measure = measureRef.current
+    if (!row || !measure) return
+
+    const fit = () => {
+      const widths = new Map<string, number>()
+      for (const el of measure.querySelectorAll<HTMLElement>("[data-tab]")) {
+        widths.set(el.dataset.tab ?? "", el.getBoundingClientRect().width)
+      }
+      const width = (set: Set<EditorTab>) =>
+        tabs.reduce(
+          (sum, t) => sum + (set.has(t.tab) ? (widths.get(t.tab) ?? 0) + 4 : 0),
+          0,
+        )
+      const endWidth = endRef.current
+        ? endRef.current.getBoundingClientRect().width
+        : 0
+      const room = row.clientWidth - endWidth - 8
+      const all = new Set(tabs.map((t) => t.tab))
+      if (width(all) <= room) return setShown(all)
+
+      const more = (widths.get("…more") ?? 0) + 4
+      const ranked = [
+        ...tabs.filter((t) => t.tab === current),
+        ...tabs.filter((t) => t.tab !== current && t.error),
+        ...tabs.filter((t) => t.tab !== current && !t.error),
+      ]
+      const next = new Set<EditorTab>()
+      for (const t of ranked) {
+        next.add(t.tab)
+        if (next.size > 1 && width(next) > room - more) {
+          next.delete(t.tab)
+          break
+        }
+      }
+      setShown(next)
+    }
+
+    fit()
+    // The measuring copy resizes when the font loads; the buttons at the
+    // end change with the page's state.
+    const observer = new ResizeObserver(fit)
+    observer.observe(row)
+    observer.observe(measure)
+    if (endRef.current) observer.observe(endRef.current)
+    return () => observer.disconnect()
+  }, [current, signature])
+
+  const hidden = shown ? tabs.filter((t) => !shown.has(t.tab)) : []
+
   return (
     <nav
       aria-label="Site settings"
       className="sticky top-[calc(3rem+1px)] z-20 border-b border-border bg-background/90 px-4 backdrop-blur-md"
     >
-      <div className="flex items-center gap-1">
-        {tabs.map((info) => {
-          const Icon = editorTabMeta[info.tab].icon
-          return (
-            <button
-              key={info.tab}
-              type="button"
-              aria-current={current === info.tab ? "page" : undefined}
-              onClick={() => onChange(info.tab)}
-              className={tabClass}
-            >
-              <Icon />
-              {editorTabMeta[info.tab].label}
-              <Badge info={info} />
-            </button>
-          )
-        })}
+      <div ref={rowRef} className="relative flex items-center gap-1">
+        {tabs
+          .filter((info) => !shown || shown.has(info.tab))
+          .map((info) => {
+            const Icon = editorTabMeta[info.tab].icon
+            return (
+              <button
+                key={info.tab}
+                type="button"
+                aria-current={current === info.tab ? "page" : undefined}
+                onClick={() => onChange(info.tab)}
+                className={tabClass}
+              >
+                <Icon />
+                {editorTabMeta[info.tab].label}
+                <Badge info={info} />
+              </button>
+            )
+          })}
+        {hidden.length > 0 && <MoreTabs tabs={hidden} onChange={onChange} />}
         {end && (
-          <div className="ms-auto flex shrink-0 items-center gap-2 py-1.5 ps-3">
+          <div
+            ref={endRef}
+            className="ms-auto flex shrink-0 items-center gap-2 py-1.5 ps-3"
+          >
             {end}
           </div>
         )}
+
+        {/* Every tab at its widest (font-medium), for measuring only;
+            clipped so it can't widen the page. */}
+        <div
+          aria-hidden
+          className="pointer-events-none invisible absolute inset-0 overflow-hidden"
+        >
+          <div ref={measureRef} className="flex w-max">
+            {tabs.map((info) => {
+              const Icon = editorTabMeta[info.tab].icon
+              return (
+                <span
+                  key={info.tab}
+                  data-tab={info.tab}
+                  className={cn(tabClass, "font-medium")}
+                >
+                  <Icon />
+                  {editorTabMeta[info.tab].label}
+                  <Badge info={info} />
+                </span>
+              )
+            })}
+            <span data-tab="…more" className={cn(tabClass, "font-medium")}>
+              More
+              <span className="size-1.5" />
+              <ChevronDown />
+            </span>
+          </div>
+        </div>
       </div>
     </nav>
+  )
+}
+
+function MoreTabs({
+  tabs,
+  onChange,
+}: {
+  tabs: TabInfo[]
+  onChange: (tab: EditorTab) => void
+}) {
+  const wrong = tabs.some((t) => t.error)
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className={tabClass}>
+        More
+        {wrong && (
+          <span
+            role="img"
+            aria-label="a tab in here has a problem"
+            className="size-1.5 rounded-full bg-destructive"
+          />
+        )}
+        <ChevronDown />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-56">
+        {tabs.map((info) => {
+          const Icon = editorTabMeta[info.tab].icon
+          return (
+            <DropdownMenuItem key={info.tab} onClick={() => onChange(info.tab)}>
+              <Icon />
+              <span className="flex-1 truncate">
+                {editorTabMeta[info.tab].label}
+              </span>
+              <Badge info={info} />
+            </DropdownMenuItem>
+          )
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 

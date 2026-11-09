@@ -22,6 +22,7 @@ import { useRouter } from "next/navigation"
 import { useRef, useState } from "react"
 
 import {
+  afterClose,
   Empty,
   type Item,
   ItemMenu,
@@ -247,10 +248,7 @@ function useAddSite(d: Data) {
             <li key={p.id}>
               <button
                 type="button"
-                onClick={() => {
-                  setPickOpen(false)
-                  go(p)
-                }}
+                onClick={() => afterClose(setPickOpen, () => go(p))}
                 className="flex min-h-14 w-full items-center gap-3 rounded-lg p-2 text-start outline-none hover:bg-muted focus-visible:bg-muted active:bg-muted"
               >
                 <ProxyTile className="size-9" />
@@ -715,6 +713,7 @@ function ProxiesLayer({
   const actions = useProxyActions()
   const canAdd = useCanAddProxy()
   const menu = useProxyMenu()
+  const router = useRouter()
   const title = "Proxies"
   const description = "The servers that run a reverse proxy for your sites."
   const addButton = canAdd && (
@@ -735,7 +734,13 @@ function ProxiesLayer({
         <li key={p.id} className="flex items-center gap-1 pe-2">
           <Link
             href={proxyHref(p.id)}
-            onClick={() => onOpenChange(false)}
+            onClick={(e) => {
+              // Closing pops the sheet's history entry, which would undo a
+              // navigation made at the same time: close, then go.
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
+              e.preventDefault()
+              afterClose(onOpenChange, () => router.push(proxyHref(p.id)))
+            }}
             className="flex min-h-16 min-w-0 flex-1 items-center gap-3 py-3 ps-4 outline-none hover:bg-subtle focus-visible:bg-subtle active:bg-muted md:ps-6"
           >
             <ProxyTile className="size-10" />

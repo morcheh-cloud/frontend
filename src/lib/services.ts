@@ -5807,6 +5807,66 @@ export interface ProxyHostBody {
   revision?: string;
 }
 
+export interface ProxyHostReport {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  bots: ProxyReportCount[];
+  /** Browsers, tools and bots */
+  browsers: ProxyReportCount[];
+  cache: ProxyReportCount[];
+  detailed: boolean;
+  /** Desktop, Phone, Tablet, Bot, Tool */
+  devices: ProxyReportCount[];
+  domains: ProxyReportCount[];
+  durations: ProxyReportBin[];
+  /** @format date-time */
+  end: string;
+  /** Paths answered 5xx */
+  failing: ProxyReportCount[];
+  /** @format date-time */
+  generated: string;
+  /**
+   * Requests by weekday (0 = Sunday) and hour, in the time zone
+   * @maxItems 7
+   * @minItems 7
+   */
+  heatmap: number[][];
+  ips: ProxyReportIP[];
+  methods: ProxyReportCount[];
+  missing: boolean;
+  /** Paths answered 404 */
+  not_found: ProxyReportCount[];
+  /**
+   * Oldest line read
+   * @format date-time
+   */
+  oldest?: string;
+  /** Too much to read: older lines were left out */
+  partial: boolean;
+  /** Most asked */
+  paths: ProxyReportPath[];
+  /** The same length of time before, when the logs reach back that far */
+  previous: ProxyReportTotals;
+  protocols: ProxyReportCount[];
+  range: string;
+  /** Other sites that sent visitors, by host */
+  referrers: ProxyReportCount[];
+  series: ProxyReportSeries;
+  /** Highest average time, paths asked at least 3 times */
+  slowest: ProxyReportPath[];
+  /** @format date-time */
+  start: string;
+  statuses: ProxyReportCount[];
+  stream: boolean;
+  systems: ProxyReportCount[];
+  time_zone: string;
+  totals: ProxyReportTotals;
+  upstreams: ProxyReportCount[];
+}
+
 export interface ProxyHostState {
   /** Hand-written sites answering the same name */
   conflicts: ProxySiteRef[];
@@ -5856,6 +5916,8 @@ export interface ProxyInspection {
   init: string;
   installed: boolean;
   proxy: Proxy;
+  /** Hand-written files Morcheh took default_server from (ports 80 and 443) because one of its sites answers unknown names; they get it back when none does, or when the proxy is removed with its files */
+  released_default: string[];
   running: boolean;
   /** The panel's sites are loaded */
   set_up: boolean;
@@ -5877,6 +5939,228 @@ export interface ProxyProblem {
   /** Where, like body.config.domains[1] */
   field: string;
   message: string;
+}
+
+export interface ProxyReportBin {
+  /** @format int64 */
+  count: number;
+  /**
+   * 0 = everything slower than the bin before
+   * @format double
+   */
+  up_to_ms: number;
+}
+
+export interface ProxyReportCount {
+  /** @format int64 */
+  bytes: number;
+  /**
+   * 4xx and 5xx
+   * @format int64
+   */
+  errors: number;
+  name: string;
+  /** @format int64 */
+  requests: number;
+}
+
+export interface ProxyReportIP {
+  /** Its most recent browser or client */
+  agent?: string;
+  /** @format int64 */
+  bytes: number;
+  /** @format int64 */
+  errors: number;
+  ip: string;
+  /** @format date-time */
+  last: string;
+  /** @format int64 */
+  requests: number;
+}
+
+export interface ProxyReportPath {
+  /** @format double */
+  p95_ms: number | null;
+  /** @format double */
+  avg_ms: number | null;
+  /** @format int64 */
+  bytes: number;
+  /** @format int64 */
+  errors: number;
+  /** Without the query string */
+  path: string;
+  /** @format int64 */
+  requests: number;
+}
+
+export interface ProxyReportSeries {
+  p95_ms: (number | null)[];
+  avg_ms: (number | null)[];
+  /**
+   * Seconds per bucket
+   * @format int64
+   */
+  bucket: number;
+  bytes: number[];
+  client_errors: number[];
+  ok: number[];
+  redirects: number[];
+  server_errors: number[];
+  /** @format date-time */
+  start: string;
+  visitors: number[];
+}
+
+export interface ProxyReportTotals {
+  /** @format double */
+  p50_ms: number | null;
+  /** @format double */
+  p95_ms: number | null;
+  /** @format double */
+  p99_ms: number | null;
+  /** @format double */
+  avg_ms: number | null;
+  /** @format int64 */
+  bytes: number;
+  /** @format int64 */
+  cache_hits: number;
+  /**
+   * Requests the proxy cache answered or looked up
+   * @format int64
+   */
+  cache_lookups: number;
+  /** @format int64 */
+  client_errors: number;
+  /** @format int64 */
+  ok: number;
+  /**
+   * Bytes received (detailed lines only)
+   * @format int64
+   */
+  received: number;
+  /** @format int64 */
+  redirects: number;
+  /** @format int64 */
+  requests: number;
+  /** @format int64 */
+  server_errors: number;
+  /**
+   * Average time the upstream took
+   * @format double
+   */
+  upstream_ms: number | null;
+  /**
+   * Distinct addresses
+   * @format int64
+   */
+  visitors: number;
+}
+
+export interface ProxyRequest {
+  agent?: string;
+  /**
+   * Body bytes sent
+   * @format int64
+   */
+  bytes: number;
+  /** HIT, MISS, EXPIRED, BYPASS… */
+  cache?: string;
+  /** Host the request asked for */
+  domain?: string;
+  /**
+   * Time to answer, absent on lines written before detailed logging
+   * @format double
+   */
+  duration_ms?: number;
+  ip: string;
+  /** The line as written */
+  line: string;
+  /** Empty for a stream */
+  method: string;
+  /** Path and query string as asked */
+  path: string;
+  protocol: string;
+  referer?: string;
+  request_id?: string;
+  /**
+   * Bytes received, headers included
+   * @format int64
+   */
+  request_length?: number;
+  /** @format int64 */
+  status: number;
+  /** @format date-time */
+  time: string;
+  upstream_addr?: string;
+  /**
+   * Time the upstream took
+   * @format double
+   */
+  upstream_ms?: number;
+  upstream_status?: string;
+  /** Login name sent with the request */
+  user?: string;
+}
+
+export interface ProxyRequestClasses {
+  /**
+   * 4xx
+   * @format int64
+   */
+  client_errors: number;
+  /**
+   * 1xx and 2xx
+   * @format int64
+   */
+  ok: number;
+  /**
+   * 3xx
+   * @format int64
+   */
+  redirects: number;
+  /**
+   * 5xx
+   * @format int64
+   */
+  server_errors: number;
+}
+
+export interface ProxyRequests {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Matching lines per status class, the status filter left out */
+  classes: ProxyRequestClasses;
+  /** Pass back to get only lines written after this read */
+  cursor: string;
+  /** Some lines carry response times (written since detailed logging) */
+  detailed: boolean;
+  /** Newest first */
+  items: ProxyRequest[];
+  /**
+   * Lines matching every filter (more than items when cut by limit)
+   * @format int64
+   */
+  matched: number;
+  /** No log for this site on the server yet */
+  missing: boolean;
+  /**
+   * Oldest line read
+   * @format date-time
+   */
+  oldest?: string;
+  /** The range held more than could be read: older lines were left out */
+  partial: boolean;
+  /** The log was rotated since the cursor: read from its start */
+  reset: boolean;
+  /**
+   * Lines read in the time range
+   * @format int64
+   */
+  scanned: number;
+  stream: boolean;
 }
 
 export interface ProxySiteRef {
@@ -12841,7 +13125,7 @@ export class Api<
       }),
 
     /**
-     * @description With remove_files, first takes Morcheh's sites off the server and reloads (the proxy itself stays installed). Hand-written sites are never touched.
+     * @description With remove_files, first takes Morcheh's sites off the server and reloads (the proxy itself stays installed). Hand-written sites are left as they are, except that files Morcheh took default_server from get it back.
      *
      * @tags Reverse proxy
      * @name DeleteProxy
@@ -12906,6 +13190,35 @@ export class Api<
       this.request<ProxyChangeDetail, ErrorModel>({
         path: `/proxies/${id}/history/${change}`,
         method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Totals, requests over time, response times, statuses, paths, visitors, browsers and more, worked out from the site's access log (rotated files included). Kept for a minute.
+     *
+     * @tags Reverse proxy
+     * @name GetProxyHostReport
+     * @summary A report on a site's requests
+     * @request GET:/proxies/{id}/hosts/{host}/report
+     */
+    getProxyHostReport: (
+      id: string,
+      host: string,
+      query?: {
+        /** Read again, even if a report from the last minute is kept */
+        fresh?: boolean;
+        /** @default "24h" */
+        range?: "1h" | "24h" | "7d" | "30d";
+        /** IANA time zone for the buckets and the heatmap; default UTC */
+        tz?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ProxyHostReport, ErrorModel>({
+        path: `/proxies/${id}/hosts/${host}/report`,
+        method: "GET",
+        query: query,
         format: "json",
         ...params,
       }),
@@ -13042,6 +13355,71 @@ export class Api<
       this.request<ListProxyHistoryResponse, ErrorModel>({
         path: `/proxies/${id}/history`,
         method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Lines of the site's access log in a time range, filtered, newest first. Pass the answer's cursor back to get only what was written since (live view).
+     *
+     * @tags Reverse proxy
+     * @name ListProxyHostRequests
+     * @summary A site's requests, from its access log
+     * @request GET:/proxies/{id}/hosts/{host}/requests
+     */
+    listProxyHostRequests: (
+      id: string,
+      host: string,
+      query?: {
+        /** From a previous answer: only lines written since */
+        cursor?: string;
+        /** @maxLength 253 */
+        domain?: string;
+        /** RFC 3339; overrides range */
+        from?: string;
+        /**
+         * An address or its start (10.0.)
+         * @maxLength 100
+         */
+        ip?: string;
+        /**
+         * @format int64
+         * @min 1
+         * @max 2000
+         * @default 300
+         */
+        limit?: number;
+        /** Comma list */
+        method?: string;
+        /**
+         * Only requests that took at least this long
+         * @format int64
+         * @min 0
+         */
+        min_ms?: number;
+        /**
+         * Part of the path, any case
+         * @maxLength 500
+         */
+        path?: string;
+        /**
+         * Text anywhere in the line, any case
+         * @maxLength 200
+         */
+        q?: string;
+        /** @default "1h" */
+        range?: "15m" | "1h" | "6h" | "24h" | "7d";
+        /** Comma list of classes (2xx, 4xx…) and codes (404) */
+        status?: string;
+        /** RFC 3339 */
+        to?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ProxyRequests, ErrorModel>({
+        path: `/proxies/${id}/hosts/${host}/requests`,
+        method: "GET",
+        query: query,
         format: "json",
         ...params,
       }),

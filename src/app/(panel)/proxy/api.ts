@@ -2,11 +2,13 @@
 
 import {
   type QueryClient,
+  type QueryKey,
   useMutation,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query"
-
+import { useEffect } from "react"
+import { timeZone } from "@/components/insights/format"
 import { isActive, useJobList } from "@/components/jobs/api"
 import { proxiesQuery, STATUS_POLL } from "@/components/panel/problems"
 import { ApiError, api } from "@/lib/api"
@@ -16,6 +18,10 @@ import type {
   ProxyActionRequest,
   ProxyDetail,
   ProxyHostBody,
+  ProxyHostReport,
+  ProxyRequest,
+  ProxyRequestClasses,
+  ProxyRequests,
   Proxy as ReverseProxy,
   UpstreamTLS,
 } from "@/lib/services"
@@ -36,6 +42,10 @@ export const proxyKeys = {
   kinds: ["proxy-kinds"] as const,
   authorities: ["proxy-certificate-authorities"] as const,
   traffic: (proxy: string) => ["proxy-traffic", proxy] as const,
+  requests: (id: string, host: string, filters: RequestQuery) =>
+    ["proxies", id, "requests", host, filters] as const,
+  report: (id: string, host: string, range: ReportRange, tz?: string) =>
+    ["proxies", id, "report", host, range, tz] as const,
 }
 
 // The backend reads the access logs at most every 4 s per proxy.
@@ -398,4 +408,146 @@ export function useCreateCertificate() {
     mutationFn: ({ id, body }: { id: string; body: CertRequest }) =>
       api.reverseProxy.createProxyCertificate(id, body),
   })
+}
+
+// ── A site's own requests (Logs tab) and report (Report tab) ───────────
+
+export type RequestQuery = NonNullable<
+  Parameters<typeof api.reverseProxy.listProxyHostRequests>[2]
+>
+export type ReportRange = "1h" | "24h" | "7d" | "30d"
+
+// A request as the list shows it: `key` for React, `at` = when it came in
+// live (to flash it).
+export type RequestRow = ProxyRequest & { key: string; at?: number }
+export type HostRequests = Omit<ProxyRequests, "items"> & {
+  items: RequestRow[]
+  // Following the log skipped lines (too many at once).
+  skipped?: boolean
+}
+
+// The report says the previous period is null when it couldn't read it.
+export type HostReport = Omit<ProxyHostReport, "previous"> & {
+  previous: ProxyHostReport["previous"] | null
+}
+
+const LIVE_POLL = 2_500
+const REPORT_POLL = 60_000
+
+let rowSeq = 0
+const toRows = (items: ProxyRequest[], at?: number): RequestRow[] =>
+  items.map((r) => {
+    rowSeq += 1
+    return { ...r, key: `r${rowSeq}`, at }
+  })
+
+const addClasses = (a: ProxyRequestClasses, b: ProxyRequestClasses) => ({
+  ok: a.ok + b.ok,
+  redirects: a.redirects + b.redirects,
+  client_errors: a.client_errors + b.client_errors,
+  server_errors: a.server_errors + b.server_errors,
+})
+
+// The newest requests matching `filters`. While `live`, what the log gets
+// from then on is read every few seconds (from the answer's cursor) and put
+// on top, so nothing is read twice.
+export function useHostRequests(
+  id: string,
+  host: string,
+  filters: RequestQuery,
+  live: boolean,
+) {
+  const qc = useQueryClient()
+  const key = proxyKeys.requests(id, host, filters)
+  const query = useQuery({
+    queryKey: key,
+    queryFn: async (): Promise<HostRequests> => {
+      const r = await api.reverseProxy.listProxyHostRequests(id, host, filters)
+      return { ...r, items: toRows(r.items) }
+    },
+    placeholderData: (previous) => previous,
+    staleTime: Number.POSITIVE_INFINITY,
+    retry: false,
+  })
+  const ready = !!query.data && !query.isPlaceholderData && !query.data.missing
+  const follow = live && ready && !filters.to
+  const keyText = JSON.stringify(key)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyText stands for key and filters
+  useEffect(() => {
+    if (!follow) return
+    let busy = false
+    let stopped = false
+    const tick = async () => {
+      if (busy || document.hidden) return
+      const now = qc.getQueryData<HostRequests>(key)
+      if (!now?.cursor) return
+      busy = true
+      try {
+        const { range: _r, from: _f, ...rest } = filters
+        const r = await api.reverseProxy.listProxyHostRequests(id, host, {
+          ...rest,
+          cursor: now.cursor,
+        })
+        if (stopped || r.missing) return
+        qc.setQueryData<HostRequests>(key, (old) =>
+          old && old.cursor === now.cursor
+            ? mergeFollow(old, r, filters.limit ?? 300)
+            : old,
+        )
+      } catch {
+        // The next tick tries again; the list stays as it is.
+      } finally {
+        busy = false
+      }
+    }
+    const timer = window.setInterval(tick, LIVE_POLL)
+    return () => {
+      stopped = true
+      window.clearInterval(timer)
+    }
+  }, [follow, keyText, qc, id, host])
+  return { ...query, following: follow }
+}
+
+function mergeFollow(
+  old: HostRequests,
+  r: ProxyRequests,
+  limit: number,
+): HostRequests {
+  if (!r.items.length && r.cursor === old.cursor && !r.scanned) return old
+  return {
+    ...old,
+    items: [...toRows(r.items, Date.now()), ...old.items].slice(0, limit),
+    classes: addClasses(old.classes, r.classes),
+    matched: old.matched + r.matched,
+    scanned: old.scanned + r.scanned,
+    detailed: old.detailed || r.detailed,
+    cursor: r.cursor,
+    skipped: old.skipped || r.partial,
+  }
+}
+
+// Worked out by the backend from the whole log (kept there for a minute);
+// Refresh asks it to read again.
+export function useHostReport(id: string, host: string, range: ReportRange) {
+  const qc = useQueryClient()
+  const tz = timeZone()
+  const key: QueryKey = proxyKeys.report(id, host, range, tz)
+  const get = (fresh: boolean) => () =>
+    api.reverseProxy.getProxyHostReport(id, host, {
+      range,
+      tz,
+      fresh: fresh || undefined,
+    }) as Promise<HostReport>
+  const query = useQuery({
+    queryKey: key,
+    queryFn: get(false),
+    refetchInterval: REPORT_POLL,
+    placeholderData: (previous) => previous,
+    retry: false,
+  })
+  return {
+    ...query,
+    refresh: () => qc.fetchQuery({ queryKey: key, queryFn: get(true) }),
+  }
 }

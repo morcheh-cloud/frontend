@@ -9,33 +9,53 @@ import {
   KeyRound,
   Lock,
   RefreshCw,
+  ShieldCheck,
+  SignpostBig,
 } from "lucide-react"
+import Link from "next/link"
 import type { ReactNode } from "react"
 
 import { Empty, SearchBox } from "@/app/(panel)/servers/[id]/components/parts"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useIsPhone } from "@/hooks/useIsPhone"
-import type { Certificate, Proxy as ReverseProxy, Site } from "@/lib/services"
+import type {
+  Certificate,
+  ProxyDetail,
+  ProxyHost,
+  Proxy as ReverseProxy,
+  Site,
+} from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { useInspection } from "../../api"
 import {
+  catchAllHost,
   domainsText,
+  holdsDefault,
+  hostHref,
+  hostName,
+  hostTarget,
+  newHostHref,
   proxyStatusMeta,
   useProxyPageFilters,
 } from "../../components/meta"
 import { Tag, Th } from "../../components/parts"
+import { useProxyCan } from "../../components/permissions"
 import { useProxyActions } from "../../components/proxy-actions"
 import { inspectable, Toolbar } from "./toolbar"
 
-// Read-only: what the server already serves that Morcheh didn't write, the
-// certificates it found, and files it couldn't read.
-export function ExistingTab({ proxy: p }: { proxy: ReverseProxy }) {
+// What the server already serves that Morcheh didn't write, the
+// certificates it found, and files it couldn't read. Read-only, except that
+// a catch-all site of Morcheh's takes the default server over (see
+// DefaultSection).
+export function ExistingTab({ detail }: { detail: ProxyDetail }) {
+  const p = detail.proxy
   const phone = useIsPhone()
   const inspection = useInspection(p.id, inspectable(p))
   const [{ q }, setFilters] = useProxyPageFilters()
   const needle = q.trim().toLowerCase()
   const data = inspection.data
+  const released = data?.released_default ?? []
   const sites = (data?.sites ?? [])
     .filter((s) => !s.managed)
     .filter(
@@ -65,7 +85,7 @@ export function ExistingTab({ proxy: p }: { proxy: ReverseProxy }) {
         {!phone && (
           <>
             <span className="text-caption text-ash">
-              Read-only: Morcheh never changes these
+              Read-only: Morcheh only takes over the default site
             </span>
             <span className="flex-1" />
           </>
@@ -107,6 +127,14 @@ export function ExistingTab({ proxy: p }: { proxy: ReverseProxy }) {
         />
       ) : (
         <div className="flex flex-col gap-8 max-md:gap-6">
+          <DefaultSection
+            proxy={p}
+            hosts={detail.hosts}
+            sites={data?.sites ?? []}
+            released={data?.released_default ?? []}
+            phone={!!phone}
+          />
+
           <Section
             title="Other sites"
             count={sites.length}
@@ -119,9 +147,9 @@ export function ExistingTab({ proxy: p }: { proxy: ReverseProxy }) {
                   : "Only Morcheh's sites are on this server."}
               </Quiet>
             ) : phone ? (
-              <SiteRows proxy={p} sites={sites} />
+              <SiteRows proxy={p} sites={sites} released={released} />
             ) : (
-              <SitesTable proxy={p} sites={sites} />
+              <SitesTable proxy={p} sites={sites} released={released} />
             )}
           </Section>
 
@@ -176,7 +204,7 @@ function Section({
   children,
 }: {
   title: string
-  count: number
+  count?: number
   hint: string
   children: ReactNode
 }) {
@@ -185,14 +213,150 @@ function Section({
       <div className="max-md:px-4">
         <h2 className="flex items-center gap-2 text-body font-medium">
           {title}
-          <span className="text-body-sm font-normal text-ash tabular-nums">
-            {count}
-          </span>
+          {count !== undefined && (
+            <span className="text-body-sm font-normal text-ash tabular-nums">
+              {count}
+            </span>
+          )}
         </h2>
         <p className="text-body-sm text-muted-foreground">{hint}</p>
       </div>
       {children}
     </section>
+  )
+}
+
+// Who answers a name no site has, or the server's bare IP address: a
+// catch-all site of Morcheh's, a hand-written default_server, or nobody
+// (nginx then uses the first site it read). Saving a catch-all site takes
+// the role over from a hand-written one; the backend puts it back when that
+// site is turned off or removed.
+function DefaultSection({
+  proxy: p,
+  hosts,
+  sites,
+  released,
+  phone,
+}: {
+  proxy: ReverseProxy
+  hosts: ProxyHost[]
+  sites: Site[]
+  released: string[]
+  phone: boolean
+}) {
+  const can = useProxyCan()
+  const mine = catchAllHost(hosts)
+  const hand = sites.find(holdsDefault)
+  const manage = can(p, "engineer") && (
+    <Button
+      variant={hand ? "default" : "outline"}
+      size={phone ? "lg" : "default"}
+      className={cn(phone && "w-full")}
+      render={<Link href={newHostHref(p.id, "notfound")} />}
+      nativeButton={false}
+    >
+      {hand ? "Manage in Morcheh" : "Set up a default site"}
+    </Button>
+  )
+
+  return (
+    <Section
+      title="Default site"
+      hint="Answers visits for names no site here has, and visits to the server's IP address."
+    >
+      <div
+        className={cn(
+          "flex gap-3 border-border",
+          phone
+            ? "flex-col border-y px-4 py-3"
+            : "items-center rounded-2xl border px-4 py-3",
+        )}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <span
+            className={cn(
+              "flex size-9 shrink-0 items-center justify-center rounded-lg",
+              mine
+                ? "bg-brand-soft text-brand-strong"
+                : "bg-muted text-muted-foreground",
+            )}
+          >
+            {mine ? (
+              <ShieldCheck className="size-4" />
+            ) : (
+              <SignpostBig className="size-4" />
+            )}
+          </span>
+          {mine ? (
+            <span className="min-w-0 flex-1">
+              <span className="flex min-w-0 items-center gap-2">
+                <Link
+                  href={hostHref(p.id, mine.id)}
+                  className="truncate font-medium outline-none hover:text-brand focus-visible:text-brand"
+                >
+                  {hostName(mine)}
+                </Link>
+                <Tag tone="brand">Morcheh</Tag>
+              </span>
+              <span className="block truncate text-caption text-muted-foreground">
+                Every visit gets {hostTarget(mine.config)}
+              </span>
+            </span>
+          ) : hand ? (
+            <span className="min-w-0 flex-1">
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="truncate font-medium">
+                  {hand.domains.length
+                    ? domainsText(hand.domains)
+                    : "A hand-written site"}
+                </span>
+                <Tag>Hand-written</Tag>
+              </span>
+              <span className="block truncate font-mono text-caption text-muted-foreground">
+                {hand.file}:{hand.line}
+                {siteTarget(hand) && ` · ${siteTarget(hand)}`}
+              </span>
+            </span>
+          ) : (
+            <span className="min-w-0 flex-1">
+              <span className="block font-medium">Not set</span>
+              <span className="block text-caption text-muted-foreground">
+                {p.kind_label} uses the first site it reads, so another site's
+                page shows up.
+              </span>
+            </span>
+          )}
+        </div>
+        {mine ? (
+          <Button
+            variant="outline"
+            size={phone ? "lg" : "default"}
+            className={cn(phone && "w-full")}
+            render={<Link href={hostHref(p.id, mine.id)} />}
+            nativeButton={false}
+          >
+            Open
+          </Button>
+        ) : (
+          manage
+        )}
+      </div>
+      {mine && released.length > 0 && (
+        <p className="text-caption text-muted-foreground max-md:px-4">
+          Taken over from{" "}
+          <span className="font-mono">{released.join(", ")}</span>: only the
+          word default_server was removed there. It goes back when this site
+          stops answering other names or is removed.
+        </p>
+      )}
+      {!mine && hand && can(p, "engineer") && (
+        <p className="text-caption text-muted-foreground max-md:px-4">
+          Saving one takes only the word default_server off that file's listen
+          lines (a copy is kept) and puts it back if that site is turned off or
+          removed.
+        </p>
+      )}
+    </Section>
   )
 }
 
@@ -212,12 +376,31 @@ function siteTarget(s: Site) {
   return ""
 }
 
+// A hand-written site's name, and a tag when it is (or was) the default.
+function SiteLabel({ site: s, released }: { site: Site; released: string[] }) {
+  const tag = holdsDefault(s)
+    ? "Default"
+    : released.includes(s.file)
+      ? "Default moved to Morcheh"
+      : ""
+  return (
+    <>
+      <span className="truncate font-mono font-medium">
+        {s.domains.length ? domainsText(s.domains) : "No name"}
+      </span>
+      {tag && <Tag>{tag}</Tag>}
+    </>
+  )
+}
+
 function SitesTable({
   proxy: p,
   sites,
+  released,
 }: {
   proxy: ReverseProxy
   sites: Site[]
+  released: string[]
 }) {
   const actions = useProxyActions()
   return (
@@ -258,9 +441,7 @@ function SitesTable({
                       className="size-3.5 shrink-0 text-ash"
                     />
                   )}
-                  <span className="truncate font-mono font-medium">
-                    {s.domains.length ? domainsText(s.domains) : "Default site"}
-                  </span>
+                  <SiteLabel site={s} released={released} />
                 </button>
               </td>
               <td className="max-w-72 truncate px-3 font-mono text-caption text-muted-foreground">
@@ -280,7 +461,15 @@ function SitesTable({
   )
 }
 
-function SiteRows({ proxy: p, sites }: { proxy: ReverseProxy; sites: Site[] }) {
+function SiteRows({
+  proxy: p,
+  sites,
+  released,
+}: {
+  proxy: ReverseProxy
+  sites: Site[]
+  released: string[]
+}) {
   const actions = useProxyActions()
   return (
     <ul className="divide-y divide-border border-y border-border">
@@ -298,8 +487,8 @@ function SiteRows({ proxy: p, sites }: { proxy: ReverseProxy; sites: Site[] }) {
                 ) : (
                   <Globe className="size-3.5 shrink-0 text-ash" />
                 )}
-                <span className="truncate font-mono text-body font-medium">
-                  {s.domains.length ? domainsText(s.domains) : "Default site"}
+                <span className="flex min-w-0 items-center gap-2 text-body">
+                  <SiteLabel site={s} released={released} />
                 </span>
               </span>
               <span className="truncate font-mono text-caption text-muted-foreground">

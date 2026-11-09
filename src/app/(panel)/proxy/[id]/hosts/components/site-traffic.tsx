@@ -10,7 +10,7 @@ import type {
 } from "@/lib/services"
 import { useProxyTraffic } from "../../../api"
 import { MiniBars, SiteNumbers } from "../../../components/live"
-import { proxyHref } from "../../../components/meta"
+import { hostHref } from "../../../components/meta"
 import { EditorCard as Card } from "./editor-card"
 
 // The site's own live numbers, beside its settings, and a way to its log.
@@ -41,7 +41,7 @@ export function SiteTraffic({
       phone={phone}
       action={
         <Link
-          href={proxyHref(p.id, "logs")}
+          href={hostHref(p.id, host.id, "logs")}
           className="inline-flex min-h-11 items-center gap-1.5 text-caption font-medium text-brand underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 md:min-h-0"
         >
           <ScrollText className="size-3.5" />

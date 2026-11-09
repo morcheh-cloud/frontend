@@ -14,6 +14,7 @@ import type {
   ProxyHost,
   ProxyHostState,
   Proxy as ReverseProxy,
+  Site,
 } from "@/lib/services"
 import { cn } from "@/lib/utils"
 
@@ -155,6 +156,21 @@ export function hostTarget(c: HostConfig) {
   return c.upstream ?? ""
 }
 
+// A hand-written site that answers every unknown name on port 80 or 443
+// (default_server): what a catch-all site of Morcheh's takes over when it
+// saves (the backend's DefaultHolders).
+export const holdsDefault = (s: Pick<Site, "listen" | "managed">) =>
+  !s.managed &&
+  s.listen.some(
+    (l) =>
+      /^(\S*:)?(80|443)(\s|$)/.test(l) &&
+      l.split(/\s+/).includes("default_server"),
+  )
+
+// The site of Morcheh's answering every unknown name, when one is on.
+export const catchAllHost = (hosts: ProxyHost[]) =>
+  hosts.find((h) => h.enabled && h.config.catch_all && !h.handwritten)
+
 // What a 404 host answers.
 export const notFoundText = (code?: number) =>
   code === 410
@@ -251,8 +267,9 @@ export const newHostHref = (id: string, type?: HostType) =>
 // A new site that starts as a copy of another one.
 export const duplicateHostHref = (id: string, host: string) =>
   `/proxy/${id}/hosts/new?from=${encodeURIComponent(host)}`
-export const hostHref = (id: string, host: string) =>
-  `/proxy/${id}/hosts/${host}`
+// `tab` = one of the site editor's tabs (Report when left out).
+export const hostHref = (id: string, host: string, tab?: string) =>
+  `/proxy/${id}/hosts/${host}${tab ? `?tab=${tab}` : ""}`
 
 // The first domain plus how many more.
 export function domainsText(domains: string[]) {

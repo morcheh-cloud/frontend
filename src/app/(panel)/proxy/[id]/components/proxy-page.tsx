@@ -92,7 +92,7 @@ function useRemoved() {
 }
 
 function TabBody({ detail, tab }: { detail: ProxyDetail; tab: ProxyTab }) {
-  if (tab === "existing") return <ExistingTab proxy={detail.proxy} />
+  if (tab === "existing") return <ExistingTab detail={detail} />
   if (tab === "logs") return <LogsTab detail={detail} />
   if (tab === "history") return <HistoryTab proxy={detail.proxy} />
   return <SitesTab detail={detail} />

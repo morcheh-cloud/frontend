@@ -8,6 +8,7 @@ import {
   Ellipsis,
   Globe,
   Info,
+  Lock,
   PencilLine,
   TriangleAlert,
 } from "lucide-react"
@@ -40,6 +41,7 @@ import { proxyKeys, useInspection, useProxy, useSaveHost } from "../../../api"
 import {
   canWrite,
   type HostType,
+  holdsDefault,
   hostHref,
   hostName,
   hostTypeMeta,
@@ -83,13 +85,16 @@ import {
   tabOfError,
   tabsFor,
   useEditorTab,
+  viewTabs,
 } from "./editor-tabs"
 import { HardeningCard } from "./hardening-card"
 import { HttpsTab } from "./https-tab"
 import { LoginTab } from "./login-tab"
+import { LogsTab } from "./logs-tab"
 import { NginxCode } from "./nginx-code"
 import { PagesTab } from "./pages-tab"
 import { RateLimitEditor } from "./rate-limit"
+import { ReportTab } from "./report-tab"
 import { HeaderRows, PathRows } from "./rows"
 import { SiteTraffic } from "./site-traffic"
 import { TemplatePicker } from "./templates"
@@ -199,10 +204,9 @@ function Editor({
       }
     }
   }
-  // A hand-written site that already answers every other name.
-  const defaultSite = handSites.find((x) =>
-    x.listen.some((l) => /\bdefault_server\b/.test(l)),
-  )
+  // A hand-written site that answers every other name now: saving a
+  // catch-all site takes that over from it.
+  const defaultSite = handSites.find(holdsDefault)
   // New sites start as the kind the list's tab was showing, or as a copy
   // of another site (?from=).
   const params = useSearchParams()
@@ -224,7 +228,7 @@ function Editor({
   const [refusal, setRefusal] = useState("")
   const [touched, setTouched] = useState(!!source)
   const [template, setTemplate] = useState("")
-  const tabs = tabsFor(draft.type, caps)
+  const tabs = tabsFor(draft.type, caps, !!host)
   const { tab, setTab } = useEditorTab(tabs)
   const [conflict, setConflict] = useOpen("proxy-host-conflict")
   const [menuOpen, setMenuOpen] = useOpen("proxy-host-sheet")
@@ -335,6 +339,48 @@ function Editor({
     )
   }
 
+  // Writes the saved site again as it is, so nginx switches it to the
+  // detailed log format (response times, domain, cache).
+  const canRewrite =
+    !!host && can(p, "engineer") && canWrite(p) && !host.redacted && !dirty
+  function rewrite() {
+    if (!host) return
+    save.mutate(
+      {
+        id: p.id,
+        host: host.id,
+        body: {
+          config: host.config,
+          enabled: host.enabled,
+          note: host.note,
+          revision,
+        },
+      },
+      {
+        onSuccess: (d) => {
+          setRevision(d.hosts.find((h) => h.id === host.id)?.updated_at)
+          toast.success("Written again: new lines carry the details")
+        },
+        onError: (err) => {
+          if (err instanceof ApiError && err.status === 409) {
+            toast.error("Someone else saved this site: reload the page first")
+            return
+          }
+          toast.error(err.message)
+        },
+      },
+    )
+  }
+  const operator = can(p, "operator")
+  const viewing = viewTabs.includes(tab)
+  const needOperator = (
+    <Empty
+      icon={Lock}
+      title="You need Operator access"
+      body="The site's log and report are open to people with Operator access (or more) on this server."
+    />
+  )
+
   function loadTheirs() {
     setConflict(false)
     if (!host) return
@@ -439,6 +485,30 @@ function Editor({
     inspection: inspection.data,
   }
   const sections: Record<EditorTab, ReactNode> = {
+    report:
+      host && operator ? (
+        <ReportTab
+          proxy={p}
+          host={host}
+          phone={phone}
+          rewrite={canRewrite ? rewrite : undefined}
+          rewriting={save.isPending}
+        />
+      ) : (
+        needOperator
+      ),
+    logs:
+      host && operator ? (
+        <LogsTab
+          proxy={p}
+          host={host}
+          phone={phone}
+          rewrite={canRewrite ? rewrite : undefined}
+          rewriting={save.isPending}
+        />
+      ) : (
+        needOperator
+      ),
     general: (
       <div
         className={cn(
@@ -811,12 +881,15 @@ function Editor({
 
   const infos = tabInfo(tabs, draft, errors)
   const showNotices =
-    (!!source && !why) ||
-    !!why ||
-    !!refusal ||
-    !!host?.redacted ||
-    (!!draft.custom.trim() && tab !== "config")
-  const form = (
+    !viewing &&
+    ((!!source && !why) ||
+      !!why ||
+      !!refusal ||
+      !!host?.redacted ||
+      (!!draft.custom.trim() && tab !== "config"))
+  const form = viewing ? (
+    sections[tab]
+  ) : (
     <fieldset
       disabled={readOnly}
       className={cn("flex min-w-0 flex-col", phone ? "" : "gap-6")}

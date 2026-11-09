@@ -498,17 +498,24 @@ export const reverseProxy: GuideSection[] = [
     body: (
       <>
         <P>
+          A saved site opens on its <UI>Report</UI>; the tabs after it are its
+          settings, then its <UI>Logs</UI> and the <UI>Config</UI> they make.
           Only the tabs a site can use show up: a stream has no HTTPS, Login,
           Routing or Pages, a 404 page has no Login or Routing. A tab with
           something set shows it beside its name (<UI>HTTPS On</UI>,{" "}
           <UI>Routing 3</UI>, <UI>Login SSO</UI>); a red dot means a field there
           was refused when you saved, and Save takes you to it. The open tab is
           kept in the address (<C>?tab=security</C>), so a link can open a site
-          straight on it.
+          straight on it. When the window is too narrow for every tab, the rest
+          wait under <UI>More</UI> at the end of the row.
         </P>
         <Table
           head={["Tab", "What's in it"]}
           rows={[
+            [
+              <UI key="rep">Report</UI>,
+              "Charts and top lists of what visitors did: requests, errors, response times, busiest hours, pages, addresses, browsers (see Report). A saved site opens here",
+            ],
             [
               <UI key="g">General</UI>,
               "Domains, what the site does and where it goes (with Test), the app's https settings, the note, On/Off, and the site's live traffic",
@@ -556,6 +563,10 @@ export const reverseProxy: GuideSection[] = [
             [
               <UI key="a">Advanced</UI>,
               "Compression, passing answers straight through, the visitor's real address behind a CDN, the PROXY protocol for streams, upload size and timeouts, and raw nginx lines (see Advanced options)",
+            ],
+            [
+              <UI key="log">Logs</UI>,
+              "Every request as it arrives, with search and filters by time, status, path, address and more (see Logs of a site)",
             ],
             [
               <UI key="c">Config</UI>,
@@ -614,6 +625,144 @@ export const reverseProxy: GuideSection[] = [
             },
           ]}
         />
+      </>
+    ),
+  },
+  {
+    id: "site-report",
+    title: "Report",
+    body: (
+      <>
+        <P>
+          A site&apos;s <UI>Report</UI> tab is worked out from nginx&apos;s
+          access log for that site, read on the server when you open it. Pick
+          the period at the top: <UI>Last hour</UI>, <UI>24 hours</UI>,{" "}
+          <UI>7 days</UI> or <UI>30 days</UI> (kept in the address as{" "}
+          <C>?period=7d</C>). The time beside it says when the log was read; the
+          refresh button reads it again. It needs Operator access on the server.
+        </P>
+        <Table
+          head={["Part", "What it shows"]}
+          rows={[
+            [
+              <UI key="t">Tiles</UI>,
+              "Requests, different visitors (addresses), share of errors, response time (p95), data sent, and cache hits or the app's own time, each compared with the period before",
+            ],
+            [
+              <UI key="r">Requests</UI>,
+              "Requests over time, split into success, redirects, client errors (4xx) and server errors (5xx)",
+            ],
+            [
+              <UI key="c">Response time, Error rate, Visitors, Data sent</UI>,
+              "The same period, one chart each; hover (or use the arrow keys) for the exact values",
+            ],
+            [
+              <UI key="h">Busiest hours</UI>,
+              "Requests by weekday and hour, in your time zone",
+            ],
+            [
+              <UI key="d">How long they took</UI>,
+              "How many requests answered in under 100 ms, under 1 s, and so on",
+            ],
+            [
+              <UI key="l">Top lists</UI>,
+              "Pages, slowest pages, Not found, Server errors, visitors, status codes, referrers, browsers, systems, devices, bots, domains, methods, protocols, upstreams and cache states. Show all opens the whole list",
+            ],
+          ]}
+        />
+        <P>
+          Click a row in any list (a page, an address, a status code) to open
+          the <UI>Logs</UI> tab already filtered to it, to see the requests
+          behind the number.
+        </P>
+        <Tip>
+          Response times, domains and cache hits come from the detailed log
+          format Morcheh writes since this version. A site saved before it shows
+          a notice with <UI>Write the site again</UI> (Engineer): it saves the
+          site as it is, nothing else changes, and new lines carry the details.
+          Older lines stay as they were.
+        </Tip>
+        <P>
+          The report can only reach back as far as the log does: when nginx
+          (logrotate) has thrown older lines away, a notice says where the log
+          starts. A stream counts connections instead of requests, and has no
+          pages, browsers or status codes.
+        </P>
+      </>
+    ),
+  },
+  {
+    id: "site-logs",
+    title: "Logs of a site",
+    body: (
+      <>
+        <P>
+          The site&apos;s <UI>Logs</UI> tab lists its requests, newest first,
+          and follows new ones as they arrive (the blue <UI>Live</UI> dot).
+          Press <UI>Live</UI> to pause while you read; a range that ends in the
+          past never follows. Click a row for everything the line says: status,
+          path, domain, address, time taken, the upstream that answered, cache
+          state, request ID, referrer, browser, and the raw line with a copy
+          button.
+        </P>
+        <Table
+          head={["Filter", "How"]}
+          rows={[
+            [
+              <UI key="s">Search</UI>,
+              "Any text in the path, address, referrer or browser",
+            ],
+            [
+              <UI key="st">Status</UI>,
+              <>
+                <UI>2xx</UI>, <UI>3xx</UI>, <UI>4xx</UI>, <UI>5xx</UI> or{" "}
+                <UI>Errors</UI> (4xx and 5xx), with how many of each; exact
+                codes like <C>404</C> or <C>502,504</C> under <UI>Filters</UI>
+              </>,
+            ],
+            [
+              <UI key="t">Time</UI>,
+              "Last 15 minutes up to last 7 days, or your own From / To",
+            ],
+            [
+              <UI key="f">Filters</UI>,
+              <>
+                Path (<C>/api/</C>), address or its start (<C>10.0.</C>),
+                method, domain (when the site has several), status codes, slower
+                than a number of milliseconds
+              </>,
+            ],
+          ]}
+        />
+        <P>
+          Every filter is kept in the address, so a link opens the same list for
+          a colleague. Filters other than search, status and time show as pills
+          under the bar: remove one with its ×, or all with <UI>Clear all</UI>.
+          In a request&apos;s details, <UI>Only this address</UI> and{" "}
+          <UI>Only this path</UI> narrow the list to it.
+        </P>
+        <Example title="Find what broke after a deploy">
+          <Steps>
+            <P>
+              Open the site&apos;s <UI>Logs</UI> and pick <UI>5xx</UI>.
+            </P>
+            <P>
+              Click one request: <UI>Upstream</UI> and <UI>Upstream status</UI>{" "}
+              say whether the app answered at all.
+            </P>
+            <P>
+              Press <UI>Only this path</UI> to see if every request there fails,
+              then copy the request ID to look it up in the app&apos;s own logs.
+            </P>
+          </Steps>
+        </Example>
+        <P>
+          The list reads the newest lines first and stops after a large number
+          of them in one go; the footer says how many matched and how many lines
+          were read, and <UI>Show more</UI> goes further. For the server&apos;s
+          whole nginx log (errors too), use the proxy&apos;s own Logs tab (see
+          Logs).
+        </P>
       </>
     ),
   },
@@ -1346,8 +1495,18 @@ export const reverseProxy: GuideSection[] = [
           <li>A proxy can have one such site.</li>
           <li>
             If a site written by hand on the server already does this (
-            <C>default_server</C>), the switch says which file: remove it there
-            first, since nginx refuses two.
+            <C>default_server</C>, like nginx's stock{" "}
+            <C>sites-enabled/default</C>), saving moves the role to Morcheh's
+            site. Morcheh takes only the word <C>default_server</C> off that
+            file's <C>listen</C> lines on ports 80 and 443 (a copy is kept), in
+            the same change that adds its own site, tested with <C>nginx -t</C>;
+            if the test fails, everything is put back.
+          </li>
+          <li>
+            When the site stops answering other names, is turned off or removed,
+            or the proxy is removed from Morcheh, the word goes back. A file
+            someone edited by hand in the meantime is left as it is, and the
+            change says so.
           </li>
           <li>
             <C>444</C> is the quietest: scanners going through IP addresses get
@@ -1469,6 +1628,32 @@ export const reverseProxy: GuideSection[] = [
           serve, and the certificates nginx uses. They are read-only here and
           keep working next to Morcheh's sites.
         </P>
+        <P>
+          At the top, <UI>Default site</UI> says who answers names no site has
+          and visits by the server's IP address: a site of Morcheh's, a
+          hand-written one (tagged <UI>Default</UI> in the list), or nobody, in
+          which case nginx uses the first site it reads.{" "}
+          <UI>Manage in Morcheh</UI> (Engineer) opens a new 404 host with{" "}
+          <UI>Answer every other name too</UI> on; saving it takes the role
+          over, as{" "}
+          <See guide="reverse-proxy" section="catch-all">
+            Names no site has
+          </See>{" "}
+          explains. That is the only change Morcheh makes to hand-written files.
+        </P>
+        <Steps>
+          <li>
+            Open the proxy, tab <UI>On the server</UI>.
+          </li>
+          <li>
+            In <UI>Default site</UI>, press <UI>Manage in Morcheh</UI> (or{" "}
+            <UI>Set up a default site</UI> when nothing holds it).
+          </li>
+          <li>
+            Pick the answer (<C>444</C> closes the connection, the quietest) and
+            save.
+          </li>
+        </Steps>
         <Tip>
           A domain served by both a hand-written site and a Morcheh site is a
           conflict: nginx picks one and warns. Remove the old one by hand before

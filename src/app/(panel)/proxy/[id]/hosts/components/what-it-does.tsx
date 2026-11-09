@@ -2,6 +2,7 @@
 
 import {
   ArrowRight,
+  ArrowRightLeft,
   Cable,
   Check,
   CornerUpRight,
@@ -736,11 +737,13 @@ function NotFoundFields({
       />
       <FieldError text={errors.catch_all} />
       {draft.catchAll && defaultTaken && (
-        <Callout icon={<ShieldAlert />} tone="warning">
+        <Callout icon={<ArrowRightLeft />}>
           A hand-written site in{" "}
-          <span className="font-mono">{defaultTaken}</span> already answers
-          other names (default_server). The proxy refuses two of them: remove it
-          there first.
+          <span className="font-mono">{defaultTaken}</span> answers other names
+          now (default_server). Saving moves that to this site: Morcheh takes
+          only the word default_server off that file's listen lines (a copy is
+          kept) and puts it back when this site stops answering other names or
+          is removed.
         </Callout>
       )}
     </>
