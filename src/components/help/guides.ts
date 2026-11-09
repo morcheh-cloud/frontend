@@ -545,7 +545,7 @@ export const guides: GuideMeta[] = [
     slug: "reverse-proxy",
     title: "Reverse proxy",
     summary:
-      "Put apps on their domains with nginx on any server: proxy, redirect or static sites, https, tested before every reload.",
+      "Put apps on their domains with nginx on any server: proxy hosts, redirects, streams and 404 hosts, https, live traffic, tested before every reload.",
     icon: Split,
     group: "Infrastructure",
     keywords: [
@@ -572,8 +572,16 @@ export const guides: GuideMeta[] = [
       "413",
       "hsts",
       "http2",
+      "stream",
+      "tcp",
+      "udp",
+      "port forward",
+      "404",
+      "not found",
+      "proxy host",
+      "traffic",
     ],
-    routes: ["/proxy", "/proxy/*", "/proxy/*/hosts/*#sites"],
+    routes: ["/proxy#live", "/proxy/*", "/proxy/*/hosts/*#sites"],
   },
   {
     slug: "storage",

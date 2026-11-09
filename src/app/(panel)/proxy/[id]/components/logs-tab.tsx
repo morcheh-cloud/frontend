@@ -18,7 +18,7 @@ import { useIsPhone } from "@/hooks/useIsPhone"
 import type { ProxyDetail } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { useProxyLogs } from "../../api"
-import { domainsText } from "../../components/meta"
+import { byHostName, hostName } from "../../components/meta"
 import { copyText } from "../../components/proxy-actions"
 import { inspectable, Toolbar } from "./toolbar"
 
@@ -60,8 +60,8 @@ export function LogsTab({ detail }: { detail: ProxyDetail }) {
   const siteItems = [
     { value: OWN, label: `${p.kind_label}'s own log` },
     ...[...detail.hosts]
-      .sort((a, b) => (a.domains[0] ?? "").localeCompare(b.domains[0] ?? ""))
-      .map((h) => ({ value: h.id, label: domainsText(h.domains) })),
+      .sort(byHostName)
+      .map((h) => ({ value: h.id, label: hostName(h) })),
   ]
   const lineItems = lineChoices.map((n) => ({
     value: String(n),

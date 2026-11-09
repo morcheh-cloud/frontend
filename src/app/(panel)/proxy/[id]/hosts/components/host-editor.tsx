@@ -2,17 +2,19 @@
 
 import { useQueryClient } from "@tanstack/react-query"
 import {
+  Cable,
   ChevronDown,
   ChevronLeft,
   Ellipsis,
   FileCode,
+  FileX,
   Globe,
   Info,
   Lock,
   TriangleAlert,
 } from "lucide-react"
 import Link from "next/link"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 
@@ -22,7 +24,11 @@ import {
   ToggleRow,
 } from "@/app/(panel)/cronjobs/components/editor-parts"
 import { ChoiceSelect, ListInput } from "@/app/(panel)/dns/components/fields"
-import { Empty, ItemMenu } from "@/app/(panel)/servers/[id]/components/parts"
+import {
+  Empty,
+  ItemMenu,
+  Segmented,
+} from "@/app/(panel)/servers/[id]/components/parts"
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
 import { BottomSheet } from "@/components/bottom-sheet"
 import { Field } from "@/components/field"
@@ -55,10 +61,12 @@ import {
   domainsText,
   type HostType,
   hostHref,
+  hostName,
   hostTypes,
   newHostHref,
   proxyHref,
   proxyStatusMeta,
+  streamLabel,
 } from "../../../components/meta"
 import { ActionSheet, Missing, PageLoading } from "../../../components/parts"
 import { useProxyCan } from "../../../components/permissions"
@@ -77,6 +85,7 @@ import {
   sameDraft,
   toBody,
   toConfig,
+  typeUses,
 } from "./draft"
 import { NginxCode } from "./nginx-code"
 import { ConfigPreview } from "./preview"
@@ -110,7 +119,7 @@ export function HostEditorPage() {
           hostId
             ? {
                 href: hostHref(id, hostId),
-                label: host ? domainsText(host.domains) : "Site",
+                label: host ? hostName(host) : "Site",
               }
             : { href: newHostHref(id), label: "New site" },
         ]
@@ -130,7 +139,7 @@ export function HostEditorPage() {
               ? "It was removed, or you don't have access to it."
               : query.error.message
           }
-          href="/proxy?tab=proxies"
+          href="/proxy"
           label="All proxies"
           onRetry={gone ? undefined : () => query.refetch()}
         />
@@ -176,9 +185,13 @@ function Editor({
   const types = hostTypes.filter((t) => caps.types.includes(t.value))
   const inspection = useInspection(p.id, inspectable(p))
   const certs = inspection.data?.certificates ?? []
+  // New sites start as the kind the list's tab was showing.
+  const asked = useSearchParams().get("type")
+  const startType =
+    types.find((t) => t.value === asked)?.value ?? types[0]?.value
 
   const [draft, setDraft] = useState<Draft>(() =>
-    host ? draftFromHost(host) : freshDraft(types[0]?.value),
+    host ? draftFromHost(host) : freshDraft(startType),
   )
   const [revision, setRevision] = useState(host?.updated_at)
   const [errors, setErrors] = useState<Errors>({})
@@ -194,6 +207,9 @@ function Editor({
   const save = useSaveHost()
 
   const config = useMemo(() => toConfig(draft), [draft])
+  const uses = typeUses(draft.type)
+  const stream = draft.type === "stream"
+  const done = () => router.replace(proxyHref(p.id))
   const dirty = host ? !sameDraft(draft, draftFromHost(host)) : touched
   const readOnly =
     !can(p, "engineer") || !canWrite(p) || !!host?.redacted || save.isPending
@@ -230,7 +246,7 @@ function Editor({
 
   function submit(opts?: { overwrite?: boolean }) {
     const body = toBody(draft)
-    if (body.config.domains.length === 0) {
+    if (uses.domains && body.config.domains.length === 0) {
       setErrors({ domains: "Add at least one domain" })
       toast.error("Add at least one domain")
       return
@@ -250,9 +266,9 @@ function Editor({
           toast.success(
             host
               ? "Saved and loaded"
-              : `${domainsText(body.config.domains)} is live`,
+              : `${hostName({ config: body.config, domains: body.config.domains })} is live`,
           )
-          router.replace(proxyHref(p.id))
+          done()
         },
         onError: (err) => {
           if (
@@ -320,7 +336,7 @@ function Editor({
     )
   }
 
-  const title = host ? domainsText(host.domains) : "New site"
+  const title = host ? hostName(host) : stream ? "New stream" : "New site"
   const siteMenu = host
     ? hostMenu(p, host, {
         onDeleted: () => router.replace(proxyHref(p.id)),
@@ -353,22 +369,24 @@ function Editor({
 
   const sections = (
     <>
-      <Card
-        title="Domains"
-        hint="One per line. *.example.com covers every name under it. Point each one's DNS at this server."
-        phone={phone}
-      >
-        <Field label="Domains" error={errors.domains}>
-          {(f) => (
-            <ListInput
-              {...f}
-              value={draft.domains}
-              onChange={(domains) => set({ domains })}
-              placeholder={"example.com\nwww.example.com"}
-            />
-          )}
-        </Field>
-      </Card>
+      {uses.domains && (
+        <Card
+          title="Domains"
+          hint="One per line. *.example.com covers every name under it. Point each one's DNS at this server."
+          phone={phone}
+        >
+          <Field label="Domains" error={errors.domains}>
+            {(f) => (
+              <ListInput
+                {...f}
+                value={draft.domains}
+                onChange={(domains) => set({ domains })}
+                placeholder={"example.com\nwww.example.com"}
+              />
+            )}
+          </Field>
+        </Card>
+      )}
 
       <Card title="Where it goes" phone={phone}>
         {types.length > 1 && (
@@ -482,97 +500,116 @@ function Editor({
             />
           </>
         )}
-      </Card>
-
-      <Card
-        title="HTTPS"
-        hint="Uses a certificate that's already on the server."
-        phone={phone}
-      >
-        <ToggleRow
-          id="host-tls"
-          label="Serve over https"
-          checked={draft.tls}
-          onChange={setTls}
-        />
-        {draft.tls ? (
-          <>
-            {certs.length > 0 && (
-              <CertificatePicker
-                certs={certs}
-                domains={domainList(draft.domains)}
-                value={draft.certificate}
-                onPick={(c) => set({ certificate: c.certificate, key: c.key })}
-              />
-            )}
-            <Field
-              label="Certificate file"
-              hint="The full chain (fullchain.pem)."
-              error={errors["tls.certificate"]}
-            >
-              {(f) => (
-                <Input
-                  {...f}
-                  {...typing}
-                  value={draft.certificate}
-                  onChange={(e) => set({ certificate: e.target.value })}
-                  placeholder="/etc/letsencrypt/live/example.com/fullchain.pem"
-                  className="font-mono"
-                />
-              )}
-            </Field>
-            <Field label="Key file" error={errors["tls.key"]}>
-              {(f) => (
-                <Input
-                  {...f}
-                  {...typing}
-                  value={draft.key}
-                  onChange={(e) => set({ key: e.target.value })}
-                  placeholder="/etc/letsencrypt/live/example.com/privkey.pem"
-                  className="font-mono"
-                />
-              )}
-            </Field>
-            <ToggleRow
-              id="host-force-https"
-              label="Send http visitors to https"
-              checked={draft.forceHttps}
-              onChange={(forceHttps) => set({ forceHttps })}
-            />
-            <ToggleRow
-              id="host-http2"
-              label="HTTP/2"
-              hint="Faster pages. Leave on unless the app has trouble with it."
-              checked={draft.http2}
-              onChange={(http2) => set({ http2 })}
-            />
-            <ToggleRow
-              id="host-hsts"
-              label="HSTS"
-              hint="Browsers refuse plain http for this name for a year."
-              checked={draft.hsts}
-              onChange={(hsts) => set({ hsts })}
-            />
-            {draft.hsts && (
-              <Callout icon={<TriangleAlert />} tone="warning">
-                Hard to take back: if https stops working, visitors who came
-                before can't reach the site until the certificate is fixed.
-              </Callout>
-            )}
-          </>
-        ) : (
-          <p className="text-caption text-muted-foreground">
-            Plain http only. Turn it on once a certificate for these names is on
-            the server.
+        {draft.type === "notfound" && (
+          <p className="flex gap-2 rounded-lg bg-subtle p-3 text-body-sm text-muted-foreground">
+            <FileX className="mt-0.5 size-4 shrink-0 text-ash" />
+            Every request to these names gets 404 Not Found. Use it to park a
+            domain, or to stop names you don't serve from reaching another site.
           </p>
         )}
+        {stream && (
+          <StreamFields
+            draft={draft}
+            set={set}
+            errors={errors}
+            kind={p.kind_label}
+          />
+        )}
       </Card>
+
+      {uses.tls && (
+        <Card
+          title="HTTPS"
+          hint="Uses a certificate that's already on the server."
+          phone={phone}
+        >
+          <ToggleRow
+            id="host-tls"
+            label="Serve over https"
+            checked={draft.tls}
+            onChange={setTls}
+          />
+          {draft.tls ? (
+            <>
+              {certs.length > 0 && (
+                <CertificatePicker
+                  certs={certs}
+                  domains={domainList(draft.domains)}
+                  value={draft.certificate}
+                  onPick={(c) =>
+                    set({ certificate: c.certificate, key: c.key })
+                  }
+                />
+              )}
+              <Field
+                label="Certificate file"
+                hint="The full chain (fullchain.pem)."
+                error={errors["tls.certificate"]}
+              >
+                {(f) => (
+                  <Input
+                    {...f}
+                    {...typing}
+                    value={draft.certificate}
+                    onChange={(e) => set({ certificate: e.target.value })}
+                    placeholder="/etc/letsencrypt/live/example.com/fullchain.pem"
+                    className="font-mono"
+                  />
+                )}
+              </Field>
+              <Field label="Key file" error={errors["tls.key"]}>
+                {(f) => (
+                  <Input
+                    {...f}
+                    {...typing}
+                    value={draft.key}
+                    onChange={(e) => set({ key: e.target.value })}
+                    placeholder="/etc/letsencrypt/live/example.com/privkey.pem"
+                    className="font-mono"
+                  />
+                )}
+              </Field>
+              <ToggleRow
+                id="host-force-https"
+                label="Send http visitors to https"
+                checked={draft.forceHttps}
+                onChange={(forceHttps) => set({ forceHttps })}
+              />
+              <ToggleRow
+                id="host-http2"
+                label="HTTP/2"
+                hint="Faster pages. Leave on unless the app has trouble with it."
+                checked={draft.http2}
+                onChange={(http2) => set({ http2 })}
+              />
+              <ToggleRow
+                id="host-hsts"
+                label="HSTS"
+                hint="Browsers refuse plain http for this name for a year."
+                checked={draft.hsts}
+                onChange={(hsts) => set({ hsts })}
+              />
+              {draft.hsts && (
+                <Callout icon={<TriangleAlert />} tone="warning">
+                  Hard to take back: if https stops working, visitors who came
+                  before can't reach the site until the certificate is fixed.
+                </Callout>
+              )}
+            </>
+          ) : (
+            <p className="text-caption text-muted-foreground">
+              Plain http only. Turn it on once a certificate for these names is
+              on the server.
+            </p>
+          )}
+        </Card>
+      )}
 
       <MoreToggle open={more} onToggle={() => setMore(!more)} draft={draft} />
 
       {more && (
         <>
-          {caps.paths && draft.type !== "redirect" && (
+          {caps.paths && uses.paths && (
             <Card
               title="Paths"
               hint="Send a path and everything under it to another app, like /api to a backend."
@@ -586,7 +623,7 @@ function Editor({
               />
             </Card>
           )}
-          {caps.headers && (
+          {caps.headers && uses.headers && (
             <Card
               title="Headers"
               hint="Added to what visitors get back, or to what the app receives."
@@ -603,7 +640,11 @@ function Editor({
           {caps.allow && (
             <Card
               title="Only from"
-              hint="Leave empty for everyone. Others get 403 Forbidden."
+              hint={
+                stream
+                  ? "Leave empty for everyone. Others are cut off."
+                  : "Leave empty for everyone. Others get 403 Forbidden."
+              }
               phone={phone}
             >
               <Field
@@ -622,54 +663,66 @@ function Editor({
               </Field>
             </Card>
           )}
-          <Card title="Limits" phone={phone}>
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field
-                label="Largest upload (MB)"
-                hint={`Empty = ${p.kind_label}'s default (1 MB on nginx).`}
-                error={errors.max_body_mb}
-              >
-                {(f) => (
-                  <Input
-                    {...f}
-                    type="number"
-                    inputMode="numeric"
-                    min={0}
-                    max={100000}
-                    value={draft.maxBody}
-                    onChange={(e) => set({ maxBody: e.target.value })}
-                    placeholder="1"
-                    className="tabular-nums"
-                  />
+          {(uses.maxBody || uses.timeout) && (
+            <Card title="Limits" phone={phone}>
+              <div className="grid gap-4 md:grid-cols-2">
+                {uses.maxBody && (
+                  <Field
+                    label="Largest upload (MB)"
+                    hint={`Empty = ${p.kind_label}'s default (1 MB on nginx).`}
+                    error={errors.max_body_mb}
+                  >
+                    {(f) => (
+                      <Input
+                        {...f}
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        max={100000}
+                        value={draft.maxBody}
+                        onChange={(e) => set({ maxBody: e.target.value })}
+                        placeholder="1"
+                        className="tabular-nums"
+                      />
+                    )}
+                  </Field>
                 )}
-              </Field>
-              {draft.type === "proxy" && (
-                <Field
-                  label="Wait for the app (seconds)"
-                  hint="Empty = 60. Raise it for slow reports or exports."
-                  error={errors.timeout_seconds}
-                >
-                  {(f) => (
-                    <Input
-                      {...f}
-                      type="number"
-                      inputMode="numeric"
-                      min={0}
-                      max={86400}
-                      value={draft.timeout}
-                      onChange={(e) => set({ timeout: e.target.value })}
-                      placeholder="60"
-                      className="tabular-nums"
-                    />
-                  )}
-                </Field>
-              )}
-            </div>
-          </Card>
+                {uses.timeout && (
+                  <Field
+                    label={
+                      stream
+                        ? "Idle timeout (seconds)"
+                        : "Wait for the app (seconds)"
+                    }
+                    hint={
+                      stream
+                        ? "Empty = 600. A connection quiet this long is closed."
+                        : "Empty = 60. Raise it for slow reports or exports."
+                    }
+                    error={errors.timeout_seconds}
+                  >
+                    {(f) => (
+                      <Input
+                        {...f}
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        max={86400}
+                        value={draft.timeout}
+                        onChange={(e) => set({ timeout: e.target.value })}
+                        placeholder={stream ? "600" : "60"}
+                        className="tabular-nums"
+                      />
+                    )}
+                  </Field>
+                )}
+              </div>
+            </Card>
+          )}
           {caps.advanced && (
             <Card
               title="Raw directives"
-              hint={`Added as they are inside this site's block. The whole config is tested before it's loaded, so a mistake can't take ${p.kind_label} down.`}
+              hint={`Added as they are inside this ${stream ? "stream" : "site"}'s block. The whole config is tested before it's loaded, so a mistake can't take ${p.kind_label} down.`}
               phone={phone}
             >
               {host?.redacted ? (
@@ -760,7 +813,13 @@ function Editor({
   )
 
   const canSave = !why && !host?.redacted && (!host || dirty)
-  const saveLabel = save.isPending ? "Saving…" : host ? "Save" : "Add site"
+  const saveLabel = save.isPending
+    ? "Saving…"
+    : host
+      ? "Save"
+      : stream
+        ? "Add stream"
+        : "Add site"
 
   if (phone) {
     return (
@@ -842,7 +901,9 @@ function Editor({
     <div className="flex flex-col gap-6 px-6 pt-5 pb-12">
       <div className="flex items-center gap-3">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-          {draft.tls ? (
+          {stream ? (
+            <Cable className="size-5" />
+          ) : draft.tls ? (
             <Lock className="size-5" />
           ) : (
             <Globe className="size-5" />
@@ -850,7 +911,14 @@ function Editor({
         </span>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-subheading font-medium">
-            {domainList(draft.domains)[0] ?? title}
+            {stream
+              ? draft.listenPort
+                ? streamLabel({
+                    protocol: draft.protocol,
+                    listen_port: Number(draft.listenPort),
+                  })
+                : title
+              : (domainList(draft.domains)[0] ?? title)}
           </h1>
           <p className="truncate text-caption text-ash">
             {dirty
@@ -955,7 +1023,7 @@ function TypePicker({
     <div
       role="radiogroup"
       aria-label="What the site does"
-      className="grid gap-2 md:grid-cols-3"
+      className="grid gap-2 md:grid-cols-2 2xl:grid-cols-3"
     >
       {types.map((t) => {
         const Icon = t.icon
@@ -991,6 +1059,78 @@ function TypePicker({
         )
       })}
     </div>
+  )
+}
+
+// A port on the proxy's server, forwarded as is to another address.
+function StreamFields({
+  draft,
+  set,
+  errors,
+  kind,
+}: {
+  draft: Draft
+  set: (patch: Partial<Draft>) => void
+  errors: Errors
+  kind: string
+}) {
+  return (
+    <>
+      <div className="grid gap-4 md:grid-cols-[minmax(0,12rem)_auto]">
+        <Field
+          label="Port"
+          hint="Opened on the proxy's server."
+          error={errors.listen_port}
+        >
+          {(f) => (
+            <Input
+              {...f}
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={65535}
+              value={draft.listenPort}
+              onChange={(e) => set({ listenPort: e.target.value })}
+              placeholder="5432"
+              className="font-mono tabular-nums"
+            />
+          )}
+        </Field>
+        <Field label="Protocol" error={errors.protocol}>
+          {() => (
+            <Segmented
+              label="Protocol"
+              value={draft.protocol}
+              onChange={(protocol) => set({ protocol })}
+              items={[
+                { value: "tcp", label: "TCP" },
+                { value: "udp", label: "UDP" },
+              ]}
+            />
+          )}
+        </Field>
+      </div>
+      <Field
+        label="Forward to"
+        hint="host:port, as the proxy's server reaches it."
+        error={errors.stream_to}
+      >
+        {(f) => (
+          <Input
+            {...f}
+            {...typing}
+            value={draft.streamTo}
+            onChange={(e) => set({ streamTo: e.target.value })}
+            placeholder="10.0.0.12:5432"
+            className="font-mono"
+          />
+        )}
+      </Field>
+      <p className="text-caption text-ash">
+        {kind} passes the connection through untouched: no domains, no https of
+        its own. Open the port in the server's firewall too.
+      </p>
+    </>
   )
 }
 

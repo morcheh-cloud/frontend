@@ -78,6 +78,7 @@ import {
   canWrite,
   domainsText,
   hostHref,
+  hostName,
   needsSetup,
   newHostHref,
   proxyHref,
@@ -243,7 +244,7 @@ export function ProxyActionsProvider({ children }: { children: ReactNode }) {
         {
           onSuccess: () =>
             toast.success(
-              `${domainsText(host.domains)} ${host.enabled ? "turned off" : "turned on"}`,
+              `${hostName(host)} ${host.enabled ? "turned off" : "turned on"}`,
               {
                 description: host.enabled
                   ? `${p.kind_label} stops answering for it.`
@@ -372,7 +373,7 @@ export function ProxyActionsProvider({ children }: { children: ReactNode }) {
       <ConfirmDialog
         open={hostDeleteOpen}
         onOpenChange={setHostDeleteOpen}
-        title={`Delete ${domainsText(hostToDelete?.host.domains ?? [])}?`}
+        title={`Delete ${hostToDelete ? hostName(hostToDelete.host) : "this site"}?`}
         description={`Its file is taken off ${hostToDelete?.proxy.server_name} and ${hostToDelete?.proxy.kind_label} reloads. History keeps a copy, so you can bring it back.`}
         confirmLabel="Delete site"
         pending={removeHost.isPending}
@@ -860,7 +861,14 @@ export function useHostMenu() {
     { onDeleted }: { onDeleted?: () => void } = {},
   ): Item[][] => {
     const engineer = can(p, "engineer") && canWrite(p)
-    const url = siteUrl(host.domains[0] ?? "", !!host.config.tls?.enabled)
+    const stream = host.config.type === "stream"
+    const url = stream
+      ? null
+      : siteUrl(host.domains[0] ?? "", !!host.config.tls?.enabled)
+    // A stream is reached at the proxy's server and its port.
+    const address = stream
+      ? `${p.server_host}:${host.config.listen_port ?? ""}`
+      : (host.domains[0] ?? "")
     return [
       [
         {
@@ -894,9 +902,9 @@ export function useHostMenu() {
           : []),
         {
           key: "copy",
-          label: "Copy domain",
+          label: stream ? "Copy address" : "Copy domain",
           icon: <Copy />,
-          onSelect: () => copyText(host.domains[0] ?? "", "Domain"),
+          onSelect: () => copyText(address, stream ? "Address" : "Domain"),
         },
       ],
       engineer

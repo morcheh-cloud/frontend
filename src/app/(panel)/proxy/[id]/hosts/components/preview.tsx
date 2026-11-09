@@ -34,6 +34,9 @@ const fieldLabels: Record<string, string> = {
   headers: "Headers",
   paths: "Paths",
   advanced: "Raw directives",
+  listen_port: "Port",
+  protocol: "Protocol",
+  stream_to: "Forward to",
 }
 
 function fieldLabel(field: string) {
@@ -60,7 +63,7 @@ export function ConfigPreview({
 }) {
   const settled = useSettled(config)
   // The API refuses a site without a domain before it looks at the rest.
-  const empty = settled.domains.length === 0
+  const empty = settled.type !== "stream" && settled.domains.length === 0
   const preview = useHostPreview(p.id, hostId, empty ? null : settled)
   const label = p.capabilities.config_label || `${p.kind_label} config`
   const text = preview.data?.text ?? ""

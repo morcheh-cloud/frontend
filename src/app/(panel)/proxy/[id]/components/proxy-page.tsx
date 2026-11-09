@@ -71,7 +71,7 @@ export function ProxyPageView() {
               ? "It was removed, or you don't have access to it."
               : query.error.message
           }
-          href="/proxy?tab=proxies"
+          href="/proxy"
           label="All proxies"
           onRetry={gone ? undefined : () => query.refetch()}
         />
@@ -88,7 +88,7 @@ export function ProxyPageView() {
 
 function useRemoved() {
   const router = useRouter()
-  return () => router.replace("/proxy?tab=proxies")
+  return () => router.replace("/proxy")
 }
 
 function TabBody({ detail, tab }: { detail: ProxyDetail; tab: ProxyTab }) {

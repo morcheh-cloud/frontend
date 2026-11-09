@@ -22,7 +22,7 @@ export function Segmented<T extends string>({
   onChange,
 }: {
   label: string
-  items: readonly { value: T; label: string }[]
+  items: readonly { value: T; label: ReactNode }[]
   value: T
   onChange: (value: T) => void
 }) {

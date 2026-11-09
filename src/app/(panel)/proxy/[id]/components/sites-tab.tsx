@@ -1,6 +1,6 @@
 "use client"
 
-import { Ellipsis, Globe, Lock, Plus, RefreshCw } from "lucide-react"
+import { Cable, Ellipsis, Globe, Lock, Plus, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { useRef, useState } from "react"
 
@@ -24,9 +24,10 @@ import type {
 import { cn } from "@/lib/utils"
 import { useInspection, useProxy } from "../../api"
 import {
+  byHostName,
   canWrite,
-  domainsText,
   hostHref,
+  hostName,
   hostStateMeta,
   hostTarget,
   hostTypeMeta,
@@ -49,7 +50,7 @@ export function SitesTab({ detail }: { detail: ProxyDetail }) {
   const states = new Map(inspection.data?.hosts.map((h) => [h.id, h]))
   const needle = q.trim().toLowerCase()
   const hosts = [...detail.hosts]
-    .sort((a, b) => (a.domains[0] ?? "").localeCompare(b.domains[0] ?? ""))
+    .sort(byHostName)
     .filter(
       (h) =>
         !needle ||
@@ -188,7 +189,9 @@ function Domain({ host }: { host: ProxyHost }) {
   const tls = !!host.config.tls?.enabled
   return (
     <span className="flex min-w-0 items-center gap-2">
-      {tls ? (
+      {host.config.type === "stream" ? (
+        <Cable aria-label="stream" className="size-3.5 shrink-0 text-ash" />
+      ) : tls ? (
         <Lock aria-label="https" className="size-3.5 shrink-0 text-success" />
       ) : (
         <Globe aria-label="http only" className="size-3.5 shrink-0 text-ash" />
@@ -199,7 +202,7 @@ function Domain({ host }: { host: ProxyHost }) {
           !host.enabled && "text-ash",
         )}
       >
-        {domainsText(host.domains)}
+        {hostName(host)}
       </span>
     </span>
   )
@@ -277,7 +280,7 @@ function SitesTable({
                 <td className="pe-3">
                   <ItemMenu
                     groups={menu(p, h)}
-                    label={`${domainsText(h.domains)} actions`}
+                    label={`${hostName(h)} actions`}
                   />
                 </td>
               </tr>
@@ -305,7 +308,7 @@ function SiteList({
   const last = useRef<{ title: string; groups: Item[][] } | null>(null)
   const host = hosts.find((h) => h.id === picked)
   if (host) {
-    last.current = { title: domainsText(host.domains), groups: menu(p, host) }
+    last.current = { title: hostName(host), groups: menu(p, host) }
   }
   return (
     <>
@@ -328,7 +331,7 @@ function SiteList({
             </Link>
             <button
               type="button"
-              aria-label={`${domainsText(h.domains)} actions`}
+              aria-label={`${hostName(h)} actions`}
               onClick={() => {
                 setPicked(h.id)
                 setOpen(true)

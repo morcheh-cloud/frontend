@@ -32,7 +32,11 @@ export const proxyKeys = {
     ["proxies", id, "logs", host, log, lines] as const,
   fleet: ["proxy-hosts"] as const,
   kinds: ["proxy-kinds"] as const,
+  traffic: (proxy: string) => ["proxy-traffic", proxy] as const,
 }
+
+// The backend reads the access logs at most every 4 s per proxy.
+const TRAFFIC_POLL = 5_000
 
 const notFound = (error: Error) =>
   error instanceof ApiError && error.status === 404
@@ -94,6 +98,17 @@ export function useFleetHosts() {
     queryKey: proxyKeys.fleet,
     queryFn: () => api.reverseProxy.listProxyHostsEverywhere(),
     refetchInterval: STATUS_POLL,
+  })
+}
+
+// Requests per minute for the last 30 minutes, per site; "" = every proxy.
+export function useProxyTraffic(proxy: string) {
+  return useQuery({
+    queryKey: proxyKeys.traffic(proxy),
+    queryFn: () =>
+      api.reverseProxy.getProxyTraffic(proxy ? { proxy_id: proxy } : {}),
+    refetchInterval: TRAFFIC_POLL,
+    placeholderData: (previous) => previous,
   })
 }
 

@@ -22,8 +22,9 @@ import type { ProxyChangeSummary, Proxy as ReverseProxy } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { useProxyChange, useProxyHistory } from "../../api"
 import {
+  byHostName,
   canWrite,
-  domainsText,
+  hostName,
   hostTarget,
   hostTypeMeta,
 } from "../../components/meta"
@@ -171,29 +172,25 @@ function ChangeLayer({
         <p className="text-body-sm text-muted-foreground">No sites.</p>
       ) : (
         <ul className="divide-y divide-border rounded-2xl border border-border">
-          {[...detail.data.hosts]
-            .sort((a, b) =>
-              (a.domains[0] ?? "").localeCompare(b.domains[0] ?? ""),
-            )
-            .map((h) => (
-              <li key={h.id} className="flex flex-col gap-0.5 px-4 py-3">
-                <span className="flex items-center gap-2">
-                  <span
-                    className={cn(
-                      "truncate font-mono text-body-sm font-medium",
-                      !h.enabled && "text-ash",
-                    )}
-                  >
-                    {domainsText(h.domains)}
-                  </span>
-                  {!h.enabled && <Tag>Off</Tag>}
+          {[...detail.data.hosts].sort(byHostName).map((h) => (
+            <li key={h.id} className="flex flex-col gap-0.5 px-4 py-3">
+              <span className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    "truncate font-mono text-body-sm font-medium",
+                    !h.enabled && "text-ash",
+                  )}
+                >
+                  {hostName(h)}
                 </span>
-                <span className="truncate font-mono text-caption text-muted-foreground">
-                  {hostTypeMeta[h.config.type].label}
-                  {hostTarget(h.config) && ` · ${hostTarget(h.config)}`}
-                </span>
-              </li>
-            ))}
+                {!h.enabled && <Tag>Off</Tag>}
+              </span>
+              <span className="truncate font-mono text-caption text-muted-foreground">
+                {hostTypeMeta[h.config.type].label}
+                {hostTarget(h.config) && ` · ${hostTarget(h.config)}`}
+              </span>
+            </li>
+          ))}
         </ul>
       )}
     </div>

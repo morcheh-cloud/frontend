@@ -24,8 +24,9 @@ export const reverseProxy: GuideSection[] = [
           <UI>Reverse proxy</UI> puts your apps on their domains. Pick a server
           that runs (or will run) <UI>nginx</UI>, then add sites: send{" "}
           <C>app.example.com</C> to an app on <C>127.0.0.1:3000</C>, redirect an
-          old domain, or serve a folder of files, with https from a certificate
-          already on the server.
+          old domain, serve a folder of files, answer 404 for names you park, or
+          forward a TCP/UDP port (a database, SSH) to another machine, with
+          https from a certificate already on the server.
         </P>
         <P>
           Morcheh reaches the server over SSH, like everything else. Nothing
@@ -36,12 +37,12 @@ export const reverseProxy: GuideSection[] = [
           head={["Page", "What you do there"]}
           rows={[
             [
-              <UI key="s">Reverse proxy › Sites</UI>,
-              "Every site on every proxy, searchable, with its state",
+              <UI key="s">Reverse proxy</UI>,
+              "Every site on every proxy as cards, in tabs Proxy hosts (the default) / Redirections / Streams / 404 hosts, with live numbers above them",
             ],
             [
               <UI key="p">Reverse proxy › Proxies</UI>,
-              "The servers running a proxy and how each one is doing",
+              "The button in the toolbar: the servers running a proxy, how each one is doing, Add proxy",
             ],
             [
               "A proxy's page",
@@ -54,6 +55,56 @@ export const reverseProxy: GuideSection[] = [
           A server's <UI>Overview</UI> shows a line when a proxy runs on it,
           linking here. There is no proxy tab on server pages.
         </P>
+      </>
+    ),
+  },
+  {
+    id: "live",
+    title: "Sites and live numbers",
+    body: (
+      <>
+        <P>
+          <UI>Reverse proxy</UI> opens on <UI>Proxy hosts</UI>: one card per
+          site with its domain, where it goes, https, and its traffic. Click a
+          card to edit it; <UI>⋯</UI> turns it off, copies its domain or deletes
+          it. The other tabs hold <UI>Redirections</UI>, <UI>Streams</UI> and{" "}
+          <UI>404 hosts</UI>; each tab's count is in its label.
+        </P>
+        <P>
+          <UI>All proxies</UI> next to the search shows only the sites of one
+          proxy; the numbers follow it. <UI>Add</UI> at the end of the row adds
+          a site of the open tab: straight to the form when one proxy can take
+          it, else it asks which proxy.
+        </P>
+        <Table
+          head={["Number", "What it counts"]}
+          rows={[
+            [
+              <UI key="r">Requests</UI>,
+              "Requests in the last 30 minutes for the sites in this tab, with a chart per minute",
+            ],
+            [
+              <UI key="m">Requests a minute</UI>,
+              "The last full minute (the running one is left out)",
+            ],
+            [
+              <UI key="e">Server errors</UI>,
+              "Share of answers that were 5xx: amber from 1%, red from 5%",
+            ],
+            [<UI key="t">Traffic</UI>, "Bytes sent back to visitors"],
+          ]}
+        />
+        <P>
+          Numbers refresh every 5 seconds. Morcheh reads them from each site's
+          access log over SSH; nothing extra runs on the server. For{" "}
+          <UI>Streams</UI> they count connections, and <UI>Failed</UI> = the
+          target couldn't be reached.
+        </P>
+        <Tip>
+          A card saying <UI>Log not read</UI> means Morcheh couldn't read that
+          proxy's log just now (it's unreachable or the log was rotated away).
+          The sites still work.
+        </Tip>
       </>
     ),
   },
@@ -145,6 +196,19 @@ export const reverseProxy: GuideSection[] = [
                 Tick <UI>Single-page app</UI> for React, Vue or Angular builds
               </>,
             ],
+            [
+              <UI key="n">404 page</UI>,
+              "Only the domains: every request gets 404 Not Found, so parked or retired names never fall through to another site",
+            ],
+            [
+              <UI key="t">Stream</UI>,
+              <>
+                No domains: a <UI>Port</UI> on the proxy's server, <UI>TCP</UI>{" "}
+                or <UI>UDP</UI>, and <UI>Forward to</UI> e.g.{" "}
+                <C>10.0.0.12:5432</C>. Anything that isn't http: databases, SSH,
+                game or mail servers
+              </>,
+            ],
           ]}
         />
         <Example title="Grafana on its own domain">
@@ -163,6 +227,21 @@ export const reverseProxy: GuideSection[] = [
             <C>shop.example.com/cart</C>.
           </P>
         </Example>
+        <Example title="A database behind the proxy">
+          <P>
+            PostgreSQL runs on <C>10.0.0.12</C>, which isn't reachable from
+            outside. Open <UI>Streams</UI>, press <UI>Add stream</UI>: Port{" "}
+            <C>5432</C>, <UI>TCP</UI>, Forward to <C>10.0.0.12:5432</C>, and
+            under <UI>Only from</UI> your office address. Clients now connect to
+            the proxy's server on 5432.
+          </P>
+        </Example>
+        <Warn>
+          Open the stream's port in the proxy server's firewall (see{" "}
+          <See guide="firewall" />
+          ), and always fill <UI>Only from</UI> for databases and SSH: a stream
+          has no password of its own.
+        </Warn>
       </>
     ),
   },
@@ -383,6 +462,18 @@ export const reverseProxy: GuideSection[] = [
             [
               "The app redirects to its own address",
               "Turn on Pass the visitor's domain",
+            ],
+            [
+              "Add stream says streams aren't available",
+              "nginx's stream module is missing or not wired in: press Set up on the proxy, which installs and includes it",
+            ],
+            [
+              "A stream doesn't answer from outside",
+              "Open its port in the server's firewall, and check Only from",
+            ],
+            [
+              "A stream's port is in use",
+              "Another program (or another stream) already listens there: pick a free port",
             ],
           ]}
         />

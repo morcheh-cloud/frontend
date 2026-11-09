@@ -38,6 +38,10 @@ export type Draft = {
   keepPath: boolean
   root: string
   spa: boolean
+  // stream: a port on the proxy's server forwarded to host:port.
+  listenPort: string
+  protocol: "tcp" | "udp"
+  streamTo: string
   tls: boolean
   certificate: string
   key: string
@@ -83,6 +87,9 @@ export const freshDraft = (type: HostType = "proxy"): Draft => ({
   keepPath: true,
   root: "",
   spa: false,
+  listenPort: "",
+  protocol: "tcp",
+  streamTo: "",
   tls: false,
   certificate: "",
   key: "",
@@ -113,6 +120,9 @@ export function draftFromHost(h: ProxyHost): Draft {
     keepPath: c.type === "redirect" ? !!c.keep_path : base.keepPath,
     root: c.root ?? "",
     spa: !!c.spa,
+    listenPort: c.listen_port ? String(c.listen_port) : "",
+    protocol: c.protocol === "udp" ? "udp" : "tcp",
+    streamTo: c.stream_to ?? "",
     tls: !!c.tls?.enabled,
     certificate: c.tls?.certificate ?? "",
     key: c.tls?.key ?? "",
@@ -156,10 +166,31 @@ const number = (text: string) => {
   return text.trim() && Number.isFinite(n) && n > 0 ? Math.floor(n) : undefined
 }
 
+// What each type takes besides its own fields.
+export const typeUses = (t: Draft["type"]) => ({
+  domains: t !== "stream",
+  tls: t !== "stream",
+  headers: t !== "stream",
+  paths: t === "proxy" || t === "static",
+  maxBody: t !== "stream" && t !== "notfound",
+  timeout: t === "proxy" || t === "stream",
+})
+
 // Only what the chosen type uses; no `tls` means plain http.
 export function toConfig(d: Draft): HostConfig {
-  const c: HostConfig = { type: d.type, domains: domainList(d.domains) }
-  if (d.type === "proxy") {
+  const uses = typeUses(d.type)
+  const c: HostConfig = {
+    type: d.type,
+    domains: uses.domains ? domainList(d.domains) : [],
+  }
+  if (d.type === "stream") {
+    c.listen_port = number(d.listenPort)
+    c.protocol = d.protocol
+    c.stream_to = d.streamTo.trim()
+    c.timeout_seconds = number(d.timeout)
+  } else if (d.type === "notfound") {
+    // Only the domains, https, headers and who may connect.
+  } else if (d.type === "proxy") {
     c.upstream = d.upstream.trim()
     c.websockets = d.websockets
     c.preserve_host = d.preserveHost
@@ -172,7 +203,7 @@ export function toConfig(d: Draft): HostConfig {
     c.root = d.root.trim()
     c.spa = d.spa
   }
-  if (d.tls) {
+  if (d.tls && uses.tls) {
     c.tls = {
       enabled: true,
       certificate: d.certificate.trim(),
@@ -187,8 +218,8 @@ export function toConfig(d: Draft): HostConfig {
     name: name.trim(),
     value: value.trim(),
   }))
-  if (headers.length) c.headers = headers
-  if (d.type !== "redirect") {
+  if (headers.length && uses.headers) c.headers = headers
+  if (uses.paths) {
     const paths = keptPaths(d).map((p) => ({
       path: p.path.trim(),
       upstream: p.upstream.trim(),
@@ -200,7 +231,7 @@ export function toConfig(d: Draft): HostConfig {
   const allow = splitList(d.allow)
   if (allow.length) c.allow = allow
   if (d.advanced.trim()) c.advanced = d.advanced.trim()
-  c.max_body_mb = number(d.maxBody)
+  if (uses.maxBody) c.max_body_mb = number(d.maxBody)
   return c
 }
 
@@ -258,7 +289,20 @@ export function problemsToErrors(
 export function clearErrors(e: Errors, patch: Partial<Draft>): Errors {
   const next = { ...e }
   const map: Partial<Record<keyof Draft, string[]>> = {
-    type: ["type", "upstream", "redirect_to", "redirect_code", "root"],
+    type: [
+      "type",
+      "upstream",
+      "redirect_to",
+      "redirect_code",
+      "root",
+      "domains",
+      "listen_port",
+      "protocol",
+      "stream_to",
+    ],
+    listenPort: ["listen_port"],
+    protocol: ["protocol", "listen_port"],
+    streamTo: ["stream_to"],
     domains: ["domains"],
     upstream: ["upstream"],
     redirectTo: ["redirect_to"],

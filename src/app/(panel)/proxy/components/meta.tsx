@@ -1,6 +1,8 @@
 import {
   ArrowRightLeft,
+  Cable,
   CornerUpRight,
+  FileX,
   FolderOpen,
   Loader2,
   type LucideIcon,
@@ -9,6 +11,7 @@ import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs"
 
 import type {
   HostConfig,
+  ProxyHost,
   ProxyHostState,
   Proxy as ReverseProxy,
 } from "@/lib/services"
@@ -125,6 +128,18 @@ export const hostTypes: {
     icon: FolderOpen,
     short: "Serve a folder on the server",
   },
+  {
+    value: "notfound",
+    label: "404 page",
+    icon: FileX,
+    short: "Answer every request with 404 Not Found",
+  },
+  {
+    value: "stream",
+    label: "Stream",
+    icon: Cable,
+    short: "Forward a TCP or UDP port, like a database or mail",
+  },
 ]
 
 export const hostTypeMeta = Object.fromEntries(
@@ -135,8 +150,69 @@ export const hostTypeMeta = Object.fromEntries(
 export function hostTarget(c: HostConfig) {
   if (c.type === "redirect") return c.redirect_to ?? ""
   if (c.type === "static") return c.root ?? ""
+  if (c.type === "stream") return c.stream_to ?? ""
+  if (c.type === "notfound") return "404 Not Found"
   return c.upstream ?? ""
 }
+
+// A stream has no domain: it's known by its port.
+export function streamLabel(c: Pick<HostConfig, "listen_port" | "protocol">) {
+  return `${(c.protocol || "tcp").toUpperCase()} port ${c.listen_port ?? "?"}`
+}
+
+// What a site is called in lists, titles and toasts.
+export function hostName(h: Pick<ProxyHost, "config" | "domains">) {
+  return h.config.type === "stream"
+    ? streamLabel(h.config)
+    : domainsText(h.domains)
+}
+
+// The first-page tabs: what kind of sites each one shows.
+// Sites in a stable order: domains A–Z, then streams by port.
+export const byHostName = (
+  a: Pick<ProxyHost, "config" | "domains">,
+  b: Pick<ProxyHost, "config" | "domains">,
+) => {
+  const sa = a.config.type === "stream"
+  const sb = b.config.type === "stream"
+  if (sa !== sb) return sa ? 1 : -1
+  if (sa) return (a.config.listen_port ?? 0) - (b.config.listen_port ?? 0)
+  return (a.domains[0] ?? "").localeCompare(b.domains[0] ?? "")
+}
+
+export const siteTabs = ["hosts", "redirects", "streams", "notfound"] as const
+export type SiteTab = (typeof siteTabs)[number]
+export const siteTabMeta: Record<
+  SiteTab,
+  { label: string; types: HostType[]; add: HostType; noun: string }
+> = {
+  hosts: {
+    label: "Proxy hosts",
+    types: ["proxy", "static"],
+    add: "proxy",
+    noun: "proxy host",
+  },
+  redirects: {
+    label: "Redirections",
+    types: ["redirect"],
+    add: "redirect",
+    noun: "redirection",
+  },
+  streams: {
+    label: "Streams",
+    types: ["stream"],
+    add: "stream",
+    noun: "stream",
+  },
+  notfound: {
+    label: "404 hosts",
+    types: ["notfound"],
+    add: "notfound",
+    noun: "404 host",
+  },
+}
+export const tabOfType = (t: HostType): SiteTab =>
+  siteTabs.find((tab) => siteTabMeta[tab].types.includes(t)) ?? "hosts"
 
 export const hostStateMeta: Record<
   ProxyHostState["state"],
@@ -162,7 +238,8 @@ export const hostStateMeta: Record<
 
 export const proxyHref = (id: string, tab?: ProxyTab) =>
   `/proxy/${id}${tab && tab !== "sites" ? `?tab=${tab}` : ""}`
-export const newHostHref = (id: string) => `/proxy/${id}/hosts/new`
+export const newHostHref = (id: string, type?: HostType) =>
+  `/proxy/${id}/hosts/new${type && type !== "proxy" ? `?type=${type}` : ""}`
 export const hostHref = (id: string, host: string) =>
   `/proxy/${id}/hosts/${host}`
 
@@ -182,10 +259,11 @@ export function siteUrl(domain: string, tls: boolean) {
 
 // ---- URL state ----
 
-const listTabs = ["sites", "proxies"] as const
 export const proxyListFilters = {
-  tab: parseAsStringLiteral(listTabs).withDefault("sites"),
+  tab: parseAsStringLiteral(siteTabs).withDefault("hosts"),
   q: parseAsString.withDefault(""),
+  // One proxy's sites only (its id); empty = every proxy.
+  proxy: parseAsString.withDefault(""),
 }
 export const useProxyListFilters = () =>
   useQueryStates(proxyListFilters, { history: "replace" })

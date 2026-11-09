@@ -992,6 +992,10 @@ export interface Capabilities {
   /** The config language, for syntax colors */
   language: string;
   paths: boolean;
+  /** Can forward TCP/UDP ports (type stream) */
+  streams: boolean;
+  /** Reports live request counts per site */
+  traffic: boolean;
   types: string[];
   websockets: boolean;
 }
@@ -4013,15 +4017,21 @@ export interface HostConfig {
    */
   allow?: string[];
   /**
-   * Names it answers, like example.com or *.example.com
+   * Names it answers, like example.com or *.example.com; empty for a stream
    * @maxItems 50
-   * @minItems 1
    */
   domains: string[];
   /** @maxItems 50 */
   headers?: HeaderRule[];
   /** Add the requested path and query to the target */
   keep_path?: boolean;
+  /**
+   * Port the proxy listens on
+   * @format int64
+   * @min 0
+   * @max 65535
+   */
+  listen_port?: number;
   /**
    * Largest upload; 0 = the proxy's default
    * @format int64
@@ -4036,6 +4046,8 @@ export interface HostConfig {
   paths?: PathRule[];
   /** Send the visitor's Host header on, not the upstream's */
   preserve_host?: boolean;
+  /** tcp (default) or udp */
+  protocol?: "" | "tcp" | "udp";
   /**
    * 0 = 301
    * @format int64
@@ -4047,6 +4059,8 @@ export interface HostConfig {
   root?: string;
   /** Answer unknown paths with index.html (single-page apps) */
   spa?: boolean;
+  /** Where connections go, as host:port */
+  stream_to?: string;
   /**
    * How long to wait for the upstream; 0 = the proxy's default
    * @format int64
@@ -4056,7 +4070,7 @@ export interface HostConfig {
   timeout_seconds?: number;
   /** Plain http only when left out */
   tls?: HostTLS;
-  type: "proxy" | "redirect" | "static";
+  type: "proxy" | "redirect" | "static" | "notfound" | "stream";
   /** Where requests go, like http://127.0.0.1:3000 */
   upstream?: string;
   websockets?: boolean;
@@ -5426,6 +5440,19 @@ export interface ProxyHostState {
   state: "ok" | "changed" | "missing" | "off";
 }
 
+export interface ProxyHostTraffic {
+  /** Bytes sent per minute */
+  bytes: number[];
+  /** 4xx answers per minute */
+  client_errors: number[];
+  host_id: string;
+  proxy_id: string;
+  /** Per minute, oldest first */
+  requests: number[];
+  /** 5xx answers per minute */
+  server_errors: number[];
+}
+
 export interface ProxyInspection {
   ipv6: boolean;
   /**
@@ -5446,6 +5473,8 @@ export interface ProxyInspection {
   /** The panel's sites are loaded */
   set_up: boolean;
   sites: Site[];
+  /** Port forwards: ready; no_module = the stream module is missing; not_wired = setup hasn't added the stream block; taken = nginx.conf has its own stream block. Empty when the kind has no streams */
+  streams: "" | "ready" | "no_module" | "not_wired" | "taken";
   /** Files in Morcheh's folder the panel doesn't know */
   unknown: string[];
   version: string;
@@ -5468,6 +5497,31 @@ export interface ProxySiteRef {
   file: string;
   /** @format int64 */
   line: number;
+}
+
+export interface ProxyTraffic {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  hosts: ProxyHostTraffic[];
+  /** @format int64 */
+  minutes: number;
+  sources: ProxyTrafficSource[];
+  /**
+   * Start of the first minute
+   * @format date-time
+   */
+  start: string;
+}
+
+export interface ProxyTrafficSource {
+  /** @format date-time */
+  collected_at?: string;
+  error?: string;
+  ok: boolean;
+  proxy_id: string;
 }
 
 export interface Reach {
@@ -12309,6 +12363,32 @@ export class Api<
     ) =>
       this.request<GetProxyLogsResponse, ErrorModel>({
         path: `/proxies/${id}/logs`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Requests, errors and bytes per minute over the last 30 minutes, for every site on the proxies you can see, read from their access logs. Calling it reads what the logs gained since the last call (at most every few seconds per proxy).
+     *
+     * @tags Reverse proxy
+     * @name GetProxyTraffic
+     * @summary Live requests per site
+     * @request GET:/proxy-traffic
+     */
+    getProxyTraffic: (
+      query?: {
+        /**
+         * Only this proxy's sites
+         * @format uuid
+         */
+        proxy_id?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ProxyTraffic, ErrorModel>({
+        path: `/proxy-traffic`,
         method: "GET",
         query: query,
         format: "json",
