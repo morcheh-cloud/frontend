@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import {
   ArrowDown,
   ChevronLeft,
+  Copy,
   Ellipsis,
   Globe,
   Info,
@@ -44,6 +45,7 @@ import {
   hostTypeMeta,
   hostTypes,
   newHostHref,
+  notFoundText,
   proxyHref,
   proxyStatusMeta,
   streamLabel,
@@ -61,6 +63,7 @@ import {
   clearErrors,
   type Draft,
   domainList,
+  draftFromCopy,
   draftFromHost,
   type Errors,
   freshDraft,
@@ -81,11 +84,22 @@ import {
   tabsFor,
   useEditorTab,
 } from "./editor-tabs"
+import { HardeningCard } from "./hardening-card"
 import { HttpsTab } from "./https-tab"
+import { LoginTab } from "./login-tab"
 import { NginxCode } from "./nginx-code"
+import { PagesTab } from "./pages-tab"
 import { RateLimitEditor } from "./rate-limit"
 import { HeaderRows, PathRows } from "./rows"
-import { PerformanceCard, ProxyProtocolCard, RealIpCard } from "./tuning-cards"
+import { SiteTraffic } from "./site-traffic"
+import { TemplatePicker } from "./templates"
+import {
+  PerformanceCard,
+  ProxyProtocolCard,
+  RealIpCard,
+  TracingCard,
+} from "./tuning-cards"
+import { UpstreamTlsCard } from "./upstream-tls"
 import { WhatItDoes } from "./what-it-does"
 
 // /proxy/[id]/hosts/new and /proxy/[id]/hosts/[host].
@@ -185,18 +199,31 @@ function Editor({
       }
     }
   }
-  // New sites start as the kind the list's tab was showing.
-  const asked = useSearchParams().get("type")
+  // A hand-written site that already answers every other name.
+  const defaultSite = handSites.find((x) =>
+    x.listen.some((l) => /\bdefault_server\b/.test(l)),
+  )
+  // New sites start as the kind the list's tab was showing, or as a copy
+  // of another site (?from=).
+  const params = useSearchParams()
+  const asked = params.get("type")
+  const from = params.get("from")
+  const source = host ? undefined : others.find((x) => x.id === from)
   const startType =
     types.find((t) => t.value === asked)?.value ?? types[0]?.value
 
   const [draft, setDraft] = useState<Draft>(() =>
-    host ? draftFromHost(host) : freshDraft(startType),
+    host
+      ? draftFromHost(host)
+      : source
+        ? draftFromCopy(source)
+        : freshDraft(startType),
   )
   const [revision, setRevision] = useState(host?.updated_at)
   const [errors, setErrors] = useState<Errors>({})
   const [refusal, setRefusal] = useState("")
-  const [touched, setTouched] = useState(false)
+  const [touched, setTouched] = useState(!!source)
+  const [template, setTemplate] = useState("")
   const tabs = tabsFor(draft.type, caps)
   const { tab, setTab } = useEditorTab(tabs)
   const [conflict, setConflict] = useOpen("proxy-host-conflict")
@@ -255,7 +282,8 @@ function Editor({
 
   function submit(opts?: { overwrite?: boolean }) {
     const body = toBody(draft)
-    if (uses.domains && body.config.domains.length === 0) {
+    const catchAll = draft.type === "notfound" && draft.catchAll
+    if (uses.domains && !catchAll && body.config.domains.length === 0) {
       setErrors({ domains: "Add at least one domain" })
       setTab("general")
       toast.error("Add at least one domain")
@@ -355,6 +383,16 @@ function Editor({
   const notices = (
     <>
       {why && <Callout icon={<Info />}>{why}</Callout>}
+      {source && !why && (
+        <Callout icon={<Copy />}>
+          A copy of {hostName(source)}. Add its own domains
+          {source.config.tls?.enabled ? " and certificate" : ""}
+          {source.config.auth?.users?.length
+            ? ", and type the accounts' passwords again"
+            : ""}
+          .
+        </Callout>
+      )}
       {host?.redacted && !why && (
         <Callout icon={<Info />}>
           Header values and raw directives are hidden from you.
@@ -392,7 +430,14 @@ function Editor({
 
   // One tab's cards at a time; the tab bar says which tabs have something
   // set or a problem.
-  const tuning = { proxy: p, draft, set, errors, phone }
+  const tuning = {
+    proxy: p,
+    draft,
+    set,
+    errors,
+    phone,
+    inspection: inspection.data,
+  }
   const sections: Record<EditorTab, ReactNode> = {
     general: (
       <div
@@ -432,6 +477,14 @@ function Editor({
             }
             phone={phone}
           >
+            {!host && !source && !readOnly && draft.type === "proxy" && (
+              <TemplatePicker
+                draft={draft}
+                set={set}
+                picked={template}
+                onPick={setTemplate}
+              />
+            )}
             <WhatItDoes
               draft={draft}
               set={set}
@@ -439,8 +492,14 @@ function Editor({
               proxy={p}
               readOnly={readOnly}
               phone={phone}
+              defaultTaken={
+                defaultSite
+                  ? `${defaultSite.file}:${defaultSite.line}`
+                  : undefined
+              }
             />
           </Card>
+          <UpstreamTlsCard {...tuning} />
         </div>
 
         <div className={cn("flex min-w-0 flex-col", !phone && "gap-6")}>
@@ -468,6 +527,7 @@ function Editor({
               )}
             </Field>
           </Card>
+          {host && <SiteTraffic proxy={p} host={host} phone={phone} />}
           <Card title="Route" phone={phone}>
             <Route
               draft={draft}
@@ -503,10 +563,18 @@ function Editor({
           errors={errors}
           phone={phone}
         />
+        {caps.hardening && (
+          <HardeningCard
+            draft={draft}
+            set={set}
+            errors={errors}
+            phone={phone}
+          />
+        )}
         {caps.headers && uses.headers && (
           <Card
             title="Browser protections"
-            hint="Common safety headers sent with every answer. Each one is an ordinary row in Headers, where you can change its value."
+            hint="Common safety headers sent with every answer. Each one is an ordinary row in Routing › Headers, where you can change its value."
             phone={phone}
           >
             <ProtectionHeaders
@@ -548,12 +616,36 @@ function Editor({
         phone={phone}
       />
     ),
-    paths: (
+    login: (
+      <LoginTab
+        proxy={p}
+        draft={draft}
+        set={set}
+        errors={errors}
+        phone={phone}
+        inspection={inspection.data}
+      />
+    ),
+    pages: (
+      <PagesTab
+        proxy={p}
+        draft={draft}
+        set={set}
+        errors={errors}
+        phone={phone}
+      />
+    ),
+    routing: (
       <>
         {caps.paths && uses.paths && (
           <Card
             title="Paths"
-            hint="Send a path and everything under it to another app, like /api to a backend."
+            hint={
+              caps.path_actions
+                ? "Rules for part of the site: send it to another app, redirect it, serve files, block it or answer it directly. The most exact match wins."
+                : "Send a path and everything under it to another app, like /api to a backend."
+            }
+            count={draft.paths.length}
             phone={phone}
           >
             <PathRows
@@ -561,17 +653,16 @@ function Editor({
               onChange={(paths) => set({ paths })}
               errors={errors}
               websockets={caps.websockets}
+              actions={caps.path_actions}
+              login={!!draft.authMode && caps.auth && uses.auth}
             />
           </Card>
         )}
-      </>
-    ),
-    headers: (
-      <>
         {caps.headers && uses.headers && (
           <Card
             title="Headers"
-            hint="Added to what visitors get back, or to what the app receives."
+            hint="Added to what visitors get back or to what the app receives, or removed from the app's answer."
+            count={draft.headers.length}
             phone={phone}
           >
             <HeaderRows
@@ -579,6 +670,7 @@ function Editor({
               onChange={(headers) => set({ headers })}
               errors={errors}
               hidden={host?.redacted}
+              canHide={draft.type === "proxy"}
             />
           </Card>
         )}
@@ -591,6 +683,7 @@ function Editor({
             <PerformanceCard {...tuning} />
             <RealIpCard {...tuning} />
             <ProxyProtocolCard {...tuning} />
+            <TracingCard {...tuning} />
           </>
         )}
         {(uses.maxBody ||
@@ -718,6 +811,7 @@ function Editor({
 
   const infos = tabInfo(tabs, draft, errors)
   const showNotices =
+    (!!source && !why) ||
     !!why ||
     !!refusal ||
     !!host?.redacted ||
@@ -958,12 +1052,14 @@ function Route({
         : ""
       : domains[0]
         ? `${scheme}://${domains[0]}`
-        : ""
+        : d.type === "notfound" && d.catchAll
+          ? "Any other name"
+          : ""
   const to: Record<HostType, [string, string]> = {
     proxy: ["Passed on to", d.upstream.trim()],
     redirect: ["Sent to", d.redirectTo.trim()],
     static: ["Files from", d.root.trim()],
-    notfound: ["Answered with", "404 Not Found"],
+    notfound: ["Answered with", notFoundText(d.notFoundCode)],
     stream: ["Forwarded to", d.streamTo.trim()],
   }
   const [toLabel, toValue] = to[d.type]

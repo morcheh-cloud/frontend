@@ -5,6 +5,7 @@ import {
   CirclePause,
   CirclePlay,
   Copy,
+  CopyPlus,
   Eraser,
   ExternalLink,
   Eye,
@@ -79,6 +80,7 @@ import {
 import {
   canWrite,
   domainsText,
+  duplicateHostHref,
   hostHref,
   hostName,
   needsSetup,
@@ -901,6 +903,12 @@ export function useHostMenu() {
         },
         ...(engineer
           ? [
+              {
+                key: "duplicate",
+                label: "Duplicate",
+                icon: <CopyPlus />,
+                onSelect: () => router.push(duplicateHostHref(p.id, host.id)),
+              },
               {
                 key: "toggle",
                 label: host.enabled ? "Turn off" : "Turn on",

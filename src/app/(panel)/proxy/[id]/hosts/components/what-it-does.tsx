@@ -9,6 +9,7 @@ import {
   FolderOpen,
   FolderSearch,
   Globe,
+  Loader2,
   type LucideIcon,
   Plug,
   Route,
@@ -19,7 +20,11 @@ import {
 import Link from "next/link"
 import { type ReactNode, useState } from "react"
 
-import { FieldError } from "@/app/(panel)/cronjobs/components/editor-parts"
+import {
+  Callout,
+  FieldError,
+  ToggleRow,
+} from "@/app/(panel)/cronjobs/components/editor-parts"
 import { Segmented } from "@/app/(panel)/servers/[id]/components/parts"
 import { Field } from "@/components/field"
 import { FolderPicker } from "@/components/files/folder-picker"
@@ -31,8 +36,21 @@ import { Switch } from "@/components/ui/switch"
 import { useOpen } from "@/hooks/useOpen"
 import type { Proxy as ReverseProxy } from "@/lib/services"
 import { cn } from "@/lib/utils"
-import { type HostType, hostTypes } from "../../../components/meta"
-import { type Draft, domainList, type Errors, type RedirectCode } from "./draft"
+import { useTestUpstream } from "../../../api"
+import {
+  type HostType,
+  hostTypes,
+  notFoundText,
+} from "../../../components/meta"
+import {
+  type Draft,
+  domainList,
+  type Errors,
+  httpsUpstream,
+  type NotFoundCode,
+  type RedirectCode,
+  toConfig,
+} from "./draft"
 
 const typing = {
   autoCapitalize: "none",
@@ -94,6 +112,7 @@ export function WhatItDoes({
   proxy: p,
   readOnly,
   phone,
+  defaultTaken,
 }: {
   draft: Draft
   set: (patch: Partial<Draft>) => void
@@ -101,6 +120,8 @@ export function WhatItDoes({
   proxy: ReverseProxy
   readOnly: boolean
   phone: boolean
+  // A hand-written site already answers names nobody else does.
+  defaultTaken?: string
 }) {
   const caps = p.capabilities
   const types = hostTypes.filter((t) => caps.types.includes(t.value))
@@ -120,6 +141,7 @@ export function WhatItDoes({
           set={set}
           errors={errors}
           proxy={p}
+          readOnly={readOnly}
           phone={phone}
         />
       )}
@@ -136,7 +158,14 @@ export function WhatItDoes({
           phone={phone}
         />
       )}
-      {draft.type === "notfound" && <NotFoundNote />}
+      {draft.type === "notfound" && (
+        <NotFoundFields
+          draft={draft}
+          set={set}
+          errors={errors}
+          defaultTaken={defaultTaken}
+        />
+      )}
       {draft.type === "stream" && (
         <StreamFields draft={draft} set={set} errors={errors} proxy={p} />
       )}
@@ -330,12 +359,14 @@ function ProxyFields({
   set,
   errors,
   proxy: p,
+  readOnly,
   phone,
 }: {
   draft: Draft
   set: (patch: Partial<Draft>) => void
   errors: Errors
   proxy: ReverseProxy
+  readOnly: boolean
   phone: boolean
 }) {
   const host = hostOf(draft.upstream)
@@ -373,6 +404,7 @@ function ProxyFields({
         scheme="http"
         onFix={(upstream) => set({ upstream })}
       />
+      {!readOnly && <TestUpstream proxy={p} draft={draft} />}
       <Options phone={phone}>
         {p.capabilities.websockets && (
           <Option
@@ -637,22 +669,140 @@ function StaticFields({
   )
 }
 
-function NotFoundNote() {
+const notFoundCodes = [
+  { value: "404", label: "404" },
+  { value: "410", label: "410" },
+  { value: "444", label: "Close (444)" },
+] as const
+
+const notFoundHints: Record<NotFoundCode, string> = {
+  404: "Not Found: the usual answer for a name that isn't served.",
+  410: "Gone: tells search engines the site is gone for good.",
+  444: "Closes the connection without an answer. Scanners get nothing back.",
+}
+
+function NotFoundFields({
+  draft,
+  set,
+  errors,
+  defaultTaken,
+}: {
+  draft: Draft
+  set: (patch: Partial<Draft>) => void
+  errors: Errors
+  defaultTaken?: string
+}) {
   return (
-    <div className="flex gap-3 rounded-xl bg-subtle p-4">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-        <FileX className="size-4" />
-      </span>
-      <div className="min-w-0 text-body-sm">
-        <p className="font-medium">
-          Every visit gets{" "}
-          <span className="font-mono font-normal">404 Not Found</span>
-        </p>
-        <p className="mt-0.5 text-muted-foreground">
-          Use it to park a domain, or to keep names you don't serve from landing
-          on another site.
-        </p>
+    <>
+      <div className="flex gap-3 rounded-xl bg-subtle p-4">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+          <FileX className="size-4" />
+        </span>
+        <div className="min-w-0 text-body-sm">
+          <p className="font-medium">
+            Every visit gets{" "}
+            <span className="font-mono font-normal">
+              {notFoundText(draft.notFoundCode)}
+            </span>
+          </p>
+          <p className="mt-0.5 text-muted-foreground">
+            Use it to park a domain, or to keep names you don't serve from
+            landing on another site.
+          </p>
+        </div>
       </div>
+      <Field
+        label="Answer"
+        hint={notFoundHints[draft.notFoundCode]}
+        error={errors.not_found_code}
+      >
+        {() => (
+          <div>
+            <Segmented
+              label="Answer"
+              items={notFoundCodes}
+              value={String(draft.notFoundCode) as "404"}
+              onChange={(v) => set({ notFoundCode: Number(v) as NotFoundCode })}
+            />
+          </div>
+        )}
+      </Field>
+      <ToggleRow
+        id="host-catch-all"
+        label="Answer every other name too"
+        hint="Visits for a name no site has, or by the server's IP address, end here instead of on the first site in the config. Domains become optional."
+        checked={draft.catchAll}
+        onChange={(catchAll) => set({ catchAll })}
+      />
+      <FieldError text={errors.catch_all} />
+      {draft.catchAll && defaultTaken && (
+        <Callout icon={<ShieldAlert />} tone="warning">
+          A hand-written site in{" "}
+          <span className="font-mono">{defaultTaken}</span> already answers
+          other names (default_server). The proxy refuses two of them: remove it
+          there first.
+        </Callout>
+      )}
+    </>
+  )
+}
+
+// Asks the proxy's server to reach the app now, with the TLS settings
+// typed so far.
+function TestUpstream({
+  proxy: p,
+  draft,
+}: {
+  proxy: ReverseProxy
+  draft: Draft
+}) {
+  const test = useTestUpstream()
+  const [tested, setTested] = useState("")
+  const upstream = draft.upstream.trim()
+  const result = tested === upstream ? test.data : undefined
+  const failed = tested === upstream ? test.error : null
+  if (!/^https?:\/\/./i.test(upstream)) return null
+  const run = () => {
+    setTested(upstream)
+    test.mutate({
+      id: p.id,
+      upstream,
+      tls: httpsUpstream(draft) ? toConfig(draft).upstream_tls : undefined,
+    })
+  }
+  return (
+    <div className="-mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-9 md:h-8"
+        onClick={run}
+        disabled={test.isPending}
+      >
+        {test.isPending ? <Loader2 className="animate-spin" /> : <Plug />}
+        Test the address
+      </Button>
+      {!test.isPending && result && (
+        <p
+          role="status"
+          className={cn(
+            "flex min-w-0 items-center gap-1.5 text-caption",
+            result.ok ? "text-success" : "text-destructive",
+          )}
+        >
+          {result.ok && <Check className="size-3.5 shrink-0" />}
+          {result.ok
+            ? `Answered ${result.status} in ${result.millis} ms`
+            : result.error ||
+              `Answered ${result.status} in ${result.millis} ms`}
+        </p>
+      )}
+      {!test.isPending && failed && (
+        <p role="status" className="text-caption text-destructive">
+          {failed.message}
+        </p>
+      )}
     </div>
   )
 }

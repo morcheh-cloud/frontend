@@ -415,6 +415,24 @@ export interface AppUpdateBody {
   note?: string;
 }
 
+export interface Auth {
+  forward?: ForwardAuth;
+  /** basic = user names and passwords; forward = ask a sign-in service; empty = off */
+  mode?: "" | "basic" | "forward";
+  /**
+   * Text the browser's sign-in box shows (basic); empty = Restricted
+   * @maxLength 100
+   */
+  realm?: string;
+  /** Addresses in the Always let in list don't have to sign in */
+  skip_for_allowed?: boolean;
+  /**
+   * Who may sign in (basic)
+   * @maxItems 200
+   */
+  users?: AuthUser[];
+}
+
 export interface AuthLoginBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -458,6 +476,21 @@ export interface AuthState {
   needs_setup: boolean;
   registration_open: boolean;
   setup_token_required: boolean;
+}
+
+export interface AuthUser {
+  /**
+   * Set by Morcheh; never sent back, ignored when sent
+   * @maxLength 200
+   */
+  hash?: string;
+  /** @maxLength 64 */
+  name: string;
+  /**
+   * New password; empty keeps the saved one. Never sent back
+   * @maxLength 200
+   */
+  password?: string;
 }
 
 export interface Backup {
@@ -1042,6 +1075,8 @@ export interface Capabilities {
   advanced: boolean;
   /** Lists of addresses let in or refused */
   allow: boolean;
+  /** Takes auth: basic sign-in, and forward when the server's proxy can */
+  auth: boolean;
   /** Takes cache (browsers, and the proxy's own cache for proxy sites) and can clear it */
   cache: boolean;
   /** Can get certificates on the server (ACME CAs like Let's Encrypt, self-signed, uploaded) */
@@ -1050,9 +1085,15 @@ export interface Capabilities {
   config_label: string;
   /** Can let in or refuse visitors by country (sites only) */
   countries: boolean;
+  /** Takes hardening, request_id and catch_all */
+  hardening: boolean;
   headers: boolean;
   /** The config language, for syntax colors */
   language: string;
+  /** Takes maintenance and error_pages */
+  pages: boolean;
+  /** Paths take match and action (redirect, static, deny, return), strip_prefix and public */
+  path_actions: boolean;
   paths: boolean;
   /** Can limit requests, connections and speed */
   rate_limit: boolean;
@@ -1065,6 +1106,8 @@ export interface Capabilities {
   /** Takes the tuning options: gzip, no_buffering, connect_timeout_seconds, real_ip, proxy_protocol, hide_version */
   tuning: boolean;
   types: string[];
+  /** Takes upstream_tls */
+  upstream_tls: boolean;
   websockets: boolean;
 }
 
@@ -3116,6 +3159,15 @@ export interface ErrorModel {
   type?: string;
 }
 
+export interface ErrorPage {
+  /** @maxItems 11 */
+  codes: number[];
+  /** @maxLength 2000 */
+  message?: string;
+  /** @maxLength 200 */
+  title?: string;
+}
+
 export interface Event {
   /** found = a failure matched; restore = a ban put back after a restart */
   action: "found" | "ban" | "unban" | "restore" | "increase" | "ignore";
@@ -3984,6 +4036,23 @@ export interface Forward {
   zone?: string;
 }
 
+export interface ForwardAuth {
+  /**
+   * Headers of the service's answer passed on to the upstream, like Remote-User
+   * @maxItems 20
+   */
+  headers?: string[];
+  /**
+   * A path the service serves itself on this site, sent to it without a check, like /oauth2/
+   * @maxLength 200
+   */
+  pass_path?: string;
+  /** Where visitors who aren't signed in are sent (the page they wanted is added as rd=); empty = they get the 401 */
+  signin_url?: string;
+  /** The service's check address, like http://127.0.0.1:9091/api/authz/auth-request */
+  url?: string;
+}
+
 export interface GetProxyLogsResponse {
   /**
    * A URL to the JSON Schema for this object.
@@ -4112,10 +4181,33 @@ export interface GroupUpdateBody {
   name?: string;
 }
 
+export interface Hardening {
+  /** AI training crawlers (GPTBot, ClaudeBot, CCBot, Bytespider …) */
+  ai_crawlers?: boolean;
+  /** Backup and dump files: .bak .old .orig .swp .sql .sqlite … and names ending in ~ */
+  backups?: boolean;
+  /** Hidden files and folders like /.git and /.env (/.well-known stays open) */
+  dotfiles?: boolean;
+  /**
+   * Only these request methods are answered (others get 405); empty = all
+   * @maxItems 9
+   */
+  methods?: string[];
+  /** Paths bots try on every site: phpMyAdmin, cgi-bin, phpunit, router exploits */
+  probes?: boolean;
+  /** Known attack tools by their User-Agent (sqlmap, nikto, nuclei …) */
+  scanners?: boolean;
+  /**
+   * Answer to refused requests; 0 = 404
+   * @format int64
+   */
+  status?: 0 | 403 | 404 | 444;
+}
+
 export interface HeaderRule {
   /** @maxLength 100 */
   name: string;
-  to: "request" | "response";
+  to: "request" | "response" | "hide";
   /** @maxLength 2000 */
   value: string;
 }
@@ -4141,8 +4233,14 @@ export interface HostConfig {
    * @maxItems 500
    */
   allow?: string[];
+  /** Visitors sign in first (proxy, static) */
+  auth?: Auth;
+  /** Also compress with Brotli when the server's nginx has the module (proxy, static) */
+  brotli?: boolean;
   /** What browsers keep, and answers the proxy keeps itself (Capabilities.Cache) */
   cache?: Cache;
+  /** Answer every name no other site has, as the default server (404 hosts; one per proxy) */
+  catch_all?: boolean;
   /**
    * How long to try reaching the upstream; 0 = the proxy's default (proxy, stream)
    * @format int64
@@ -4174,12 +4272,21 @@ export interface HostConfig {
    * @maxItems 50
    */
   domains: string[];
+  /**
+   * Own pages for error statuses (sites)
+   * @maxItems 11
+   */
+  error_pages?: ErrorPage[];
   /** Compress text answers (proxy, static) */
   gzip?: boolean;
+  /** Refuse requests no real visitor makes (sites) */
+  hardening?: Hardening;
   /** @maxItems 50 */
   headers?: HeaderRule[];
   /** Leave the proxy's version out of headers and error pages (sites only) */
   hide_version?: boolean;
+  /** Show these pages for the upstream's own errors too (proxy) */
+  intercept_errors?: boolean;
   /** Add the requested path and query to the target */
   keep_path?: boolean;
   /**
@@ -4189,6 +4296,8 @@ export interface HostConfig {
    * @max 65535
    */
   listen_port?: number;
+  /** A 503 page for everyone but some addresses (sites) */
+  maintenance?: Maintenance;
   /**
    * Largest upload; 0 = the proxy's default
    * @format int64
@@ -4198,6 +4307,11 @@ export interface HostConfig {
   max_body_mb?: number;
   /** Pass data straight through without buffering it (proxy): live updates, streamed answers, big uploads */
   no_buffering?: boolean;
+  /**
+   * What a 404 host answers; 444 closes the connection without an answer. 0 = 404
+   * @format int64
+   */
+  not_found_code?: 0 | 404 | 410 | 444;
   /**
    * Paths sent somewhere else than the main upstream
    * @maxItems 50
@@ -4220,6 +4334,8 @@ export interface HostConfig {
   redirect_code?: 0 | 301 | 302 | 307 | 308;
   /** Where visitors are sent, like https://example.com */
   redirect_to?: string;
+  /** Give every request an X-Request-ID, sent to the upstream and back to the visitor (sites) */
+  request_id?: boolean;
   /** Folder the files are served from */
   root?: string;
   /** Answer unknown paths with index.html (single-page apps) */
@@ -4238,6 +4354,8 @@ export interface HostConfig {
   type: "proxy" | "redirect" | "static" | "notfound" | "stream";
   /** Where requests go, like http://127.0.0.1:3000 */
   upstream?: string;
+  /** How an https upstream is reached (proxy) */
+  upstream_tls?: UpstreamTLS;
   websockets?: boolean;
 }
 
@@ -4592,6 +4710,29 @@ export interface Login {
   /** @format date-time */
   time: string;
   tty: string;
+}
+
+export interface Maintenance {
+  /**
+   * Addresses or ranges that still see the site
+   * @maxItems 100
+   */
+  allow?: string[];
+  enabled?: boolean;
+  /** @maxLength 2000 */
+  message?: string;
+  /**
+   * Sent as Retry-After; 0 = none
+   * @format int64
+   * @min 0
+   * @max 10080
+   */
+  retry_minutes?: number;
+  /**
+   * Empty = We'll be back soon
+   * @maxLength 200
+   */
+  title?: string;
 }
 
 export interface MakeFolderRequest {
@@ -5071,14 +5212,44 @@ export interface PanelWorkspace {
 }
 
 export interface PathRule {
+  /** Empty = proxy */
+  action?: "" | "proxy" | "redirect" | "static" | "deny" | "return";
   /** @maxLength 4096 */
   advanced?: string;
   /**
-   * Starts with /; matches it and everything under it
+   * return: the text answered
+   * @maxLength 4096
+   */
+  body?: string;
+  /** Empty = prefix */
+  match?: "" | "prefix" | "exact" | "regex";
+  /**
+   * prefix: starts with /, matches it and everything under it; exact: only this path; regex: a pattern
    * @maxLength 500
    */
   path: string;
-  upstream: string;
+  /** No sign-in on this path, when the site asks for one */
+  public?: boolean;
+  /**
+   * redirect: 0 = 302
+   * @format int64
+   */
+  redirect_code?: 0 | 301 | 302 | 307 | 308;
+  /** redirect: a full address or a path on this site */
+  redirect_to?: string;
+  /** static: folder served for this path (exact: the file) */
+  root?: string;
+  /**
+   * deny: 403, 404, 410 or 444; return: 200–599
+   * @format int64
+   * @min 0
+   * @max 599
+   */
+  status?: number;
+  /** proxy, prefix: take the path off before sending (/api/users goes as /users) */
+  strip_prefix?: boolean;
+  /** proxy: where requests go; empty = the site's own upstream (proxy sites) */
+  upstream?: string;
   websockets?: boolean;
 }
 
@@ -5666,6 +5837,12 @@ export interface ProxyInspection {
    * @format uri
    */
   $schema?: string;
+  /** Signing in through another service (forward auth) works */
+  auth_request: boolean;
+  /** The Brotli module is loaded */
+  brotli: boolean;
+  /** The system's CA file, used to check https upstreams */
+  ca_bundle?: string;
   /** certbot's version when it's installed (it renews certificates) */
   certbot?: string;
   certificates: Certificate[];
@@ -5732,6 +5909,28 @@ export interface ProxyTrafficSource {
   error?: string;
   ok: boolean;
   proxy_id: string;
+}
+
+export interface ProxyUpstreamTest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Why it didn't answer */
+  error?: string;
+  /**
+   * How long the answer took, seen from the proxy's server
+   * @format int64
+   */
+  millis: number;
+  /** The upstream answered with a status below 500 */
+  ok: boolean;
+  /**
+   * Its HTTP status; 0 when it didn't answer
+   * @format int64
+   */
+  status: number;
 }
 
 export interface RateLimit {
@@ -8696,6 +8895,17 @@ export interface TestProxyHostRequest {
   host?: string;
 }
 
+export interface TestProxyUpstreamRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 500 */
+  upstream: string;
+  upstream_tls?: UpstreamTLS;
+}
+
 export interface TransferFilesBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -8782,6 +8992,19 @@ export interface UpdateDnsRecordRequest {
   $schema?: string;
   current: DNSRecordBody;
   new: DNSRecordBody;
+}
+
+export interface UpstreamTLS {
+  /** CA file on the server to check it against; empty = the system's */
+  ca?: string;
+  /** Client certificate shown to the upstream (mutual TLS) */
+  certificate?: string;
+  /** Its private key */
+  key?: string;
+  /** Name sent (SNI) and checked; empty = the upstream address's host */
+  name?: string;
+  /** Check the upstream's certificate; off accepts any (self-signed included) */
+  verify?: boolean;
 }
 
 export interface UsageDisk {
@@ -13009,6 +13232,28 @@ export class Api<
     ) =>
       this.request<ProxyActionResult, ErrorModel>({
         path: `/proxies/${id}/hosts/test`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Sends one GET from the proxy's server (curl, 10 s) with the site's https settings. Nothing is saved.
+     *
+     * @tags Reverse proxy
+     * @name TestProxyUpstream
+     * @summary Check that the proxy's server can reach an upstream
+     * @request POST:/proxies/{id}/hosts/test-upstream
+     */
+    testProxyUpstream: (
+      id: string,
+      data: TestProxyUpstreamRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<ProxyUpstreamTest, ErrorModel>({
+        path: `/proxies/${id}/hosts/test-upstream`,
         method: "POST",
         body: data,
         type: ContentType.Json,

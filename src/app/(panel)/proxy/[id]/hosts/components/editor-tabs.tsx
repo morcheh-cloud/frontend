@@ -3,14 +3,15 @@
 import {
   DatabaseZap,
   FileCode,
+  FileWarning,
   Gauge,
+  KeyRound,
   Lock,
   type LucideIcon,
   Route,
   Settings2,
   ShieldCheck,
   SlidersHorizontal,
-  Tags,
 } from "lucide-react"
 import { parseAsStringLiteral, useQueryState } from "nuqs"
 import { useEffect, useRef } from "react"
@@ -24,6 +25,7 @@ import {
   type Errors,
   freshHeader,
   keptRules,
+  keptUsers,
   splitList,
   typeUses,
 } from "./draft"
@@ -35,10 +37,11 @@ export const editorTabs = [
   "general",
   "https",
   "security",
+  "login",
   "ratelimit",
   "cache",
-  "paths",
-  "headers",
+  "routing",
+  "pages",
   "advanced",
   "config",
 ] as const
@@ -51,10 +54,11 @@ export const editorTabMeta: Record<
   general: { label: "General", icon: Settings2 },
   https: { label: "HTTPS", icon: Lock },
   security: { label: "Security", icon: ShieldCheck },
+  login: { label: "Login", icon: KeyRound },
   ratelimit: { label: "Rate limit", icon: Gauge },
   cache: { label: "Cache", icon: DatabaseZap },
-  paths: { label: "Paths", icon: Route },
-  headers: { label: "Headers", icon: Tags },
+  routing: { label: "Routing", icon: Route },
+  pages: { label: "Pages", icon: FileWarning },
   advanced: { label: "Advanced", icon: SlidersHorizontal },
   config: { label: "Config", icon: FileCode },
 }
@@ -67,11 +71,15 @@ export function tabsFor(
   const shown: Record<EditorTab, boolean> = {
     general: true,
     https: uses.tls,
-    security: caps.allow || (caps.headers && uses.headers),
+    security:
+      caps.allow ||
+      (caps.headers && uses.headers) ||
+      (caps.hardening && uses.hardening),
+    login: caps.auth && uses.auth,
     ratelimit: caps.rate_limit && uses.rateLimit,
     cache: caps.cache && uses.browserCache,
-    paths: caps.paths && uses.paths,
-    headers: caps.headers && uses.headers,
+    routing: (caps.paths && uses.paths) || (caps.headers && uses.headers),
+    pages: caps.pages && (uses.maintenance || uses.errorPages),
     advanced: uses.maxBody || uses.timeout || caps.advanced || caps.tuning,
     config: true,
   }
@@ -81,8 +89,14 @@ export function tabsFor(
 // The tab that holds a field the backend refused.
 export function tabOfError(key: string): EditorTab {
   if (key.startsWith("tls")) return "https"
-  if (key.startsWith("headers")) return "headers"
-  if (key.startsWith("paths")) return "paths"
+  if (key.startsWith("headers") || key.startsWith("paths")) return "routing"
+  if (key.startsWith("auth")) return "login"
+  if (
+    key.startsWith("maintenance") ||
+    key.startsWith("error_pages") ||
+    key === "intercept_errors"
+  )
+    return "pages"
   if (key.startsWith("rate")) return "ratelimit"
   if (key.startsWith("cache")) return "cache"
   if (
@@ -93,7 +107,8 @@ export function tabOfError(key: string): EditorTab {
       "countries",
       "country_mode",
       "hide_version",
-    ].includes(key)
+    ].includes(key) ||
+    key.startsWith("hardening")
   )
     return "security"
   if (key === "custom") return "config"
@@ -106,6 +121,8 @@ export function tabOfError(key: string): EditorTab {
       "gzip",
       "no_buffering",
       "proxy_protocol",
+      "request_id",
+      "brotli",
       "advanced",
     ].includes(key)
   )
@@ -143,14 +160,33 @@ export function tabInfo(
   const wrong = new Set(Object.keys(errors).map(tabOfError))
   const badge: Partial<Record<EditorTab, string>> = {
     https: d.tls ? "On" : undefined,
-    paths: d.paths.length ? `${d.paths.length}` : undefined,
-    headers: d.headers.length ? `${d.headers.length}` : undefined,
+    routing:
+      d.paths.length + d.headers.length
+        ? `${d.paths.length + d.headers.length}`
+        : undefined,
     security: limited(d) ? "Limited" : undefined,
+    login: loginBadge(d),
+    pages: pagesBadge(d),
     ratelimit: rateBadge(d),
     cache: cacheBadge(d),
     config: d.custom.trim() ? "By hand" : undefined,
   }
   return tabs.map((tab) => ({ tab, badge: badge[tab], error: wrong.has(tab) }))
+}
+
+function loginBadge(d: Draft) {
+  if (!typeUses(d.type).auth) return undefined
+  if (d.authMode === "basic") {
+    const n = keptUsers(d).length
+    return n ? `${n}` : "Password"
+  }
+  return d.authMode === "forward" ? "SSO" : undefined
+}
+
+function pagesBadge(d: Draft) {
+  if (typeUses(d.type).maintenance && d.maint) return "Maintenance"
+  const n = typeUses(d.type).errorPages ? d.errorPages.length : 0
+  return n ? `${n}` : undefined
 }
 
 const limited = (d: Draft) =>
@@ -298,7 +334,7 @@ export function EditorChips({
 }
 
 // Common protections, each one a response header. They're ordinary rows
-// in Headers too: a switch here only adds or removes that row.
+// in Routing › Headers too: a switch here only adds or removes that row.
 const protections = [
   {
     name: "X-Frame-Options",
@@ -355,7 +391,7 @@ export function ProtectionHeaders({
             hint={
               other ? (
                 <>
-                  Set by hand in Headers:{" "}
+                  Set by hand in Routing:{" "}
                   <span className="font-mono">{row.value || "(empty)"}</span>
                 </>
               ) : (

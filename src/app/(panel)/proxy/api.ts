@@ -17,6 +17,7 @@ import type {
   ProxyDetail,
   ProxyHostBody,
   Proxy as ReverseProxy,
+  UpstreamTLS,
 } from "@/lib/services"
 
 // Everything about one proxy sits under ["proxies", id], so removing it
@@ -104,9 +105,10 @@ export function useFleetHosts() {
 }
 
 // Requests per minute for the last 30 minutes, per site; "" = every proxy.
-export function useProxyTraffic(proxy: string) {
+export function useProxyTraffic(proxy: string, enabled = true) {
   return useQuery({
     queryKey: proxyKeys.traffic(proxy),
+    enabled,
     queryFn: () =>
       api.reverseProxy.getProxyTraffic(proxy ? { proxy_id: proxy } : {}),
     refetchInterval: TRAFFIC_POLL,
@@ -315,6 +317,22 @@ export function useTestHost() {
       host?: string
       config: HostConfig
     }) => api.reverseProxy.testProxyHost(id, { host, config }),
+  })
+}
+
+// Asks the proxy's server to reach an upstream (curl), as the site would.
+export function useTestUpstream() {
+  return useMutation({
+    mutationFn: ({
+      id,
+      upstream,
+      tls,
+    }: {
+      id: string
+      upstream: string
+      tls?: UpstreamTLS
+    }) =>
+      api.reverseProxy.testProxyUpstream(id, { upstream, upstream_tls: tls }),
   })
 }
 

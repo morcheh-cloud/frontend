@@ -233,7 +233,15 @@ export const reverseProxy: GuideSection[] = [
             ],
             [
               <UI key="n">404 page</UI>,
-              "Only the domains: every request gets 404 Not Found, so parked or retired names never fall through to another site",
+              <>
+                Only the domains, and the answer: <C>404</C> Not Found,{" "}
+                <C>410</C> Gone (search engines drop the pages sooner) or{" "}
+                <C>444</C> (the connection is closed with no answer at all).
+                Parked or retired names never fall through to another site. With{" "}
+                <UI>Answer every other name too</UI> on, it also answers every
+                name no other site has (see{" "}
+                <See guide="reverse-proxy" section="catch-all" />)
+              </>,
             ],
             [
               <UI key="t">Stream</UI>,
@@ -278,6 +286,11 @@ export const reverseProxy: GuideSection[] = [
           visitor goes: the address they open, nginx on which server, and where
           it's passed on to. It also says when the site is still plain http.
         </P>
+        <Tip>
+          A new proxy host can <UI>Start from</UI> an app (WordPress, Next.js,
+          Grafana, Portainer, n8n): it fills the settings that app needs, see{" "}
+          <See guide="reverse-proxy" section="templates" />.
+        </Tip>
         <Example title="Grafana on its own domain">
           <P>
             Grafana listens on port 3000 of the same server. Domains{" "}
@@ -485,19 +498,20 @@ export const reverseProxy: GuideSection[] = [
     body: (
       <>
         <P>
-          Only the tabs a site can use show up: a stream has no HTTPS, Paths or
-          Headers, a 404 page has no Paths. A tab with something set shows it
-          beside its name (<UI>HTTPS On</UI>, <UI>Headers 3</UI>); a red dot
-          means a field there was refused when you saved, and Save takes you to
-          it. The open tab is kept in the address (<C>?tab=security</C>), so a
-          link can open a site straight on it.
+          Only the tabs a site can use show up: a stream has no HTTPS, Login,
+          Routing or Pages, a 404 page has no Login or Routing. A tab with
+          something set shows it beside its name (<UI>HTTPS On</UI>,{" "}
+          <UI>Routing 3</UI>, <UI>Login SSO</UI>); a red dot means a field there
+          was refused when you saved, and Save takes you to it. The open tab is
+          kept in the address (<C>?tab=security</C>), so a link can open a site
+          straight on it.
         </P>
         <Table
           head={["Tab", "What's in it"]}
           rows={[
             [
               <UI key="g">General</UI>,
-              "Domains, what the site does and where it goes, the note, and On/Off",
+              "Domains, what the site does and where it goes (with Test), the app's https settings, the note, On/Off, and the site's live traffic",
             ],
             [
               <UI key="t">HTTPS</UI>,
@@ -508,9 +522,15 @@ export const reverseProxy: GuideSection[] = [
               <>
                 <UI>Who can reach it</UI>: addresses always let in, always
                 blocked, and what happens to everyone else; <UI>Countries</UI>{" "}
-                (see Who can visit). <UI>Browser protections</UI>: switches for
-                common safety headers (below); <UI>Hide the nginx version</UI>
+                (see Who can visit). <UI>Hardening</UI>: ready-made refusals for
+                scanners and bots (see Hardening). <UI>Browser protections</UI>:
+                switches for common safety headers (below);{" "}
+                <UI>Hide the nginx version</UI>
               </>,
+            ],
+            [
+              <UI key="l">Login</UI>,
+              "A name and password, or a sign-in service (SSO) in front of the whole site (see Login)",
             ],
             [
               <UI key="r">Rate limit</UI>,
@@ -521,15 +541,17 @@ export const reverseProxy: GuideSection[] = [
               "How long browsers keep files, and (proxy hosts) nginx keeping the app's answers; Clear cache (see Cache)",
             ],
             [
-              <UI key="p">Paths</UI>,
+              <UI key="p">Routing</UI>,
               <>
-                Sends a path and everything under it to another app: <C>/api</C>{" "}
-                → <C>http://127.0.0.1:8080</C>
+                <UI>Paths</UI>: rules for part of the site, like <C>/api</C> →{" "}
+                <C>http://127.0.0.1:8080</C>, a redirect or a block.{" "}
+                <UI>Headers</UI>: add a header to the answer or the request, or
+                remove one the app sends (see Paths and headers)
               </>,
             ],
             [
-              <UI key="h">Headers</UI>,
-              "Adds a header to what visitors get back, or to what the app receives",
+              <UI key="g">Pages</UI>,
+              "Maintenance mode and your own error pages (see Maintenance and error pages)",
             ],
             [
               <UI key="a">Advanced</UI>,
@@ -543,9 +565,9 @@ export const reverseProxy: GuideSection[] = [
         />
         <P>
           Each browser protection is an ordinary response header: turning it on
-          adds the row to <UI>Headers</UI>, turning it off removes it. If you
-          set one of them by hand with another value, the switch is on and shows
-          that value.
+          adds the row to <UI>Routing › Headers</UI>, turning it off removes it.
+          If you set one of them by hand with another value, the switch is on
+          and shows that value.
         </P>
         <Table
           head={["Protection", "Header it adds"]}
@@ -924,6 +946,19 @@ export const reverseProxy: GuideSection[] = [
               "nginx's 1 MB limit and 60 s wait; raise them for uploads and slow exports",
             ],
             [
+              <UI key="z">Brotli</UI>,
+              "Also compress with Brotli, about 15–20% smaller than gzip for text. Needs nginx's brotli module: without it the switch is greyed out and only gzip is used",
+            ],
+            [
+              <UI key="i">Give each request an ID</UI>,
+              <>
+                A unique <C>X-Request-ID</C> goes to the app, back to the
+                visitor and into the access log. When someone reports an error,
+                ask for the ID and find the same request in the app's log. An ID
+                the visitor sends is kept
+              </>,
+            ],
+            [
               <UI key="d">Raw directives</UI>,
               "nginx lines added as they are inside the site's block",
             ],
@@ -940,6 +975,385 @@ export const reverseProxy: GuideSection[] = [
           claim to be any visitor. Cloudflare changes its list now and then;
           press <UI>Use Cloudflare's</UI> again and save to refresh it.
         </Warn>
+      </>
+    ),
+  },
+  {
+    id: "templates",
+    title: "Templates and copies",
+    body: (
+      <>
+        <P>
+          A new proxy host shows <UI>Start from</UI> above the address: press an
+          app and the settings it needs are filled in. Nothing else changes, and
+          the address is filled only when the box is empty; check it, since it's
+          only where the app usually listens.
+        </P>
+        <Table
+          head={["App", "What it sets"]}
+          rows={[
+            [
+              <UI key="w">WordPress</UI>,
+              <>
+                64 MB uploads, 2 min wait, <C>/xmlrpc.php</C> blocked, hidden
+                files, backups and scanners refused (Common probes stays off:
+                its own <C>/wp-admin</C> must work)
+              </>,
+            ],
+            [
+              <UI key="n">Next.js</UI>,
+              "WebSockets, gzip, browsers keep built files 30 days, hidden files refused",
+            ],
+            [
+              <UI key="g">Grafana</UI>,
+              "WebSockets for live panels, the site's name passed on, 5 min wait for heavy queries",
+            ],
+            [
+              <UI key="p">Portainer</UI>,
+              <>
+                <C>https://127.0.0.1:9443</C> without checking its self-signed
+                certificate, WebSockets for consoles, 1 GB uploads, 10 min wait
+              </>,
+            ],
+            [
+              <UI key="8">n8n</UI>,
+              "WebSockets and Pass answers straight through for its editor, 16 MB payloads, 1 h wait",
+            ],
+          ]}
+        />
+        <P>
+          To make a site like one you already have, open the site's ⋯ menu and
+          press <UI>Duplicate</UI>. A new site opens with every setting copied
+          except its domains, its certificate and its accounts' passwords (the
+          names are kept): fill those in and save. The copy is saved as a new
+          site; the original doesn't change.
+        </P>
+      </>
+    ),
+  },
+  {
+    id: "upstream-https",
+    title: "An app that speaks https",
+    body: (
+      <>
+        <P>
+          Some apps only answer on https themselves (Portainer, Proxmox, a
+          Kubernetes ingress). Write the address with <C>https://</C> and the{" "}
+          <UI>App over https</UI> card appears under <UI>What it does</UI>.
+        </P>
+        <Table
+          head={["Setting", "What it does"]}
+          rows={[
+            [
+              <UI key="v">Check the app's certificate</UI>,
+              "Off by default, since internal apps mostly use self-signed ones. On = refuse to connect unless the certificate is valid for the name",
+            ],
+            [
+              <UI key="n">Name to ask for</UI>,
+              "Sent to the app (SNI) and checked on its certificate. Needed when the address is an IP but the app's certificate names a domain",
+            ],
+            [
+              <UI key="c">Trusted CA file</UI>,
+              "Your own CA, as a path on the proxy's server; empty = the system's list",
+            ],
+            [
+              <UI key="m">Client certificate, Its key</UI>,
+              "Only when the app wants the proxy to prove who it is (mutual TLS)",
+            ],
+          ]}
+        />
+        <P>
+          <UI>Test</UI> next to the address asks the app once from the proxy's
+          server, with these settings, and says what it answered and how fast.
+          Use it before saving: a refused connection or a certificate problem
+          shows here instead of as a 502 later.
+        </P>
+        <Tip>
+          The settings cover every https address of the site, including paths
+          sent to another app on the <UI>Routing</UI> tab.
+        </Tip>
+      </>
+    ),
+  },
+  {
+    id: "login",
+    title: "Login",
+    body: (
+      <>
+        <P>
+          The <UI>Login</UI> tab puts a sign-in in front of the whole site, even
+          when the app has none of its own (an admin tool, a staging copy, a
+          dashboard).
+        </P>
+        <Table
+          head={["Choice", "How it works"]}
+          rows={[
+            [<UI key="o">Off</UI>, "Anyone who can reach the site opens it"],
+            [
+              <UI key="p">Password</UI>,
+              "The browser asks for a name and password (HTTP basic auth). Each person gets an account; the proxy keeps only a hash of each password",
+            ],
+            [
+              <UI key="s">Sign-in service</UI>,
+              "Before each request nginx asks an SSO service (Authelia, oauth2-proxy, authentik…) whether the visitor is signed in; if not, they're sent to its sign-in page",
+            ],
+          ]}
+        />
+        <Steps>
+          <P>
+            Pick <UI>Password</UI>, press <UI>Add an account</UI>, and type a
+            name and a password for each person.
+          </P>
+          <P>
+            Turn on HTTPS for the site: browsers send the password with every
+            request.
+          </P>
+          <P>Save. The browser now asks before showing anything.</P>
+        </Steps>
+        <P>
+          Saved passwords are never shown again: the box says <UI>Unchanged</UI>
+          ; type in it only to set a new one. A renamed account needs a new
+          password.
+        </P>
+        <P>
+          For a sign-in service, press its name under <UI>Start from</UI> to
+          fill the usual addresses, then change them to yours:{" "}
+          <UI>Check address</UI> is where the service answers each check as the
+          proxy's server reaches it, <UI>Sign-in page</UI> where visitors go to
+          sign in, and <UI>Pass these headers to the app</UI> who signed in (the
+          app can trust them: visitors can't send their own).
+        </P>
+        <List>
+          <li>
+            A path marked <UI>No login</UI> on <UI>Routing</UI> stays open, e.g.{" "}
+            <C>/api/webhook</C> or <C>/health</C>.
+          </li>
+          <li>
+            <UI>No login from the Always let in list</UI>: visitors from the
+            addresses in <UI>Security</UI> (your office, your VPN) come straight
+            in; everyone else signs in.
+          </li>
+        </List>
+        <Warn>
+          A sign-in service needs nginx's <C>auth_request</C> module. The tab
+          says so when the proxy's nginx lacks it; install the nginx.org package
+          or your distro's <C>nginx-extras</C>.
+        </Warn>
+      </>
+    ),
+  },
+  {
+    id: "routing",
+    title: "Paths and headers",
+    body: (
+      <>
+        <P>
+          The <UI>Routing</UI> tab holds rules for parts of the site. Each path
+          row has how it matches, the path, and what happens:
+        </P>
+        <Table
+          head={["Match", "Covers"]}
+          rows={[
+            [
+              <UI key="s">Starts with</UI>,
+              <>
+                <C>/api/</C> covers <C>/api/users</C> and everything under it
+              </>,
+            ],
+            [
+              <UI key="e">Is exactly</UI>,
+              <>
+                Only <C>/xmlrpc.php</C> itself; wins over any other rule
+              </>,
+            ],
+            [
+              <UI key="r">Matches pattern</UI>,
+              <>
+                A regular expression, e.g. <C>\.(php|asp)$</C>
+              </>,
+            ],
+          ]}
+        />
+        <Table
+          head={["Action", "What happens"]}
+          rows={[
+            [
+              <UI key="p">Send to an app</UI>,
+              <>
+                Passed on to another address. <UI>Drop the path</UI> sends{" "}
+                <C>/api/users</C> on as <C>/users</C>
+              </>,
+            ],
+            [
+              <UI key="r">Redirect</UI>,
+              "Sends visitors to another address, with the redirect kind",
+            ],
+            [
+              <UI key="f">Serve files</UI>,
+              "Files from a folder on the proxy's server",
+            ],
+            [
+              <UI key="b">Block</UI>,
+              "Refused with 403, 404, 410 or 444 (connection closed)",
+            ],
+            [
+              <UI key="a">Answer with</UI>,
+              <>
+                A fixed status and text, e.g. <C>200</C> <C>ok</C> for a health
+                check, without touching the app
+              </>,
+            ],
+          ]}
+        />
+        <P>
+          Header rows add a header to what visitors get back or to what the app
+          receives. On a proxy host, <UI>Remove from the app's answer</UI>{" "}
+          strips a header the app sends, e.g. <C>X-Powered-By</C> or{" "}
+          <C>Server</C>, so it never reaches visitors.
+        </P>
+        <Example title="An API, a health check and a blocked file">
+          <P>
+            <UI>Starts with</UI> <C>/api/</C> → <UI>Send to an app</UI>{" "}
+            <C>http://127.0.0.1:8080</C> with <UI>Drop the path</UI>;{" "}
+            <UI>Is exactly</UI> <C>/health</C> → <UI>Answer with</UI> <C>200</C>{" "}
+            <C>ok</C>, marked <UI>No login</UI> so the monitor needs no
+            password; <UI>Is exactly</UI> <C>/xmlrpc.php</C> → <UI>Block</UI>{" "}
+            <C>403</C>.
+          </P>
+        </Example>
+      </>
+    ),
+  },
+  {
+    id: "pages",
+    title: "Maintenance and error pages",
+    body: (
+      <>
+        <P>
+          <UI>Maintenance</UI> on the <UI>Pages</UI> tab shows visitors a simple
+          “back soon” page (status 503) while you work on the app; the site's
+          other settings stay as they are. <UI>Still let in</UI> lists addresses
+          that see the real site, so you can test before turning it off.{" "}
+          <UI>Back in about</UI> tells browsers and search engines when to try
+          again, so rankings aren't hurt.
+        </P>
+        <P>
+          <UI>Error pages</UI> replace nginx's plain ones. Add a page, tick the
+          statuses it's for (each status can have one page), and give it a title
+          and a short message. The first page starts with 502 and 504, what
+          visitors see when the app is down or too slow.
+        </P>
+        <List>
+          <li>
+            By default the pages show only for the proxy's own errors.{" "}
+            <UI>Also for the app's own errors</UI> (proxy hosts) shows them when
+            the app itself answers with one of the statuses too.
+          </li>
+          <li>
+            While maintenance is on, 503 belongs to it and can't have its own
+            page.
+          </li>
+        </List>
+        <Warn>
+          Leave <UI>Also for the app's own errors</UI> off for apps with an API:
+          an API that explains a 404 or 400 in its answer loses that text.
+        </Warn>
+      </>
+    ),
+  },
+  {
+    id: "hardening",
+    title: "Hardening",
+    body: (
+      <>
+        <P>
+          <UI>Hardening</UI> on the <UI>Security</UI> tab refuses requests only
+          scanners and bots send, before they reach the app:
+        </P>
+        <Table
+          head={["Switch", "Refuses"]}
+          rows={[
+            [
+              <UI key="h">Hidden files</UI>,
+              <>
+                <C>/.env</C>, <C>/.git</C>, <C>/.htaccess</C>… (
+                <C>/.well-known</C> stays open for certificates)
+              </>,
+            ],
+            [
+              <UI key="b">Backups and dumps</UI>,
+              <>
+                Files ending in <C>.bak</C>, <C>.old</C>, <C>.sql</C>,{" "}
+                <C>.swp</C>, <C>~</C>
+              </>,
+            ],
+            [
+              <UI key="s">Known scanners</UI>,
+              "sqlmap, nikto, masscan, zgrab… by the name they send",
+            ],
+            [
+              <UI key="a">AI crawlers</UI>,
+              "GPTBot, ClaudeBot, CCBot, Bytespider… that collect pages for AI training",
+            ],
+            [
+              <UI key="p">Common probes</UI>,
+              <>
+                <C>/wp-admin</C>, <C>/phpmyadmin</C>, <C>/cgi-bin</C>… Off for a
+                site that really has them
+              </>,
+            ],
+            [
+              <UI key="m">Only these request methods</UI>,
+              "Everything except the ticked methods (GET is always allowed)",
+            ],
+          ]}
+        />
+        <P>
+          <UI>Answer</UI> picks what they get: <C>404</C> (looks like any
+          missing page, the default), <C>403</C>, or <C>444</C> (the connection
+          is closed with no answer).
+        </P>
+        <Recommended
+          rows={[
+            {
+              setting: "Hidden files, Backups, Known scanners",
+              value: "On",
+              why: "Safe for almost every site",
+            },
+            {
+              setting: "Only these request methods",
+              value: "GET, HEAD, POST, OPTIONS",
+              why: "For plain websites; APIs also need PUT, PATCH and DELETE",
+            },
+          ]}
+        />
+      </>
+    ),
+  },
+  {
+    id: "catch-all",
+    title: "Names no site has",
+    body: (
+      <>
+        <P>
+          A request for a name none of the proxy's sites has (the server's IP,
+          an old domain still pointing at it) lands on whichever site nginx
+          takes as the default, often the first one. To stop that, add a{" "}
+          <UI>404 host</UI> with <UI>Answer every other name too</UI> on: it
+          needs no domains and answers every unknown name with 404, 410 or 444.
+        </P>
+        <List>
+          <li>A proxy can have one such site.</li>
+          <li>
+            If a site written by hand on the server already does this (
+            <C>default_server</C>), the switch says which file: remove it there
+            first, since nginx refuses two.
+          </li>
+          <li>
+            <C>444</C> is the quietest: scanners going through IP addresses get
+            nothing at all.
+          </li>
+        </List>
       </>
     ),
   },
@@ -987,10 +1401,10 @@ export const reverseProxy: GuideSection[] = [
         </Steps>
         <Warn>
           At your own risk: while the file is written by hand, HTTPS, Security,
-          Paths, Headers and Advanced don't change it, and Morcheh doesn't check
-          what's in it, only that nginx accepts it. A file nginx refuses is
-          never loaded (every save is still tested), but one it accepts can
-          still send visitors to the wrong place.
+          Login, Routing, Pages and Advanced don't change it, and Morcheh
+          doesn't check what's in it, only that nginx accepts it. A file nginx
+          refuses is never loaded (every save is still tested), but one it
+          accepts can still send visitors to the wrong place.
         </Warn>
         <Tip>
           Keep the <C>access_log</C> and <C>error_log</C> lines as they are:

@@ -4,10 +4,12 @@ export { splitList }
 
 import type { HostType } from "@/app/(panel)/proxy/components/meta"
 import type {
+  Auth,
   Certificate,
   HeaderRule,
   HostConfig,
   HostTLS,
+  PathRule,
   ProxyHost,
   ProxyHostBody,
   RateLimit,
@@ -25,14 +27,68 @@ export type HeaderDraft = {
   value: string
 }
 
+export type PathMatch = "prefix" | "exact" | "regex"
+export type PathAction = "proxy" | "redirect" | "static" | "deny" | "return"
+export type DenyStatus = 403 | 404 | 410 | 444
+
 export type PathDraft = {
   key: string
+  match: PathMatch
   path: string
+  action: PathAction
   upstream: string
   websockets: boolean
+  // Send /api/users on as /users.
+  stripPrefix: boolean
+  redirectTo: string
+  redirectCode: RedirectCode
+  root: string
+  denyStatus: DenyStatus
+  // return: the status and the text answered.
+  status: string
+  body: string
+  // No sign-in on this path when the site asks for one.
+  public: boolean
   // Raw directives for this path only.
   advanced: string
 }
+
+export type AuthMode = "" | "basic" | "forward"
+
+export type AuthUserDraft = {
+  key: string
+  name: string
+  // Blank keeps the saved password of `savedName`.
+  password: string
+  // The name it was saved under; empty for someone new (or a copy).
+  savedName: string
+}
+
+export type ErrorPageDraft = {
+  key: string
+  codes: number[]
+  title: string
+  message: string
+}
+
+export type HardeningStatus = 403 | 404 | 444
+export type NotFoundCode = 404 | 410 | 444
+
+// Statuses that can have their own page, as the backend allows.
+export const errorCodes = [
+  400, 403, 404, 405, 408, 413, 429, 500, 502, 503, 504,
+] as const
+export const hardeningMethods = [
+  "GET",
+  "HEAD",
+  "POST",
+  "PUT",
+  "PATCH",
+  "DELETE",
+  "OPTIONS",
+  "PROPFIND",
+  "PROPPATCH",
+] as const
 
 export type Access = "allow" | "deny"
 export type RealIpHeader = NonNullable<RealIP["header"]>
@@ -125,6 +181,42 @@ export type Draft = {
   skipPaths: string
   skipCookies: string
   cacheStatus: boolean
+  // Login: basic (names and passwords) or forward (a sign-in service).
+  authMode: AuthMode
+  authRealm: string
+  authUsers: AuthUserDraft[]
+  authSkipAllowed: boolean
+  fwdUrl: string
+  fwdSignin: string
+  fwdHeaders: string
+  fwdPassPath: string
+  // How an https upstream is reached.
+  upVerify: boolean
+  upName: string
+  upCa: string
+  upCert: string
+  upKey: string
+  // Pages: maintenance and the site's own error pages.
+  maint: boolean
+  maintAllow: string
+  maintTitle: string
+  maintMessage: string
+  maintRetry: string
+  errorPages: ErrorPageDraft[]
+  interceptErrors: boolean
+  // Hardening: requests no real visitor makes.
+  hDotfiles: boolean
+  hBackups: boolean
+  hScanners: boolean
+  hAiCrawlers: boolean
+  hProbes: boolean
+  hMethods: string[]
+  hStatus: HardeningStatus
+  requestId: boolean
+  brotli: boolean
+  // 404 hosts: answer every name no other site has.
+  catchAll: boolean
+  notFoundCode: NotFoundCode
   note: string
   enabled: boolean
   // The whole file written by hand; when set it's written instead of the
@@ -142,12 +234,37 @@ export const freshHeader = (): HeaderDraft => ({
   value: "",
 })
 
-export const freshPath = (): PathDraft => ({
+export const freshPath = (p: Partial<PathDraft> = {}): PathDraft => ({
   key: rowKey(),
+  match: "prefix",
   path: "",
+  action: "proxy",
   upstream: "",
   websockets: false,
+  stripPrefix: false,
+  redirectTo: "",
+  redirectCode: 302,
+  root: "",
+  denyStatus: 403,
+  status: "200",
+  body: "",
+  public: false,
   advanced: "",
+  ...p,
+})
+
+export const freshUser = (): AuthUserDraft => ({
+  key: rowKey(),
+  name: "",
+  password: "",
+  savedName: "",
+})
+
+export const freshErrorPage = (codes: number[] = []): ErrorPageDraft => ({
+  key: rowKey(),
+  codes,
+  title: "",
+  message: "",
 })
 
 export const freshRateRule = (): RateRuleDraft => ({
@@ -229,6 +346,37 @@ export const freshDraft = (type: HostType = "proxy"): Draft => ({
   skipPaths: "",
   skipCookies: "",
   cacheStatus: true,
+  authMode: "",
+  authRealm: "",
+  authUsers: [],
+  authSkipAllowed: false,
+  fwdUrl: "",
+  fwdSignin: "",
+  fwdHeaders: "",
+  fwdPassPath: "",
+  upVerify: false,
+  upName: "",
+  upCa: "",
+  upCert: "",
+  upKey: "",
+  maint: false,
+  maintAllow: "",
+  maintTitle: "",
+  maintMessage: "",
+  maintRetry: "",
+  errorPages: [],
+  interceptErrors: false,
+  hDotfiles: false,
+  hBackups: false,
+  hScanners: false,
+  hAiCrawlers: false,
+  hProbes: false,
+  hMethods: [],
+  hStatus: 404,
+  requestId: false,
+  brotli: false,
+  catchAll: false,
+  notFoundCode: 404,
   note: "",
   enabled: true,
   custom: "",
@@ -269,13 +417,7 @@ export function draftFromHost(h: ProxyHost): Draft {
     clientCa: c.tls?.client_ca ?? "",
     verifyClient: c.tls?.verify_client === "optional" ? "optional" : "on",
     headers: (c.headers ?? []).map((x) => ({ key: rowKey(), ...x })),
-    paths: (c.paths ?? []).map((p) => ({
-      key: rowKey(),
-      path: p.path,
-      upstream: p.upstream,
-      websockets: !!p.websockets,
-      advanced: p.advanced ?? "",
-    })),
+    paths: (c.paths ?? []).map(pathFromConfig),
     allow: (c.allow ?? []).join("\n"),
     deny: (c.deny ?? []).join("\n"),
     defaultAccess:
@@ -294,6 +436,7 @@ export function draftFromHost(h: ProxyHost): Draft {
     proxyProtocol: !!c.proxy_protocol,
     hideVersion: !!c.hide_version,
     ...cacheFromConfig(c.cache, base),
+    ...featuresFromConfig(c),
     note: h.note,
     enabled: h.enabled,
     custom: c.custom ?? "",
@@ -301,6 +444,99 @@ export function draftFromHost(h: ProxyHost): Draft {
 }
 
 const text = (n?: number) => (n ? String(n) : "")
+
+function pathFromConfig(p: PathRule): PathDraft {
+  const action = p.action || "proxy"
+  return freshPath({
+    match: p.match || "prefix",
+    path: p.path,
+    action,
+    upstream: p.upstream ?? "",
+    websockets: !!p.websockets,
+    stripPrefix: !!p.strip_prefix,
+    redirectTo: p.redirect_to ?? "",
+    redirectCode: (p.redirect_code || 302) as RedirectCode,
+    root: p.root ?? "",
+    denyStatus: (action === "deny" && p.status ? p.status : 403) as DenyStatus,
+    status: action === "return" ? text(p.status) || "200" : "200",
+    body: p.body ?? "",
+    public: !!p.public,
+    advanced: p.advanced ?? "",
+  })
+}
+
+// Login, upstream TLS, pages, hardening and the small switches.
+function featuresFromConfig(c: HostConfig) {
+  const a = c.auth
+  const f = a?.forward
+  const u = c.upstream_tls
+  const m = c.maintenance
+  const hd = c.hardening
+  return {
+    authMode: (a?.mode || "") as AuthMode,
+    authRealm: a?.realm ?? "",
+    authUsers: (a?.users ?? []).map(
+      (x): AuthUserDraft => ({
+        key: rowKey(),
+        name: x.name,
+        password: "",
+        savedName: x.name,
+      }),
+    ),
+    authSkipAllowed: !!a?.skip_for_allowed,
+    fwdUrl: f?.url ?? "",
+    fwdSignin: f?.signin_url ?? "",
+    fwdHeaders: (f?.headers ?? []).join("\n"),
+    fwdPassPath: f?.pass_path ?? "",
+    upVerify: !!u?.verify,
+    upName: u?.name ?? "",
+    upCa: u?.ca ?? "",
+    upCert: u?.certificate ?? "",
+    upKey: u?.key ?? "",
+    maint: !!m?.enabled,
+    maintAllow: (m?.allow ?? []).join("\n"),
+    maintTitle: m?.title ?? "",
+    maintMessage: m?.message ?? "",
+    maintRetry: text(m?.retry_minutes),
+    errorPages: (c.error_pages ?? []).map(
+      (p): ErrorPageDraft => ({
+        key: rowKey(),
+        codes: p.codes,
+        title: p.title ?? "",
+        message: p.message ?? "",
+      }),
+    ),
+    interceptErrors: !!c.intercept_errors,
+    hDotfiles: !!hd?.dotfiles,
+    hBackups: !!hd?.backups,
+    hScanners: !!hd?.scanners,
+    hAiCrawlers: !!hd?.ai_crawlers,
+    hProbes: !!hd?.probes,
+    hMethods: hd?.methods ?? [],
+    hStatus: (hd?.status || 404) as HardeningStatus,
+    requestId: !!c.request_id,
+    brotli: !!c.brotli,
+    catchAll: !!c.catch_all,
+    notFoundCode: (c.not_found_code || 404) as NotFoundCode,
+  }
+}
+
+// A new site that starts as a copy of `h`: everything but its names, the
+// hand-written file and the passwords (which never leave the server).
+export function draftFromCopy(h: ProxyHost): Draft {
+  const d = draftFromHost(h)
+  return {
+    ...d,
+    domains: "",
+    certificate: "",
+    key: "",
+    tls: false,
+    catchAll: false,
+    custom: "",
+    enabled: true,
+    authUsers: d.authUsers.map((u) => ({ ...u, savedName: "" })),
+  }
+}
 
 // A site without the proxy's cache keeps the fresh defaults, so turning it
 // on starts from them.
@@ -359,7 +595,15 @@ export function domainList(text: string) {
 
 const keptHeaders = (d: Draft) => d.headers.filter((x) => x.name.trim())
 const keptPaths = (d: Draft) =>
-  d.paths.filter((p) => p.path.trim() || p.upstream.trim())
+  d.paths.filter(
+    (p) => p.path.trim() || p.upstream.trim() || p.action !== "proxy",
+  )
+export const keptUsers = (d: Draft) =>
+  d.authUsers.filter((u) => u.name.trim() || u.password)
+const keptPages = (d: Draft) =>
+  d.errorPages.filter(
+    (p) => p.codes.length || p.title.trim() || p.message.trim(),
+  )
 // Rules count on sites only; a row with no rate isn't sent.
 export const keptRules = (d: Draft) =>
   d.type === "stream" ? [] : d.rateRules.filter((r) => r.rate.trim())
@@ -392,7 +636,89 @@ export const typeUses = (t: Draft["type"]) => ({
   hideVersion: t !== "stream",
   browserCache: t === "proxy" || t === "static",
   proxyCache: t === "proxy",
+  auth: t === "proxy" || t === "static",
+  upstreamTls: t === "proxy",
+  maintenance: t !== "stream" && t !== "notfound",
+  errorPages: t !== "stream",
+  interceptErrors: t === "proxy",
+  hardening: t !== "stream",
+  requestId: t !== "stream",
+  brotli: t === "proxy" || t === "static",
+  catchAll: t === "notfound",
 })
+
+// An https address among the site's upstream and its paths'.
+export const httpsUpstream = (d: Draft) =>
+  d.type === "proxy" &&
+  [d.upstream, ...d.paths.map((p) => (p.action === "proxy" ? p.upstream : ""))]
+    .map((x) => x.trim().toLowerCase())
+    .some((x) => x.startsWith("https://"))
+
+export const hardeningOn = (d: Draft) =>
+  d.hDotfiles ||
+  d.hBackups ||
+  d.hScanners ||
+  d.hAiCrawlers ||
+  d.hProbes ||
+  d.hMethods.length > 0
+
+export function toAuth(d: Draft): Auth | undefined {
+  if (!typeUses(d.type).auth || !d.authMode) return undefined
+  const skip = d.authSkipAllowed && splitList(d.allow).length > 0
+  if (d.authMode === "basic") {
+    return {
+      mode: "basic",
+      realm: d.authRealm.trim() || undefined,
+      users: keptUsers(d).map((u) => ({
+        name: u.name.trim(),
+        password: u.password || undefined,
+      })),
+      skip_for_allowed: skip || undefined,
+    }
+  }
+  const headers = splitList(d.fwdHeaders)
+  return {
+    mode: "forward",
+    forward: {
+      url: d.fwdUrl.trim(),
+      signin_url: d.fwdSignin.trim() || undefined,
+      headers: headers.length ? headers : undefined,
+      pass_path: d.fwdPassPath.trim() || undefined,
+    },
+    skip_for_allowed: skip || undefined,
+  }
+}
+
+function toPath(p: PathDraft): PathRule {
+  const r: PathRule = {
+    path: p.path.trim(),
+    match: p.match === "prefix" ? undefined : p.match,
+    action: p.action === "proxy" ? undefined : p.action,
+    advanced: p.advanced.trim() || undefined,
+    public: p.public || undefined,
+  }
+  switch (p.action) {
+    case "proxy":
+      r.upstream = p.upstream.trim()
+      r.websockets = p.websockets || undefined
+      if (p.match === "prefix") r.strip_prefix = p.stripPrefix || undefined
+      break
+    case "redirect":
+      r.redirect_to = p.redirectTo.trim()
+      r.redirect_code = p.redirectCode
+      break
+    case "static":
+      r.root = p.root.trim()
+      break
+    case "deny":
+      r.status = p.denyStatus
+      break
+    case "return":
+      r.status = Number(p.status.trim()) || 0
+      r.body = p.body || undefined
+  }
+  return r
+}
 
 // The cache as sent; undefined when it does nothing.
 export function toCache(d: Draft): HostConfig["cache"] {
@@ -511,16 +837,11 @@ export function toConfig(d: Draft): HostConfig {
   const headers = keptHeaders(d).map(({ to, name, value }) => ({
     to,
     name: name.trim(),
-    value: value.trim(),
+    value: to === "hide" ? "" : value.trim(),
   }))
   if (headers.length && uses.headers) c.headers = headers
   if (uses.paths) {
-    const paths = keptPaths(d).map((p) => ({
-      path: p.path.trim(),
-      upstream: p.upstream.trim(),
-      websockets: p.websockets || undefined,
-      advanced: p.advanced.trim() || undefined,
-    }))
+    const paths = keptPaths(d).map(toPath)
     if (paths.length) c.paths = paths
   }
   const allow = splitList(d.allow)
@@ -547,8 +868,65 @@ export function toConfig(d: Draft): HostConfig {
   if (uses.hideVersion && d.hideVersion) c.hide_version = true
   const cache = toCache(d)
   if (cache) c.cache = cache
+  addFeatures(c, d)
   if (d.custom.trim()) c.custom = d.custom.trim()
   return c
+}
+
+function addFeatures(c: HostConfig, d: Draft) {
+  const uses = typeUses(d.type)
+  const auth = toAuth(d)
+  if (auth) c.auth = auth
+  if (uses.upstreamTls && httpsUpstream(d)) {
+    const u = {
+      verify: d.upVerify || undefined,
+      ca: d.upVerify ? d.upCa.trim() || undefined : undefined,
+      name: d.upName.trim() || undefined,
+      certificate: d.upCert.trim() || undefined,
+      key: d.upKey.trim() || undefined,
+    }
+    if (Object.values(u).some(Boolean)) c.upstream_tls = u
+  }
+  if (uses.maintenance) {
+    const allow = splitList(d.maintAllow)
+    const m = {
+      enabled: d.maint || undefined,
+      allow: allow.length ? allow : undefined,
+      title: d.maintTitle.trim() || undefined,
+      message: d.maintMessage.trim() || undefined,
+      retry_minutes: number(d.maintRetry),
+    }
+    // Kept while off, so turning it on again finds the same page.
+    if (Object.values(m).some(Boolean)) c.maintenance = m
+  }
+  if (uses.errorPages) {
+    const pages = keptPages(d).map((p) => ({
+      codes: p.codes,
+      title: p.title.trim() || undefined,
+      message: p.message.trim() || undefined,
+    }))
+    if (pages.length) {
+      c.error_pages = pages
+      if (uses.interceptErrors && d.interceptErrors) c.intercept_errors = true
+    }
+  }
+  if (uses.hardening && hardeningOn(d)) {
+    c.hardening = {
+      dotfiles: d.hDotfiles || undefined,
+      backups: d.hBackups || undefined,
+      scanners: d.hScanners || undefined,
+      ai_crawlers: d.hAiCrawlers || undefined,
+      probes: d.hProbes || undefined,
+      methods: d.hMethods.length ? d.hMethods : undefined,
+      status: d.hStatus,
+    }
+  }
+  if (uses.requestId && d.requestId) c.request_id = true
+  if (uses.brotli && d.brotli) c.brotli = true
+  if (uses.catchAll) {
+    if (d.catchAll) c.catch_all = true
+    c.not_found_code = d.notFoundCode
+  }
 }
 
 export const toBody = (d: Draft): ProxyHostBody => ({
@@ -578,10 +956,14 @@ export function problemsToErrors(
     "real_ip.from": splitList(d.realIpFrom),
     "cache.skip_paths": splitList(d.skipPaths),
     "cache.skip_cookies": splitList(d.skipCookies),
+    "auth.forward.headers": splitList(d.fwdHeaders),
+    "maintenance.allow": splitList(d.maintAllow),
   }
   const rules = keptRules(d)
   const headers = keptHeaders(d)
   const paths = keptPaths(d)
+  const users = keptUsers(d)
+  const pages = keptPages(d)
   for (const p of problems) {
     const where = p.location ?? p.field
     if (!where || !p.message) continue
@@ -608,6 +990,10 @@ export function problemsToErrors(
         key = `headers.${headers[i]?.key ?? i}`
       } else if (m[1] === "paths") {
         key = `paths.${paths[i]?.key ?? i}`
+      } else if (m[1] === "auth.users") {
+        key = `auth.users.${users[i]?.key ?? i}`
+      } else if (m[1] === "error_pages") {
+        key = `error_pages.${pages[i]?.key ?? i}`
       } else {
         key = m[1]
       }
@@ -677,14 +1063,38 @@ export function clearErrors(e: Errors, patch: Partial<Draft>): Errors {
     assetDays: ["cache.asset_days"],
     skipPaths: ["cache.skip_paths"],
     skipCookies: ["cache.skip_cookies"],
+    authMode: ["auth.mode", "auth.users"],
+    authRealm: ["auth.realm"],
+    fwdUrl: ["auth.forward.url", "auth.mode"],
+    fwdSignin: ["auth.forward.signin_url"],
+    fwdHeaders: ["auth.forward.headers"],
+    fwdPassPath: ["auth.forward.pass_path"],
+    upName: ["upstream_tls.name"],
+    upCa: ["upstream_tls.ca"],
+    upCert: ["upstream_tls.certificate", "upstream_tls.key"],
+    upKey: ["upstream_tls.key"],
+    maintAllow: ["maintenance.allow"],
+    maintRetry: ["maintenance.retry_minutes"],
+    hMethods: ["hardening.methods"],
+    hStatus: ["hardening.status"],
+    catchAll: ["catch_all", "domains"],
+    notFoundCode: ["not_found_code"],
     note: ["note"],
     custom: ["custom"],
   }
   for (const k of Object.keys(patch) as (keyof Draft)[]) {
     for (const f of map[k] ?? []) delete next[f]
   }
-  if (patch.rateRules) {
-    for (const f of Object.keys(next)) if (f.startsWith("rate.")) delete next[f]
+  const rows: [keyof Draft, string][] = [
+    ["rateRules", "rate."],
+    ["authUsers", "auth.users"],
+    ["errorPages", "error_pages"],
+    ["paths", "paths."],
+    ["headers", "headers."],
+  ]
+  for (const [k, prefix] of rows) {
+    if (!patch[k]) continue
+    for (const f of Object.keys(next)) if (f.startsWith(prefix)) delete next[f]
   }
   return next
 }

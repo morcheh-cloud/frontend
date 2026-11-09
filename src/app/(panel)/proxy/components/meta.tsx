@@ -151,9 +151,17 @@ export function hostTarget(c: HostConfig) {
   if (c.type === "redirect") return c.redirect_to ?? ""
   if (c.type === "static") return c.root ?? ""
   if (c.type === "stream") return c.stream_to ?? ""
-  if (c.type === "notfound") return "404 Not Found"
+  if (c.type === "notfound") return notFoundText(c.not_found_code)
   return c.upstream ?? ""
 }
+
+// What a 404 host answers.
+export const notFoundText = (code?: number) =>
+  code === 410
+    ? "410 Gone"
+    : code === 444
+      ? "Connection closed (444)"
+      : "404 Not Found"
 
 // A stream has no domain: it's known by its port.
 export function streamLabel(c: Pick<HostConfig, "listen_port" | "protocol">) {
@@ -162,9 +170,9 @@ export function streamLabel(c: Pick<HostConfig, "listen_port" | "protocol">) {
 
 // What a site is called in lists, titles and toasts.
 export function hostName(h: Pick<ProxyHost, "config" | "domains">) {
-  return h.config.type === "stream"
-    ? streamLabel(h.config)
-    : domainsText(h.domains)
+  if (h.config.type === "stream") return streamLabel(h.config)
+  if (h.config.catch_all && !h.domains.length) return "Any other name"
+  return domainsText(h.domains)
 }
 
 // The first-page tabs: what kind of sites each one shows.
@@ -240,6 +248,9 @@ export const proxyHref = (id: string, tab?: ProxyTab) =>
   `/proxy/${id}${tab && tab !== "sites" ? `?tab=${tab}` : ""}`
 export const newHostHref = (id: string, type?: HostType) =>
   `/proxy/${id}/hosts/new${type && type !== "proxy" ? `?type=${type}` : ""}`
+// A new site that starts as a copy of another one.
+export const duplicateHostHref = (id: string, host: string) =>
+  `/proxy/${id}/hosts/new?from=${encodeURIComponent(host)}`
 export const hostHref = (id: string, host: string) =>
   `/proxy/${id}/hosts/${host}`
 

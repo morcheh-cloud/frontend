@@ -1,6 +1,6 @@
 "use client"
 
-import { Cloud, Info } from "lucide-react"
+import { Cloud, Info, ShieldAlert } from "lucide-react"
 
 import {
   Callout,
@@ -9,7 +9,7 @@ import {
 import { ListInput } from "@/app/(panel)/dns/components/fields"
 import { Field } from "@/components/field"
 import { Button } from "@/components/ui/button"
-import type { Proxy as ReverseProxy } from "@/lib/services"
+import type { ProxyInspection, Proxy as ReverseProxy } from "@/lib/services"
 import { type Draft, type Errors, type RealIpHeader, typeUses } from "./draft"
 import { EditorCard as Card } from "./editor-card"
 import { Choice } from "./rate-limit"
@@ -56,11 +56,20 @@ type Props = {
   set: (patch: Partial<Draft>) => void
   errors: Errors
   phone: boolean
+  inspection?: ProxyInspection
 }
 
-export function PerformanceCard({ draft, set, phone }: Props) {
+export function PerformanceCard({
+  proxy: p,
+  draft,
+  set,
+  phone,
+  inspection,
+}: Props) {
   const uses = typeUses(draft.type)
   if (!uses.gzip && !uses.noBuffering) return null
+  // Unknown until the server is read: offer it, the backend checks.
+  const noBrotli = inspection ? !inspection.brotli : false
   return (
     <Card title="Performance" phone={phone}>
       {uses.gzip && (
@@ -71,6 +80,26 @@ export function PerformanceCard({ draft, set, phone }: Props) {
           checked={draft.gzip}
           onChange={(gzip) => set({ gzip })}
         />
+      )}
+      {uses.brotli && (
+        <ToggleRow
+          id="tune-brotli"
+          label="Brotli compression"
+          hint={
+            noBrotli && !draft.brotli
+              ? `${p.kind_label} on ${p.server_name} doesn't have the Brotli module (Debian/Ubuntu: libnginx-mod-http-brotli-filter).`
+              : "About 15–20% smaller than gzip for browsers that take it; others still get gzip."
+          }
+          checked={draft.brotli}
+          onChange={(brotli) => set({ brotli })}
+          disabled={noBrotli && !draft.brotli}
+        />
+      )}
+      {uses.brotli && draft.brotli && noBrotli && (
+        <Callout icon={<ShieldAlert />} tone="warning">
+          The Brotli module isn't loaded on {p.server_name}, so only gzip is
+          used. It starts working once the module is installed.
+        </Callout>
       )}
       {uses.noBuffering && (
         <ToggleRow
@@ -170,6 +199,25 @@ export function ProxyProtocolCard({ proxy: p, draft, set, phone }: Props) {
         hint={`${p.kind_label} tells the target who connected, before the data. Only turn on when the target expects it (HAProxy, Traefik, Postfix, nginx with proxy_protocol), or every connection fails.`}
         checked={draft.proxyProtocol}
         onChange={(proxyProtocol) => set({ proxyProtocol })}
+      />
+    </Card>
+  )
+}
+
+export function TracingCard({ draft, set, phone }: Props) {
+  if (!typeUses(draft.type).requestId) return null
+  return (
+    <Card title="Tracing" phone={phone}>
+      <ToggleRow
+        id="tune-request-id"
+        label="Give each request an ID"
+        hint={
+          draft.type === "proxy"
+            ? "A unique X-Request-ID goes to the app and back to the visitor, and into the access log: match a visitor's error to the app's log line."
+            : "A unique X-Request-ID goes back to the visitor and into the access log."
+        }
+        checked={draft.requestId}
+        onChange={(requestId) => set({ requestId })}
       />
     </Card>
   )
