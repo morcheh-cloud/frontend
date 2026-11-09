@@ -1232,33 +1232,49 @@ export const reverseProxy: GuideSection[] = [
         <P>
           When the same app runs on several servers, a proxy site (or a stream)
           can spread its traffic over all of them: more capacity, and the site
-          stays up when one server goes down. The address in <UI>General</UI> is
-          always the first server (server 1). With no other servers nothing is
-          balanced: every request goes to that one address.
+          stays up when one server goes down. With no other servers nothing is
+          balanced: every request goes to the one <UI>App address</UI>.
         </P>
         <Steps>
           <P>
             In <UI>General</UI>, under the <UI>App address</UI> (or{" "}
-            <UI>Forward to</UI> for a stream), press <UI>Add another server</UI>{" "}
-            and type its address as <C>host:port</C>, like <C>10.0.0.6:3000</C>.
-            Pasting a list (one per line, or comma separated) adds a row for
-            each; a pasted URL is trimmed to its host and port.
+            <UI>Forward to</UI> for a stream), press <UI>Add another server</UI>
+            . The address field turns into a list of servers side by side:
+            server 1 (the address you had) and the new row. Every row works the
+            same way: edit or remove any of them, server 1 too (removing it
+            makes the next one server 1).
           </P>
           <P>
-            The <UI>Load balancing</UI> tab appears (also reached by{" "}
-            <UI>Weights, backups and failover</UI>). Press <UI>Test all</UI>:
-            each server is asked for the site's address from the proxy's server,
-            with the same scheme and path as the main one.
+            For a site, <UI>Protocol</UI> (http or https) and an optional{" "}
+            <UI>Path</UI> above the list apply to every server.
           </P>
           <P>
-            Pick <UI>How a server is picked</UI>, then save. The tab's badge
-            shows how many servers share the site.
+            Type each server's <UI>Address</UI> (like <C>10.0.0.6</C>) and its{" "}
+            <UI>Port</UI> (like <C>3000</C>). An empty port = server 1's port.
+            Typing or pasting <C>10.0.0.6:3000</C> or a URL in the address fills
+            both fields; pasting a list (one per line, or comma separated) adds
+            a row for each.
+          </P>
+          <P>
+            Set each row's <UI>Weight</UI> if the servers aren't equal; the{" "}
+            <UI>Share</UI> column shows the part of the traffic each one gets.
+          </P>
+          <P>
+            Press <UI>Test</UI> on a row (or <UI>Test all</UI>): that server is
+            asked from the proxy's server, with the protocol and path above, and
+            the answer shows under the row.
+          </P>
+          <P>
+            Pick <UI>How a server is picked</UI> right under the list (its
+            options show beside it), set <UI>When a server fails</UI> in the
+            card just below, then save. Everything stays in <UI>General</UI>:
+            there is no separate tab.
           </P>
         </Steps>
         <P>
-          Each server has a <UI>Weight</UI> (its share compared with the others;
-          the row shows the share it gets), <UI>Most connections</UI> at once,
-          and a role:
+          Each row's <UI>More</UI> button (the sliders icon; a dot means
+          something is set) opens its <UI>Role</UI>, <UI>Most connections</UI>{" "}
+          at once and a <UI>Note</UI>:
         </P>
         <Table
           head={["Role", "What it means"]}
@@ -1313,18 +1329,19 @@ export const reverseProxy: GuideSection[] = [
           on its own.
         </P>
         <P>
-          <UI>Try another server</UI>: when a server can't be reached, times out
-          or (if picked) answers with one of the chosen error codes, before
-          anything reached the visitor, the request goes to the next server. The
-          visitor sees an error only when every server failed. POST and PATCH
-          are never sent twice unless <UI>Also POST and PATCH</UI> is picked.
+          <UI>Tries the next server</UI> (same card): when a server can't be
+          reached, times out or (if picked) answers with one of the chosen error
+          codes, before anything reached the visitor, the request goes to the
+          next server. The visitor sees an error only when every server failed.
+          POST and PATCH are never sent twice unless{" "}
+          <UI>Also POST and PATCH</UI> is picked.
         </P>
         <Warn>
           Turn on <UI>Also POST and PATCH</UI> only for apps where sending a
           form twice is safe: otherwise an order or a payment can happen twice.
         </Warn>
         <P>
-          <UI>Connections to the servers</UI> (sites): idle connections kept
+          <UI>Idle connections kept to the servers</UI> (sites, same card): kept
           open, so requests don't wait for a new one each time.
         </P>
         <Recommended
@@ -1360,10 +1377,10 @@ export const reverseProxy: GuideSection[] = [
           <P>
             General's address is <C>http://10.0.0.5:3000</C>. Add{" "}
             <C>10.0.0.6:3000</C> with weight 2 (a bigger machine) and{" "}
-            <C>10.0.0.7:3000</C> as <UI>Backup</UI>. With <UI>Take turns</UI>,
-            .5 gets a third of the requests, .6 two thirds, and .7 only when
-            both are down. To update .5, set it to <UI>Off</UI>, save, update
-            it, set it back to <UI>In use</UI>.
+            <C>10.0.0.7:3000</C>, whose <UI>More</UI> sets it to <UI>Backup</UI>
+            . With <UI>Take turns</UI>, .5 gets a third of the requests, .6 two
+            thirds, and .7 only when both are down. To update .5, set it to{" "}
+            <UI>Off</UI>, save, update it, set it back to <UI>In use</UI>.
           </P>
         </Example>
         <P>

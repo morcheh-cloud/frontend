@@ -5,13 +5,14 @@ import {
   Check,
   Fingerprint,
   Hash,
-  Info,
   Loader2,
   type LucideIcon,
+  Network,
   Plug,
   Plus,
   Repeat,
   Shuffle,
+  SlidersHorizontal,
   Trash2,
   TriangleAlert,
 } from "lucide-react"
@@ -37,19 +38,24 @@ import {
   keptServers,
   type LbHashKey,
   type LbMethod,
+  mainParts,
+  mainPort,
   mainServer,
   noBackup,
   type PoolServerDraft,
   retryConditions,
+  serverAddress,
+  splitHostPort,
   splitList,
   toConfig,
+  withMain,
 } from "./draft"
 import { EditorCard as Card } from "./editor-card"
 import { Choice, NumberInput } from "./rate-limit"
 
 // Load balancing: the site's requests (or a stream's connections) spread
-// over several servers running the same app. The main address from General
-// is always the first server.
+// over several servers running the same app. Server 1's address is the
+// site's upstream (or Forward to); its row edits that.
 
 const MAX_SERVERS = 50
 
@@ -162,459 +168,283 @@ type Props = {
   set: (patch: Partial<Draft>) => void
   errors: Errors
   phone: boolean
-  onGeneral: () => void
 }
 
-export function BalancingTab(props: Props) {
-  const { draft, set, phone, errors } = props
-  const pooled = keptServers(draft).length > 0
+// In General, under What it does, once there are several servers: what
+// happens when one fails, and the connections kept open to them.
+export function FailoverCard({ proxy, draft, set, errors, phone }: Props) {
   const stream = draft.type === "stream"
   return (
-    <>
-      <ServersCard {...props} />
-      {pooled ? (
-        <>
-          <MethodCard {...props} />
-          <Card
-            title="When a server fails"
-            hint={`A server that keeps failing is taken out for a while, then tried again. ${props.proxy.kind_label} learns this from real ${stream ? "connections" : "requests"}: it doesn't check servers on its own.`}
-            phone={phone}
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field
-                label="Failures before it's taken out"
-                hint="Counted within the time on the right. Empty = 1."
-                error={errors["balance.max_fails"]}
-              >
-                {(f) => (
-                  <NumberInput
-                    {...f}
-                    value={draft.lbMaxFails}
-                    onChange={(lbMaxFails) => set({ lbMaxFails })}
-                    placeholder="1"
-                  />
-                )}
-              </Field>
-              <Field
-                label="Taken out for"
-                hint="Also the time failures are counted in. Empty = 10 seconds."
-                error={errors["balance.fail_timeout"]}
-              >
-                {(f) => (
-                  <NumberInput
-                    {...f}
-                    value={draft.lbFailTimeout}
-                    onChange={(lbFailTimeout) => set({ lbFailTimeout })}
-                    unit="seconds"
-                    placeholder="10"
-                  />
-                )}
-              </Field>
-            </div>
-          </Card>
-          <RetryCard {...props} />
-          {!stream && (
-            <Card
-              title="Connections to the servers"
-              hint="Idle connections kept open to the servers, so a request doesn't wait for a new one. Saves time and ports on busy sites."
-              phone={phone}
-            >
-              <Field
-                label="Idle connections kept"
-                hint="Per worker process. 16–64 suits most sites; empty = a new connection for every request."
-                error={errors["balance.keepalive"]}
-              >
-                {(f) => (
-                  <NumberInput
-                    {...f}
-                    value={draft.lbKeepalive}
-                    onChange={(lbKeepalive) => set({ lbKeepalive })}
-                    placeholder="None"
-                  />
-                )}
-              </Field>
-            </Card>
+    <Card
+      title="When a server fails"
+      hint={`A server that keeps failing is taken out for a while, then tried again. ${proxy.kind_label} learns this from real ${stream ? "connections" : "requests"}: it doesn't check servers on its own.`}
+      phone={phone}
+    >
+      <div className="grid gap-4 md:grid-cols-2">
+        <Field
+          label="Failures before it's taken out"
+          hint="Counted within the time on the right. Empty = 1."
+          error={errors["balance.max_fails"]}
+        >
+          {(f) => (
+            <NumberInput
+              {...f}
+              value={draft.lbMaxFails}
+              onChange={(lbMaxFails) => set({ lbMaxFails })}
+              placeholder="1"
+            />
           )}
-        </>
-      ) : (
-        <Callout icon={<Info />}>
-          Add a server above to choose how {stream ? "connections" : "requests"}{" "}
-          are spread, what happens when one fails, and the rest.
-        </Callout>
+        </Field>
+        <Field
+          label="Taken out for"
+          hint="Also the time failures are counted in. Empty = 10 seconds."
+          error={errors["balance.fail_timeout"]}
+        >
+          {(f) => (
+            <NumberInput
+              {...f}
+              value={draft.lbFailTimeout}
+              onChange={(lbFailTimeout) => set({ lbFailTimeout })}
+              unit="seconds"
+              placeholder="10"
+            />
+          )}
+        </Field>
+      </div>
+      <RetryFields draft={draft} set={set} errors={errors} />
+      {!stream && (
+        <Field
+          label="Idle connections kept to the servers"
+          hint="So a request doesn't wait for a new connection; saves time and ports on busy sites. Per worker process: 16–64 suits most sites, empty = a new connection for every request."
+          error={errors["balance.keepalive"]}
+        >
+          {(f) => (
+            <NumberInput
+              {...f}
+              value={draft.lbKeepalive}
+              onChange={(lbKeepalive) => set({ lbKeepalive })}
+              placeholder="None"
+            />
+          )}
+        </Field>
       )}
-    </>
+    </Card>
   )
 }
 
-// Adding, pasting and removing the other servers, shared by General's short
-// list and the tab's full one.
+// Adding, pasting, editing and removing servers, shared by General's list
+// and the tab's. Server 1's address lives in the site's upstream (or
+// Forward to), so its row edits that.
 function usePoolRows(
   draft: Draft,
   set: (patch: Partial<Draft>) => void,
   focusKey: { current: string },
 ) {
   const servers = draft.poolServers
-  const setServer = (key: string, patch: Partial<PoolServerDraft>) =>
-    set({
-      poolServers: servers.map((s) => (s.key === key ? { ...s, ...patch } : s)),
-    })
-  const add = (addresses: string[] = [""]) => {
-    const room = MAX_SERVERS - servers.length
-    const rows = addresses
-      .slice(0, room)
-      .map((address) => freshPoolServer({ address }))
-    if (!rows.length) return
-    focusKey.current = rows[0].key
-    set({ poolServers: [...servers, ...rows] })
+  const isMain = (key: string) => key === draft.poolMain.key
+  const at = (s: PoolServerDraft) => (isMain(s.key) ? mainParts(draft) : s)
+  const patchOf = (
+    key: string,
+    patch: Partial<PoolServerDraft>,
+  ): Partial<Draft> => {
+    if (!isMain(key))
+      return {
+        poolServers: servers.map((s) =>
+          s.key === key ? { ...s, ...patch } : s,
+        ),
+      }
+    const { host, port, ...rest } = patch
+    return {
+      ...withMain(draft, { host, port }),
+      poolMain: { ...draft.poolMain, ...rest },
+    }
   }
-  // A pasted list (one per line, or comma separated) becomes rows.
+  const setServer = (key: string, patch: Partial<PoolServerDraft>) =>
+    set(patchOf(key, patch))
+  const add = () => {
+    if (servers.length >= MAX_SERVERS) return
+    const row = freshPoolServer()
+    focusKey.current = row.key
+    set({ poolServers: [...servers, row] })
+  }
+  // A pasted list (one per line, or comma separated) becomes rows; one
+  // address with its port fills both fields.
   const paste = (key: string, e: ClipboardEvent<HTMLInputElement>) => {
     const list = splitList(e.clipboardData.getData("text"))
       .map(cleanAddress)
       .filter(Boolean)
+      .map(splitHostPort)
+    if (list.length === 1) {
+      if (!list[0].port || e.currentTarget.value) return
+      e.preventDefault()
+      setServer(key, list[0])
+      return
+    }
     if (list.length < 2) return
     e.preventDefault()
     const [first, ...rest] = list
     const room = MAX_SERVERS - servers.length
+    const base = patchOf(key, first)
     set({
+      ...base,
       poolServers: [
-        ...servers.map((s) => (s.key === key ? { ...s, address: first } : s)),
-        ...rest.slice(0, room).map((address) => freshPoolServer({ address })),
+        ...(base.poolServers ?? servers),
+        ...rest.slice(0, room).map((a) => freshPoolServer(a)),
       ],
     })
   }
-  const remove = (key: string) =>
-    set({ poolServers: servers.filter((x) => x.key !== key) })
-  return { setServer, add, paste, remove }
+  // Leaving the address field: a URL or host:port typed there is taken
+  // apart.
+  const tidy = (s: PoolServerDraft) => {
+    const cur = at(s)
+    const clean = cleanAddress(cur.host)
+    const split = splitHostPort(clean)
+    const next = split.port ? split : { host: clean, port: cur.port }
+    if (next.host !== cur.host || next.port !== cur.port) setServer(s.key, next)
+  }
+  // Removing server 1 makes the next one server 1.
+  const remove = (key: string) => {
+    if (!isMain(key)) {
+      set({ poolServers: servers.filter((x) => x.key !== key) })
+      return
+    }
+    const [next, ...rest] = servers
+    if (!next) return
+    // Rows with an empty port meant the old server 1's: keep it written.
+    const old = mainPort(draft)
+    set({
+      ...withMain(draft, { host: next.host, port: next.port.trim() || old }),
+      poolMain: { ...next, host: "", port: "" },
+      poolServers: rest.map((r) =>
+        r.port.trim() || !old ? r : { ...r, port: old },
+      ),
+    })
+  }
+  return { at, isMain, setServer, add, paste, tidy, remove }
 }
 
-function ServersCard({
-  proxy: p,
-  draft,
-  set,
-  errors,
-  phone,
-  onGeneral,
-}: Props) {
-  const stream = draft.type === "stream"
-  const main = mainServer(draft)
-  const [testAll, setTestAll] = useState(0)
-  const servers = draft.poolServers
-  const share = shares(
-    draft.poolMain,
-    servers.filter((s) => s.address.trim()),
-  )
-  const focusKey = useRef("")
-  const testable = !stream && /^https?:\/\/./i.test(draft.upstream.trim())
-
-  const { setServer, add, paste, remove } = usePoolRows(draft, set, focusKey)
-
-  return (
-    <Card
-      title="Servers"
-      count={main ? 1 + keptServers(draft).length : undefined}
-      hint={
-        stream
-          ? "Every server should run the same service. The address from General is the first one."
-          : "Every server should run the same app and answer the same way. The address from General is the first one; its scheme and path are used for all."
-      }
-      phone={phone}
-      action={
-        testable &&
-        keptServers(draft).length > 0 && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-9 md:h-8"
-            onClick={() => setTestAll((n) => n + 1)}
-          >
-            <Plug />
-            Test all
-          </Button>
-        )
-      }
-    >
-      <ul
-        className={cn(
-          "flex flex-col",
-          phone
-            ? "-mx-4 divide-y divide-border border-y border-border"
-            : "gap-3",
-        )}
-      >
-        <ServerRow
-          server={draft.poolMain}
-          main
-          address={main}
-          index={1}
-          draft={draft}
-          share={share.get(draft.poolMain.key) ?? 0}
-          pooled={keptServers(draft).length > 0}
-          errors={errors}
-          phone={phone}
-          proxy={p}
-          testAll={testable ? testAll : 0}
-          onChange={(patch) =>
-            set({ poolMain: { ...draft.poolMain, ...patch } })
-          }
-          onGeneral={onGeneral}
-        />
-        {servers.map((s, i) => (
-          <ServerRow
-            key={s.key}
-            server={s}
-            address={s.address}
-            index={i + 2}
-            draft={draft}
-            share={share.get(s.key) ?? 0}
-            pooled
-            errors={errors}
-            phone={phone}
-            proxy={p}
-            testAll={testable ? testAll : 0}
-            autoFocus={focusKey.current === s.key}
-            onChange={(patch) => setServer(s.key, patch)}
-            onPaste={(e) => paste(s.key, e)}
-            onRemove={() => {
-              remove(s.key)
-              // The tab only shows while there are other servers.
-              if (servers.length === 1) onGeneral()
-            }}
-          />
-        ))}
-      </ul>
-      <FieldError text={errors["balance.servers"]} />
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <Button
-          type="button"
-          variant="outline"
-          className="h-11 md:h-9"
-          onClick={() => add()}
-          disabled={!main || servers.length >= MAX_SERVERS}
-        >
-          <Plus />
-          Add a server
-        </Button>
-        <p className="text-caption text-ash">
-          {main
-            ? "Paste a list into an address to add several at once."
-            : stream
-              ? "Set where the port forwards to in General first."
-              : "Set the app's address in General first."}
-        </p>
-      </div>
-    </Card>
-  )
+// What server 1's port shows when empty: the scheme's own.
+function mainPortHint(draft: Draft) {
+  if (draft.type === "stream") return "5432"
+  return mainParts(draft).scheme.toLowerCase() === "https://" ? "443" : "80"
 }
 
-function ServerRow({
-  server: s,
-  main,
-  address,
-  index,
-  draft,
+// Server 1's address problems come from the upstream (or Forward to).
+function addressError(draft: Draft, errors: Errors, s: PoolServerDraft) {
+  if (s.key !== draft.poolMain.key) return errors[`pool.${s.key}.address`]
+  return draft.type === "stream" ? errors.stream_to : errors.upstream
+}
+
+// Focuses a row's address once, when it was just added.
+function useAutoFocus(on: boolean | undefined) {
+  const ref = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (on && window.matchMedia("(pointer: fine)").matches) ref.current?.focus()
+  }, [on])
+  return ref
+}
+
+// What a row says it gets: a share by weight, or its role.
+function ShareText({
+  server,
   share,
-  pooled,
-  errors,
-  phone,
-  proxy,
-  testAll,
-  autoFocus,
-  onChange,
-  onPaste,
-  onRemove,
-  onGeneral,
+  long,
 }: {
   server: PoolServerDraft
-  main?: boolean
-  address: string
-  index: number
-  draft: Draft
   share: number
-  // Other servers are listed, so the main one's options count.
-  pooled: boolean
-  errors: Errors
-  phone: boolean
-  proxy: ReverseProxy
-  testAll: number
-  autoFocus?: boolean
-  onChange: (patch: Partial<PoolServerDraft>) => void
-  onPaste?: (e: ClipboardEvent<HTMLInputElement>) => void
-  onRemove?: () => void
-  onGeneral?: () => void
+  long?: boolean
 }) {
-  const err = (f: string) =>
-    main
-      ? f === "backup"
-        ? errors["balance.main.backup"]
-        : undefined
-      : errors[`pool.${s.key}.${f}`]
-  const role = roleOf(s)
-  const id = `pool-${s.key}`
-  const focus = useRef<HTMLInputElement>(null)
-  useEffect(() => {
-    if (autoFocus && window.matchMedia("(pointer: fine)").matches)
-      focus.current?.focus()
-  }, [autoFocus])
-
+  const role = roleOf(server)
+  if (role !== "on")
+    return (
+      <span className="rounded-full bg-muted px-2 py-0.5 text-caption text-muted-foreground">
+        {role === "backup" ? "Backup" : "Off"}
+      </span>
+    )
+  const pct = `${Math.round(share * 100)}%`
   return (
-    <li
-      className={cn(
-        "flex flex-col gap-3",
-        phone ? "p-4" : "rounded-xl border border-border p-4",
-      )}
-    >
-      <div className="flex min-h-6 items-center gap-2">
-        <span
-          className={cn(
-            "size-2 shrink-0 rounded-full",
-            role === "on" ? "bg-brand" : role === "backup" ? "bg-mist" : "",
-            role === "off" && "border border-mist",
-          )}
-          aria-hidden
+    <span className="text-caption text-muted-foreground tabular-nums">
+      {long ? `≈ ${pct} of the traffic` : pct}
+    </span>
+  )
+}
+
+// The scheme and path every server is asked with (sites only).
+function SchemePath({
+  draft,
+  set,
+}: {
+  draft: Draft
+  set: (patch: Partial<Draft>) => void
+}) {
+  if (draft.type !== "proxy") return null
+  const parts = mainParts(draft)
+  const scheme =
+    parts.scheme.toLowerCase() === "https://" ? "https://" : "http://"
+  return (
+    <div className="grid gap-3 @xl:grid-cols-[auto_minmax(0,1fr)] @xl:items-start">
+      <div className="flex flex-col gap-1.5">
+        <span className="text-body-sm font-medium">Protocol</span>
+        <Segmented
+          label="Protocol the servers are asked with"
+          items={[
+            { value: "http://", label: "http" },
+            { value: "https://", label: "https" },
+          ]}
+          value={scheme}
+          onChange={(v) => set(withMain(draft, { scheme: v }))}
         />
-        <span className="text-body-sm font-medium">
-          {main ? "Server 1 (main)" : `Server ${index}`}
-        </span>
-        {pooled && (
-          <span className="text-caption text-muted-foreground">
-            {role === "off"
-              ? "Gets nothing"
-              : role === "backup"
-                ? "Only when the others are down"
-                : `≈ ${Math.round(share * 100)}% of the traffic`}
-          </span>
-        )}
-        {onRemove && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="-my-1 ms-auto size-11 text-muted-foreground md:size-8"
-            aria-label={`Remove server ${index}`}
-            onClick={onRemove}
-          >
-            <Trash2 />
-          </Button>
-        )}
       </div>
-
-      <div
-        className={cn(
-          "grid gap-3",
-          !phone && "lg:grid-cols-[minmax(0,1fr)_7rem_9rem]",
-        )}
+      <Field
+        label="Path (optional)"
+        hint="Added after every server's address, like /api."
       >
-        {main ? (
-          <div className="flex min-w-0 flex-col gap-1.5">
-            <span className="text-body-sm font-medium">Address</span>
-            <div className="flex h-11 min-w-0 items-center gap-2 rounded-lg border border-input bg-subtle px-3 md:h-9">
-              <span
-                className={cn(
-                  "min-w-0 flex-1 truncate font-mono text-body-sm",
-                  !address && "text-ash",
-                )}
-              >
-                {address || "Not set yet"}
-              </span>
-              <button
-                type="button"
-                onClick={onGeneral}
-                className="shrink-0 text-caption font-medium text-brand underline-offset-4 hover:underline"
-              >
-                Change in General
-              </button>
-            </div>
-          </div>
-        ) : (
-          <Field label="Address" error={err("address")}>
-            {(f) => (
-              <Input
-                {...f}
-                ref={focus}
-                value={s.address}
-                onChange={(e) => onChange({ address: e.target.value })}
-                onBlur={(e) => {
-                  const v = cleanAddress(e.target.value)
-                  if (v !== s.address) onChange({ address: v })
-                }}
-                onPaste={onPaste}
-                placeholder="10.0.0.6:3000"
-                className="font-mono"
-                autoCapitalize="off"
-                autoCorrect="off"
-                spellCheck={false}
-                inputMode="url"
-              />
-            )}
-          </Field>
-        )}
-        <div className="grid grid-cols-2 gap-3 lg:contents">
-          <Field label="Weight" error={err("weight")}>
-            {(f) => (
-              <NumberInput
-                {...f}
-                value={s.weight}
-                onChange={(weight) => onChange({ weight })}
-                placeholder="1"
-              />
-            )}
-          </Field>
-          <Field label="Most connections" error={err("max_conns")}>
-            {(f) => (
-              <NumberInput
-                {...f}
-                value={s.maxConns}
-                onChange={(maxConns) => onChange({ maxConns })}
-                placeholder="No limit"
-              />
-            )}
-          </Field>
-        </div>
-      </div>
-
-      <div
-        className={cn(
-          "flex flex-col gap-3",
-          !phone && "lg:flex-row lg:items-start",
-        )}
-      >
-        <div className="flex flex-col gap-1.5">
-          <Segmented
-            label={`Server ${index}: in use, backup or off`}
-            items={roleItems(draft.lbMethod, s)}
-            value={role}
-            onChange={(r) =>
-              onChange({ backup: r === "backup", down: r === "off" })
-            }
-          />
-          <FieldError text={err("backup")} />
-        </div>
-        <div className="min-w-0 flex-1">
+        {(f) => (
           <Input
-            id={`${id}-note`}
-            aria-label={`Server ${index} note`}
-            aria-invalid={err("note") ? true : undefined}
-            value={s.note}
-            onChange={(e) => onChange({ note: e.target.value })}
-            maxLength={200}
-            placeholder="Note (optional): which machine it is"
+            {...f}
+            value={parts.rest}
+            onChange={(e) => set(withMain(draft, { rest: e.target.value }))}
+            onBlur={(e) => {
+              const v = e.target.value.trim()
+              const rest = v && !/^[/?#]/.test(v) ? `/${v}` : v
+              if (rest !== parts.rest) set(withMain(draft, { rest }))
+            }}
+            placeholder="/"
+            className="font-mono"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+            inputMode="url"
           />
-          <FieldError text={err("note")} />
-        </div>
-      </div>
+        )}
+      </Field>
+    </div>
+  )
+}
 
-      {(main || address.trim()) && (
-        <ServerTest
-          proxy={proxy}
-          draft={draft}
-          address={address}
-          main={main}
-          testAll={testAll}
-        />
-      )}
-    </li>
+// Digits only, up to 65535.
+function PortInput({
+  value,
+  onChange,
+  ...props
+}: {
+  id?: string
+  "aria-invalid"?: true
+  "aria-describedby"?: string
+  "aria-label"?: string
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+}) {
+  return (
+    <Input
+      {...props}
+      value={value}
+      onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, 5))}
+      inputMode="numeric"
+      autoComplete="off"
+      className="font-mono tabular-nums"
+    />
   )
 }
 
@@ -633,8 +463,9 @@ function hostnameOf(upstream: string) {
   }
 }
 
-// Asks one server for the site's address from the proxy's machine.
-function ServerTest({
+// Asks one server for the site's address from the proxy's machine. Sites
+// only: a stream has nothing to ask.
+function useServerTest({
   proxy: p,
   draft,
   address,
@@ -653,9 +484,9 @@ function ServerTest({
     draft.type === "proxy"
       ? main
         ? draft.upstream.trim()
-        : upstreamOn(draft.upstream, cleanAddress(address))
+        : upstreamOn(draft.upstream, address)
       : ""
-  const ok = /^https?:\/\/[^/?#]+/i.test(upstream)
+  const ok = /^https?:\/\/[^/?#:]+/i.test(upstream)
   const run = () => {
     if (!ok) return
     setTested(upstream)
@@ -675,215 +506,74 @@ function ServerTest({
   useEffect(() => {
     if (testAll) runRef.current()
   }, [testAll])
+  const current = tested === upstream
+  return {
+    ok,
+    run,
+    pending: test.isPending,
+    result: current && !test.isPending ? test.data : undefined,
+    failed: current && !test.isPending ? test.error : null,
+  }
+}
 
-  if (!ok) return null
-  const result = tested === upstream ? test.data : undefined
-  const failed = tested === upstream ? test.error : null
+type ServerTestState = ReturnType<typeof useServerTest>
+
+function TestButton({
+  t,
+  label,
+  className,
+}: {
+  t: ServerTestState
+  label: string
+  className?: string
+}) {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="-ms-2 h-9 text-muted-foreground md:h-8"
-        onClick={run}
-        disabled={test.isPending}
-      >
-        {test.isPending ? <Loader2 className="animate-spin" /> : <Plug />}
-        Test
-      </Button>
-      {!test.isPending && result && (
-        <p
-          role="status"
-          className={cn(
-            "flex min-w-0 items-center gap-1.5 text-caption",
-            result.ok ? "text-success" : "text-destructive",
-          )}
-        >
-          {result.ok && <Check className="size-3.5 shrink-0" />}
-          {result.ok
-            ? `Answered ${result.status} in ${result.millis} ms`
-            : result.error ||
-              `Answered ${result.status} in ${result.millis} ms`}
-        </p>
-      )}
-      {!test.isPending && failed && (
-        <p role="status" className="text-caption text-destructive">
-          {failed.message}
-        </p>
-      )}
-    </div>
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className={cn("h-11 md:h-8", className)}
+      aria-label={label}
+      onClick={t.run}
+      disabled={!t.ok || t.pending}
+    >
+      {t.pending ? <Loader2 className="animate-spin" /> : <Plug />}
+      Test
+    </Button>
   )
 }
 
-function MethodCard({ draft, set, errors, phone }: Props) {
-  const stream = draft.type === "stream"
-  const methods = lbMethods.filter(
-    (m) => !(stream && m.sitesOnly) || draft.lbMethod === m.value,
-  )
-  const backups = [draft.poolMain, ...keptServers(draft)].some((s) => s.backup)
-  const key = stream ? "ip" : draft.lbHashKey
-  return (
-    <Card
-      title="How a server is picked"
-      hint={
-        stream
-          ? "For each new connection."
-          : "For each request. Weights count with every way."
-      }
-      phone={phone}
-    >
-      <div
-        role="radiogroup"
-        aria-label="How a server is picked"
+function TestResult({ t }: { t: ServerTestState }) {
+  if (t.result)
+    return (
+      <p
+        role="status"
         className={cn(
-          phone
-            ? "-mx-4 flex flex-col divide-y divide-border border-y border-border"
-            : "grid gap-2 lg:grid-cols-2",
+          "flex min-w-0 items-center gap-1.5 text-caption",
+          t.result.ok ? "text-success" : "text-destructive",
         )}
       >
-        {methods.map((m) => {
-          const on = draft.lbMethod === m.value
-          const Icon = m.icon
-          return (
-            // biome-ignore lint/a11y/useSemanticElements: card options; radio inputs can't be styled as cards
-            <button
-              key={m.value}
-              type="button"
-              role="radio"
-              aria-checked={on}
-              onClick={() => set({ lbMethod: m.value })}
-              className={cn(
-                "flex items-start gap-3 text-start outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-                phone
-                  ? "min-h-16 px-4 py-3 active:bg-muted"
-                  : cn(
-                      "rounded-xl border p-3",
-                      on
-                        ? "border-brand bg-brand-soft/40 ring-1 ring-brand"
-                        : "border-border hover:bg-subtle",
-                    ),
-              )}
-            >
-              <span
-                className={cn(
-                  "flex size-8 shrink-0 items-center justify-center rounded-lg [&_svg]:size-4",
-                  on
-                    ? "bg-brand text-primary-foreground"
-                    : "bg-muted text-muted-foreground",
-                )}
-              >
-                <Icon />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-body-sm font-medium">
-                  {m.label}
-                </span>
-                <span className="block text-caption text-muted-foreground">
-                  {m.hint}
-                </span>
-              </span>
-              {phone && on && (
-                <Check className="mt-1.5 size-4 shrink-0 text-brand" />
-              )}
-            </button>
-          )
-        })}
-      </div>
-      <FieldError text={errors["balance.method"]} />
-
-      {backups && noBackup(draft.lbMethod) && (
-        <Callout icon={<TriangleAlert />} tone="warning">
-          Backup servers only work with Take turns and Fewest connections. Pick
-          one of those, or set the backups to In use or Off.
-        </Callout>
-      )}
-
-      {draft.lbMethod === "ip_hash" && (
-        <Callout icon={<Info />}>
-          Visitors from the same network (the first three parts of an IPv4
-          address) all land on the same server. Visitors behind one company
-          proxy count as one visitor.
-        </Callout>
-      )}
-
-      {draft.lbMethod === "hash" && (
-        <div className="flex flex-col gap-4">
-          {stream ? (
-            <p className="text-caption text-muted-foreground">
-              Forwards are picked by the client's address.
-            </p>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Picked by" error={errors["balance.hash_key"]}>
-                {(f) => (
-                  <Choice
-                    id={f.id}
-                    label="Picked by"
-                    items={hashKeys}
-                    value={key}
-                    onChange={(lbHashKey) => set({ lbHashKey })}
-                  />
-                )}
-              </Field>
-              {(key === "cookie" || key === "header" || key === "arg") && (
-                <Field
-                  label={
-                    key === "cookie"
-                      ? "Cookie name"
-                      : key === "header"
-                        ? "Header name"
-                        : "Argument name"
-                  }
-                  hint={
-                    key === "cookie"
-                      ? "Visitors without it are all sent to one server."
-                      : key === "header"
-                        ? "Requests without it are all sent to one server."
-                        : "Pages without it are all sent to one server."
-                  }
-                  error={errors["balance.hash_name"]}
-                >
-                  {(f) => (
-                    <Input
-                      {...f}
-                      value={draft.lbHashName}
-                      onChange={(e) => set({ lbHashName: e.target.value })}
-                      placeholder={hashPlaceholder[key]}
-                      className="font-mono"
-                      autoCapitalize="off"
-                      autoCorrect="off"
-                      spellCheck={false}
-                    />
-                  )}
-                </Field>
-              )}
-            </div>
-          )}
-          <ToggleRow
-            id="lb-consistent"
-            label="Move few keys when servers change"
-            hint="Adding or removing a server sends only its share of keys elsewhere, instead of reshuffling them all. Keeps caches and sessions warm."
-            checked={draft.lbConsistent}
-            onChange={(lbConsistent) => set({ lbConsistent })}
-          />
-        </div>
-      )}
-
-      {draft.lbMethod === "random" && (
-        <ToggleRow
-          id="lb-random-two"
-          label="Pick the less busy of two"
-          hint="Two servers are drawn at random and the one with fewer connections gets it. Spreads load more evenly."
-          checked={draft.lbRandomTwo}
-          onChange={(lbRandomTwo) => set({ lbRandomTwo })}
-        />
-      )}
-    </Card>
-  )
+        {t.result.ok && <Check className="size-3.5 shrink-0" />}
+        {t.result.ok
+          ? `Answered ${t.result.status} in ${t.result.millis} ms`
+          : t.result.error ||
+            `Answered ${t.result.status} in ${t.result.millis} ms`}
+      </p>
+    )
+  if (t.failed)
+    return (
+      <p role="status" className="text-caption text-destructive">
+        {t.failed.message}
+      </p>
+    )
+  return null
 }
 
-function RetryCard({ draft, set, errors, phone }: Props) {
+function RetryFields({
+  draft,
+  set,
+  errors,
+}: Pick<Props, "draft" | "set" | "errors">) {
   const stream = draft.type === "stream"
   const on = draft.lbRetry
   const chosen = draft.lbRetryOn.length ? draft.lbRetryOn : defaultRetry
@@ -897,22 +587,16 @@ function RetryCard({ draft, set, errors, phone }: Props) {
     set({ lbRetryOn: same ? [] : [...next] })
   }
   return (
-    <Card
-      title="Try another server"
-      hint={
-        stream
-          ? "When a server can't be reached, the connection is tried on the next one."
-          : "When a server fails before anything was sent to the visitor, the request is tried on the next one. The visitor only sees an error when every server failed."
-      }
-      phone={phone}
-    >
+    <div className="flex flex-col gap-4">
       <ToggleRow
         id="lb-retry"
         label={on ? "Tries the next server" : "Never tries another server"}
         hint={
-          on
-            ? undefined
-            : "A failed request shows the visitor an error at once."
+          !on
+            ? `A failed ${stream ? "connection" : "request"} shows an error at once.`
+            : stream
+              ? "When a server can't be reached, the connection is tried on the next one."
+              : "When a server fails before anything was sent to the visitor, the request is tried on the next one. The visitor only sees an error when every server failed."
         }
         checked={on}
         onChange={(lbRetry) => set({ lbRetry })}
@@ -993,170 +677,500 @@ function RetryCard({ draft, set, errors, phone }: Props) {
           </div>
         </>
       )}
-    </Card>
-  )
-}
-
-// Under General's address: the other servers, by address only, and the
-// way into the tab for weights, backups and failover.
-export function PoolInline({
-  draft,
-  set,
-  errors,
-  readOnly,
-  phone,
-  onOpen,
-}: {
-  draft: Draft
-  set: (patch: Partial<Draft>) => void
-  errors: Errors
-  readOnly: boolean
-  phone: boolean
-  onOpen: () => void
-}) {
-  const stream = draft.type === "stream"
-  const focusKey = useRef("")
-  const { setServer, add, paste, remove } = usePoolRows(draft, set, focusKey)
-  const servers = draft.poolServers
-  const kept = keptServers(draft).length
-  const main = mainServer(draft)
-  if (readOnly && !servers.length) return null
-  return (
-    <div className="flex flex-col gap-3">
-      {servers.length > 0 && (
-        <fieldset className="flex min-w-0 flex-col gap-2">
-          <legend className="mb-1 text-body-sm font-medium">
-            {stream ? "Also forwarded to" : "Also on these servers (same app)"}
-          </legend>
-          <p className="-mt-1 text-caption text-muted-foreground">
-            {stream
-              ? "Connections are shared between all of them, and keep working when one is down."
-              : "Requests are shared between all of them, and the site stays up when one is down. They get the same scheme and path as the address above."}
-          </p>
-          <ul className="flex flex-col gap-2">
-            {servers.map((s, i) => (
-              <InlineRow
-                key={s.key}
-                server={s}
-                index={i + 2}
-                error={errors[`pool.${s.key}.address`]}
-                autoFocus={focusKey.current === s.key}
-                onChange={(address) => setServer(s.key, { address })}
-                onPaste={(e) => paste(s.key, e)}
-                onRemove={() => remove(s.key)}
-              />
-            ))}
-          </ul>
-        </fieldset>
-      )}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        {!readOnly && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-11 md:h-8"
-            onClick={() => add()}
-            disabled={!main || servers.length >= MAX_SERVERS}
-          >
-            <Plus />
-            Add another server
-          </Button>
-        )}
-        {kept > 0 ? (
-          <p className="text-caption text-muted-foreground">
-            {kept + 1} servers · {lbMethodLabel(draft.lbMethod)} ·{" "}
-            <button
-              type="button"
-              onClick={onOpen}
-              className={cn(
-                "font-medium text-brand underline-offset-4 hover:underline",
-                phone && "min-h-11",
-              )}
-            >
-              Weights, backups and failover
-            </button>
-          </p>
-        ) : (
-          !servers.length && (
-            <p className="text-caption text-ash">
-              {stream
-                ? "The same service on more servers? Connections get shared between them."
-                : "The same app on more servers? Requests get shared between them (load balancing)."}
-            </p>
-          )
-        )}
-      </div>
     </div>
   )
 }
 
-function InlineRow({
+// In General: with no other server, just the way to add one under the App
+// address. Once there are more, they replace that field: every server is a
+// row alike (address, port, weight, test; role, limit and note behind its
+// More), with the scheme and path above and how one is picked below. What
+// happens when one fails is FailoverCard, right under the card.
+export function PoolInline({
+  proxy,
+  draft,
+  set,
+  errors,
+  readOnly,
+}: {
+  proxy: ReverseProxy
+  draft: Draft
+  set: (patch: Partial<Draft>) => void
+  errors: Errors
+  readOnly: boolean
+}) {
+  const stream = draft.type === "stream"
+  const focusKey = useRef("")
+  const rows = usePoolRows(draft, set, focusKey)
+  const [testAll, setTestAll] = useState(0)
+  const servers = draft.poolServers
+  const kept = keptServers(draft)
+  const main = mainServer(draft)
+  const share = shares(draft.poolMain, kept)
+  const testable = !stream && /^https?:\/\/./i.test(draft.upstream.trim())
+  if (readOnly && !servers.length) return null
+
+  const addButton = !readOnly && (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="h-11 md:h-8"
+      onClick={rows.add}
+      disabled={!main || servers.length >= MAX_SERVERS}
+    >
+      <Plus />
+      Add another server
+    </Button>
+  )
+
+  if (!servers.length)
+    return (
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        {addButton}
+        <p className="text-caption text-ash">
+          {!main
+            ? stream
+              ? "Set where the port forwards to first, to add more servers."
+              : "Set the app's address first, to add more servers."
+            : stream
+              ? "The same service on more servers? Connections get shared between them."
+              : "The same app on more servers? Requests get shared between them (load balancing)."}
+        </p>
+      </div>
+    )
+
+  return (
+    <fieldset className="@container flex min-w-0 flex-col gap-4">
+      <legend className="sr-only">
+        {stream ? "Forward to" : "App address"}, load balanced
+      </legend>
+      <div className="flex flex-col gap-1">
+        <p className="flex items-center gap-2 text-body-sm font-medium">
+          <Network className="size-4 text-muted-foreground" />
+          {stream ? "Forward to" : "App servers"} · {kept.length + 1} servers,
+          load balanced
+        </p>
+        <p className="text-caption text-muted-foreground">
+          {stream
+            ? "host and port of each server, as the proxy's server reaches them. Connections are shared between them and keep working when one is down."
+            : "Where the app answers on each server, as the proxy's server sees it. Requests are shared between them, and the site stays up when one is down."}{" "}
+          An empty port = server 1's.
+        </p>
+      </div>
+
+      <SchemePath draft={draft} set={set} />
+
+      <div className="flex flex-col gap-3 @xl:gap-2">
+        <div
+          aria-hidden
+          className={cn(
+            rowGrid,
+            "hidden text-caption text-muted-foreground @xl:grid",
+          )}
+        >
+          <span className="text-center">#</span>
+          <span>Address</span>
+          <span>Port</span>
+          <span>Weight</span>
+          <span>Share</span>
+        </div>
+        <ul className="flex flex-col gap-4 @xl:gap-2">
+          {[draft.poolMain, ...servers].map((s, i) => (
+            <PoolRow
+              key={s.key}
+              server={s}
+              at={rows.at(s)}
+              main={i === 0}
+              index={i + 1}
+              draft={draft}
+              proxy={proxy}
+              share={share.get(s.key) ?? 0}
+              error={addressError(draft, errors, s)}
+              errors={errors}
+              testAll={testable ? testAll : 0}
+              autoFocus={focusKey.current === s.key}
+              onChange={(patch) => rows.setServer(s.key, patch)}
+              onPaste={(e) => rows.paste(s.key, e)}
+              onTidy={() => rows.tidy(s)}
+              onRemove={readOnly ? undefined : () => rows.remove(s.key)}
+            />
+          ))}
+        </ul>
+        <FieldError text={errors["balance.servers"]} />
+        <div className="flex flex-wrap items-center gap-2">
+          {addButton}
+          {testable && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-11 text-muted-foreground md:h-8"
+              onClick={() => setTestAll((n) => n + 1)}
+            >
+              <Plug />
+              Test all
+            </Button>
+          )}
+          <p className="text-caption text-ash">
+            Paste a list into an address to add several at once.
+          </p>
+        </div>
+      </div>
+
+      <MethodInline draft={draft} set={set} errors={errors} />
+    </fieldset>
+  )
+}
+
+// #, address, port, weight, share, test, more, remove.
+const rowGrid =
+  "@xl:grid-cols-[1.5rem_minmax(0,1fr)_5.5rem_5rem_4.5rem_5rem_2rem_2rem] @xl:items-center @xl:gap-x-2"
+
+function PoolRow({
   server: s,
+  at,
+  main,
   index,
+  draft,
+  proxy,
+  share,
   error,
+  errors,
+  testAll,
   autoFocus,
   onChange,
   onPaste,
+  onTidy,
   onRemove,
 }: {
   server: PoolServerDraft
+  at: { host: string; port: string }
+  main?: boolean
   index: number
+  draft: Draft
+  proxy: ReverseProxy
+  share: number
   error?: string
-  autoFocus: boolean
-  onChange: (address: string) => void
-  onPaste: (e: ClipboardEvent<HTMLInputElement>) => void
-  onRemove: () => void
+  errors: Errors
+  testAll: number
+  autoFocus?: boolean
+  onChange: (patch: Partial<PoolServerDraft>) => void
+  onPaste?: (e: ClipboardEvent<HTMLInputElement>) => void
+  onTidy?: () => void
+  onRemove?: () => void
 }) {
-  const ref = useRef<HTMLInputElement>(null)
-  useEffect(() => {
-    if (autoFocus && window.matchMedia("(pointer: fine)").matches)
-      ref.current?.focus()
-  }, [autoFocus])
+  const ref = useAutoFocus(autoFocus)
+  const id = `pool-inline-${s.key}`
+  const address = main ? mainServer(draft) : serverAddress(draft, s)
+  const t = useServerTest({ proxy, draft, address, main, testAll })
+  const label = "text-caption text-muted-foreground @xl:sr-only"
+  // Server 1's own fields are checked as the upstream; only its role has a
+  // key of its own.
+  const err = (f: string) =>
+    main
+      ? f === "backup"
+        ? errors["balance.main.backup"]
+        : undefined
+      : errors[`pool.${s.key}.${f}`]
+  const weightError = err("weight")
+  const extraError = err("backup") || err("max_conns") || err("note")
   const role = roleOf(s)
+  const extras = role !== "on" || !!s.maxConns.trim() || !!s.note.trim()
+  const [more, setMore] = useState(false)
+  const open = more || !!extraError
   return (
     <li className="flex flex-col gap-1">
-      <div className="flex items-center gap-2">
-        <span className="w-6 shrink-0 text-center text-caption text-ash tabular-nums">
-          {index}
-        </span>
-        <Input
-          ref={ref}
-          aria-label={`Server ${index} address`}
-          aria-invalid={error ? true : undefined}
-          value={s.address}
-          onChange={(e) => onChange(e.target.value)}
-          onBlur={(e) => {
-            const v = cleanAddress(e.target.value)
-            if (v !== s.address) onChange(v)
-          }}
-          onPaste={onPaste}
-          placeholder="10.0.0.6:3000"
-          className="min-w-0 flex-1 font-mono"
-          autoCapitalize="off"
-          autoCorrect="off"
-          spellCheck={false}
-          inputMode="url"
-        />
-        {role !== "on" && (
-          <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-caption text-muted-foreground">
-            {role === "backup" ? "Backup" : "Off"}
+      <div className={cn("grid gap-2", rowGrid)}>
+        <div className="flex min-h-6 items-center gap-2 @xl:contents">
+          <span className="text-body-sm font-medium @xl:order-1 @xl:text-center @xl:text-caption @xl:font-normal @xl:text-ash @xl:tabular-nums">
+            <span className="@xl:hidden">Server {index}</span>
+            <span className="hidden @xl:inline">{index}</span>
           </span>
-        )}
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-11 shrink-0 text-muted-foreground md:size-8"
-          aria-label={`Remove server ${index}`}
-          onClick={onRemove}
+          <span className="@xl:order-5">
+            <ShareText server={s} share={share} />
+          </span>
+          <span className="ms-auto @xl:order-7 @xl:ms-0">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "relative -my-2 size-11 md:size-8 @xl:my-0",
+                open ? "bg-muted text-foreground" : "text-muted-foreground",
+              )}
+              aria-label={`More for server ${index}: role, connection limit, note`}
+              aria-expanded={open}
+              aria-controls={`${id}-more`}
+              onClick={() => setMore(!open)}
+            >
+              <SlidersHorizontal />
+              {extras && !open && (
+                <span className="absolute end-2 top-2 size-1.5 rounded-full bg-brand md:end-1 md:top-1" />
+              )}
+            </Button>
+          </span>
+          <span className="@xl:order-8">
+            {onRemove && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="-my-2 size-11 text-muted-foreground md:size-8 @xl:my-0"
+                aria-label={`Remove server ${index}`}
+                onClick={onRemove}
+              >
+                <Trash2 />
+              </Button>
+            )}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-[minmax(0,1fr)_6rem] gap-2 @xl:contents">
+          <div className="flex min-w-0 flex-col gap-1 @xl:order-2">
+            <label htmlFor={`${id}-host`} className={label}>
+              Address
+            </label>
+            <Input
+              ref={ref}
+              id={`${id}-host`}
+              aria-label={`Server ${index} address`}
+              aria-invalid={error ? true : undefined}
+              value={at.host}
+              onChange={(e) => onChange({ host: e.target.value })}
+              onBlur={onTidy}
+              onPaste={onPaste}
+              placeholder={main ? "127.0.0.1" : "10.0.0.6"}
+              className="font-mono"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+              inputMode="url"
+            />
+          </div>
+          <div className="flex min-w-0 flex-col gap-1 @xl:order-3">
+            <label htmlFor={`${id}-port`} className={label}>
+              Port
+            </label>
+            <PortInput
+              id={`${id}-port`}
+              aria-label={`Server ${index} port`}
+              aria-invalid={error ? true : undefined}
+              value={at.port}
+              onChange={(port) => onChange({ port })}
+              placeholder={main ? mainPortHint(draft) : mainPort(draft)}
+            />
+          </div>
+        </div>
+
+        <div className="flex items-end gap-2 @xl:contents">
+          <div className="flex w-24 flex-col gap-1 @xl:order-4 @xl:w-auto">
+            <label htmlFor={`${id}-weight`} className={label}>
+              Weight
+            </label>
+            <NumberInput
+              id={`${id}-weight`}
+              aria-label={`Server ${index} weight`}
+              aria-invalid={weightError ? true : undefined}
+              value={s.weight}
+              onChange={(weight) => onChange({ weight })}
+              placeholder="1"
+            />
+          </div>
+          <div className="@xl:order-6">
+            {t.ok && (
+              <TestButton
+                t={t}
+                label={`Test server ${index}`}
+                className="@xl:w-full"
+              />
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="flex flex-col gap-1 @xl:ms-8">
+        <TestResult t={t} />
+        <FieldError text={error ?? weightError} />
+      </div>
+      {open && (
+        <div
+          id={`${id}-more`}
+          className="mt-1 flex flex-col gap-3 rounded-xl bg-subtle p-3 @xl:ms-8"
         >
-          <Trash2 />
-        </Button>
-      </div>
-      <div className="ms-8">
-        <FieldError text={error} />
-      </div>
+          <div className="grid gap-3 @xl:grid-cols-[auto_9rem_minmax(0,1fr)] @xl:items-end">
+            <div className="flex flex-col gap-1">
+              <span className="text-caption text-muted-foreground">Role</span>
+              <Segmented
+                label={`Server ${index}: in use, backup or off`}
+                items={roleItems(draft.lbMethod, s)}
+                value={role}
+                onChange={(r) =>
+                  onChange({ backup: r === "backup", down: r === "off" })
+                }
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor={`${id}-max`}
+                className="text-caption text-muted-foreground"
+              >
+                Most connections
+              </label>
+              <NumberInput
+                id={`${id}-max`}
+                aria-invalid={err("max_conns") ? true : undefined}
+                value={s.maxConns}
+                onChange={(maxConns) => onChange({ maxConns })}
+                placeholder="No limit"
+              />
+            </div>
+            <div className="flex min-w-0 flex-col gap-1">
+              <label
+                htmlFor={`${id}-note`}
+                className="text-caption text-muted-foreground"
+              >
+                Note
+              </label>
+              <Input
+                id={`${id}-note`}
+                aria-invalid={err("note") ? true : undefined}
+                value={s.note}
+                onChange={(e) => onChange({ note: e.target.value })}
+                maxLength={200}
+                placeholder="Which machine it is"
+              />
+            </div>
+          </div>
+          <p className="text-caption text-muted-foreground">
+            Backup = gets traffic only while every server in use is down (Take
+            turns and Fewest connections only). Off = kept in the list, gets
+            nothing.
+          </p>
+          <FieldError text={extraError} />
+        </div>
+      )}
     </li>
+  )
+}
+
+// How a server is picked, under the list, with its options in place.
+function MethodInline({
+  draft,
+  set,
+  errors,
+}: {
+  draft: Draft
+  set: (patch: Partial<Draft>) => void
+  errors: Errors
+}) {
+  const stream = draft.type === "stream"
+  const methods = lbMethods.filter(
+    (m) => !(stream && m.sitesOnly) || draft.lbMethod === m.value,
+  )
+  const method = lbMethods.find((m) => m.value === draft.lbMethod)
+  const backups = [draft.poolMain, ...keptServers(draft)].some((s) => s.backup)
+  const key = stream ? "ip" : draft.lbHashKey
+  return (
+    <div className="flex flex-col gap-3 border-t border-border pt-4">
+      <div className="flex flex-col gap-2 @xl:flex-row @xl:items-center @xl:gap-3">
+        <label
+          htmlFor="lb-method-inline"
+          className="shrink-0 text-body-sm font-medium"
+        >
+          How a server is picked
+        </label>
+        <div className="@xl:w-72">
+          <Choice
+            id="lb-method-inline"
+            label="How a server is picked"
+            items={methods}
+            value={draft.lbMethod}
+            onChange={(lbMethod) => set({ lbMethod })}
+          />
+        </div>
+      </div>
+      {method && (
+        <p className="text-caption text-muted-foreground">
+          {method.hint} {stream ? "Per new connection." : "Per request."}
+        </p>
+      )}
+      <FieldError text={errors["balance.method"]} />
+      {backups && noBackup(draft.lbMethod) && (
+        <Callout icon={<TriangleAlert />} tone="warning">
+          Backup servers only work with Take turns and Fewest connections. Pick
+          one of those, or set the backups to In use or Off.
+        </Callout>
+      )}
+      {draft.lbMethod === "hash" &&
+        (stream ? (
+          <p className="text-caption text-muted-foreground">
+            Forwards are picked by the client's address.
+          </p>
+        ) : (
+          <div className="grid gap-3 @xl:grid-cols-2">
+            <Field label="Picked by" error={errors["balance.hash_key"]}>
+              {(f) => (
+                <Choice
+                  id={f.id}
+                  label="Picked by"
+                  items={hashKeys}
+                  value={key}
+                  onChange={(lbHashKey) => set({ lbHashKey })}
+                />
+              )}
+            </Field>
+            {(key === "cookie" || key === "header" || key === "arg") && (
+              <Field
+                label={
+                  key === "cookie"
+                    ? "Cookie name"
+                    : key === "header"
+                      ? "Header name"
+                      : "Argument name"
+                }
+                hint={
+                  key === "cookie"
+                    ? "Visitors without it are all sent to one server."
+                    : key === "header"
+                      ? "Requests without it are all sent to one server."
+                      : "Pages without it are all sent to one server."
+                }
+                error={errors["balance.hash_name"]}
+              >
+                {(f) => (
+                  <Input
+                    {...f}
+                    value={draft.lbHashName}
+                    onChange={(e) => set({ lbHashName: e.target.value })}
+                    placeholder={hashPlaceholder[key]}
+                    className="font-mono"
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                  />
+                )}
+              </Field>
+            )}
+          </div>
+        ))}
+      {draft.lbMethod === "hash" && (
+        <ToggleRow
+          id="lb-consistent"
+          label="Move few keys when servers change"
+          hint="Adding or removing a server sends only its share of keys elsewhere, instead of reshuffling them all. Keeps caches and sessions warm."
+          checked={draft.lbConsistent}
+          onChange={(lbConsistent) => set({ lbConsistent })}
+        />
+      )}
+      {draft.lbMethod === "random" && (
+        <ToggleRow
+          id="lb-random-two"
+          label="Pick the less busy of two"
+          hint="Two servers are drawn at random and the one with fewer connections gets it. Spreads load more evenly."
+          checked={draft.lbRandomTwo}
+          onChange={(lbRandomTwo) => set({ lbRandomTwo })}
+        />
+      )}
+    </div>
   )
 }

@@ -111,7 +111,10 @@ export type RateRuleDraft = {
 // One server of a balanced site; the main one's address is the upstream.
 export type PoolServerDraft = {
   key: string
-  address: string
+  // Typed apart; joined into host:port when sent. An empty port = the main
+  // server's.
+  host: string
+  port: string
   weight: string
   maxConns: string
   backup: boolean
@@ -318,7 +321,8 @@ export const freshPoolServer = (
   p: Partial<PoolServerDraft> = {},
 ): PoolServerDraft => ({
   key: rowKey(),
-  address: "",
+  host: "",
+  port: "",
   weight: "",
   maxConns: "",
   backup: false,
@@ -598,7 +602,7 @@ function featuresFromConfig(c: HostConfig) {
 
 const serverFromConfig = (s?: UpstreamServer): PoolServerDraft =>
   freshPoolServer({
-    address: s?.address ?? "",
+    ...splitHostPort(s?.address ?? ""),
     weight: text(s?.weight),
     maxConns: text(s?.max_conns),
     backup: !!s?.backup,
@@ -711,9 +715,11 @@ const keptPages = (d: Draft) =>
   d.errorPages.filter(
     (p) => p.codes.length || p.title.trim() || p.message.trim(),
   )
-// Servers with an address; the others aren't sent.
+// Servers with an address or a port; empty rows aren't sent.
 export const keptServers = (d: Draft) =>
-  typeUses(d.type).balance ? d.poolServers.filter((s) => s.address.trim()) : []
+  typeUses(d.type).balance
+    ? d.poolServers.filter((s) => s.host.trim() || s.port.trim())
+    : []
 // Rules count on sites only; a row with no rate isn't sent.
 export const keptRules = (d: Draft) =>
   d.type === "stream" ? [] : d.rateRules.filter((r) => r.rate.trim())
@@ -776,8 +782,61 @@ export function mainServer(d: Draft) {
   }
 }
 
-const toServer = (s: PoolServerDraft, main = false): UpstreamServer => ({
-  address: main ? undefined : s.address.trim().toLowerCase(),
+// host:port, [v6]:port or a bare host, taken apart.
+export function splitHostPort(v: string) {
+  const a = v.trim()
+  const v6 = /^\[([^\]]*)\](?::(\d*))?$/.exec(a)
+  if (v6) return { host: v6[1], port: v6[2] ?? "" }
+  const m = /^([^:]*):(\d*)$/.exec(a)
+  if (m) return { host: m[1], port: m[2] }
+  return { host: a, port: "" }
+}
+
+export function joinHostPort(host: string, port: string) {
+  const h = host.trim().replace(/^\[|\]$/g, "")
+  const p = port.trim()
+  const shown = h.includes(":") ? `[${h}]` : h
+  return p ? `${shown}:${p}` : shown
+}
+
+// The main server's parts: the upstream URL (proxy) or Forward to (stream).
+// While a site is balanced, server 1's row edits these.
+export function mainParts(d: Draft) {
+  if (d.type === "stream")
+    return { ...splitHostPort(d.streamTo), scheme: "", rest: "" }
+  const m = /^([a-z][a-z0-9+.-]*:\/\/)?([^/?#]*)(.*)$/i.exec(d.upstream.trim())
+  return {
+    ...splitHostPort(m?.[2] ?? ""),
+    scheme: m?.[1] ?? "",
+    rest: m?.[3] ?? "",
+  }
+}
+
+export function withMain(
+  d: Draft,
+  p: { host?: string; port?: string; scheme?: string; rest?: string },
+): Partial<Draft> {
+  const c = { ...mainParts(d) }
+  for (const [k, v] of Object.entries(p))
+    if (v !== undefined) c[k as keyof typeof c] = v
+  const at = joinHostPort(c.host, c.port)
+  if (d.type === "stream") return { streamTo: at }
+  return { upstream: `${c.scheme || "http://"}${at}${c.rest}` }
+}
+
+// The main server's port, used by a row whose port is left empty.
+export const mainPort = (d: Draft) => splitHostPort(mainServer(d)).port
+
+// A row's address as sent.
+export const serverAddress = (d: Draft, s: PoolServerDraft) =>
+  joinHostPort(s.host, s.port.trim() || mainPort(d))
+
+const toServer = (
+  d: Draft,
+  s: PoolServerDraft,
+  main = false,
+): UpstreamServer => ({
+  address: main ? undefined : serverAddress(d, s).toLowerCase(),
   weight: number(s.weight),
   max_conns: number(s.maxConns),
   backup: s.backup || undefined,
@@ -794,7 +853,7 @@ export function toBalance(d: Draft): Balance | undefined {
   const hash = m === "hash"
   const key = stream ? "ip" : d.lbHashKey
   const b: Balance = {
-    servers: servers.map((s) => toServer(s)),
+    servers: servers.map((s) => toServer(d, s)),
     method: m,
     hash_key: hash ? key : undefined,
     hash_name:
@@ -807,7 +866,7 @@ export function toBalance(d: Draft): Balance | undefined {
     max_fails: number(d.lbMaxFails),
     fail_timeout: number(d.lbFailTimeout),
   }
-  const main = toServer(d.poolMain, true)
+  const main = toServer(d, d.poolMain, true)
   if (Object.values(main).some(Boolean)) b.main = main
   if (!d.lbRetry) b.no_retry = true
   else {

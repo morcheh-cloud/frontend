@@ -57,7 +57,7 @@ import { useProxyCan } from "../../../components/permissions"
 import { useHostMenu } from "../../../components/proxy-actions"
 import { inspectable } from "../../components/toolbar"
 import { AccessEditor } from "./access-editor"
-import { BalancingTab, PoolInline } from "./balancing-tab"
+import { FailoverCard, PoolInline } from "./balancing-tab"
 import { CacheTab } from "./cache-tab"
 import { ConfigTab } from "./config-tab"
 import { DomainsEditor, type DomainUse } from "./domains-editor"
@@ -230,7 +230,7 @@ function Editor({
   const [refusal, setRefusal] = useState("")
   const [touched, setTouched] = useState(!!source)
   const [template, setTemplate] = useState("")
-  const tabs = tabsFor(draft.type, caps, !!host, draft.poolServers.length > 0)
+  const tabs = tabsFor(draft.type, caps, !!host)
   const { tab, setTab } = useEditorTab(tabs)
   const [conflict, setConflict] = useOpen("proxy-host-conflict")
   const [menuOpen, setMenuOpen] = useOpen("proxy-host-sheet")
@@ -572,12 +572,11 @@ function Editor({
                 caps.balancing &&
                 uses.balance && (
                   <PoolInline
+                    proxy={p}
                     draft={draft}
                     set={set}
                     errors={errors}
                     readOnly={readOnly}
-                    phone={phone}
-                    onOpen={() => openTab("balancing")}
                   />
                 )
               }
@@ -588,6 +587,15 @@ function Editor({
               }
             />
           </Card>
+          {caps.balancing && uses.balance && draft.poolServers.length > 0 && (
+            <FailoverCard
+              proxy={p}
+              draft={draft}
+              set={set}
+              errors={errors}
+              phone={phone}
+            />
+          )}
           <UpstreamTlsCard {...tuning} />
         </div>
 
@@ -627,16 +635,6 @@ function Editor({
           </Card>
         </div>
       </div>
-    ),
-    balancing: (
-      <BalancingTab
-        proxy={p}
-        draft={draft}
-        set={set}
-        errors={errors}
-        phone={phone}
-        onGeneral={() => openTab("general")}
-      />
     ),
     https: uses.tls ? (
       <HttpsTab
