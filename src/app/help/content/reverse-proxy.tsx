@@ -729,6 +729,18 @@ export const reverseProxy: GuideSection[] = [
               "Last 15 minutes up to last 7 days, or your own From / To",
             ],
             [
+              <UI key="fw">Firewall</UI>,
+              <>
+                Shown once the site has the{" "}
+                <See guide="reverse-proxy" section="waf">
+                  web application firewall
+                </See>{" "}
+                on: <UI>Blocked</UI> (refused with 403 by the firewall),{" "}
+                <UI>Logged only</UI> (written down, let through) or{" "}
+                <UI>Blocked or logged</UI>, with how many of each
+              </>,
+            ],
+            [
               <UI key="f">Filters</UI>,
               <>
                 Path (<C>/api/</C>), address or its start (<C>10.0.</C>),
@@ -744,6 +756,16 @@ export const reverseProxy: GuideSection[] = [
           under the bar: remove one with its ×, or all with <UI>Clear all</UI>.
           In a request&apos;s details, <UI>Only this address</UI> and{" "}
           <UI>Only this path</UI> narrow the list to it.
+        </P>
+        <P>
+          A request the firewall refused has a red shield next to its status; a
+          yellow shield means it only wrote the request down. Its details then
+          have a <UI>Firewall</UI> part with the rules that matched and what
+          they found, and <UI>Only blocked ones</UI> / <UI>Only logged ones</UI>{" "}
+          to filter the list by it. A 403 without a shield came from somewhere
+          else (an address rule, a login, the app itself). On phones the same
+          filters are the <UI>Blocked</UI> and <UI>Logged by firewall</UI>{" "}
+          chips.
         </P>
         <P>
           The table shows the visitor&apos;s <UI>IP</UI>, the time taken and the
@@ -951,10 +973,16 @@ export const reverseProxy: GuideSection[] = [
         />
         <P>
           In <UI>Flagged requests</UI> each request shows the rules that
-          matched, what they found and where. Rules 949xxx, 959xxx and 980xxx
-          only add up the score (<UI>Score total</UI>); they can't be turned
-          off, since that would turn the whole firewall off. Turn off the rules
-          listed above them instead.
+          matched, what they found and where, and whether it was{" "}
+          <UI>Blocked</UI> or <UI>Logged only</UI>. The same requests are marked
+          in the site&apos;s{" "}
+          <See guide="reverse-proxy" section="site-logs">
+            Logs
+          </See>
+          , where the <UI>Firewall</UI> filter lists only them. Rules 949xxx,
+          959xxx and 980xxx only add up the score (<UI>Score total</UI>); they
+          can't be turned off, since that would turn the whole firewall off.
+          Turn off the rules listed above them instead.
         </P>
         <Recommended
           rows={[

@@ -607,6 +607,10 @@ function mergeFollow(
     ...old,
     items: [...toRows(r.items, Date.now()), ...old.items].slice(0, limit),
     classes: addClasses(old.classes, r.classes),
+    firewall: {
+      blocked: old.firewall.blocked + r.firewall.blocked,
+      flagged: old.firewall.flagged + r.firewall.flagged,
+    },
     matched: old.matched + r.matched,
     scanned: old.scanned + r.scanned,
     detailed: old.detailed || r.detailed,

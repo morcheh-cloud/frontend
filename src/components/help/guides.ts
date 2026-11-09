@@ -552,6 +552,8 @@ export const guides: GuideMeta[] = [
       "nginx",
       "waf",
       "web application firewall",
+      "blocked by waf",
+      "403 firewall",
       "modsecurity",
       "owasp",
       "sql injection",

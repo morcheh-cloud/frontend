@@ -9,6 +9,8 @@ import {
   RefreshCw,
   ScrollText,
   SearchX,
+  ShieldAlert,
+  ShieldBan,
   TriangleAlert,
   X,
 } from "lucide-react"
@@ -25,6 +27,15 @@ import { BottomSheet } from "@/components/bottom-sheet"
 import { Field } from "@/components/field"
 import { formatCount, formatMs } from "@/components/insights/format"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import {
   Popover,
@@ -40,7 +51,11 @@ import {
 } from "@/components/ui/select"
 import { useOpen } from "@/hooks/useOpen"
 import { formatSize } from "@/lib/format"
-import type { ProxyHost, Proxy as ReverseProxy } from "@/lib/services"
+import type {
+  ProxyHost,
+  ProxyRequestFirewallCounts,
+  Proxy as ReverseProxy,
+} from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { type RequestRow, useHostRequests } from "../../../api"
 import { chipClass, Th } from "../../../components/parts"
@@ -54,6 +69,8 @@ import { NoLog, OldFormatNotice, shortDate } from "./log-notices"
 import { RequestDetailsLayer } from "./request-details"
 import {
   extraFilters,
+  type FirewallVerdict,
+  firewallLabels,
   type RequestFilters,
   type RequestRange,
   requestRangeLabels,
@@ -137,6 +154,14 @@ export function LogsTab({
     }
   }
   const classes = statusClassesFor(stream)
+  // The firewall's filter, while the site has it on or the log shows it did.
+  const fwCounts = data?.firewall
+  const firewall =
+    !stream &&
+    (!!host.config.waf?.mode ||
+      !!f.firewall ||
+      !!(fwCounts && fwCounts.blocked + fwCounts.flagged))
+  const setFirewall = (v: FirewallVerdict | null) => setFilters({ firewall: v })
   const multiDomain = host.domains.length > 1
   const columns = useLogColumns(stream, multiDomain)
 
@@ -153,6 +178,11 @@ export function LogsTab({
       refresh={() => query.refetch()}
       classes={classes}
       countOf={countOf}
+      firewall={
+        firewall
+          ? { value: f.firewall, counts: fwCounts, set: setFirewall }
+          : undefined
+      }
     />
   ) : (
     <div className="flex flex-wrap items-center gap-2">
@@ -182,6 +212,13 @@ export function LogsTab({
           ),
         }))}
       />
+      {firewall && (
+        <FirewallMenu
+          value={f.firewall}
+          counts={fwCounts}
+          onChange={setFirewall}
+        />
+      )}
       <TimePopover f={f} setFilters={setFilters} />
       <FiltersPopover
         f={f}
@@ -240,6 +277,7 @@ export function LogsTab({
             ip: null,
             domain: null,
             slow: null,
+            firewall: null,
           })
         }
         className="h-8 shrink-0 px-2 text-body-sm text-muted-foreground hover:text-foreground max-md:h-9"
@@ -268,7 +306,7 @@ export function LogsTab({
   } else if (data.missing) {
     body = <NoLog stream={stream} />
   } else if (!data.items.length) {
-    const filtered = !!(f.q || f.status !== "all" || pills.length)
+    const filtered = !!(f.q || f.status !== "all" || f.firewall || pills.length)
     body = (
       <Empty
         icon={filtered ? SearchX : ScrollText}
@@ -870,6 +908,119 @@ const emptyExtras = {
   slow: 0,
 }
 
+const firewallChoices: { value: FirewallVerdict | ""; label: string }[] = [
+  { value: "", label: "Every request" },
+  { value: "blocked", label: "Blocked" },
+  { value: "flagged", label: "Logged only" },
+  { value: "any", label: "Blocked or logged" },
+]
+
+// What the web application firewall made of the requests: blocked ones
+// (403 from the firewall) or ones it only wrote down.
+function FirewallMenu({
+  value,
+  counts,
+  onChange,
+}: {
+  value: FirewallVerdict | null
+  counts?: ProxyRequestFirewallCounts
+  onChange: (v: FirewallVerdict | null) => void
+}) {
+  const countOf = (v: FirewallVerdict | "") =>
+    !counts || v === ""
+      ? undefined
+      : v === "any"
+        ? counts.blocked + counts.flagged
+        : counts[v]
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="outline"
+            className={cn(
+              "h-9 gap-1.5 px-3",
+              value &&
+                "border-brand/40 bg-brand-soft text-brand-strong hover:bg-brand-soft",
+            )}
+          />
+        }
+      >
+        {value === "flagged" ? (
+          <ShieldAlert className="size-4" />
+        ) : (
+          <ShieldBan className="size-4" />
+        )}
+        {value
+          ? firewallChoices.find((c) => c.value === value)?.label
+          : "Firewall"}
+        {!value && !!counts?.blocked && (
+          <span className="text-caption text-ash tabular-nums">
+            {formatCount(counts.blocked)}
+          </span>
+        )}
+        <ChevronDown className="size-3.5 opacity-60" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-60">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Web application firewall</DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            value={value ?? ""}
+            onValueChange={(v) =>
+              onChange((v || null) as FirewallVerdict | null)
+            }
+          >
+            {firewallChoices.map((c) => (
+              <DropdownMenuRadioItem key={c.value} value={c.value}>
+                <span className="min-w-0 flex-1 truncate">{c.label}</span>
+                {countOf(c.value) !== undefined && (
+                  <span className="text-caption text-ash tabular-nums">
+                    {formatCount(countOf(c.value) ?? 0)}
+                  </span>
+                )}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+// A shield beside the status when the firewall blocked or logged the request.
+export function FirewallMark({
+  firewall,
+  className,
+}: {
+  firewall?: RequestRow["firewall"]
+  className?: string
+}) {
+  if (!firewall) return null
+  const Icon = firewall.blocked ? ShieldBan : ShieldAlert
+  const label = `${firewallLabels[firewall.blocked ? "blocked" : "flagged"]}${
+    firewall.rules.length
+      ? `: ${firewall.rules
+          .slice(0, 3)
+          .map((r) => r.id)
+          .join(", ")}`
+      : ""
+  }`
+  return (
+    <span
+      role="img"
+      aria-label={label}
+      title={label}
+      className={cn(
+        "inline-flex shrink-0",
+        firewall.blocked ? "text-destructive" : "text-warning",
+        className,
+      )}
+    >
+      <Icon className="size-3.5" />
+    </span>
+  )
+}
+
 function FilterCount({ n }: { n: number }) {
   return (
     <span className="flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-brand px-1 text-[11px] text-white tabular-nums">
@@ -891,6 +1042,7 @@ function PhoneBar({
   refresh,
   classes,
   countOf,
+  firewall,
 }: {
   f: RequestFilters
   setFilters: SetFilters
@@ -903,6 +1055,11 @@ function PhoneBar({
   refresh: () => void
   classes: StatusClass[]
   countOf: (s: StatusClass) => number | undefined
+  firewall?: {
+    value: FirewallVerdict | null
+    counts?: ProxyRequestFirewallCounts
+    set: (v: FirewallVerdict | null) => void
+  }
 }) {
   const [timeOpen, setTimeOpen] = useOpen("proxy-logs-time")
   const [filtersOpen, setFiltersOpen] = useOpen("proxy-logs-filters")
@@ -978,6 +1135,29 @@ function PhoneBar({
             )}
           </button>
         ))}
+        {firewall &&
+          (["blocked", "flagged"] as const).map((v) => {
+            const Icon = v === "blocked" ? ShieldBan : ShieldAlert
+            const on = firewall.value === v
+            return (
+              <button
+                key={v}
+                type="button"
+                aria-pressed={on}
+                aria-current={on ? "page" : undefined}
+                onClick={() => firewall.set(on ? null : v)}
+                className={chipClass}
+              >
+                <Icon className="size-4" />
+                {v === "blocked" ? "Blocked" : "Logged by firewall"}
+                {firewall.counts && (
+                  <span className="tabular-nums opacity-70">
+                    {formatCount(firewall.counts[v])}
+                  </span>
+                )}
+              </button>
+            )
+          })}
       </div>
 
       <BottomSheet open={timeOpen} onOpenChange={setTimeOpen} title="Time">
@@ -1115,7 +1295,10 @@ function RowsTable({
                   statusTone(r.status),
                 )}
               >
-                {r.status}
+                <span className="flex items-center gap-1.5">
+                  {r.status}
+                  <FirewallMark firewall={r.firewall} />
+                </span>
               </td>
               <td className="min-w-0 px-3 py-2">
                 <button
@@ -1191,6 +1374,7 @@ function PhoneRows({
               >
                 {r.status}
               </span>
+              <FirewallMark firewall={r.firewall} className="self-center" />
               {stream ? (
                 <span className="text-body-sm">{r.protocol}</span>
               ) : (

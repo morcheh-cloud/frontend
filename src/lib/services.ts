@@ -6405,6 +6405,8 @@ export interface ProxyRequest {
    * @format double
    */
   duration_ms?: number;
+  /** What the web application firewall made of it, when it flagged it */
+  firewall?: ProxyRequestFirewall;
   ip: string;
   /** The line as written */
   line: string;
@@ -6458,6 +6460,25 @@ export interface ProxyRequestClasses {
   server_errors: number;
 }
 
+export interface ProxyRequestFirewall {
+  /** Refused by the firewall; false = only logged */
+  blocked: boolean;
+  rules: WAFMatch[];
+}
+
+export interface ProxyRequestFirewallCounts {
+  /**
+   * Refused by the firewall
+   * @format int64
+   */
+  blocked: number;
+  /**
+   * Logged by the firewall but let through
+   * @format int64
+   */
+  flagged: number;
+}
+
 export interface ProxyRequests {
   /**
    * A URL to the JSON Schema for this object.
@@ -6470,6 +6491,8 @@ export interface ProxyRequests {
   cursor: string;
   /** Some lines carry response times (written since detailed logging) */
   detailed: boolean;
+  /** Matching lines the firewall flagged, the firewall filter left out */
+  firewall: ProxyRequestFirewallCounts;
   /** Newest first */
   items: ProxyRequest[];
   /**
@@ -9933,7 +9956,9 @@ export interface WAF {
 }
 
 export interface WAFEvent {
-  /** The request's unique id */
+  /** The firewall refused it; false = only logged (Log only, or under the score) */
+  blocked: boolean;
+  /** The request's unique id (the access log's request id, for requests since the site was saved with the firewall on) */
   id: string;
   ip: string;
   method: string;
@@ -13834,6 +13859,8 @@ export class Api<
         cursor?: string;
         /** @maxLength 253 */
         domain?: string;
+        /** Only requests the firewall flagged: any, blocked (refused) or flagged (logged, let through) */
+        firewall?: "any" | "blocked" | "flagged";
         /** RFC 3339; overrides range */
         from?: string;
         /**

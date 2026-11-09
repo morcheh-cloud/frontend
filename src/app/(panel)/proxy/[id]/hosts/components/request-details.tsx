@@ -1,6 +1,6 @@
 "use client"
 
-import { Check, Copy, Globe, Route } from "lucide-react"
+import { Check, Copy, Globe, Route, ShieldAlert, ShieldBan } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -163,6 +163,7 @@ function RequestDetails({
       <Group title={stream ? "Connection" : "Request"}>
         <Facts items={request} />
       </Group>
+      {r.firewall && <FirewallVerdict row={r} />}
       <Group title="Answer">
         <Facts items={answer} />
       </Group>
@@ -185,6 +186,20 @@ function RequestDetails({
           <Globe />
           Only this address
         </Button>
+        {r.firewall && (
+          <Button
+            variant="outline"
+            className="max-md:h-11"
+            onClick={() =>
+              onFilter({
+                firewall: r.firewall?.blocked ? "blocked" : "flagged",
+              })
+            }
+          >
+            {r.firewall.blocked ? <ShieldBan /> : <ShieldAlert />}
+            {r.firewall.blocked ? "Only blocked ones" : "Only logged ones"}
+          </Button>
+        )}
         {!stream && r.path && (
           <Button
             variant="outline"
@@ -197,6 +212,65 @@ function RequestDetails({
         )}
       </div>
     </div>
+  )
+}
+
+// Rules 949…/959…/980… only add up the others' score.
+const scoreTotal = (id: string) => /^(949|959|980)\d{3}$/.test(id)
+
+// What the web application firewall made of the request, and the rules
+// that matched it.
+function FirewallVerdict({ row: r }: { row: RequestRow }) {
+  const fw = r.firewall
+  if (!fw) return null
+  const rules = fw.rules.filter((x) => !scoreTotal(x.id))
+  const Icon = fw.blocked ? ShieldBan : ShieldAlert
+  return (
+    <Group title="Firewall">
+      <div className="mx-2 mb-3 flex flex-col gap-2">
+        <div
+          className={cn(
+            "flex items-start gap-2 rounded-2xl px-3 py-2.5 text-body-sm",
+            fw.blocked ? "bg-destructive/10" : "bg-subtle",
+          )}
+        >
+          <Icon
+            className={cn(
+              "mt-0.5 size-4 shrink-0",
+              fw.blocked ? "text-destructive" : "text-warning",
+            )}
+          />
+          <p>
+            {fw.blocked
+              ? "Blocked by the web application firewall: the visitor got 403 and the app never saw it."
+              : "Logged by the web application firewall but let through (Log only, or under the score that blocks)."}
+          </p>
+        </div>
+        {rules.length > 0 && (
+          <ul className="flex flex-col gap-1.5">
+            {rules.map((x) => (
+              <li key={x.id} className="rounded-lg bg-subtle px-2.5 py-2">
+                <p className="text-caption">
+                  <span className="font-mono text-muted-foreground">
+                    {x.id}
+                  </span>{" "}
+                  {x.message || "No message"}
+                </p>
+                {x.data && (
+                  <p className="mt-0.5 font-mono text-caption break-all text-ash">
+                    {x.data}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="text-caption text-muted-foreground">
+          A false alarm? Turn the rule off in Security › Web application
+          firewall › Flagged requests.
+        </p>
+      </div>
+    </Group>
   )
 }
 

@@ -36,6 +36,16 @@ export const statusClasses = [
 ] as const
 export type StatusClass = (typeof statusClasses)[number]
 
+// What the web application firewall made of a request.
+export const firewallVerdicts = ["blocked", "flagged", "any"] as const
+export type FirewallVerdict = (typeof firewallVerdicts)[number]
+
+export const firewallLabels: Record<FirewallVerdict, string> = {
+  blocked: "Blocked by the firewall",
+  flagged: "Logged by the firewall",
+  any: "Seen by the firewall",
+}
+
 export const requestParsers = {
   q: parseAsString.withDefault(""),
   status: parseAsStringLiteral(statusClasses).withDefault("all"),
@@ -51,6 +61,7 @@ export const requestParsers = {
   domain: parseAsString.withDefault(""),
   // Slower than this many ms.
   slow: parseAsInteger.withDefault(0),
+  firewall: parseAsStringLiteral(firewallVerdicts),
 }
 
 export type RequestFilters = {
@@ -65,6 +76,7 @@ export type RequestFilters = {
   ip: string
   domain: string
   slow: number
+  firewall: FirewallVerdict | null
 }
 
 export function useRequestFilters() {
@@ -111,6 +123,7 @@ export function toRequestQuery(f: RequestFilters, limit: number): RequestQuery {
     ip: f.ip.trim() || undefined,
     domain: f.domain || undefined,
     min_ms: f.slow > 0 ? f.slow : undefined,
+    firewall: f.firewall ?? undefined,
     limit,
   }
 }

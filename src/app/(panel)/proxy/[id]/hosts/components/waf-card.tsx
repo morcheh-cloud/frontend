@@ -426,7 +426,7 @@ function EventRow({
   skipped: string[]
   onSkip?: (id: string) => void
 }) {
-  const refused = e.status === 403
+  const refused = e.blocked
   return (
     <li className="flex flex-col gap-2 p-3">
       <div className="flex min-w-0 items-baseline gap-2">
@@ -446,7 +446,18 @@ function EventRow({
         </span>
       </div>
       <p className="text-caption text-ash">
-        {[e.ip, e.time].filter(Boolean).join(" · ")}
+        <span
+          className={cn(
+            "font-medium",
+            refused ? "text-destructive" : "text-muted-foreground",
+          )}
+        >
+          {refused ? "Blocked" : "Logged only"}
+        </span>
+        {[e.ip, e.time]
+          .filter(Boolean)
+          .map((x) => ` · ${x}`)
+          .join("")}
       </p>
       {e.rules.length > 0 && (
         <ul className="flex flex-col gap-1.5">
