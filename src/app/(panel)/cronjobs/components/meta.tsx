@@ -14,6 +14,7 @@ import {
   Loader2,
   type LucideIcon,
   OctagonX,
+  PackageCheck,
   Play,
   Power,
   Server,
@@ -262,13 +263,22 @@ export const actionMeta: Record<
     hint: "Check that a database's latest backups can be read and restored.",
     short: "Check that backups restore",
   },
+  "software-update": {
+    label: "Update applications",
+    icon: PackageCheck,
+    hint: "Update the applications installed from the catalog, and optionally the system packages.",
+    short: "Catalog apps and system packages",
+  },
 }
 
 // The picker's groups, in order.
 export const actionGroups: { label: string; actions: Action[] }[] = [
   { label: "Files", actions: ["sync", "archive", "fetch"] },
   { label: "Run", actions: ["script", "ansible"] },
-  { label: "Servers", actions: ["service", "reboot"] },
+  {
+    label: "Servers",
+    actions: ["service", "reboot", "software-update"],
+  },
   { label: "Databases", actions: ["verify-backup"] },
 ]
 
@@ -369,6 +379,13 @@ export function jobSummary(s: Summarised): string {
       return `Reboot ${serversText(s.refs, t.reboot?.server_ids)}`
     case "verify-backup":
       return `Backups of ${refName(s.refs, "database", t.verify?.database_id)}`
+    case "software-update": {
+      const n = t.software?.recipes?.length ?? 0
+      const what = n
+        ? `Update ${n} ${n === 1 ? "application" : "applications"}`
+        : "Update applications"
+      return `${what}${t.software?.system ? " + system" : ""} on ${serversText(s.refs, t.software?.server_ids)}`
+    }
     default:
       return flowText(s)
   }
@@ -606,6 +623,28 @@ export function taskFacts(
             : "The latest of every plan",
         },
       ]
+    case "software-update": {
+      const sw = t.software
+      return [
+        { label: "Servers", value: names(s.refs, sw?.server_ids) },
+        {
+          label: "Applications",
+          value: sw?.recipes?.length
+            ? sw.recipes.join(", ")
+            : "Every one with an update",
+        },
+        {
+          label: "System packages",
+          value: sw?.system
+            ? sw.security_only
+              ? "Security updates only"
+              : "Every update"
+            : "No",
+        },
+        { label: "Servers at a time", value: String(sw?.parallel || 1) },
+        { label: "Carry on after a failure", value: yesNo(sw?.keep_going) },
+      ]
+    }
   }
   return []
 }

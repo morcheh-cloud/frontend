@@ -13,6 +13,8 @@ import {
   TargetPicker,
   toSelection,
 } from "@/app/(panel)/ansible/components/run-layer"
+import { useCatalog, useInstalls } from "@/app/(panel)/applications/api"
+import { RecipeIcon } from "@/app/(panel)/applications/components/meta"
 import { backupKeys } from "@/app/(panel)/databases/api"
 import { useDatabaseCan } from "@/app/(panel)/databases/components/permissions"
 import { useScripts } from "@/app/(panel)/scripts/api"
@@ -93,6 +95,13 @@ export type TaskDraft = {
   overwrite: boolean
   databaseId: string
   planId: string
+  // software-update: every application with an update, or only these ids.
+  softAll: boolean
+  softRecipes: string[]
+  softSystem: boolean
+  softSecurity: boolean
+  softParallel: string
+  softKeepGoing: boolean
 }
 
 export const freshTask = (): TaskDraft => ({
@@ -120,6 +129,12 @@ export const freshTask = (): TaskDraft => ({
   overwrite: true,
   databaseId: "",
   planId: "",
+  softAll: true,
+  softRecipes: [],
+  softSystem: false,
+  softSecurity: false,
+  softParallel: "1",
+  softKeepGoing: true,
 })
 
 export function taskFromSaved(s: Schedule): TaskDraft {
@@ -172,6 +187,16 @@ export function taskFromSaved(s: Schedule): TaskDraft {
     d.onlyIfRequired = !!rb.only_if_required
     d.skipIfLoggedIn = !!rb.skip_if_logged_in
     d.message = rb.message ?? ""
+  }
+  const sw = t.software
+  if (sw) {
+    d.servers = named(sw.server_ids)
+    d.softAll = !sw.recipes?.length
+    d.softRecipes = sw.recipes ?? []
+    d.softSystem = !!sw.system
+    d.softSecurity = !!sw.security_only
+    d.softParallel = String(sw.parallel || 1)
+    d.softKeepGoing = !!sw.keep_going
   }
   const f = t.fetch
   if (f) {
@@ -264,6 +289,17 @@ export function toTask(action: Action, t: TaskDraft): ScheduleTask | undefined {
           message: t.message.trim(),
         },
       }
+    case "software-update":
+      return {
+        software: {
+          server_ids: ids,
+          recipes: t.softAll ? [] : t.softRecipes,
+          system: t.softSystem,
+          security_only: t.softSystem && t.softSecurity,
+          parallel: Number(t.softParallel) || 1,
+          keep_going: t.softKeepGoing,
+        },
+      }
     case "fetch":
       return {
         fetch: {
@@ -299,6 +335,8 @@ export type TaskKey =
   | "fileName"
   | "database"
   | "plan"
+  | "recipes"
+  | "parallel"
 
 export type TaskErrors = Partial<Record<TaskKey, string>>
 
@@ -311,7 +349,10 @@ export function checkTask(
 ): TaskErrors {
   const e: TaskErrors = {}
   const needServers = action === "script" || action === "service"
-  if ((needServers || action === "reboot") && t.servers.size === 0) {
+  if (
+    (needServers || action === "reboot" || action === "software-update") &&
+    t.servers.size === 0
+  ) {
     e.servers = "Choose at least one server"
   }
   switch (action) {
@@ -342,6 +383,17 @@ export function checkTask(
     case "reboot":
       if (t.servers.size > 50) e.servers = "Up to 50 servers"
       break
+    case "software-update": {
+      if (t.servers.size > 200) e.servers = "Up to 200 servers"
+      if (!t.softAll && t.softRecipes.length === 0 && !t.softSystem) {
+        e.recipes = "Choose an application, or the system packages"
+      }
+      const n = Number(t.softParallel)
+      if (!Number.isInteger(n) || n < 1 || n > 20) {
+        e.parallel = "From 1 to 20"
+      }
+      break
+    }
     case "fetch":
       if (!/^https?:\/\/[^/\s]/i.test(t.url.trim())) {
         e.url = "Enter a full http:// or https:// address"
@@ -376,6 +428,8 @@ export function taskErrorKey(action: Action, field: string): TaskKey | null {
     ["name", action === "fetch" ? "fileName" : "content"],
     ["database_id", "database"],
     ["plan_id", "plan"],
+    ["recipes", "recipes"],
+    ["parallel", "parallel"],
   ]
   for (const [prefix, key] of pairs) if (rest.startsWith(prefix)) return key
   const whole: Partial<Record<Action, TaskKey>> = {
@@ -385,6 +439,7 @@ export function taskErrorKey(action: Action, field: string): TaskKey | null {
     reboot: "servers",
     fetch: "url",
     "verify-backup": "database",
+    "software-update": "servers",
   }
   return whole[action] ?? null
 }
@@ -399,6 +454,7 @@ export const accessText: Record<Action, string> = {
   service: "Operator on every server (Engineer to stop a protected one)",
   reboot: "Operator on every server",
   "verify-backup": "Operator on the database",
+  "software-update": "Engineer on every server",
 }
 
 // ---- What it does ----
@@ -515,6 +571,8 @@ export function TaskSections(props: Props) {
       return <FetchSection {...props} />
     case "verify-backup":
       return <VerifySection {...props} />
+    case "software-update":
+      return <SoftwareSections {...props} />
   }
   return null
 }
@@ -1012,6 +1070,130 @@ function RebootSections(props: Props) {
           A server that doesn't come back within 15 minutes fails the run, and
           the servers after it aren't rebooted.
         </Callout>
+      </Section>
+    </>
+  )
+}
+
+// ---- Software update ----
+
+function SoftwareSections(props: Props) {
+  const { t, set, errors, phone, ws } = props
+  const catalog = useCatalog(ws)
+  const installs = useInstalls(ws)
+  // Only what's installed somewhere can be updated; a chosen one that isn't
+  // any more stays listed so it can be taken out.
+  const installed = new Set(
+    (installs.data?.items ?? []).map((i) => i.recipe_id),
+  )
+  const recipes = (catalog.data?.items ?? []).filter(
+    (r) => installed.has(r.id) || t.softRecipes.includes(r.id),
+  )
+  const toggle = (id: string) =>
+    set({
+      softRecipes: t.softRecipes.includes(id)
+        ? t.softRecipes.filter((x) => x !== id)
+        : [...t.softRecipes, id],
+    })
+  return (
+    <>
+      <ServersSection
+        {...props}
+        min="engineer"
+        hint="Only what's installed on each server is updated. Up to 200."
+      />
+      <Section
+        title="Applications"
+        hint="As the Updates tab of Applications, read again at each run."
+        phone={phone}
+      >
+        <div className="[scrollbar-width:none] overflow-x-auto">
+          <Segmented
+            label="Which applications"
+            value={t.softAll ? "all" : "some"}
+            onChange={(v) => set({ softAll: v === "all" })}
+            items={[
+              { value: "all", label: "Every one with an update" },
+              { value: "some", label: "Only these" },
+            ]}
+          />
+        </div>
+        {!t.softAll &&
+          (installs.isPending || catalog.isPending ? (
+            <Skeleton className="h-11 rounded-lg" />
+          ) : recipes.length === 0 ? (
+            <NoneYet
+              text="Nothing from the catalog is installed in this workspace yet."
+              href="/applications"
+              label="Open Applications"
+            />
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {recipes.map((r) => {
+                const on = t.softRecipes.includes(r.id)
+                return (
+                  <Button
+                    key={r.id}
+                    type="button"
+                    variant={on ? "secondary" : "outline"}
+                    aria-pressed={on}
+                    className={cn(
+                      "h-11 rounded-full md:h-8",
+                      on && "border border-brand/40 text-brand-strong",
+                    )}
+                    onClick={() => toggle(r.id)}
+                  >
+                    <RecipeIcon recipe={r} size="xs" />
+                    {r.name}
+                  </Button>
+                )
+              })}
+            </div>
+          ))}
+        <FieldError text={errors.recipes} />
+        <ToggleRow
+          id="cronjob-software-system"
+          label="Also upgrade the system packages"
+          hint="Everything the package manager has an update for."
+          checked={t.softSystem}
+          onChange={(softSystem) => set({ softSystem })}
+        />
+        {t.softSystem && (
+          <ToggleRow
+            id="cronjob-software-security"
+            label="Only security updates"
+            hint="apt servers; the others get every update."
+            checked={t.softSecurity}
+            onChange={(softSecurity) => set({ softSecurity })}
+          />
+        )}
+      </Section>
+      <Section title="How it goes" phone={phone}>
+        <Field
+          label="Servers at a time"
+          hint="1 = one after the other, the safest."
+          error={errors.parallel}
+        >
+          {(p) => (
+            <Input
+              {...p}
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={20}
+              value={t.softParallel}
+              onChange={(e) => set({ softParallel: e.target.value })}
+              className="w-28"
+            />
+          )}
+        </Field>
+        <ToggleRow
+          id="cronjob-software-keep-going"
+          label="Carry on after a server fails"
+          hint="Off = the run stops at the first failure."
+          checked={t.softKeepGoing}
+          onChange={(softKeepGoing) => set({ softKeepGoing })}
+        />
       </Section>
     </>
   )

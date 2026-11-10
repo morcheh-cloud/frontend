@@ -1,8 +1,10 @@
 "use client"
 
 import {
+  ArrowUpCircle,
   BookOpen,
   CircleHelp,
+  LayoutGrid,
   Link2,
   type LucideIcon,
   Moon,
@@ -13,7 +15,7 @@ import {
   Sun,
 } from "lucide-react"
 import { useEffect, useState } from "react"
-
+import { applicationsHref } from "@/app/(panel)/applications/components/meta"
 import {
   sectionFor,
   sectionGroups,
@@ -179,6 +181,23 @@ export function actions(
       tile: "brand",
       href: "/scripts/new",
       keywords: "create shell bash python command saved snippet run",
+    },
+    {
+      key: "action:install-application",
+      label: "Install an application",
+      icon: LayoutGrid,
+      tile: "brand",
+      href: "/applications",
+      keywords:
+        "app software docker compose package catalog deploy setup add nginx redis postgres",
+    },
+    {
+      key: "action:update-applications",
+      label: "Update applications and servers",
+      icon: ArrowUpCircle,
+      tile: "brand",
+      href: applicationsHref("/applications", { tab: "updates" }),
+      keywords: "upgrade apt dnf packages security patch software docker image",
     },
     {
       key: "action:run-command",

@@ -9,6 +9,7 @@ import {
   HardDrive,
   KeyRound,
   LayoutDashboard,
+  LayoutGrid,
   type LucideIcon,
   MonitorPlay,
   NotebookPen,
@@ -80,6 +81,14 @@ export const sectionGroups: SectionGroup[] = [
           "Start, stop, restart and enable a service",
           "Read a unit's recent journal without leaving the page",
         ],
+      },
+      {
+        slug: "applications",
+        label: "Applications",
+        icon: LayoutGrid,
+        summary:
+          "Install, update and remove applications from the catalog on this server.",
+        ready: true,
       },
       {
         slug: "processes",

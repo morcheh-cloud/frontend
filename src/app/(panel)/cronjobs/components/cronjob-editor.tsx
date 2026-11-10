@@ -172,6 +172,7 @@ const namePlaceholders: Record<Action, string> = {
   service: "Restart the workers",
   reboot: "Sunday reboots",
   "verify-backup": "Check last night's backups",
+  "software-update": "Weekly updates",
 }
 
 function pickerTitle(a: Action, role: Role) {

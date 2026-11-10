@@ -9,7 +9,7 @@ import { editorTheme } from "@/app/(panel)/servers/[id]/components/ini-editor"
 import { useCodeTheme } from "@/components/code-theme"
 import { cn } from "@/lib/utils"
 
-export type YamlKind = "playbook" | "vars"
+export type YamlKind = "playbook" | "vars" | "compose" | "recipe"
 
 // What's wrong with the text, as Ansible would see it: YAML syntax errors,
 // and the top level a playbook (a list of plays) or variables (a mapping)
@@ -17,8 +17,13 @@ export type YamlKind = "playbook" | "vars"
 export function yamlProblems(text: string, kind: YamlKind) {
   const out: { from: number; to: number; message: string }[] = []
   if (!text.trim()) {
-    if (kind === "playbook") {
-      out.push({ from: 0, to: 0, message: "The playbook is empty." })
+    if (kind !== "vars") {
+      const what = {
+        compose: "compose file",
+        recipe: "application",
+        playbook: "playbook",
+      }[kind]
+      out.push({ from: 0, to: 0, message: `The ${what} is empty.` })
     }
     return out
   }
@@ -53,6 +58,21 @@ export function yamlProblems(text: string, kind: YamlKind) {
       }
     }
   }
+  if (kind === "compose" && !(isMap(c) && c.has("services"))) {
+    out.push({
+      from: 0,
+      to: Math.min(text.length, 1),
+      message: "A compose file is a mapping with “services:” at the top.",
+    })
+  }
+  if (kind === "recipe" && !isMap(c)) {
+    out.push({
+      from: 0,
+      to: Math.min(text.length, 1),
+      message:
+        "An application is a mapping: “id:”, “name:”, “kind:” and the rest.",
+    })
+  }
   if (kind === "vars" && c != null && !isMap(c)) {
     out.push({
       from: 0,
@@ -63,31 +83,30 @@ export function yamlProblems(text: string, kind: YamlKind) {
   return out
 }
 
+const lintFor = (kind: YamlKind) =>
+  linter(
+    (view): Diagnostic[] =>
+      yamlProblems(view.state.doc.toString(), kind).map((p) => ({
+        ...p,
+        to: Math.max(p.to, p.from),
+        severity: "error",
+      })),
+    { delay: 400 },
+  )
+
 const lints = {
-  playbook: linter(
-    (view): Diagnostic[] =>
-      yamlProblems(view.state.doc.toString(), "playbook").map((p) => ({
-        ...p,
-        to: Math.max(p.to, p.from),
-        severity: "error",
-      })),
-    { delay: 400 },
-  ),
-  vars: linter(
-    (view): Diagnostic[] =>
-      yamlProblems(view.state.doc.toString(), "vars").map((p) => ({
-        ...p,
-        to: Math.max(p.to, p.from),
-        severity: "error",
-      })),
-    { delay: 400 },
-  ),
+  playbook: lintFor("playbook"),
+  vars: lintFor("vars"),
+  compose: lintFor("compose"),
+  recipe: lintFor("recipe"),
 }
 
 const base = [editorTheme, yaml()]
 const extensionsFor = {
   playbook: [...base, lints.playbook, lintGutter()],
   vars: [...base, lints.vars, lintGutter()],
+  compose: [...base, lints.compose, lintGutter()],
+  recipe: [...base, lints.recipe, lintGutter()],
   readOnly: [...base, EditorView.editable.of(false), EditorView.lineWrapping],
 }
 

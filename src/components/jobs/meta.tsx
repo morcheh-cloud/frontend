@@ -12,8 +12,10 @@ import {
   FileCode,
   FileKey,
   FolderInput,
+  FolderSearch,
   Gauge,
   Image as ImageIcon,
+  LayoutGrid,
   ListChecks,
   type LucideIcon,
   PackageOpen,
@@ -59,6 +61,8 @@ const icons: Record<string, LucideIcon> = {
   "proxy-image-filter": ImageIcon,
   "proxy-stream-geo": Earth,
   "proxy-certificate": FileKey,
+  "software-run": LayoutGrid,
+  "software-scan": FolderSearch,
 }
 
 export function JobIcon({
@@ -175,6 +179,14 @@ export function placeHref(job: Job) {
   if (t?.schedule_id) {
     return `/cronjobs/${t.schedule_id}${t.run_id ? `?run=${t.run_id}` : ""}`
   }
+  if (job.kind === "software-run" && t?.run_id) {
+    return `/applications/runs/${t.run_id}`
+  }
+  if (job.kind === "software-scan") {
+    return t?.server_id
+      ? `/servers/${t.server_id}/applications`
+      : "/applications?tab=installed"
+  }
   if (t?.run_id && job.kind === "script-run") {
     return `/scripts/runs/${t.run_id}`
   }
@@ -191,6 +203,7 @@ export function placeHref(job: Job) {
 
 export function placeLabel(job: Job) {
   if (job.kind === "storage-scan") return "Open Insights"
+  if (job.kind === "software-scan") return "Open applications"
   if (job.kind.startsWith("proxy-")) return "Open proxy"
   if (job.target?.database_id) return "Open backups"
   return job.target?.run_id ? "Open run" : "Open folder"
@@ -203,6 +216,7 @@ export function canRetry(job: Job) {
     job.state !== "succeeded" &&
     job.kind !== "ansible-run" &&
     job.kind !== "script-run" &&
+    job.kind !== "software-run" &&
     job.kind !== "schedule-sync" &&
     job.kind !== "schedule-run" &&
     job.kind !== "database-backup" &&

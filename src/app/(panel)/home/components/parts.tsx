@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 
 import { useWorkspaceCan } from "@/app/(panel)/servers/components/permissions"
 import {
+  applicationsItem,
   cronjobsItem,
   databasesItem,
   dnsItem,
@@ -24,6 +25,7 @@ export const kindItem: Record<Kind, { label: string; icon: LucideIcon }> = {
   dns: { label: "DNS server", icon: dnsItem.icon },
   proxy: { label: "Reverse proxy", icon: proxyItem.icon },
   cronjob: { label: "Cron job", icon: cronjobsItem.icon },
+  application: { label: "Application", icon: applicationsItem.icon },
 }
 
 export type Summary = {
@@ -119,6 +121,22 @@ export function summaries(home: Home): Summary[] {
             ? `${plural(home.criticalApps, "critical service")} pinned first`
             : "Your team's web tools in one place",
       alert: 0,
+    },
+    {
+      key: "applications",
+      ...applicationsItem,
+      tally: t.applications,
+      total: t.applications.total,
+      caption:
+        t.applications.total === 0
+          ? "None yet"
+          : [
+              caption(t.applications, { ok: "running", idle: "busy" }),
+              home.softwareUpdates && plural(home.softwareUpdates, "update"),
+            ]
+              .filter(Boolean)
+              .join(" · "),
+      alert: t.applications.bad + t.applications.warn,
     },
   ]
 }

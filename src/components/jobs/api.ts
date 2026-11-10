@@ -97,6 +97,10 @@ export function refreshAfterJob(qc: QueryClient, job: Job) {
     qc.invalidateQueries({ queryKey: ["ansible"] })
     return
   }
+  if (job.kind === "software-run" || job.kind === "software-scan") {
+    qc.invalidateQueries({ queryKey: ["software"] })
+    return
+  }
   if (job.kind === "script-run") {
     qc.invalidateQueries({ queryKey: ["scripts"] })
     return
@@ -108,7 +112,13 @@ export function refreshAfterJob(qc: QueryClient, job: Job) {
   // Any other cron job: it may have started a script or Ansible run, checked
   // backups or rebooted servers.
   if (job.kind === "schedule-run") {
-    for (const root of ["cronjobs", "scripts", "ansible", "database-backups"]) {
+    for (const root of [
+      "cronjobs",
+      "scripts",
+      "ansible",
+      "database-backups",
+      "software",
+    ]) {
       qc.invalidateQueries({ queryKey: [root] })
     }
     qc.invalidateQueries({ queryKey: ["servers"] })

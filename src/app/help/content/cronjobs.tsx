@@ -90,6 +90,10 @@ export const cronjobs: GuideSection[] = [
               "Reboots servers one at a time, waiting for each to come back. Can skip those that don't need it or have someone logged in.",
             ],
             [
+              <UI key="software">Update applications</UI>,
+              "Updates the applications installed on chosen servers (all with an update, or only some) and, if asked, upgrades system packages (optionally security only), a few servers at a time.",
+            ],
+            [
               <UI key="verify">Verify backups</UI>,
               "Reads back the latest backup of a database (every plan, or one) on every storage it's kept on and compares its checksum. Nothing is restored.",
             ],
@@ -98,8 +102,10 @@ export const cronjobs: GuideSection[] = [
         <P>
           The action can't be changed later: for something else, make a new job.
           A saved script or playbook is read again at every run, so edits to it
-          count from the next run. Script, playbook and backup check runs link
-          to their own page (<See guide="scripts" />, <See guide="ansible" />,{" "}
+          count from the next run. Script, playbook, application and backup
+          check runs link to their own page (<See guide="scripts" />,{" "}
+          <See guide="ansible" />,{" "}
+          <See guide="applications" section="schedule" />,{" "}
           <See guide="databases" section="backups" />) from the run's details.
         </P>
         <Tip>
@@ -418,6 +424,7 @@ cache/tmp`}</Code>
               "Operator; Engineer to stop a protected service",
             ],
             ["Reboot servers", "Operator on every server"],
+            ["Update applications", "Engineer on every server"],
             ["Verify backups", "Operator on the database"],
           ]}
         />

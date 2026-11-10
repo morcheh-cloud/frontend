@@ -11,6 +11,7 @@ import {
   HardDrive,
   House,
   KeyRound,
+  LayoutGrid,
   ListChecks,
   type LucideIcon,
   MonitorPlay,
@@ -67,6 +68,11 @@ export const servicesItem: NavItem = {
   href: "/services",
   label: "Services",
   icon: Boxes,
+}
+export const applicationsItem: NavItem = {
+  href: "/applications",
+  label: "Applications",
+  icon: LayoutGrid,
 }
 export const ansibleItem: NavItem = {
   href: "/ansible",
@@ -151,6 +157,7 @@ export const navGroups: NavGroup[] = [
       dnsItem,
       proxyItem,
       servicesItem,
+      applicationsItem,
       ansibleItem,
       scriptsItem,
       cronjobsItem,

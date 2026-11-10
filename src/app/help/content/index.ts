@@ -1,6 +1,7 @@
 import type { GuideSection } from "../components/prose"
 import { access } from "./access"
 import { ansible } from "./ansible"
+import { applications } from "./applications"
 import { cron } from "./cron"
 import { cronjobs } from "./cronjobs"
 import { databases } from "./databases"
@@ -46,6 +47,7 @@ export const content: Record<string, GuideSection[]> = {
   dns,
   "reverse-proxy": reverseProxy,
   "service-launcher": serviceLauncher,
+  applications,
   ansible,
   cronjobs,
   scripts,

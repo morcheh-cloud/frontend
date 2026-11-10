@@ -9,9 +9,11 @@ import type {
   Proxy as ReverseProxy,
   Schedule,
   Server,
+  SoftwareInstall,
   Storage,
 } from "@/lib/services"
 import {
+  applicationsItem,
   cronjobsItem,
   databasesItem,
   dnsItem,
@@ -108,6 +110,36 @@ export const cronjobBroken = (
     (!!s.last_run &&
       ["failed", "partial", "interrupted"].includes(s.last_run.state)))
 
+// An application install that failed, went missing or whose containers
+// aren't running (the same "bad"/"warn" as its status on /applications).
+export const softwareBroken = (
+  i: Pick<SoftwareInstall, "status" | "kind" | "state">,
+) =>
+  i.status === "failed" ||
+  i.status === "missing" ||
+  (i.status === "installed" &&
+    i.kind === "docker" &&
+    !!i.state &&
+    i.state !== "running")
+
+// Same key and request as useInstalls() in applications/api.ts.
+export const softwareInstallsQuery = (workspace: string) =>
+  queryOptions({
+    queryKey: ["software", "installs", workspace] as const,
+    queryFn: () => api.applications.listSoftwareInstalls(workspace),
+    enabled: !!workspace,
+    refetchInterval: STATUS_POLL,
+  })
+
+export function useSoftwareProblems() {
+  const { workspace } = useWorkspace()
+  const { data } = useQuery({
+    ...softwareInstallsQuery(workspace?.id ?? ""),
+    select: (l) => l.items.filter(softwareBroken).length,
+  })
+  return data ?? 0
+}
+
 export type NavAlert = { count: number; label: string }
 
 const plural = (n: number, one: string, many: string) =>
@@ -199,6 +231,7 @@ export function useNavAlerts() {
   const cronjobs = useCronjobProblems()
   const dns = useDNSProblems()
   const proxies = useProxyProblems()
+  const software = useSoftwareProblems()
   const alerts = new Map<string, NavAlert>()
   if (servers > 0) {
     alerts.set(serversItem.href, {
@@ -235,6 +268,12 @@ export function useNavAlerts() {
     alerts.set(proxyItem.href, {
       count: proxies,
       label: `${plural(proxies, "proxy", "proxies")} need attention`,
+    })
+  }
+  if (software > 0) {
+    alerts.set(applicationsItem.href, {
+      count: software,
+      label: `${plural(software, "application", "applications")} failed or stopped`,
     })
   }
   if (cronjobs > 0) {

@@ -26,6 +26,8 @@ import {
   proxiesQuery,
   proxyBroken,
   STATUS_POLL,
+  softwareBroken,
+  softwareInstallsQuery,
   storagesQuery,
 } from "@/components/panel/problems"
 import { useWorkspace } from "@/components/panel/workspace"
@@ -37,6 +39,7 @@ import type {
   Proxy as ReverseProxy,
   Schedule,
   Server,
+  SoftwareInstall,
 } from "@/lib/services"
 
 // Everything the home page shows, read from the same queries (and cache) as
@@ -50,6 +53,7 @@ export type Kind =
   | "dns"
   | "proxy"
   | "cronjob"
+  | "application"
 export type Tone = "destructive" | "warning"
 
 export type Issue = {
@@ -116,6 +120,7 @@ export function useHome() {
   const dns = useQuery(dnsServersQuery)
   const proxies = useQuery(proxiesQuery)
   const cronjobs = useCronjobs(workspace?.id)
+  const software = useQuery(softwareInstallsQuery(workspace?.id ?? ""))
   const apps = useApps()
   const jobs = useJobList()
 
@@ -201,6 +206,26 @@ export function useHome() {
       tone: c.problem || failed ? "destructive" : "warning",
     })
   }
+  for (const i of software.data?.items ?? []) {
+    if (!softwareBroken(i)) continue
+    const bad = i.status === "failed" || i.status === "missing"
+    issues.push({
+      key: `application:${i.id}`,
+      kind: "application",
+      name: `${i.name} on ${i.server_name}`,
+      status:
+        i.status === "failed"
+          ? "Failed"
+          : i.status === "missing"
+            ? "Not found"
+            : i.state === "partial"
+              ? "Partly running"
+              : "Stopped",
+      detail: i.error || (bad ? "" : "Its containers aren't all running."),
+      href: `/servers/${i.server_id}/applications`,
+      tone: bad ? "destructive" : "warning",
+    })
+  }
   for (const b of backups.data ?? []) {
     issues.push({
       key: `backup:${b.plan_id}`,
@@ -231,6 +256,7 @@ export function useHome() {
       dns: statusTally(dns.data?.items),
       proxy: proxyTally(proxies.data?.items),
       cronjobs: cronTally(cronjobs.data),
+      applications: softwareTally(software.data?.items),
     },
     serverTotal: facets.data?.total,
     servers: {
@@ -244,6 +270,10 @@ export function useHome() {
     jobs: recentJobs(jobs.data),
     activeJobs: (jobs.data ?? []).filter(isActive).length,
     upcoming: upcoming(cronjobs.data),
+    // Applications and servers with an update waiting.
+    softwareUpdates:
+      (software.data?.items.filter((i) => i.update_available).length ?? 0) +
+      (software.data?.hosts.filter((h) => h.upgradable > 0).length ?? 0),
   }
 }
 
@@ -313,6 +343,17 @@ function cronTally(items: Schedule[] | undefined): Tally {
       if (c.problem || c.last_run?.state === "failed") t.bad++
       else t.warn++
     } else t.ok++
+  }
+  return t
+}
+
+function softwareTally(items: SoftwareInstall[] | undefined): Tally {
+  const t = { ...emptyTally, total: items?.length ?? 0 }
+  for (const i of items ?? []) {
+    if (i.status === "failed" || i.status === "missing") t.bad++
+    else if (i.status !== "installed") t.idle++
+    else if (softwareBroken(i)) t.warn++
+    else t.ok++
   }
   return t
 }

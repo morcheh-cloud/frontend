@@ -331,6 +331,12 @@ function linkOf(link: ScheduleRunLink) {
         label: "Open the Ansible run",
         hint: "Tasks, output and the recap per server.",
       }
+    case "software-run":
+      return {
+        href: `/applications/runs/${link.id}`,
+        label: "Open the applications run",
+        hint: "Each server's steps, output and versions.",
+      }
     case "database":
       return {
         href: backupsHref(link.id, "backups"),

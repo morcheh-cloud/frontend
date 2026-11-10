@@ -1277,6 +1277,16 @@ export interface Capabilities {
   websockets: boolean;
 }
 
+export interface CatalogOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  categories: string[];
+  items: Recipe[];
+}
+
 export interface CertRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -1398,6 +1408,17 @@ export interface ClearJobsResponse {
   $schema?: string;
   /** @format int64 */
   deleted: number;
+}
+
+export interface ComposeOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  content: string;
+  /** Send it back when saving: a change made since is refused (409) */
+  revision: string;
 }
 
 export interface CompressFilesRequest {
@@ -4739,6 +4760,16 @@ export interface Images {
   sizes?: number[];
 }
 
+export interface InstallsOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  hosts: SoftwareHost[];
+  items: SoftwareInstall[];
+}
+
 export interface ItemResult {
   /** The item (any JSON value) */
   item: any;
@@ -4780,7 +4811,7 @@ export interface Job {
   finished_at?: string;
   /** @format uuid */
   id: string;
-  /** What it does: transfer, copy, move, storage-copy, storage-move, compress, extract, fetch, fail2ban-install, fail2ban-uninstall, firewall-install, firewall-apply, ansible-run, schedule-sync, schedule-run, script-run, database-backup, database-backup-verify, database-backup-restore, proxy-setup, proxy-geo, proxy-brotli, proxy-waf, proxy-image-filter, proxy-stream-geo or proxy-certificate */
+  /** What it does: transfer, copy, move, storage-copy, storage-move, compress, extract, fetch, fail2ban-install, fail2ban-uninstall, firewall-install, firewall-apply, ansible-run, schedule-sync, schedule-run, script-run, database-backup, database-backup-verify, database-backup-restore, proxy-setup, proxy-geo, proxy-brotli, proxy-waf, proxy-image-filter, proxy-stream-geo, proxy-certificate, software-run or software-scan */
   kind: string;
   /** What it printed (newest last); only on GET /jobs/{id} */
   log?: string;
@@ -4972,6 +5003,17 @@ export interface ListServerScriptRunsResponse {
   items: ServerScriptRun[];
   /** @format int64 */
   total: number;
+}
+
+export interface ListServerSoftwareResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Null until its first scan */
+  host: SoftwareHost;
+  items: SoftwareInstall[];
 }
 
 export interface ListStoragesResponse {
@@ -6854,6 +6896,70 @@ export interface RealIP {
     | "True-Client-IP";
 }
 
+export interface Recipe {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  builtin: boolean;
+  category: string;
+  compose?: string;
+  description?: string;
+  /** A lucide icon name for the panel */
+  icon?: string;
+  /** Short name: lowercase letters, digits and dashes */
+  id: string;
+  install?: string;
+  kind: "package" | "docker" | "script";
+  links?: RecipeLink[];
+  /** A brand logo the panel ships (Simple Icons name, e.g. redis); shown in place of the icon when the panel has it */
+  logo?: string;
+  name: string;
+  /** Shown after it's installed: first steps, where the password is… */
+  notes?: string;
+  os?: string[];
+  packages?: Record<string, string[]>;
+  params?: RecipeParam[];
+  record_id?: string;
+  requires?: string[];
+  /** One line */
+  summary: string;
+  uninstall?: string;
+  update?: string;
+  version_command?: string;
+  website?: string;
+}
+
+export interface RecipeLink {
+  label: string;
+  path?: string;
+  /** The port parameter's name, or a number */
+  port: string;
+  scheme?: "http" | "https" | "";
+}
+
+export interface RecipeParam {
+  default?: string;
+  generate?: "password" | "hex" | "";
+  help?: string;
+  label: string;
+  /** Variable name, upper case */
+  name: string;
+  options?: string[];
+  required?: boolean;
+  type:
+    | "text"
+    | "number"
+    | "port"
+    | "password"
+    | "bool"
+    | "select"
+    | "path"
+    | "domain"
+    | "email";
+}
+
 export interface RecordingListBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -6980,6 +7086,15 @@ export interface RestoreListBody {
   total: number;
 }
 
+export interface RevealSoftwareSecretsResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  values: Record<string, string>;
+}
+
 export interface Rule {
   /** false for files sudo skips (a . or ~ in the name) */
   active: boolean;
@@ -7040,12 +7155,23 @@ export interface RunListBody {
    * @format uri
    */
   $schema?: string;
-  items: AnsibleRun[];
+  items: SoftwareRun[];
   /** @format int64 */
   total: number;
 }
 
 export interface RunListBody1 {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: AnsibleRun[];
+  /** @format int64 */
+  total: number;
+}
+
+export interface RunListBody2 {
   /**
    * A URL to the JSON Schema for this object.
    * @format uri
@@ -7116,6 +7242,20 @@ export interface SaveCrontabRequest {
   table: string;
 }
 
+export interface SaveSoftwareComposeRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * @minLength 1
+   * @maxLength 262144
+   */
+  content: string;
+  revision: string;
+}
+
 export interface Schedule {
   /**
    * A URL to the JSON Schema for this object.
@@ -7130,7 +7270,8 @@ export interface Schedule {
     | "reboot"
     | "fetch"
     | "archive"
-    | "verify-backup";
+    | "verify-backup"
+    | "software-update";
   /** @format date-time */
   created_at: string;
   cron: string;
@@ -7196,7 +7337,8 @@ export interface ScheduleBody {
     | "reboot"
     | "fetch"
     | "archive"
-    | "verify-backup";
+    | "verify-backup"
+    | "software-update";
   /**
    * Five fields (minute hour day month weekday), or @hourly, @daily, @weekly, @monthly, @every 2h
    * @minLength 1
@@ -7345,7 +7487,8 @@ export interface ScheduleRun {
     | "reboot"
     | "fetch"
     | "archive"
-    | "verify-backup";
+    | "verify-backup"
+    | "software-update";
   /** @format int64 */
   bytes: number;
   /** @format date-time */
@@ -7473,7 +7616,7 @@ export interface ScheduleRunDest {
 export interface ScheduleRunLink {
   /** @format uuid */
   id: string;
-  kind: "script-run" | "ansible-run" | "database";
+  kind: "script-run" | "ansible-run" | "database" | "software-run";
 }
 
 export interface ScheduleScript {
@@ -7522,6 +7665,32 @@ export interface ScheduleService {
   unit: string;
 }
 
+export interface ScheduleSoftware {
+  /** Carry on with the other servers after one fails */
+  keep_going?: boolean;
+  /**
+   * Servers at a time; default 1
+   * @format int64
+   * @min 0
+   * @max 20
+   */
+  parallel?: number;
+  /**
+   * Applications to update; empty = every one with an update, read at each run
+   * @maxItems 100
+   */
+  recipes?: string[];
+  /** System packages: only security updates (apt servers) */
+  security_only?: boolean;
+  /**
+   * @maxItems 200
+   * @minItems 1
+   */
+  server_ids: string[];
+  /** Also upgrade the system packages */
+  system?: boolean;
+}
+
 export interface ScheduleTask {
   /** action ansible */
   ansible?: ScheduleAnsible;
@@ -7533,6 +7702,8 @@ export interface ScheduleTask {
   script?: ScheduleScript;
   /** action service */
   service?: ScheduleService;
+  /** action software-update */
+  software?: ScheduleSoftware;
   /** action verify-backup */
   verify?: ScheduleVerify;
 }
@@ -7555,7 +7726,8 @@ export interface ScheduleUpdate {
     | "reboot"
     | "fetch"
     | "archive"
-    | "verify-backup";
+    | "verify-backup"
+    | "software-update";
   /**
    * Five fields (minute hour day month weekday), or @hourly, @daily, @weekly, @monthly, @every 2h
    * @minLength 1
@@ -8821,6 +8993,299 @@ export interface Site {
   upstream?: string;
 }
 
+export interface SoftwareHost {
+  /** @format date-time */
+  checked_at: string;
+  compose: string;
+  /** Docker's version; empty when it isn't installed or running */
+  docker: string;
+  /** Why the last scan failed */
+  error: string;
+  packages: SoftwarePackage[];
+  /** Package manager: apt, dnf, yum, zypper, apk or pacman */
+  pm: string;
+  reboot_required: boolean;
+  /**
+   * Of which security updates
+   * @format int32
+   */
+  security: number;
+  /** @format uuid */
+  server_id: string;
+  server_name: string;
+  server_status: string;
+  /**
+   * System packages with a newer version
+   * @format int32
+   */
+  upgradable: number;
+}
+
+export interface SoftwareImage {
+  image: string;
+  service: string;
+  /** The container's state: running, exited, restarting… */
+  state: string;
+  /** The registry has a newer image under the same tag */
+  update?: boolean;
+  version?: string;
+}
+
+export interface SoftwareInstall {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  can_rollback: boolean;
+  /** @format date-time */
+  checked_at: string | null;
+  dir?: string;
+  error: string;
+  /** @format uuid */
+  id: string;
+  images: SoftwareImage[];
+  /** @format date-time */
+  installed_at: string | null;
+  kind: "package" | "docker" | "script";
+  latest: string;
+  name: string;
+  /** morcheh = installed from the panel; found = a scan found it */
+  origin: "morcheh" | "found";
+  /** The values it was installed with, without the secret ones */
+  params: Record<string, string>;
+  /** Runs the version before its last update (rolled back) */
+  pinned: boolean;
+  project?: string;
+  recipe_id: string;
+  /** Names of the secret values kept for it (Owners can reveal them) */
+  secret_params: string[];
+  /** @format uuid */
+  server_id: string;
+  server_name: string;
+  server_status: string;
+  /** Docker apps: running, stopped or partial */
+  state: string;
+  status:
+    | "installing"
+    | "installed"
+    | "updating"
+    | "failed"
+    | "removing"
+    | "missing";
+  update_available: boolean;
+  /** @format date-time */
+  updated_at: string;
+  version: string;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface SoftwareInstallActionRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  action: "start" | "stop" | "restart";
+}
+
+export interface SoftwareInstallLogsResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  text: string;
+}
+
+export interface SoftwarePackage {
+  latest: string;
+  name: string;
+  security?: boolean;
+  version?: string;
+}
+
+export interface SoftwarePreflight {
+  arch?: string;
+  docker?: string;
+  /** Applications installed before it on this server (what it requires) */
+  first: string[];
+  /** @format int64 */
+  free_mb?: number;
+  /** Already on this server */
+  installed: boolean;
+  /** Nothing stops the install */
+  ok: boolean;
+  pm?: string;
+  /** What would make it fail */
+  problems: string[];
+  /** @format uuid */
+  server_id: string;
+  server_name: string;
+  version?: string;
+  warnings: string[];
+}
+
+export interface SoftwarePreflightRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  params?: Record<string, string>;
+  recipe_id: string;
+  /**
+   * @maxItems 500
+   * @minItems 1
+   */
+  server_ids: string[];
+}
+
+export interface SoftwarePreflightResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: SoftwarePreflight[];
+}
+
+export interface SoftwareRun {
+  action: "install" | "update" | "uninstall" | "rollback" | "upgrade-system";
+  /** @format date-time */
+  created_at: string;
+  created_by_name: string;
+  error: string;
+  /** @format int32 */
+  failed: number;
+  /** @format date-time */
+  finished_at: string | null;
+  /** @format uuid */
+  id: string;
+  /** @format uuid */
+  job_id?: string;
+  name: string;
+  server_ids: string[];
+  server_names: string[];
+  /** @format date-time */
+  started_at: string | null;
+  state:
+    | "queued"
+    | "running"
+    | "succeeded"
+    | "failed"
+    | "canceled"
+    | "interrupted";
+  /** @format int32 */
+  succeeded: number;
+  /** @format int32 */
+  targets: number;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface SoftwareRunDetail {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  action: "install" | "update" | "uninstall" | "rollback" | "upgrade-system";
+  /** @format date-time */
+  created_at: string;
+  created_by_name: string;
+  error: string;
+  /** @format int32 */
+  failed: number;
+  /** @format date-time */
+  finished_at: string | null;
+  /** @format uuid */
+  id: string;
+  /** @format uuid */
+  job_id?: string;
+  name: string;
+  options: SoftwareRunOptions;
+  /** The values given, without the secret ones */
+  params: Record<string, string>;
+  server_ids: string[];
+  server_names: string[];
+  /** @format date-time */
+  started_at: string | null;
+  state:
+    | "queued"
+    | "running"
+    | "succeeded"
+    | "failed"
+    | "canceled"
+    | "interrupted";
+  /** One per server and application, in the order they run on each server */
+  steps: SoftwareRunTarget[];
+  /** @format int32 */
+  succeeded: number;
+  /** @format int32 */
+  targets: number;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface SoftwareRunOptions {
+  /** Install of a Docker app: delete data an earlier install left first */
+  fresh?: boolean;
+  /** System upgrade: apt full-upgrade / dist-upgrade, which may remove packages */
+  full?: boolean;
+  /**
+   * Servers at a time; 0 = 5 for install and uninstall, 1 for the rest
+   * @format int64
+   * @min 0
+   * @max 20
+   */
+  parallel?: number;
+  /** Uninstall of a Docker app: delete its volumes and folder too */
+  remove_data?: boolean;
+  /** System upgrade: security updates only (apt, dnf, yum, zypper) */
+  security_only?: boolean;
+  /** Skip the servers not started yet once one fails. Default: on for updates, off for installs */
+  stop_on_failure?: boolean;
+}
+
+export interface SoftwareRunTarget {
+  error: string;
+  /** @format date-time */
+  finished_at: string | null;
+  output: string;
+  /** @format int32 */
+  position: number;
+  recipe_id: string;
+  recipe_name: string;
+  /** @format uuid */
+  server_id?: string;
+  server_name: string;
+  /** @format date-time */
+  started_at: string | null;
+  state:
+    | "queued"
+    | "running"
+    | "succeeded"
+    | "failed"
+    | "canceled"
+    | "interrupted"
+    | "skipped";
+  truncated: boolean;
+  version_after: string;
+  version_before: string;
+}
+
+export interface StartOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  job: Job;
+  run: SoftwareRunDetail;
+}
+
 export interface StartRunBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -8899,6 +9364,28 @@ export interface StartScriptRunResponse {
   $schema?: string;
   job: Job;
   run: ScriptRunDetail;
+}
+
+export interface StartSoftwareRunBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  action: "install" | "update" | "uninstall" | "rollback" | "upgrade-system";
+  options?: SoftwareRunOptions;
+  /** Install: the recipe's parameters. Empty generated ones are made for each server */
+  params?: Record<string, string>;
+  /**
+   * Install: exactly one. Update, uninstall, rollback: the applications ("system" = the server's packages); empty for update = every one with an update. Ignored by upgrade-system
+   * @maxItems 100
+   */
+  recipes?: string[];
+  /**
+   * @maxItems 500
+   * @minItems 1
+   */
+  server_ids: string[];
 }
 
 export interface Stats {
@@ -11290,7 +11777,7 @@ export class Api<
       },
       params: RequestParams = {},
     ) =>
-      this.request<RunListBody, ErrorModel>({
+      this.request<RunListBody1, ErrorModel>({
         path: `/workspaces/${id}/ansible/runs`,
         method: "GET",
         query: query,
@@ -14491,7 +14978,7 @@ export class Api<
       },
       params: RequestParams = {},
     ) =>
-      this.request<RunListBody1, ErrorModel>({
+      this.request<RunListBody2, ErrorModel>({
         path: `/schedules/${id}/runs`,
         method: "GET",
         query: query,
@@ -16824,6 +17311,419 @@ export class Api<
         path: `/servers/${id}/services/${unit}/logs/stream`,
         method: "GET",
         query: query,
+        ...params,
+      }),
+  };
+  applications = {
+    /**
+     * @description Steps not started are skipped; a running one gets SIGTERM, which can leave a half-done install. Engineer on every server it touched.
+     *
+     * @tags Applications
+     * @name CancelSoftwareRun
+     * @summary Stop a run
+     * @request POST:/software-runs/{id}/cancel
+     */
+    cancelSoftwareRun: (id: string, params: RequestParams = {}) =>
+      this.request<SoftwareRunDetail, ErrorModel>({
+        path: `/software-runs/${id}/cancel`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Applications
+     * @name CreateSoftwareRecipe
+     * @summary Add an application of the workspace's own to the catalog
+     * @request POST:/workspaces/{id}/software/recipes
+     */
+    createSoftwareRecipe: (
+      id: string,
+      data: Recipe,
+      params: RequestParams = {},
+    ) =>
+      this.request<Recipe, ErrorModel>({
+        path: `/workspaces/${id}/software/recipes`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Servers keep what is installed; it can no longer be updated or removed from the panel.
+     *
+     * @tags Applications
+     * @name DeleteSoftwareRecipe
+     * @summary Remove one of the workspace's own applications from the catalog
+     * @request DELETE:/software-recipes/{id}
+     */
+    deleteSoftwareRecipe: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/software-recipes/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * @description Needs Engineer on every server it touched.
+     *
+     * @tags Applications
+     * @name DeleteSoftwareRun
+     * @summary Delete a finished run
+     * @request DELETE:/software-runs/{id}
+     */
+    deleteSoftwareRun: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/software-runs/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * @description Nothing changes on the server. A scan finds it again if it is still there.
+     *
+     * @tags Applications
+     * @name ForgetSoftwareInstall
+     * @summary Forget an application record
+     * @request DELETE:/software-installs/{id}
+     */
+    forgetSoftwareInstall: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/software-installs/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Applications
+     * @name GetSoftwareCompose
+     * @summary A Docker app's compose file
+     * @request GET:/software-installs/{id}/compose
+     */
+    getSoftwareCompose: (id: string, params: RequestParams = {}) =>
+      this.request<ComposeOutputBody, ErrorModel>({
+        path: `/software-installs/${id}/compose`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Applications
+     * @name GetSoftwareInstall
+     * @summary One application on one server
+     * @request GET:/software-installs/{id}
+     */
+    getSoftwareInstall: (id: string, params: RequestParams = {}) =>
+      this.request<SoftwareInstall, ErrorModel>({
+        path: `/software-installs/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Needs Operator on every server it touched. While it runs, the output is saved about every second: poll this.
+     *
+     * @tags Applications
+     * @name GetSoftwareRun
+     * @summary A run with its output on each server
+     * @request GET:/software-runs/{id}
+     */
+    getSoftwareRun: (id: string, params: RequestParams = {}) =>
+      this.request<SoftwareRunDetail, ErrorModel>({
+        path: `/software-runs/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Applications
+     * @name ListServerSoftware
+     * @summary Applications on a server and its system updates
+     * @request GET:/servers/{id}/software
+     */
+    listServerSoftware: (id: string, params: RequestParams = {}) =>
+      this.request<ListServerSoftwareResponse, ErrorModel>({
+        path: `/servers/${id}/software`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The built-in recipes and the workspace's own, by name.
+     *
+     * @tags Applications
+     * @name ListSoftwareCatalog
+     * @summary The applications a workspace's servers can install
+     * @request GET:/workspaces/{id}/software/catalog
+     */
+    listSoftwareCatalog: (id: string, params: RequestParams = {}) =>
+      this.request<CatalogOutputBody, ErrorModel>({
+        path: `/workspaces/${id}/software/catalog`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Only servers the caller can see. Refreshed by a scan every SOFTWARE_CHECK_INTERVAL and after every run.
+     *
+     * @tags Applications
+     * @name ListSoftwareInstalls
+     * @summary Applications on a workspace's servers, and each server's system updates
+     * @request GET:/workspaces/{id}/software/installs
+     */
+    listSoftwareInstalls: (id: string, params: RequestParams = {}) =>
+      this.request<InstallsOutputBody, ErrorModel>({
+        path: `/workspaces/${id}/software/installs`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Applications
+     * @name ListSoftwareRuns
+     * @summary A workspace's application runs, newest first
+     * @request GET:/workspaces/{id}/software-runs
+     */
+    listSoftwareRuns: (
+      id: string,
+      query?: {
+        /**
+         * @format int32
+         * @min 1
+         * @max 200
+         * @default 50
+         */
+        limit?: number;
+        /**
+         * @format int32
+         * @min 0
+         */
+        offset?: number;
+        /** In the run's name or who started it */
+        q?: string;
+        recipe_id?: string;
+        /** @format uuid */
+        server_id?: string;
+        state?:
+          | "queued"
+          | "running"
+          | "succeeded"
+          | "failed"
+          | "canceled"
+          | "interrupted";
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<RunListBody, ErrorModel>({
+        path: `/workspaces/${id}/software-runs`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Passwords Morcheh made or was given at install time. Owner of the server.
+     *
+     * @tags Applications
+     * @name RevealSoftwareSecrets
+     * @summary Show the secret values an application was installed with
+     * @request POST:/software-installs/{id}/reveal
+     */
+    revealSoftwareSecrets: (id: string, params: RequestParams = {}) =>
+      this.request<RevealSoftwareSecretsResponse, ErrorModel>({
+        path: `/software-installs/${id}/reveal`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Checked with docker compose config first (422 with its words when wrong); the old file stays as compose.yml.previous.
+     *
+     * @tags Applications
+     * @name SaveSoftwareCompose
+     * @summary Change a Docker app's compose file and apply it
+     * @request PUT:/software-installs/{id}/compose
+     */
+    saveSoftwareCompose: (
+      id: string,
+      data: SaveSoftwareComposeRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<ComposeOutputBody, ErrorModel>({
+        path: `/software-installs/${id}/compose`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Applications
+     * @name ScanServerSoftware
+     * @summary Look again at what is installed on a server and what has updates
+     * @request POST:/servers/{id}/software/scan
+     */
+    scanServerSoftware: (id: string, params: RequestParams = {}) =>
+      this.request<Job, ErrorModel>({
+        path: `/servers/${id}/software/scan`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Only servers the caller has Operator on.
+     *
+     * @tags Applications
+     * @name ScanWorkspaceSoftware
+     * @summary Look again at every reachable server of a workspace
+     * @request POST:/workspaces/{id}/software/scan
+     */
+    scanWorkspaceSoftware: (id: string, params: RequestParams = {}) =>
+      this.request<Job, ErrorModel>({
+        path: `/workspaces/${id}/software/scan`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Operator. Answers the record after a fresh look at the app.
+     *
+     * @tags Applications
+     * @name SoftwareInstallAction
+     * @summary Start, stop or restart a Docker app
+     * @request POST:/software-installs/{id}/action
+     */
+    softwareInstallAction: (
+      id: string,
+      data: SoftwareInstallActionRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<SoftwareInstall, ErrorModel>({
+        path: `/software-installs/${id}/action`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Applications
+     * @name SoftwareInstallLogs
+     * @summary The last lines a Docker app's containers wrote
+     * @request GET:/software-installs/{id}/logs
+     */
+    softwareInstallLogs: (
+      id: string,
+      query?: {
+        /**
+         * @format int64
+         * @min 10
+         * @max 5000
+         * @default 300
+         */
+        lines?: number;
+        /** One compose service; empty = all */
+        service?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<SoftwareInstallLogsResponse, ErrorModel>({
+        path: `/software-installs/${id}/logs`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Package manager, root, Docker, free space, busy ports and leftovers from an earlier install. Engineer on every server.
+     *
+     * @tags Applications
+     * @name SoftwarePreflight
+     * @summary Check servers before installing an application on them
+     * @request POST:/software/preflight
+     */
+    softwarePreflight: (
+      data: SoftwarePreflightRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<SoftwarePreflightResponse, ErrorModel>({
+        path: `/software/preflight`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Queues a background job. Install, update, rollback and system upgrades need Engineer on every server, uninstall needs Owner. All servers must be in one workspace.
+     *
+     * @tags Applications
+     * @name StartSoftwareRun
+     * @summary Install, update, roll back or remove applications on servers
+     * @request POST:/software-runs
+     */
+    startSoftwareRun: (
+      data: StartSoftwareRunBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<StartOutputBody, ErrorModel>({
+        path: `/software-runs`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Its id stays. What is installed already changes on its next update.
+     *
+     * @tags Applications
+     * @name UpdateSoftwareRecipe
+     * @summary Change one of the workspace's own applications
+     * @request PUT:/software-recipes/{id}
+     */
+    updateSoftwareRecipe: (
+      id: string,
+      data: Recipe,
+      params: RequestParams = {},
+    ) =>
+      this.request<Recipe, ErrorModel>({
+        path: `/software-recipes/${id}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
         ...params,
       }),
   };

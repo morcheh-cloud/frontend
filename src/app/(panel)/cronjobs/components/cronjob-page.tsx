@@ -451,6 +451,8 @@ function taskLink(s: Schedule) {
             label: "Open the backups",
           }
         : null
+    case "software-update":
+      return { href: "/applications?tab=updates", label: "Open updates" }
   }
   return null
 }
