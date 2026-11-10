@@ -293,7 +293,7 @@ function RecipePicker({
 }) {
   const [q, setQ] = useState("")
   const list = recipes
-    .filter((r) => matchRecipe(r, q))
+    .filter((r) => !r.retired && matchRecipe(r, q))
     .sort((a, b) => a.name.localeCompare(b.name))
   return (
     <Layer

@@ -116,7 +116,11 @@ export function SoftwareActionsProvider({ children }: { children: ReactNode }) {
   }
   const installId = (id: string, preset?: InstallPreset) => {
     const r = catalog.data?.items.find((x) => x.id === id)
-    if (r) install(r, preset)
+    if (r && !r.retired) install(r, preset)
+    else if (r)
+      toast.error(
+        `${r.name} is no longer in the catalog. This install can still be updated and removed.`,
+      )
     else toast.error("That application isn't in this workspace's catalog.")
   }
   const ask = (p: Pending) => {

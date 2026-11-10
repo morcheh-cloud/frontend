@@ -21,11 +21,12 @@ export const applications: GuideSection[] = [
     body: (
       <>
         <P>
-          <UI>Applications</UI> is a catalog of software you can install on your
-          servers in a few taps: system tools like Docker, Git or WireGuard, and
-          Docker apps like Grafana, Portainer, Uptime Kuma or n8n. Pick one,
-          tick the servers, fill in a port or two, and Morcheh installs it over
-          SSH on all of them, with each server's output kept.
+          <UI>Applications</UI> is a catalog of the infrastructure software a
+          server needs, installed in a few taps: the basic tools, time sync,
+          automatic security updates, swap, Docker, Podman or k3s, VPNs and
+          backup tools. Pick one, tick the servers, fill in a setting or two,
+          and Morcheh installs it over SSH on all of them, with each server's
+          output kept.
         </P>
         <P>It then keeps an eye on what it installed:</P>
         <List>
@@ -81,6 +82,47 @@ export const applications: GuideSection[] = [
           Open an application to read what it is, which settings it asks for,
           the addresses it answers on and where it is installed already.
         </P>
+        <P>
+          The built-in catalog keeps to what a server itself needs; apps that
+          run on it (databases, monitoring dashboards, n8n…) are better started
+          from Portainer, or added as a custom recipe.
+        </P>
+        <Table
+          head={["Group", "Applications"]}
+          rows={[
+            [
+              "Base server",
+              "Basic tools (htop, btop, ncdu, tmux, jq, rsync, dig…), Chrony, Automatic security updates, Swap file, QEMU guest agent",
+            ],
+            ["Containers", "Docker, Podman, Portainer, Portainer Agent, k3s"],
+            ["Backup", "restic, rclone"],
+            ["Networking", "WireGuard, Tailscale"],
+            ["Security", "Certbot"],
+            ["Monitoring", "Node exporter"],
+            ["Developer tools", "Git, Node.js, Python 3"],
+          ]}
+        />
+        <P>
+          nginx, fail2ban and the firewall aren't in the catalog: they have
+          their own sections (<UI>Reverse proxy</UI>, and <UI>Fail2ban</UI> and{" "}
+          <UI>Firewall</UI> on each server page), which install them too.
+        </P>
+        <P>
+          Some applications left the catalog (PostgreSQL, MariaDB, Redis,
+          Grafana, Prometheus, Uptime Kuma, n8n, Gitea, Vaultwarden, MinIO,
+          Dozzle, htop). Where one was installed before, it stays in{" "}
+          <UI>Installed</UI> and can still be managed, updated and removed; it
+          just can't be installed anywhere new.
+        </P>
+        <Tip>
+          A few notes on the new ones: <UI>Swap file</UI> is resized by
+          installing it again with another size. <UI>k3s</UI> starts a new
+          cluster, or joins one when you give it the first server's address and
+          token; removing it deletes the cluster's data on that server.{" "}
+          <UI>Portainer Agent</UI> gives control of Docker to whoever reaches
+          its port, so let only your Portainer server in with the{" "}
+          <UI>Firewall</UI>.
+        </Tip>
       </>
     ),
   },
@@ -193,6 +235,11 @@ export const applications: GuideSection[] = [
           system packages to upgrade. Tick what you want and press{" "}
           <UI>Update</UI>, or open a server to see its packages and press{" "}
           <UI>Upgrade all</UI> or <UI>Security only</UI>.
+        </P>
+        <P>
+          A package application updates only the packages the server really has:
+          Docker installed from the distro (<C>docker.io</C>) is updated as it
+          is, never switched to Docker's own <C>docker-ce</C>.
         </P>
         <Table
           head={["Upgrade", "What it installs"]}
@@ -342,9 +389,40 @@ export const applications: GuideSection[] = [
         <P>
           Anything not in the catalog can be added as a recipe: a short YAML
           file that says what to install and how. Press <UI>New application</UI>
-          , start from a Docker, package or script template, and save. It shows
-          in the catalog for the whole workspace. To change a built-in one, open
-          it and press <UI>Copy as my own</UI>.
+          , fill in the form, and press <UI>Add to catalog</UI>. It shows in the
+          catalog for the whole workspace. To change a built-in one, open it and
+          press <UI>Copy as my own</UI>.
+        </P>
+        <Steps>
+          {[
+            <>
+              <UI>How it installs</UI>: Docker app (a compose file), Package
+              (the package manager) or Script (your own install script).
+              Switching sets the other kind's parts aside, and switching back
+              brings them again.
+            </>,
+            <>
+              <UI>About</UI>: name, summary and category; the id is made from
+              the name. Press the icon to pick a brand logo or an icon.
+            </>,
+            <>
+              <UI>Install form</UI>: the questions asked at install. Quick
+              buttons add a port, a password, a domain or a data folder; the
+              variable name is made from the question. Copy <C>{"${NAME}"}</C>{" "}
+              from a question into the compose file or a script.
+            </>,
+            <>
+              The kind's own part (<UI>Compose file</UI>, <UI>Packages</UI> or{" "}
+              <UI>Scripts</UI>), then <UI>After installing</UI> (Open buttons
+              and notes) and <UI>Where it runs</UI> (what to install first,
+              which package managers).
+            </>,
+          ]}
+        </Steps>
+        <P>
+          The switch at the top flips between <UI>Visual</UI> and <UI>YAML</UI>:
+          both edit the same text, so a change in one shows in the other. The
+          form remembers which you used last. The same recipe in YAML:
         </P>
         <Code>
           {`id: whoami
@@ -391,6 +469,10 @@ compose: |
               "Package names per manager (apt, dnf…, or default).",
             ],
             [
+              <C key="also">also</C>,
+              "Other names it may be installed as, per manager (the distro's build, like docker.io for Docker). Never installed by Morcheh; updated and removed when they're the ones on the server.",
+            ],
+            [
               <C key="scripts">install / update / uninstall</C>,
               "Shell scripts, run as root. Optional for packages.",
             ],
@@ -405,10 +487,17 @@ compose: |
           ]}
         />
         <P>
-          A mistake is shown with its line when you save. On wide screens the
-          panel beside the editor lists every field; on a phone, the help button
-          opens it.
+          Save checks everything at once: each problem is listed, and in the
+          form a click on it jumps to the field (in YAML it names the line).
+          Wide screens show a live <UI>Preview</UI> beside the form (the catalog
+          tile, the install form to try out, the Open buttons) and the{" "}
+          <UI>Fields</UI> list of every YAML key; elsewhere the eye button opens
+          them.
         </P>
+        <Tip>
+          The form writes the YAML again on each change, so comments in the text
+          go away once you edit in Visual. Keep commented recipes in YAML.
+        </Tip>
         <Tip>
           Recipes are the workspace's: Engineers write them, everyone in the
           workspace can install them where they have access.
@@ -453,6 +542,17 @@ compose: |
         <li>
           <b>The install failed.</b> Open the run: each server's output shows
           the command that failed. Fix the cause, then install again.
+        </li>
+        <li>
+          <b>Waiting for another package manager.</b> Something else is
+          installing on the server (often automatic security updates). Morcheh
+          waits up to 15 minutes for it, then stops with a message; run it again
+          once the other one is done.
+        </li>
+        <li>
+          <b>“None of its packages is installed with apt here”.</b> The
+          application was installed another way (a snap, a static binary, a
+          vendor script). Update it the same way it was installed.
         </li>
         <li>
           <b>Stopped or Partly running.</b> A Docker app's containers aren't all

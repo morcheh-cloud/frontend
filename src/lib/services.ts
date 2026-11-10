@@ -6902,6 +6902,8 @@ export interface Recipe {
    * @format uri
    */
   $schema?: string;
+  /** Other package names it may be installed as (e.g. the distro's build), per package manager: updated and removed when they're the ones on the server */
+  also?: Record<string, string[]>;
   builtin: boolean;
   category: string;
   compose?: string;
@@ -6923,6 +6925,8 @@ export interface Recipe {
   params?: RecipeParam[];
   record_id?: string;
   requires?: string[];
+  /** No longer offered for new installs; earlier installs can still be updated and removed */
+  retired?: boolean;
   /** One line */
   summary: string;
   uninstall?: string;

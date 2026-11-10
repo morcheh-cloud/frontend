@@ -145,10 +145,9 @@ export function RunsPanel({
   )
 }
 
+// The backend names a run with its verb already ("Update Docker on vm1").
 export function runTitle(r: Pick<SoftwareRun, "action" | "name">) {
-  return r.action === "upgrade-system"
-    ? "System upgrade"
-    : `${actionLabels[r.action]} ${r.name}`
+  return r.name.trim() || actionLabels[r.action]
 }
 
 function ResultText({ r }: { r: SoftwareRun }) {

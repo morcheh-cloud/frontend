@@ -189,7 +189,7 @@ export function actions(
       tile: "brand",
       href: "/applications",
       keywords:
-        "app software docker compose package catalog deploy setup add nginx redis postgres",
+        "app software docker compose package catalog deploy setup add podman k3s swap chrony restic rclone tools",
     },
     {
       key: "action:update-applications",

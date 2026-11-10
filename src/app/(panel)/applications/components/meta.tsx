@@ -116,20 +116,25 @@ export function iconOf(r: { icon?: string; kind: Recipe["kind"] }) {
 // Brand logos in public/apps (Simple Icons 16.36.0, filled with the brand
 // color). A recipe names one in `logo`; a name we don't ship falls back to
 // the icon.
+// Logos of retired recipes stay: earlier installs still show them.
 export const appLogos = [
   "docker",
   "git",
   "gitea",
   "grafana",
   "htop",
+  "k3s",
   "mariadb",
   "minio",
   "n8n",
   "nodedotjs",
+  "podman",
   "portainer",
   "postgresql",
   "prometheus",
   "python",
+  "qemu",
+  "rclone",
   "redis",
   "tailscale",
   "uptimekuma",
@@ -137,7 +142,7 @@ export const appLogos = [
   "wireguard",
 ]
 // Near-black logos: turned light in the dark theme.
-const inkLogos = new Set(["mariadb", "tailscale", "vaultwarden"])
+export const inkLogos = new Set(["mariadb", "tailscale", "vaultwarden"])
 
 const tileSizes = {
   xs: "size-5 rounded-md",

@@ -96,7 +96,8 @@ export function CatalogPanel({ phone }: { phone: boolean }) {
   if (catalog.isError && !catalog.data)
     return <Failed error={catalog.error} onRetry={() => catalog.refetch()} />
 
-  const all = catalog.data.items
+  // Retired built-ins stay in the data for earlier installs only.
+  const all = catalog.data.items.filter((r) => !r.retired)
   const shown = all
     .filter((r) => (!cat || r.category === cat) && matchRecipe(r, q))
     .sort((a, b) => a.name.localeCompare(b.name))
