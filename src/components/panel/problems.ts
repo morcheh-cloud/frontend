@@ -11,6 +11,7 @@ import type {
   Server,
   SoftwareInstall,
   Storage,
+  UptimeMonitor,
 } from "@/lib/services"
 import {
   applicationsItem,
@@ -20,6 +21,7 @@ import {
   proxyItem,
   serversItem,
   storageItem,
+  uptimeItem,
 } from "./nav"
 import { useWorkspace } from "./workspace"
 
@@ -140,6 +142,26 @@ export function useSoftwareProblems() {
   return data ?? 0
 }
 
+// Every uptime monitor in the workspace, as /uptime lists them.
+export const monitorsQuery = (workspace: string) =>
+  queryOptions({
+    queryKey: ["monitors", "list", workspace] as const,
+    queryFn: () => api.uptime.listMonitors({}),
+    enabled: !!workspace,
+    refetchInterval: STATUS_POLL,
+    select: (l) => l.items,
+  })
+
+// A monitor counts as broken while it's down (paused ones aren't watched).
+export const monitorBroken = (m: Pick<UptimeMonitor, "paused" | "status">) =>
+  !m.paused && m.status === "down"
+
+export function useUptimeProblems() {
+  const { workspace } = useWorkspace()
+  const { data } = useQuery(monitorsQuery(workspace?.id ?? ""))
+  return data?.filter(monitorBroken).length ?? 0
+}
+
 export type NavAlert = { count: number; label: string }
 
 const plural = (n: number, one: string, many: string) =>
@@ -232,6 +254,7 @@ export function useNavAlerts() {
   const dns = useDNSProblems()
   const proxies = useProxyProblems()
   const software = useSoftwareProblems()
+  const uptime = useUptimeProblems()
   const alerts = new Map<string, NavAlert>()
   if (servers > 0) {
     alerts.set(serversItem.href, {
@@ -274,6 +297,12 @@ export function useNavAlerts() {
     alerts.set(applicationsItem.href, {
       count: software,
       label: `${plural(software, "application", "applications")} failed or stopped`,
+    })
+  }
+  if (uptime > 0) {
+    alerts.set(uptimeItem.href, {
+      count: uptime,
+      label: `${plural(uptime, "monitor", "monitors")} down`,
     })
   }
   if (cronjobs > 0) {

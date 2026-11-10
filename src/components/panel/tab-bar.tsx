@@ -32,13 +32,14 @@ import {
   servicesItem,
   storageItem,
   tasksItem,
+  uptimeItem,
 } from "./nav"
 import { type NavAlert, useNavAlerts } from "./problems"
 import { WithPathname } from "./with-pathname"
 import { useWorkspace, WorkspaceAvatar } from "./workspace"
 
 // A native tab bar fits four tabs plus "More"; the rest live in a sheet.
-const tabItems = [homeItem, serversItem, servicesItem, alertsItem]
+const tabItems = [homeItem, serversItem, servicesItem, uptimeItem]
 const moreItems = [
   tasksItem,
   networkMapItem,
@@ -51,6 +52,7 @@ const moreItems = [
   scriptsItem,
   cronjobsItem,
   monitoringItem,
+  alertsItem,
   recordingsItem,
   keysItem,
 ]

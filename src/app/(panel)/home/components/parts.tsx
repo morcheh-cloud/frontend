@@ -13,6 +13,7 @@ import {
   serversItem,
   servicesItem,
   storageItem,
+  uptimeItem,
 } from "@/components/panel/nav"
 import { queueIntent } from "@/hooks/useIntent"
 import { cn } from "@/lib/utils"
@@ -26,6 +27,7 @@ export const kindItem: Record<Kind, { label: string; icon: LucideIcon }> = {
   proxy: { label: "Reverse proxy", icon: proxyItem.icon },
   cronjob: { label: "Cron job", icon: cronjobsItem.icon },
   application: { label: "Application", icon: applicationsItem.icon },
+  monitor: { label: "Monitor", icon: uptimeItem.icon },
 }
 
 export type Summary = {
@@ -138,6 +140,14 @@ export function summaries(home: Home): Summary[] {
               .join(" · "),
       alert: t.applications.bad + t.applications.warn,
     },
+    {
+      key: "uptime",
+      ...uptimeItem,
+      tally: t.uptime,
+      total: t.uptime.total,
+      caption: caption(t.uptime, { ok: "up", idle: "paused or new" }),
+      alert: t.uptime.bad,
+    },
   ]
 }
 
@@ -207,6 +217,7 @@ const addActions: AddAction[] = [
   { label: "Reverse proxy", href: "/proxy", intent: "add-proxy" },
   { label: "Service", href: "/services", intent: "add-service" },
   { label: "Cron job", href: "/cronjobs/new" },
+  { label: "Monitor", href: "/uptime/new" },
   { label: "Script", href: "/scripts/new" },
 ]
 

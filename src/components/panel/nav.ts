@@ -9,6 +9,7 @@ import {
   FileCode,
   Globe,
   HardDrive,
+  HeartPulse,
   House,
   KeyRound,
   LayoutGrid,
@@ -96,19 +97,21 @@ export const monitoringItem: NavItem = {
   children: [
     { href: "/monitoring", label: "Overview" },
     { href: "/monitoring/metrics", label: "Metrics" },
-    { href: "/monitoring/uptime", label: "Uptime" },
     { href: "/monitoring/logs", label: "Logs" },
   ],
 }
+// Uptime checks: its own section (not under Monitoring).
+export const uptimeItem: NavItem = {
+  href: "/uptime",
+  label: "Uptime",
+  icon: HeartPulse,
+}
+// Where notifications go (email, Telegram, Slack…), shared by every feature
+// that sends one.
 export const alertsItem: NavItem = {
   href: "/alerts",
   label: "Alerts",
   icon: Bell,
-  children: [
-    { href: "/alerts", label: "Overview" },
-    { href: "/alerts/rules", label: "Rules" },
-    { href: "/alerts/channels", label: "Channels" },
-  ],
 }
 export const recordingsItem: NavItem = {
   href: "/recordings",
@@ -166,7 +169,7 @@ export const navGroups: NavGroup[] = [
   },
   {
     label: "Observability",
-    items: [monitoringItem, alertsItem, recordingsItem],
+    items: [uptimeItem, monitoringItem, alertsItem, recordingsItem],
   },
 ]
 

@@ -10,6 +10,16 @@
  * ---------------------------------------------------------------
  */
 
+export interface AcknowledgeMonitorIncidentRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 2000 */
+  note?: string;
+}
+
 export interface AddCronJobRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -944,6 +954,15 @@ export interface Ban {
   until?: string;
 }
 
+export interface Beat {
+  /** @format date-time */
+  at: string;
+  /** @format int32 */
+  latency_ms?: number;
+  message: string;
+  status: string;
+}
+
 export interface BucketCORSRule {
   /** @maxItems 100 */
   expose_headers: string[];
@@ -1363,6 +1382,186 @@ export interface ChangePasswordBody {
   current_password: string;
   /** @maxLength 1024 */
   new_password: string;
+}
+
+export interface ChannelConfig {
+  /**
+   * Telegram/Bale: another Bot API address (a self-hosted or relay Bot API); blank for the official one
+   * @maxLength 500
+   */
+  api_url?: string;
+  /**
+   * Telegram/Bale: the chat, group or channel id (or @channelname)
+   * @maxLength 100
+   */
+  chat_id?: string;
+  /**
+   * Email: the sender, e.g. Morcheh <alerts@example.com>
+   * @maxLength 255
+   */
+  from?: string;
+  /**
+   * Email: the SMTP server
+   * @maxLength 255
+   */
+  host?: string;
+  /** Webhook: the HTTP method */
+  method?: "POST" | "PUT" | "PATCH" | "";
+  /**
+   * Email: 587 for STARTTLS, 465 for TLS, 25 for none
+   * @format int64
+   * @min 0
+   * @max 65535
+   */
+  port?: number;
+  /**
+   * ntfy (1–5), Gotify (0–10), Pushover (-2–2 as 0–4): 0 = by the event
+   * @format int64
+   * @min 0
+   * @max 10
+   */
+  priority?: number;
+  /** Email: how the connection is encrypted */
+  security?: "starttls" | "tls" | "none" | "";
+  /** Telegram/Bale/Pushover: deliver without a sound */
+  silent?: boolean;
+  /**
+   * Email: who gets it
+   * @maxItems 50
+   */
+  to?: string[];
+  /**
+   * ntfy: the topic
+   * @maxLength 200
+   */
+  topic?: string;
+  /**
+   * Webhook: where to POST; ntfy/Gotify: the server
+   * @maxLength 1000
+   */
+  url?: string;
+  /**
+   * Email: the SMTP login, blank for none
+   * @maxLength 255
+   */
+  username?: string;
+}
+
+export interface ChannelSecrets {
+  /** Webhook: extra request headers. Left out = keep the saved ones; sent = exactly these names, a blank value keeps that header's saved value */
+  headers?: Record<string, string>;
+  /**
+   * Email: the SMTP password
+   * @maxLength 500
+   */
+  password?: string;
+  /**
+   * Webhook: signs each body (X-Morcheh-Signature: sha256=…)
+   * @maxLength 500
+   */
+  signing_key?: string;
+  /**
+   * Telegram/Bale: the bot token; ntfy: an access token; Gotify: the app token; Pushover: the app token
+   * @maxLength 500
+   */
+  token?: string;
+  /**
+   * Pushover: the user or group key
+   * @maxLength 100
+   */
+  user_key?: string;
+  /**
+   * Slack/Discord/Mattermost/Teams: the incoming webhook address
+   * @maxLength 1000
+   */
+  webhook_url?: string;
+}
+
+export interface ChannelTestBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Send to a private or loopback address. System admins only. */
+  allow_internal?: boolean;
+  /** Also add it to every monitor the workspace already has */
+  attach_all?: boolean;
+  /**
+   * When editing: the saved channel, whose secrets blank ones stand for
+   * @format uuid
+   */
+  channel_id?: string;
+  config: ChannelConfig;
+  /** Default true */
+  enabled?: boolean;
+  is_default?: boolean;
+  /** Can't change after it's created */
+  kind:
+    | "email"
+    | "telegram"
+    | "bale"
+    | "webhook"
+    | "slack"
+    | "discord"
+    | "mattermost"
+    | "teams"
+    | "ntfy"
+    | "gotify"
+    | "pushover";
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  /** A blank secret keeps the saved one */
+  secrets: ChannelSecrets;
+}
+
+export interface ChannelTestOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  message: string;
+  ok: boolean;
+}
+
+export interface CheckOutBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  monitor: UptimeMonitor;
+  result: CheckResult;
+}
+
+export interface CheckResult {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format date-time */
+  cert_expires?: string;
+  /** The answer in short: an HTTP status, a DNS rcode, an exit code… */
+  code?: string;
+  detail?: string;
+  /** @format int64 */
+  latency_ms?: number;
+  message: string;
+  status: "up" | "degraded" | "down";
+}
+
+export interface ChecksOutBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: MonitorChecksBetweenRow[];
 }
 
 export interface ChmodFilesRequest {
@@ -3461,6 +3660,15 @@ export interface Event {
   time: string;
 }
 
+export interface EventsOutBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: MonitorEvent[];
+}
+
 export interface ExplainDatabaseQueryRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -4760,6 +4968,15 @@ export interface Images {
   sizes?: number[];
 }
 
+export interface IncidentsOutBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: UptimeIncident[];
+}
+
 export interface InstallsOutputBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -4931,6 +5148,24 @@ export interface ListJobsResponse {
   items: Job[];
 }
 
+export interface ListOutBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: UptimeMonitor[];
+}
+
+export interface ListOutBody1 {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: NotifyChannel[];
+}
+
 export interface ListPlaybooksResponse {
   /**
    * A URL to the JSON Schema for this object.
@@ -5076,6 +5311,15 @@ export interface LogEvent {
   source: string;
 }
 
+export interface LogOutBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: NotificationLogEntry[];
+}
+
 export interface Login {
   /** Address, or empty for a local login */
   from: string;
@@ -5214,6 +5458,428 @@ export interface ModuleOption {
   type: string;
 }
 
+export interface MonitorBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Check a private or loopback address from Morcheh. System admins only. */
+  allow_internal?: boolean;
+  /** Where alerts go; left out on create = the workspace's default channels, on update = unchanged */
+  channel_ids?: string[];
+  config: MonitorConfig;
+  /** @maxLength 2000 */
+  description?: string;
+  /**
+   * @format int32
+   * @min 10
+   * @max 86400
+   * @default 60
+   */
+  interval_seconds?: number;
+  /** Can't change after it's created */
+  kind:
+    | "http"
+    | "tcp"
+    | "udp"
+    | "ping"
+    | "dns"
+    | "tls"
+    | "websocket"
+    | "socketio"
+    | "smtp"
+    | "database"
+    | "rabbitmq"
+    | "kafka"
+    | "nats"
+    | "mqtt"
+    | "memcached"
+    | "elasticsearch"
+    | "docker"
+    | "systemd"
+    | "command"
+    | "push";
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  /** Also alert when it turns slow or degraded (default false) */
+  notify_degraded?: boolean;
+  /** Create it paused (ignored on update) */
+  paused?: boolean;
+  /**
+   * While down, remind every this many checks; 0 = never
+   * @format int32
+   * @min 0
+   * @max 10000
+   */
+  resend_every?: number;
+  /** push: make a new heartbeat address (the old one stops working) */
+  reset_push_token?: boolean;
+  /**
+   * Failures in a row before it counts as down
+   * @format int32
+   * @min 0
+   * @max 20
+   * @default 1
+   */
+  retries: number;
+  /**
+   * How soon to check again after a failure
+   * @format int32
+   * @min 5
+   * @max 86400
+   * @default 20
+   */
+  retry_seconds?: number;
+  /** A blank secret keeps the saved one */
+  secrets: MonitorSecrets;
+  /**
+   * The server it belongs to, shown on that server's page
+   * @format uuid
+   */
+  server_id?: string;
+  /** @maxItems 20 */
+  tags?: string[];
+  /**
+   * @format int32
+   * @min 1
+   * @max 120
+   * @default 10
+   */
+  timeout_seconds?: number;
+  /**
+   * Check from this server, over SSH (needed for docker, systemd and command)
+   * @format uuid
+   */
+  via_server_id?: string;
+}
+
+export interface MonitorChecksBetweenRow {
+  /** @format date-time */
+  at: string;
+  code: string;
+  /** @format int32 */
+  latency_ms: number | null;
+  message: string;
+  status: string;
+}
+
+export interface MonitorConfig {
+  /** @maxLength 65536 */
+  body?: string;
+  /**
+   * https/tls: degraded when the certificate expires within this many days; 0 = 14
+   * @format int64
+   * @min 0
+   * @max 365
+   */
+  cert_days?: number;
+  /**
+   * docker: the container name or id
+   * @maxLength 255
+   */
+  container?: string;
+  /**
+   * ping: packets to send (default 3)
+   * @format int64
+   * @min 0
+   * @max 20
+   */
+  count?: number;
+  /**
+   * database: the database to connect to
+   * @maxLength 255
+   */
+  database?: string;
+  /**
+   * Slower than this counts as degraded; 0 = never
+   * @format int64
+   * @min 0
+   * @max 600000
+   */
+  degraded_ms?: number;
+  /** database: which one */
+  engine?: "postgres" | "mysql" | "mssql" | "redis" | "mongodb" | "";
+  /**
+   * tcp/udp/websocket: what the answer must contain
+   * @maxLength 1000
+   */
+  expect?: string;
+  /**
+   * dns: values the answer must include
+   * @maxItems 20
+   */
+  expected?: string[];
+  /** Request headers (put secret ones in secrets.headers) */
+  headers?: Record<string, string>;
+  /** @maxLength 255 */
+  host?: string;
+  /** Accept a certificate that doesn't verify */
+  ignore_tls?: boolean;
+  /** How the value is compared (default eq) */
+  json_op?: "eq" | "ne" | "contains" | "gt" | "lt" | "exists" | "";
+  /**
+   * http: a value in a JSON answer, e.g. status or data.items[0].ok
+   * @maxLength 300
+   */
+  json_path?: string;
+  /** @maxLength 1000 */
+  json_value?: string;
+  /**
+   * http/websocket: text the answer must (or must not) contain
+   * @maxLength 1000
+   */
+  keyword?: string;
+  /** Match case */
+  keyword_case?: boolean;
+  /** contains (default), absent, or regex */
+  keyword_mode?: "contains" | "absent" | "regex" | "";
+  method?:
+    | "GET"
+    | "HEAD"
+    | "POST"
+    | "PUT"
+    | "PATCH"
+    | "DELETE"
+    | "OPTIONS"
+    | "";
+  /** elasticsearch: the worst cluster status still counted as up (default green) */
+  min_health?: "green" | "yellow" | "";
+  /**
+   * dns: the name to look up
+   * @maxLength 255
+   */
+  name?: string;
+  /** Don't follow redirects */
+  no_redirects?: boolean;
+  /**
+   * @format int64
+   * @min 0
+   * @max 65535
+   */
+  port?: number;
+  /** dns: default A */
+  record_type?: "A" | "AAAA" | "CNAME" | "MX" | "NS" | "TXT" | "";
+  /**
+   * dns: the server to ask (ip or ip:port); blank = the system's
+   * @maxLength 255
+   */
+  resolver?: string;
+  /**
+   * command: a shell command; exit 0 = up, 1 = degraded, anything else = down
+   * @maxLength 16384
+   */
+  script?: string;
+  /**
+   * tcp/udp/websocket: what to send once connected (\r\n and \n are understood)
+   * @maxLength 4096
+   */
+  send?: string;
+  /**
+   * tls: the name to ask for (SNI), when not the host
+   * @maxLength 255
+   */
+  server_name?: string;
+  /**
+   * Accepted status codes or ranges, e.g. 200-299, 301; blank = 200-399
+   * @maxItems 20
+   */
+  statuses?: string[];
+  /** command/docker: run through sudo -n */
+  sudo?: boolean;
+  /** tcp/queues: none or tls; smtp: none, tls or starttls; database: disable, require or verify */
+  tls_mode?:
+    | "none"
+    | "tls"
+    | "starttls"
+    | "disable"
+    | "require"
+    | "verify"
+    | "";
+  /**
+   * systemd: the unit, e.g. nginx.service
+   * @maxLength 255
+   */
+  unit?: string;
+  /** @maxLength 2000 */
+  url?: string;
+  /**
+   * Basic auth for http; the login for databases, SMTP, queues
+   * @maxLength 255
+   */
+  username?: string;
+}
+
+export interface MonitorEvent {
+  /** @format date-time */
+  at: string;
+  from_status: string;
+  /** @format int64 */
+  id: number;
+  message: string;
+  monitor_id: string;
+  to_status: string;
+}
+
+export interface MonitorReport {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  buckets: ReportBucket[];
+  /** @format int64 */
+  checks: number;
+  /** The last 90 days, oldest first */
+  days: ReportDay[];
+  /** @format int64 */
+  degraded: number;
+  /** @format int64 */
+  down: number;
+  /** @format double */
+  downtime_seconds: number;
+  incident_list: UptimeIncident[];
+  /** @format int32 */
+  incidents: number;
+  /** @format double */
+  latency_avg?: number;
+  /** @format int32 */
+  latency_max?: number;
+  range: string;
+  /** @format date-time */
+  since: string;
+  /**
+   * Seconds per bucket
+   * @format int64
+   */
+  step: number;
+  /** @format int64 */
+  up: number;
+  /** @format double */
+  uptime?: number;
+  /** Uptime over 24h, 7d, 30d and 365d */
+  windows: ReportWindow[];
+}
+
+export interface MonitorSecrets {
+  /** Secret request headers (API keys) */
+  headers?: Record<string, string>;
+  /** @maxLength 1000 */
+  password?: string;
+  /**
+   * http/websocket/elasticsearch: sent as Authorization: Bearer; nats: the auth token
+   * @maxLength 4000
+   */
+  token?: string;
+}
+
+export interface MonitorTestBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Check a private or loopback address from Morcheh. System admins only. */
+  allow_internal?: boolean;
+  /** Where alerts go; left out on create = the workspace's default channels, on update = unchanged */
+  channel_ids?: string[];
+  config: MonitorConfig;
+  /** @maxLength 2000 */
+  description?: string;
+  /**
+   * @format int32
+   * @min 10
+   * @max 86400
+   * @default 60
+   */
+  interval_seconds?: number;
+  /** Can't change after it's created */
+  kind:
+    | "http"
+    | "tcp"
+    | "udp"
+    | "ping"
+    | "dns"
+    | "tls"
+    | "websocket"
+    | "socketio"
+    | "smtp"
+    | "database"
+    | "rabbitmq"
+    | "kafka"
+    | "nats"
+    | "mqtt"
+    | "memcached"
+    | "elasticsearch"
+    | "docker"
+    | "systemd"
+    | "command"
+    | "push";
+  /**
+   * When editing: the saved monitor, whose secrets blank ones stand for
+   * @format uuid
+   */
+  monitor_id?: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  /** Also alert when it turns slow or degraded (default false) */
+  notify_degraded?: boolean;
+  /** Create it paused (ignored on update) */
+  paused?: boolean;
+  /**
+   * While down, remind every this many checks; 0 = never
+   * @format int32
+   * @min 0
+   * @max 10000
+   */
+  resend_every?: number;
+  /** push: make a new heartbeat address (the old one stops working) */
+  reset_push_token?: boolean;
+  /**
+   * Failures in a row before it counts as down
+   * @format int32
+   * @min 0
+   * @max 20
+   * @default 1
+   */
+  retries: number;
+  /**
+   * How soon to check again after a failure
+   * @format int32
+   * @min 5
+   * @max 86400
+   * @default 20
+   */
+  retry_seconds?: number;
+  /** A blank secret keeps the saved one */
+  secrets: MonitorSecrets;
+  /**
+   * The server it belongs to, shown on that server's page
+   * @format uuid
+   */
+  server_id?: string;
+  /** @maxItems 20 */
+  tags?: string[];
+  /**
+   * @format int32
+   * @min 1
+   * @max 120
+   * @default 10
+   */
+  timeout_seconds?: number;
+  /**
+   * Check from this server, over SSH (needed for docker, systemd and command)
+   * @format uuid
+   */
+  via_server_id?: string;
+}
+
 export interface MyAccess {
   /**
    * A URL to the JSON Schema for this object.
@@ -5323,6 +5989,92 @@ export interface NetworkServer {
   /** Its interfaces were read and it probed the others */
   scanned: boolean;
   server: Server;
+}
+
+export interface NotificationLogEntry {
+  /** @format date-time */
+  at: string;
+  error: string;
+  /** @format int64 */
+  id: number;
+  /** @format uuid */
+  monitor_id?: string;
+  monitor_name: string;
+  ok: boolean;
+  title: string;
+}
+
+export interface NotifyChannel {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  allow_internal: boolean;
+  config: ChannelConfig;
+  /** @format date-time */
+  created_at: string;
+  created_by_name: string;
+  enabled: boolean;
+  /** @format uuid */
+  id: string;
+  /** Added to every new monitor in the workspace */
+  is_default: boolean;
+  kind: string;
+  last_error: string;
+  /** @format date-time */
+  last_error_at?: string;
+  /** @format date-time */
+  last_sent_at?: string;
+  /**
+   * How many monitors use it
+   * @format int32
+   */
+  monitors: number;
+  name: string;
+  /** Which secrets are saved */
+  secrets: string[];
+  /** @format date-time */
+  updated_at: string;
+  updated_by_name: string;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface NotifyChannelBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Send to a private or loopback address. System admins only. */
+  allow_internal?: boolean;
+  /** Also add it to every monitor the workspace already has */
+  attach_all?: boolean;
+  config: ChannelConfig;
+  /** Default true */
+  enabled?: boolean;
+  is_default?: boolean;
+  /** Can't change after it's created */
+  kind:
+    | "email"
+    | "telegram"
+    | "bale"
+    | "webhook"
+    | "slack"
+    | "discord"
+    | "mattermost"
+    | "teams"
+    | "ntfy"
+    | "gotify"
+    | "pushover";
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  /** A blank secret keeps the saved one */
+  secrets: ChannelSecrets;
 }
 
 export interface OSFacet {
@@ -5652,6 +6404,15 @@ export interface PathRule {
   /** proxy: where requests go; empty = the site's own upstream (proxy sites) */
   upstream?: string;
   websockets?: boolean;
+}
+
+export interface PauseMonitorRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  paused: boolean;
 }
 
 export interface PinServerNoteRequest {
@@ -6745,6 +7506,15 @@ export interface ProxyUpstreamTest {
   status: number;
 }
 
+export interface PushOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  ok: boolean;
+}
+
 export interface RateLimit {
   /**
    * Connections one visitor may hold open at once; 0 = no limit
@@ -7031,6 +7801,46 @@ export interface RenameTerminalRequest {
    * @maxLength 64
    */
   title: string;
+}
+
+export interface ReportBucket {
+  /** @format double */
+  latency_p95?: number;
+  /** @format date-time */
+  at: string;
+  /** @format int32 */
+  checks: number;
+  /** @format int32 */
+  degraded: number;
+  /** @format int32 */
+  down: number;
+  /** @format double */
+  latency_avg?: number;
+  /** @format int32 */
+  latency_max?: number;
+  /** @format int32 */
+  up: number;
+}
+
+export interface ReportDay {
+  /** @format int32 */
+  checks: number;
+  /** YYYY-MM-DD, UTC */
+  day: string;
+  /** @format int32 */
+  degraded: number;
+  /** @format int32 */
+  down: number;
+  /** @format int32 */
+  up: number;
+}
+
+export interface ReportWindow {
+  /** @format int64 */
+  checks: number;
+  range: string;
+  /** @format double */
+  uptime?: number;
 }
 
 export interface ResourceAccess {
@@ -10307,6 +11117,106 @@ export interface UpstreamTLS {
   name?: string;
   /** Check the upstream's certificate; off accepts any (self-signed included) */
   verify?: boolean;
+}
+
+export interface UptimeIncident {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format date-time */
+  acknowledged_at?: string;
+  acknowledged_by_name: string;
+  cause: string;
+  /** @format uuid */
+  id: string;
+  /** @format uuid */
+  monitor_id: string;
+  monitor_kind?: string;
+  monitor_name?: string;
+  note: string;
+  /** @format date-time */
+  resolved_at?: string;
+  /**
+   * How long it lasted (so far, when open)
+   * @format double
+   */
+  seconds: number;
+  /** @format date-time */
+  started_at: string;
+  workspace_id?: string;
+}
+
+export interface UptimeMonitor {
+  /**
+   * Percent of checks up or degraded
+   * @format double
+   */
+  uptime_24h?: number;
+  /** @format double */
+  uptime_30d?: number;
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  allow_internal: boolean;
+  /** @format date-time */
+  cert_expires_at?: string;
+  channel_ids: string[];
+  config: MonitorConfig;
+  /** @format date-time */
+  created_at: string;
+  created_by_name: string;
+  description: string;
+  /**
+   * Failed checks in a row; above 0 while still up = retrying
+   * @format int32
+   */
+  fail_count: number;
+  /** @format uuid */
+  id: string;
+  /** @format int32 */
+  interval_seconds: number;
+  kind: string;
+  /** @format date-time */
+  last_checked_at?: string;
+  /** @format int32 */
+  last_latency_ms?: number;
+  name: string;
+  /** @format date-time */
+  next_check_at: string;
+  notify_degraded: boolean;
+  paused: boolean;
+  /** push: the secret in the heartbeat address (Engineer and up) */
+  push_token?: string;
+  /** The newest checks, oldest first */
+  recent: Beat[];
+  /** @format int32 */
+  resend_every: number;
+  /** @format int32 */
+  retries: number;
+  /** @format int32 */
+  retry_seconds: number;
+  /** Which secrets are saved */
+  secrets: string[];
+  /** @format uuid */
+  server_id?: string;
+  status: "pending" | "up" | "degraded" | "down";
+  status_message: string;
+  /** @format date-time */
+  status_since: string;
+  tags: string[];
+  /** @format int32 */
+  timeout_seconds: number;
+  /** @format date-time */
+  updated_at: string;
+  updated_by_name: string;
+  /** @format uuid */
+  via_server_id?: string;
+  /** @format uuid */
+  workspace_id: string;
 }
 
 export interface UsageDisk {
@@ -14095,6 +15005,398 @@ export class Api<
         ...params,
       }),
   };
+  uptime = {
+    /**
+     * @description Says someone is on it, with an optional note.
+     *
+     * @tags Uptime
+     * @name AcknowledgeMonitorIncident
+     * @summary Acknowledge an incident
+     * @request POST:/monitor-incidents/{id}/acknowledge
+     */
+    acknowledgeMonitorIncident: (
+      id: string,
+      data: AcknowledgeMonitorIncidentRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<UptimeIncident, ErrorModel>({
+        path: `/monitor-incidents/${id}/acknowledge`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Runs a check now and records it like a scheduled one.
+     *
+     * @tags Uptime
+     * @name CheckMonitor
+     * @summary Check now
+     * @request POST:/monitors/{id}/check
+     */
+    checkMonitor: (id: string, params: RequestParams = {}) =>
+      this.request<CheckOutBody, ErrorModel>({
+        path: `/monitors/${id}/check`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Uptime
+     * @name CreateMonitor
+     * @summary Add an uptime monitor
+     * @request POST:/monitors
+     */
+    createMonitor: (data: MonitorBody, params: RequestParams = {}) =>
+      this.request<UptimeMonitor, ErrorModel>({
+        path: `/monitors`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Its history and incidents go with it.
+     *
+     * @tags Uptime
+     * @name DeleteMonitor
+     * @summary Remove an uptime monitor
+     * @request DELETE:/monitors/{id}
+     */
+    deleteMonitor: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/monitors/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Uptime
+     * @name GetMonitor
+     * @summary Get an uptime monitor
+     * @request GET:/monitors/{id}
+     */
+    getMonitor: (id: string, params: RequestParams = {}) =>
+      this.request<UptimeMonitor, ErrorModel>({
+        path: `/monitors/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Uptime, response times and incidents over a range.
+     *
+     * @tags Uptime
+     * @name GetMonitorReport
+     * @summary A monitor's report
+     * @request GET:/monitors/{id}/report
+     */
+    getMonitorReport: (
+      id: string,
+      query?: {
+        /** @default "24h" */
+        range?: "24h" | "7d" | "30d" | "90d" | "365d";
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<MonitorReport, ErrorModel>({
+        path: `/monitors/${id}/report`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Newest first, in the workspaces you can see.
+     *
+     * @tags Uptime
+     * @name ListIncidents
+     * @summary Incidents across monitors
+     * @request GET:/monitor-incidents
+     */
+    listIncidents: (
+      query?: {
+        /**
+         * @format int32
+         * @min 1
+         * @max 1000
+         * @default 200
+         */
+        limit?: number;
+        /** Only the ones still going on */
+        open?: boolean;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<IncidentsOutBody, ErrorModel>({
+        path: `/monitor-incidents`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Newest first. Old checks are pruned (MONITOR_HISTORY).
+     *
+     * @tags Uptime
+     * @name ListMonitorChecks
+     * @summary A monitor's checks
+     * @request GET:/monitors/{id}/checks
+     */
+    listMonitorChecks: (
+      id: string,
+      query?: {
+        /**
+         * @format int32
+         * @min 1
+         * @max 2000
+         * @default 200
+         */
+        limit?: number;
+        /**
+         * Default: the start
+         * @format date-time
+         */
+        since?: string;
+        /** Only checks with this result */
+        status?: "up" | "degraded" | "down" | "";
+        /**
+         * Default: now
+         * @format date-time
+         */
+        until?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ChecksOutBody, ErrorModel>({
+        path: `/monitors/${id}/checks`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Newest first.
+     *
+     * @tags Uptime
+     * @name ListMonitorEvents
+     * @summary A monitor's status changes
+     * @request GET:/monitors/{id}/events
+     */
+    listMonitorEvents: (
+      id: string,
+      query?: {
+        /**
+         * @format int32
+         * @min 1
+         * @max 1000
+         * @default 100
+         */
+        limit?: number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<EventsOutBody, ErrorModel>({
+        path: `/monitors/${id}/events`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Newest first.
+     *
+     * @tags Uptime
+     * @name ListMonitorIncidents
+     * @summary A monitor's incidents
+     * @request GET:/monitors/{id}/incidents
+     */
+    listMonitorIncidents: (
+      id: string,
+      query?: {
+        /**
+         * @format int32
+         * @min 1
+         * @max 1000
+         * @default 100
+         */
+        limit?: number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<IncidentsOutBody, ErrorModel>({
+        path: `/monitors/${id}/incidents`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Uptime
+     * @name ListMonitors
+     * @summary List uptime monitors
+     * @request GET:/monitors
+     */
+    listMonitors: (
+      query?: {
+        /** Only monitors that belong to or check from this server */
+        server_id?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ListOutBody, ErrorModel>({
+        path: `/monitors`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Resuming starts over: pending until the next check.
+     *
+     * @tags Uptime
+     * @name PauseMonitor
+     * @summary Pause or resume a monitor
+     * @request POST:/monitors/{id}/pause
+     */
+    pauseMonitor: (
+      id: string,
+      data: PauseMonitorRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<UptimeMonitor, ErrorModel>({
+        path: `/monitors/${id}/pause`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description For push monitors: call it from a cron job or an app. No sign-in; the token is the secret.
+     *
+     * @tags Uptime
+     * @name PushHeartbeat
+     * @summary Send a heartbeat
+     * @request GET:/push/{token}
+     */
+    pushHeartbeat: (
+      token: string,
+      query?: {
+        /** @maxLength 1000 */
+        msg?: string;
+        /**
+         * A latency to record, in milliseconds
+         * @format int64
+         * @min 0
+         * @max 86400000
+         */
+        ping?: number;
+        /** Default up */
+        status?: "up" | "degraded" | "down" | "";
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<PushOutputBody, ErrorModel>({
+        path: `/push/${token}`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Same as the GET.
+     *
+     * @tags Uptime
+     * @name PushHeartbeatPost
+     * @summary Send a heartbeat (POST)
+     * @request POST:/push/{token}
+     */
+    pushHeartbeatPost: (
+      token: string,
+      query?: {
+        /** @maxLength 1000 */
+        msg?: string;
+        /**
+         * A latency to record, in milliseconds
+         * @format int64
+         * @min 0
+         * @max 86400000
+         */
+        ping?: number;
+        /** Default up */
+        status?: "up" | "degraded" | "down" | "";
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<PushOutputBody, ErrorModel>({
+        path: `/push/${token}`,
+        method: "POST",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Runs one check with the given settings and returns what it found, without saving anything.
+     *
+     * @tags Uptime
+     * @name TestMonitorSettings
+     * @summary Run a check with unsaved settings
+     * @request POST:/monitors/test
+     */
+    testMonitorSettings: (data: MonitorTestBody, params: RequestParams = {}) =>
+      this.request<CheckResult, ErrorModel>({
+        path: `/monitors/test`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Uptime
+     * @name UpdateMonitor
+     * @summary Update an uptime monitor
+     * @request PUT:/monitors/{id}
+     */
+    updateMonitor: (
+      id: string,
+      data: MonitorBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<UptimeMonitor, ErrorModel>({
+        path: `/monitors/${id}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
   network = {
     /**
      * @description Each server's interfaces, addresses and default routes (ip over SSH), the subnets they share, and whether each server reaches every other one: a TCP connect to its SSH port and a ping, on their shared LAN/VPN addresses and on the address Morcheh uses. Returns the last scan unless `refresh` is set or there is none; a scan takes a few seconds.
@@ -14131,6 +15433,163 @@ export class Api<
       this.request<PortsReport, ErrorModel>({
         path: `/servers/${id}/ports`,
         method: "GET",
+        format: "json",
+        ...params,
+      }),
+  };
+  notifications = {
+    /**
+     * No description
+     *
+     * @tags Notifications
+     * @name CreateNotificationChannel
+     * @summary Add a notification channel
+     * @request POST:/notification-channels
+     */
+    createNotificationChannel: (
+      data: NotifyChannelBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<NotifyChannel, ErrorModel>({
+        path: `/notification-channels`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Notifications
+     * @name DeleteNotificationChannel
+     * @summary Remove a notification channel
+     * @request DELETE:/notification-channels/{id}
+     */
+    deleteNotificationChannel: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/notification-channels/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Notifications
+     * @name GetNotificationChannel
+     * @summary Get a notification channel
+     * @request GET:/notification-channels/{id}
+     */
+    getNotificationChannel: (id: string, params: RequestParams = {}) =>
+      this.request<NotifyChannel, ErrorModel>({
+        path: `/notification-channels/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Notifications
+     * @name ListNotificationChannels
+     * @summary List notification channels
+     * @request GET:/notification-channels
+     */
+    listNotificationChannels: (params: RequestParams = {}) =>
+      this.request<ListOutBody1, ErrorModel>({
+        path: `/notification-channels`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Newest first.
+     *
+     * @tags Notifications
+     * @name ListNotificationLog
+     * @summary What a channel sent
+     * @request GET:/notification-channels/{id}/log
+     */
+    listNotificationLog: (
+      id: string,
+      query?: {
+        /**
+         * @format int32
+         * @min 1
+         * @max 500
+         * @default 100
+         */
+        limit?: number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<LogOutBody, ErrorModel>({
+        path: `/notification-channels/${id}/log`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Notifications
+     * @name TestNotificationChannel
+     * @summary Send a test message
+     * @request POST:/notification-channels/{id}/test
+     */
+    testNotificationChannel: (id: string, params: RequestParams = {}) =>
+      this.request<ChannelTestOutputBody, ErrorModel>({
+        path: `/notification-channels/${id}/test`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Sends a test message with the given settings without saving anything.
+     *
+     * @tags Notifications
+     * @name TestNotificationSettings
+     * @summary Send a test with unsaved settings
+     * @request POST:/notification-channels/test
+     */
+    testNotificationSettings: (
+      data: ChannelTestBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<ChannelTestOutputBody, ErrorModel>({
+        path: `/notification-channels/test`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Notifications
+     * @name UpdateNotificationChannel
+     * @summary Update a notification channel
+     * @request PUT:/notification-channels/{id}
+     */
+    updateNotificationChannel: (
+      id: string,
+      data: NotifyChannelBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<NotifyChannel, ErrorModel>({
+        path: `/notification-channels/${id}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),

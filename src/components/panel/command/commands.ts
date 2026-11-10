@@ -175,6 +175,25 @@ export function actions(
         "create schedule sync backup copy mirror snapshot storage server timer",
     },
     {
+      key: "action:add-monitor",
+      label: "New uptime monitor",
+      icon: Plus,
+      tile: "brand",
+      href: "/uptime/new",
+      keywords:
+        "uptime monitor check http website ping tcp port dns certificate database queue heartbeat push alert",
+    },
+    {
+      key: "action:add-alert-channel",
+      label: "Add alert channel",
+      icon: Plus,
+      tile: "brand",
+      href: "/alerts",
+      intent: "add-alert-channel",
+      keywords:
+        "notification notify email smtp telegram bale slack discord teams mattermost ntfy gotify pushover webhook",
+    },
+    {
       key: "action:add-script",
       label: "New script",
       icon: Plus,

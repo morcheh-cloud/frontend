@@ -7,6 +7,7 @@ import {
   FileCode,
   FolderOpen,
   HardDrive,
+  HeartPulse,
   KeyRound,
   LayoutDashboard,
   LayoutGrid,
@@ -237,6 +238,13 @@ export const sectionGroups: SectionGroup[] = [
   {
     label: "Monitoring",
     sections: [
+      {
+        slug: "uptime",
+        label: "Uptime",
+        icon: HeartPulse,
+        summary: "Monitors that watch this server and what runs on it.",
+        ready: true,
+      },
       {
         slug: "databases",
         label: "Databases",

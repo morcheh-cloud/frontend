@@ -13,6 +13,7 @@ import {
 import { keys, type ListQuery } from "@/app/(panel)/servers/api"
 import { statusMeta } from "@/app/(panel)/servers/components/meta"
 import { useApps } from "@/app/(panel)/services/api"
+import { monitorHref } from "@/app/(panel)/uptime/components/monitor-menu"
 import { isActive, useJobList } from "@/components/jobs/api"
 import {
   backupProblemsQuery,
@@ -22,6 +23,8 @@ import {
   dnsServerBroken,
   dnsServersQuery,
   facetsQuery,
+  monitorBroken,
+  monitorsQuery,
   problemStatuses,
   proxiesQuery,
   proxyBroken,
@@ -40,6 +43,7 @@ import type {
   Schedule,
   Server,
   SoftwareInstall,
+  UptimeMonitor,
 } from "@/lib/services"
 
 // Everything the home page shows, read from the same queries (and cache) as
@@ -54,6 +58,7 @@ export type Kind =
   | "proxy"
   | "cronjob"
   | "application"
+  | "monitor"
 export type Tone = "destructive" | "warning"
 
 export type Issue = {
@@ -121,6 +126,7 @@ export function useHome() {
   const proxies = useQuery(proxiesQuery)
   const cronjobs = useCronjobs(workspace?.id)
   const software = useQuery(softwareInstallsQuery(workspace?.id ?? ""))
+  const monitors = useQuery(monitorsQuery(workspace?.id ?? ""))
   const apps = useApps()
   const jobs = useJobList()
 
@@ -226,6 +232,19 @@ export function useHome() {
       tone: bad ? "destructive" : "warning",
     })
   }
+  for (const m of monitors.data ?? []) {
+    const degraded = !m.paused && m.status === "degraded"
+    if (!monitorBroken(m) && !degraded) continue
+    issues.push({
+      key: `monitor:${m.id}`,
+      kind: "monitor",
+      name: m.name,
+      status: degraded ? "Slow" : "Down",
+      detail: m.status_message,
+      href: monitorHref(m.id),
+      tone: degraded ? "warning" : "destructive",
+    })
+  }
   for (const b of backups.data ?? []) {
     issues.push({
       key: `backup:${b.plan_id}`,
@@ -257,6 +276,7 @@ export function useHome() {
       proxy: proxyTally(proxies.data?.items),
       cronjobs: cronTally(cronjobs.data),
       applications: softwareTally(software.data?.items),
+      uptime: monitorTally(monitors.data),
     },
     serverTotal: facets.data?.total,
     servers: {
@@ -354,6 +374,17 @@ function softwareTally(items: SoftwareInstall[] | undefined): Tally {
     else if (i.status !== "installed") t.idle++
     else if (softwareBroken(i)) t.warn++
     else t.ok++
+  }
+  return t
+}
+
+function monitorTally(items: UptimeMonitor[] | undefined): Tally {
+  const t = { ...emptyTally, total: items?.length ?? 0 }
+  for (const m of items ?? []) {
+    if (m.paused || m.status === "pending") t.idle++
+    else if (m.status === "up") t.ok++
+    else if (m.status === "degraded") t.warn++
+    else t.bad++
   }
   return t
 }

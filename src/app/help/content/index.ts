@@ -1,5 +1,6 @@
 import type { GuideSection } from "../components/prose"
 import { access } from "./access"
+import { alerts } from "./alerts"
 import { ansible } from "./ansible"
 import { applications } from "./applications"
 import { cron } from "./cron"
@@ -24,6 +25,7 @@ import { storage } from "./storage"
 import { tasks } from "./tasks"
 import { terminal } from "./terminal"
 import { terminalRecordings } from "./terminal-recordings"
+import { uptime } from "./uptime"
 import { users } from "./users"
 
 // Each guide's sections, by the slug in components/help/guides.ts.
@@ -34,6 +36,8 @@ export const content: Record<string, GuideSection[]> = {
   "server-overview": serverOverview,
   "server-notes": serverNotes,
   "terminal-recordings": terminalRecordings,
+  uptime,
+  alerts,
   terminal,
   files,
   cron,
