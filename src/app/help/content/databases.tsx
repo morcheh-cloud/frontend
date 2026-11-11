@@ -30,7 +30,7 @@ export const databases: GuideSection[] = [
           do about it.
         </P>
         <Table
-          head={["Engine", "What Morcheh reads"]}
+          head={["Engine", "What Morche reads"]}
           rows={[
             [
               "PostgreSQL",
@@ -55,7 +55,7 @@ export const databases: GuideSection[] = [
           ]}
         />
         <P>
-          Morcheh only reads. It never browses or changes your data or schema.
+          Morche only reads. It never browses or changes your data or schema.
           The only things it can do to a database are stop a session (
           <UI>Kill</UI>) and ask for a query plan without running the query (
           <UI>Explain</UI>). <A href="#backups">Backups</A> only read too; the
@@ -81,14 +81,14 @@ export const databases: GuideSection[] = [
             <UI>Connection string</UI> and the fields fill in.
           </P>
           <P>
-            Choose <UI>How Morcheh reaches it</UI> (see below) and fill in the
+            Choose <UI>How Morche reaches it</UI> (see below) and fill in the
             address and <UI>Port</UI>.
           </P>
           <P>
             Enter the <UI>Username</UI> and <UI>Password</UI> of a monitoring
             login (see{" "}
             <See guide="databases" section="login">
-              A login for Morcheh
+              A login for Morche
             </See>
             ).
           </P>
@@ -99,20 +99,20 @@ export const databases: GuideSection[] = [
         </Steps>
         <List>
           <li>
-            <UI>Through a server</UI>: Morcheh opens an SSH tunnel to one of
-            your servers and connects from there, so the database port never has
-            to be open to the internet. Leave the address empty for a database
-            on the server itself (<C>127.0.0.1</C>), or enter another host the
+            <UI>Through a server</UI>: Morche opens an SSH tunnel to one of your
+            servers and connects from there, so the database port never has to
+            be open to the internet. Leave the address empty for a database on
+            the server itself (<C>127.0.0.1</C>), or enter another host the
             server can reach. This is the safest choice.
           </li>
           <li>
             <UI>Docker container</UI>: when the database runs in a container on
-            that server, enter its name or ID. Morcheh finds the container's
+            that server, enter its name or ID. Morche finds the container's
             address; the port doesn't need to be published.
           </li>
           <li>
             <UI>Direct address</UI>: for a managed database (RDS, Cloud SQL,
-            Azure…) or anything on a public IP or domain. Morcheh connects from
+            Azure…) or anything on a public IP or domain. Morche connects from
             the panel itself.
           </li>
         </List>
@@ -136,11 +136,11 @@ export const databases: GuideSection[] = [
   },
   {
     id: "login",
-    title: "A login for Morcheh",
+    title: "A login for Morche",
     body: (
       <>
         <P>
-          Give Morcheh its own login with only the rights it needs to read
+          Give Morche its own login with only the rights it needs to read
           statistics, not your admin account. Anything it can't read shows as a
           note on the dashboard saying which grant is missing.
         </P>
@@ -183,8 +183,8 @@ db.createUser({
         </Example>
         <Tip>
           Managed services often block some of these (for example{" "}
-          <C>CONFIG GET</C> on managed Redis). Morcheh still works; it just
-          shows less, and says what it couldn't read.
+          <C>CONFIG GET</C> on managed Redis). Morche still works; it just shows
+          less, and says what it couldn't read.
         </Tip>
       </>
     ),
@@ -195,7 +195,7 @@ db.createUser({
     body: (
       <>
         <P>
-          On every look Morcheh runs a set of checks and gives each one a level:{" "}
+          On every look Morche runs a set of checks and gives each one a level:{" "}
           <UI>OK</UI>, <UI>Warning</UI> or <UI>Critical</UI> (or{" "}
           <UI>Unknown</UI> when it couldn't read what the check needs). The
           database takes the level of its worst check, and the list puts the
@@ -231,13 +231,13 @@ db.createUser({
           <UI>Recent changes</UI> lists when each check changed level.
         </P>
         <P>
-          Morcheh looks at every database by itself on its schedule (every
-          minute unless you change it), even when nobody has the panel open, and
-          the pages on screen pick up the result every 10 seconds. The red
-          number beside <UI>Databases</UI> in the sidebar (on a phone, in{" "}
-          <UI>More</UI>) counts the databases in this workspace that can't be
-          reached or have a <UI>Critical</UI> check. Paused databases never
-          count. Pick <UI>Needs a look</UI> on the list to see which.
+          Morche looks at every database by itself on its schedule (every minute
+          unless you change it), even when nobody has the panel open, and the
+          pages on screen pick up the result every 10 seconds. The red number
+          beside <UI>Databases</UI> in the sidebar (on a phone, in <UI>More</UI>
+          ) counts the databases in this workspace that can't be reached or have
+          a <UI>Critical</UI> check. Paused databases never count. Pick{" "}
+          <UI>Needs a look</UI> on the list to see which.
         </P>
         <P>
           To get a message when a database goes down or turns critical, open its{" "}
@@ -350,8 +350,8 @@ db.createUser({
           On <UI>Clients</UI>, an address seen for the first time in the last
           day is tagged <UI>New</UI>. An unknown address on a production
           database is worth a look. <UI>Tables & space</UI> may suggest changes
-          (an unused index, a table full of dead rows); Morcheh never makes
-          them, you decide.
+          (an unused index, a table full of dead rows); Morche never makes them,
+          you decide.
         </P>
       </>
     ),
@@ -380,7 +380,7 @@ db.createUser({
         />
         <Warn>
           Closing a connection rolls back its open transaction. The app on the
-          other side sees an error and usually reconnects. Morcheh's own session
+          other side sees an error and usually reconnects. Morche's own session
           is marked and can't be stopped.
         </Warn>
       </>
@@ -465,7 +465,7 @@ db.createUser({
           </P>
           <P>
             <UI>Run it from</UI> (direct connections only): keep{" "}
-            <UI>This Morcheh server</UI>, or pick a server that can reach the
+            <UI>This Morche server</UI>, or pick a server that can reach the
             database.
           </P>
           <P>
@@ -583,8 +583,8 @@ db.createUser({
           <li>
             <UI>command not found</UI>: the machine that runs it needs the
             engine's tools, such as <C>postgresql-client</C> or{" "}
-            <C>default-mysql-client</C>. On <UI>This Morcheh server</UI>, use
-            Morcheh's Docker image or install them next to the backend.
+            <C>default-mysql-client</C>. On <UI>This Morche server</UI>, use
+            Morche's Docker image or install them next to the backend.
           </li>
           <li>
             A newer database than the tools: <C>pg_dump</C> refuses a server
@@ -617,7 +617,7 @@ db.createUser({
           rows={[
             [
               "Direct connection",
-              "This Morcheh server by default, or a server you pick in Run it from",
+              "This Morche server by default, or a server you pick in Run it from",
             ],
             ["Reached through a server", "That server, always"],
             [
@@ -627,14 +627,13 @@ db.createUser({
           ]}
         />
         <P>
-          On <UI>This Morcheh server</UI> the engine's client tools must be
-          installed where Morcheh's backend runs. Morcheh's Docker image has
-          them all (<C>pg_dump</C> 18, <C>mariadb-dump</C> and{" "}
-          <C>mariadb-binlog</C>, <C>mongodump</C>, <C>redis-cli</C>); on another
-          install the plan form lists what's missing. The script gets only what
-          it needs to find its tools, never Morcheh's own settings, and runs
-          with the backend's user. Backups that run here queue together, two at
-          a time.
+          On <UI>This Morche server</UI> the engine's client tools must be
+          installed where Morche's backend runs. Morche's Docker image has them
+          all (<C>pg_dump</C> 18, <C>mariadb-dump</C> and <C>mariadb-binlog</C>,{" "}
+          <C>mongodump</C>, <C>redis-cli</C>); on another install the plan form
+          lists what's missing. The script gets only what it needs to find its
+          tools, never Morche's own settings, and runs with the backend's user.
+          Backups that run here queue together, two at a time.
         </P>
         <Tip>
           Pick a server in <UI>Run it from</UI> when the database is only
@@ -747,7 +746,7 @@ db.createUser({
     body: (
       <>
         <P>
-          Restoring is the one thing Morcheh writes to a database, and only an
+          Restoring is the one thing Morche writes to a database, and only an
           Owner can start it. Every file is read back from the storage and
           checked against its SHA-256 before the database is touched.
         </P>
@@ -772,8 +771,8 @@ db.createUser({
           </P>
           <P>
             <UI>Run it from</UI> (direct connections):{" "}
-            <UI>Where the plan runs</UI>, <UI>This Morcheh server</UI> or a
-            server. A backup made without a plan runs on this Morcheh server
+            <UI>Where the plan runs</UI>, <UI>This Morche server</UI> or a
+            server. A backup made without a plan runs on this Morche server
             unless you pick one.
           </P>
           <P>
@@ -797,7 +796,7 @@ db.createUser({
           ]}
         />
         <Table
-          head={["Backup", "Restored by Morcheh"]}
+          head={["Backup", "Restored by Morche"]}
           rows={[
             ["PostgreSQL (one database)", "Yes, into any name"],
             [
@@ -814,7 +813,7 @@ db.createUser({
         />
         <P>
           The details of every backup also have <UI>Restore by hand</UI>: the
-          same steps as commands, for a machine Morcheh can't reach.
+          same steps as commands, for a machine Morche can't reach.
         </P>
         <P>If a restore fails:</P>
         <List>
@@ -822,7 +821,7 @@ db.createUser({
             <UI>You need … access</UI>: a restore needs Owner on the database,
             Operator on the storage (Engineer to write the backup before), and
             Engineer on the server that runs it (none when it runs on this
-            Morcheh server).
+            Morche server).
           </li>
           <li>
             <UI>permission denied</UI>: the login can't create or overwrite
@@ -861,7 +860,7 @@ db.createUser({
             ],
             [
               "Availability",
-              "One strip per database: green = every check reached it, orange = some didn't, red = none did, grey = no checks (paused, or Morcheh wasn't running).",
+              "One strip per database: green = every check reached it, orange = some didn't, red = none did, grey = no checks (paused, or Morche wasn't running).",
             ],
             [
               "Response time",
@@ -898,7 +897,7 @@ db.createUser({
     body: (
       <P>
         A server's <UI>Databases</UI> tab (in the Monitoring group) lists only
-        the databases Morcheh reaches through that server, and{" "}
+        the databases Morche reaches through that server, and{" "}
         <UI>Add database</UI> there picks that server for you.
       </P>
     ),
@@ -943,7 +942,7 @@ db.createUser({
         </li>
         <li>
           <UI>Sign-in refused</UI>: wrong username or password, or the login
-          isn't allowed from Morcheh's address (PostgreSQL <C>pg_hba.conf</C>,
+          isn't allowed from Morche's address (PostgreSQL <C>pg_hba.conf</C>,
           MySQL <C>'user'@'host'</C>).
         </li>
         <li>
@@ -961,7 +960,7 @@ db.createUser({
           <C>pg_monitor</C>, <C>PROCESS</C>, <C>VIEW SERVER STATE</C>,{" "}
           <C>clusterMonitor</C>…). See{" "}
           <See guide="databases" section="login">
-            A login for Morcheh
+            A login for Morche
           </See>
           .
         </li>

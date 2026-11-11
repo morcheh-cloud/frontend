@@ -231,7 +231,7 @@ export function ReviewDialog({
               {`This removes ${vital.map((c) => c.name).join(", ")}`}
             </p>
             <p className="text-muted-foreground">
-              The server may stop booting, or Morcheh may lose its SSH access.
+              The server may stop booting, or Morche may lose its SSH access.
               Type the server's name to go on.
             </p>
             <Input

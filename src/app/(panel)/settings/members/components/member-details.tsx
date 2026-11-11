@@ -1,5 +1,7 @@
 "use client"
 
+import Link from "next/link"
+import { signInsHref } from "@/app/(panel)/recordings/components/command-meta"
 import {
   afterClose,
   ItemMenu,
@@ -8,6 +10,8 @@ import {
 } from "@/app/(panel)/servers/[id]/components/parts"
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
 import { AccessLayer, PrincipalAccess } from "@/components/access/grants"
+import { useEndUserSession, useUserSessions } from "@/components/sessions/api"
+import { SessionList } from "@/components/sessions/session-list"
 import { Button } from "@/components/ui/button"
 import { useIsPhone } from "@/hooks/useIsPhone"
 import type { PanelUser } from "@/lib/services"
@@ -115,8 +119,38 @@ function Layer({
           }
           onManage={() => afterClose(onOpenChange, () => a.manageAccess(user))}
         />
+        <MemberSessions user={user} open={open} />
         {phone && <SheetItems groups={menu} onOpenChange={onOpenChange} />}
       </div>
     </AccessLayer>
+  )
+}
+
+// Where they're signed in now, each with Sign out (ends that session at once).
+function MemberSessions({ user, open }: { user: PanelUser; open: boolean }) {
+  const sessions = useUserSessions(user.id, open)
+  const end = useEndUserSession()
+  return (
+    <section aria-labelledby="member-sessions" className="flex flex-col gap-3">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 id="member-sessions" className="text-body-sm font-medium">
+          Signed in on
+        </h3>
+        <Link
+          href={signInsHref({ user: user.id })}
+          className="text-caption text-brand hover:underline"
+        >
+          Sign-in history
+        </Link>
+      </div>
+      <SessionList
+        id={`member-${user.id}`}
+        items={sessions.data}
+        loading={sessions.isPending && open}
+        error={sessions.error}
+        whose={displayName(user)}
+        onEnd={(s) => end.mutateAsync({ user: user.id, session: s.id })}
+      />
+    </section>
   )
 }

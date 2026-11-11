@@ -25,7 +25,7 @@ export const applications: GuideSection[] = [
           server needs, installed in a few taps: the basic tools, time sync,
           automatic security updates, swap, Docker, Podman or k3s, VPNs and
           backup tools. Pick one, tick the servers, fill in a setting or two,
-          and Morcheh installs it over SSH on all of them, with each server's
+          and Morche installs it over SSH on all of them, with each server's
           output kept.
         </P>
         <P>It then keeps an eye on what it installed:</P>
@@ -38,7 +38,7 @@ export const applications: GuideSection[] = [
           </li>
         </List>
         <P>
-          A check also finds software that was there before Morcheh (Docker,
+          A check also finds software that was there before Morche (Docker,
           nginx, PostgreSQL, a compose project you started by hand…), so the{" "}
           <UI>Installed</UI> list shows the whole picture, not just what was
           installed from here.
@@ -57,9 +57,9 @@ export const applications: GuideSection[] = [
     body: (
       <>
         <P>
-          The catalog lists Morcheh's built-in applications plus your
-          workspace's own (marked <UI>Custom</UI>). Filter by category with the
-          chips, or search by name. Each application says what kind it is:
+          The catalog lists Morche's built-in applications plus your workspace's
+          own (marked <UI>Custom</UI>). Filter by category with the chips, or
+          search by name. Each application says what kind it is:
         </P>
         <Table
           head={["Kind", "What happens on the server"]}
@@ -157,7 +157,7 @@ export const applications: GuideSection[] = [
         </Steps>
         <Example title="Grafana on three servers">
           Pick Grafana, tick the three servers, leave the port at 3000 and the
-          admin password empty. Morcheh installs Docker where it's missing, then
+          admin password empty. Morche installs Docker where it's missing, then
           Grafana, with a different admin password on each server.{" "}
           <UI>Installed</UI> › Grafana › <UI>Show passwords</UI> shows them.
         </Example>
@@ -259,12 +259,12 @@ export const applications: GuideSection[] = [
           ]}
         />
         <P>
-          Before a Docker app is updated, Morcheh keeps the images it ran on.{" "}
+          Before a Docker app is updated, Morche keeps the images it ran on.{" "}
           <UI>Roll back</UI> runs it on those again, until the next update.
         </P>
         <Warn>
           A kernel or libc update may ask for a reboot: the server shows{" "}
-          <UI>Reboot needed</UI>. Morcheh never reboots by itself; use Power on
+          <UI>Reboot needed</UI>. Morche never reboots by itself; use Power on
           the server's page when it suits you.
         </Warn>
         <See guide="power" />
@@ -277,7 +277,7 @@ export const applications: GuideSection[] = [
     body: (
       <>
         <P>
-          Morcheh checks every server on its own every 6 hours, and right after
+          Morche checks every server on its own every 6 hours, and right after
           each install, update or uninstall. <UI>Check servers</UI> on the page
           (or the refresh button on a server's tab) checks now; it runs as a
           background task.
@@ -458,7 +458,7 @@ compose: |
             [<C key="kind">kind</C>, "package, docker or script."],
             [
               <C key="look">icon / logo</C>,
-              "icon = a lucide icon name (box, database, globe…). logo = a brand logo Morcheh ships (docker, redis, postgresql, grafana…; the editor's field list has them all), shown in place of the icon.",
+              "icon = a lucide icon name (box, database, globe…). logo = a brand logo Morche ships (docker, redis, postgresql, grafana…; the editor's field list has them all), shown in place of the icon.",
             ],
             [
               <C key="params">params</C>,
@@ -470,7 +470,7 @@ compose: |
             ],
             [
               <C key="also">also</C>,
-              "Other names it may be installed as, per manager (the distro's build, like docker.io for Docker). Never installed by Morcheh; updated and removed when they're the ones on the server.",
+              "Other names it may be installed as, per manager (the distro's build, like docker.io for Docker). Never installed by Morche; updated and removed when they're the ones on the server.",
             ],
             [
               <C key="scripts">install / update / uninstall</C>,
@@ -545,7 +545,7 @@ compose: |
         </li>
         <li>
           <b>Waiting for another package manager.</b> Something else is
-          installing on the server (often automatic security updates). Morcheh
+          installing on the server (often automatic security updates). Morche
           waits up to 15 minutes for it, then stops with a message; run it again
           once the other one is done.
         </li>

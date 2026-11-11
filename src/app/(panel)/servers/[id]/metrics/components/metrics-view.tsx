@@ -284,7 +284,7 @@ function Sampling({ data }: { data: ServerMetrics }) {
       <p className="flex items-center gap-1.5 text-caption text-warning">
         <CircleAlert className="size-3.5 shrink-0" />
         {off
-          ? "Sampling is off on this Morcheh"
+          ? "Sampling is off on this Morche"
           : `No new sample since ${timeAgo(at ?? null)}`}
       </p>
     )
@@ -303,7 +303,7 @@ function NoSamples({ data, range }: { data: ServerMetrics; range: string }) {
       <Empty
         icon={ChartLine}
         title="Sampling is off"
-        body="Morcheh keeps metrics only while its sampler runs. Whoever runs Morcheh can turn it on with SERVER_SAMPLE_INTERVAL (for example 1m)."
+        body="Morche keeps metrics only while its sampler runs. Whoever runs Morche can turn it on with SERVER_SAMPLE_INTERVAL (for example 1m)."
       />
     )
   }

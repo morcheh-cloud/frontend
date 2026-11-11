@@ -64,7 +64,7 @@ function Fields({
         <p className="text-caption text-muted-foreground">
           {database.container
             ? `Inside the ${database.container} container: these work from the server it runs on.`
-            : "These work from the server Morcheh reaches it through."}
+            : "These work from the server Morche reaches it through."}
         </p>
       )}
       <div className="grid grid-cols-[minmax(0,1fr)_6rem] gap-3">

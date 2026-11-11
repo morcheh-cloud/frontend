@@ -621,7 +621,7 @@ export function StorageForm({
         checked={values.read_only}
         onChange={(on) => set("read_only", on)}
         label="Read-only"
-        text="Browse and download only. Morcheh refuses every change, transfers into it too."
+        text="Browse and download only. Morche refuses every change, transfers into it too."
       />
       <Field label="Notes" error={errors.description}>
         {(f) => (

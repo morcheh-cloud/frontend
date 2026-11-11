@@ -150,16 +150,16 @@ export const services: GuideSection[] = [
       <>
         <P>
           Some services keep the server reachable or alive: <C>sshd</C> (how
-          Morcheh logs in), <C>dbus</C>, <C>systemd-journald</C>,{" "}
+          Morche logs in), <C>dbus</C>, <C>systemd-journald</C>,{" "}
           <C>systemd-logind</C>, <C>udev</C> and the network services. They show
           a shield on phones, and stopping, disabling, masking or sending them a
           signal asks you to confirm first.
         </P>
         <Warn>
-          Stopping <C>sshd</C> (or the network) cuts Morcheh off from the
-          server. The terminal, files and this page stop working until someone
-          starts it again from the provider's console. Restart is safe: running
-          sessions survive it.
+          Stopping <C>sshd</C> (or the network) cuts Morche off from the server.
+          The terminal, files and this page stop working until someone starts it
+          again from the provider's console. Restart is safe: running sessions
+          survive it.
         </Warn>
       </>
     ),
@@ -270,7 +270,7 @@ export const services: GuideSection[] = [
           </div>
         </Steps>
         <P>
-          Before keeping the file, Morcheh checks it with{" "}
+          Before keeping the file, Morche checks it with{" "}
           <C>systemd-analyze verify</C>. If systemd rejects it, the old file
           goes back and the error shows above the editor. To remove an override,
           empty the file and save.

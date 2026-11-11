@@ -33,7 +33,7 @@ export const ansible: GuideSection[] = [
             more sees them; Engineers write them.
           </li>
           <li>
-            Morcheh builds the inventory for you from the servers you pick, with
+            Morche builds the inventory for you from the servers you pick, with
             their saved logins and trusted host keys. There is no inventory file
             to keep.
           </li>
@@ -114,7 +114,7 @@ export const ansible: GuideSection[] = [
           A module is one ready-made job Ansible knows how to do: install a
           package, copy a file, create a user. The <UI>Modules</UI> tab of{" "}
           <A href="/ansible">Ansible</A> lists every module installed on the
-          Morcheh host, sorted by category, with the most used ones on top.
+          Morche host, sorted by category, with the most used ones on top.
         </P>
         <Steps>
           {[
@@ -137,9 +137,9 @@ export const ansible: GuideSection[] = [
           ]}
         </Steps>
         <Tip>
-          On a Morcheh with only <C>ansible-core</C> the list has about 70
-          modules. Install the full <C>ansible</C> package on the Morcheh host
-          to get thousands more (Docker, MySQL, UFW…); they appear here by
+          On a Morche with only <C>ansible-core</C> the list has about 70
+          modules. Install the full <C>ansible</C> package on the Morche host to
+          get thousands more (Docker, MySQL, UFW…); they appear here by
           themselves.
         </Tip>
       </>
@@ -359,7 +359,7 @@ export const ansible: GuideSection[] = [
           ]}
         />
         <P>
-          Servers are named in the inventory after their name in Morcheh, with
+          Servers are named in the inventory after their name in Morche, with
           spaces turned into <C>-</C>. The <UI>Servers</UI> tab of a run shows
           each one's inventory name. Each host also gets{" "}
           <C>morcheh_server_id</C> and <C>morcheh_server_name</C> as variables.
@@ -396,7 +396,7 @@ export const ansible: GuideSection[] = [
         </Warn>
         <P>
           Playbook text, variables and output are not a place for secrets:
-          Operators can read them. Morcheh does hide the servers' own passwords
+          Operators can read them. Morche does hide the servers' own passwords
           and keys if they show up in the output.
         </P>
         <P>
@@ -416,14 +416,14 @@ export const ansible: GuideSection[] = [
             [
               "“… hasn't been checked yet, so its host key isn't known”",
               <>
-                A run only connects to servers whose host key Morcheh already
+                A run only connects to servers whose host key Morche already
                 trusts. Press <UI>Check</UI> on the server once, then run again.
               </>,
             ],
             [
               "“Using a SSH password instead of a key is not possible because Host Key checking is enabled”",
               <>
-                The server's host key changed since Morcheh trusted it. Open the
+                The server's host key changed since Morche trusted it. Open the
                 server: if the change is expected, trust the new key there (see{" "}
                 <See guide="servers" />
                 ).
@@ -441,7 +441,7 @@ export const ansible: GuideSection[] = [
             [
               "“couldn't resolve module/action …”",
               <>
-                The module isn't installed on the Morcheh host: check the{" "}
+                The module isn't installed on the Morche host: check the{" "}
                 <A href="#modules">module list</A>. Collections have to come
                 with the Ansible install itself (the full <C>ansible</C>{" "}
                 package); ones in a user's <C>~/.ansible</C> aren't seen by
@@ -463,7 +463,7 @@ export const ansible: GuideSection[] = [
               </>,
             ],
             [
-              "“This module isn't installed on the Morcheh host” in a task",
+              "“This module isn't installed on the Morche host” in a task",
               <>
                 Its options can't be listed, so write them as YAML in the field
                 below it, or press <UI>Change</UI> to pick another module.
@@ -472,9 +472,9 @@ export const ansible: GuideSection[] = [
             [
               "“Playbooks can't run right now”",
               <>
-                Ansible isn't installed on the Morcheh host, or it runs without
+                Ansible isn't installed on the Morche host, or it runs without
                 its sandbox, in which case only system admins may start runs.
-                Ask whoever runs Morcheh.
+                Ask whoever runs Morche.
               </>,
             ],
             [

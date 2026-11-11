@@ -18,7 +18,7 @@ import type {
   ScheduleUpdate,
 } from "@/lib/services"
 
-// Cron jobs Morcheh runs itself ("schedules" in the API).
+// Cron jobs Morche runs itself ("schedules" in the API).
 
 export type RunsQuery = NonNullable<
   Parameters<typeof api.cronJobs.listScheduleRuns>[1]

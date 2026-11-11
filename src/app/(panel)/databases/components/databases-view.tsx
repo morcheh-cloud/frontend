@@ -164,7 +164,7 @@ function List({ server, phone }: { server?: Server; phone: boolean }) {
         }
         body={
           canAdd
-            ? "PostgreSQL, MySQL/MariaDB, SQL Server, MongoDB or Redis: on one of your servers (even in Docker) or at a public address. Morcheh checks it every minute and says what needs a look."
+            ? "PostgreSQL, MySQL/MariaDB, SQL Server, MongoDB or Redis: on one of your servers (even in Docker) or at a public address. Morche checks it every minute and says what needs a look."
             : "Nothing here is shared with you yet. Ask an admin or the workspace owner for access."
         }
         className="max-md:mt-4"

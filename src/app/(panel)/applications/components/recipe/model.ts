@@ -322,7 +322,7 @@ export function checkDraft(d: Draft, taken: string[] = []): Problems {
       if (!d.install?.trim()) out.install = "Write the install script."
       if (!d.version_command?.trim())
         out.version_command =
-          "Write a command that prints the version, so Morcheh can tell it's installed."
+          "Write a command that prints the version, so Morche can tell it's installed."
       break
     default:
       out.kind = "Pick package, docker or script."

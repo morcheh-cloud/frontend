@@ -35,7 +35,7 @@ export function clock(ms: number) {
 // How the shell ended, in a few words.
 export function endText(r: TerminalRecording) {
   if (r.live) return "Still open"
-  if (r.interrupted) return "Morcheh restarted"
+  if (r.interrupted) return "Morche restarted"
   if (r.exit_code === undefined || r.exit_code === null) return "Closed"
   return r.exit_code === 0 ? "Exited" : `Exited with ${r.exit_code}`
 }

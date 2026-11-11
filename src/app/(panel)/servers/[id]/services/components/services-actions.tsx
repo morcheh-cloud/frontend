@@ -82,7 +82,7 @@ export function useServicesActions() {
   return ctx
 }
 
-// Stopping these cuts Morcheh off or breaks the system: the backend asks for
+// Stopping these cuts Morche off or breaks the system: the backend asks for
 // force, so they're confirmed first.
 const risky: Action[] = ["stop", "disable", "mask", "kill"]
 
@@ -317,7 +317,7 @@ export function ServicesActionsProvider({
 function confirmText(s: Service, act: Action) {
   const name = shortName(s.name)
   const why = s.protected
-    ? `${name} is one Morcheh or the system relies on: without it this server may become unreachable over SSH or stop working properly. `
+    ? `${name} is one Morche or the system relies on: without it this server may become unreachable over SSH or stop working properly. `
     : ""
   switch (act) {
     case "mask":

@@ -44,9 +44,9 @@ import { useProxyCan } from "../../components/permissions"
 import { useProxyActions } from "../../components/proxy-actions"
 import { inspectable, Toolbar } from "./toolbar"
 
-// What the server already serves that Morcheh didn't write, the
+// What the server already serves that Morche didn't write, the
 // certificates it found, and files it couldn't read. Read-only, except that
-// a catch-all site of Morcheh's takes the default server over (see
+// a catch-all site of Morche's takes the default server over (see
 // DefaultSection).
 export function ExistingTab({ detail }: { detail: ProxyDetail }) {
   const p = detail.proxy
@@ -85,7 +85,7 @@ export function ExistingTab({ detail }: { detail: ProxyDetail }) {
         {!phone && (
           <>
             <span className="text-caption text-ash">
-              Read-only: Morcheh only takes over the default site
+              Read-only: Morche only takes over the default site
             </span>
             <span className="flex-1" />
           </>
@@ -109,7 +109,7 @@ export function ExistingTab({ detail }: { detail: ProxyDetail }) {
           body={
             p.status === "not_installed"
               ? `${p.kind_label} isn't installed on this server.`
-              : `Morcheh can't reach this server right now (${proxyStatusMeta[p.status].label.toLowerCase()}).`
+              : `Morche can't reach this server right now (${proxyStatusMeta[p.status].label.toLowerCase()}).`
           }
         />
       ) : inspection.isPending ? (
@@ -138,13 +138,13 @@ export function ExistingTab({ detail }: { detail: ProxyDetail }) {
           <Section
             title="Other sites"
             count={sites.length}
-            hint="Written by hand or by another tool. They keep working next to Morcheh's sites."
+            hint="Written by hand or by another tool. They keep working next to Morche's sites."
           >
             {sites.length === 0 ? (
               <Quiet>
                 {q
                   ? "No site matches."
-                  : "Only Morcheh's sites are on this server."}
+                  : "Only Morche's sites are on this server."}
               </Quiet>
             ) : phone ? (
               <SiteRows proxy={p} sites={sites} released={released} />
@@ -171,7 +171,7 @@ export function ExistingTab({ detail }: { detail: ProxyDetail }) {
             <Section
               title="Couldn't read"
               count={data?.unknown.length ?? 0}
-              hint="Included files Morcheh couldn't make sense of. They're still loaded."
+              hint="Included files Morche couldn't make sense of. They're still loaded."
             >
               <ul
                 className={cn(
@@ -227,7 +227,7 @@ function Section({
 }
 
 // Who answers a name no site has, or the server's bare IP address: a
-// catch-all site of Morcheh's, a hand-written default_server, or nobody
+// catch-all site of Morche's, a hand-written default_server, or nobody
 // (nginx then uses the first site it read). Saving a catch-all site takes
 // the role over from a hand-written one; the backend puts it back when that
 // site is turned off or removed.
@@ -255,7 +255,7 @@ function DefaultSection({
       render={<Link href={newHostHref(p.id, "notfound")} />}
       nativeButton={false}
     >
-      {hand ? "Manage in Morcheh" : "Set up a default site"}
+      {hand ? "Manage in Morche" : "Set up a default site"}
     </Button>
   )
 
@@ -296,7 +296,7 @@ function DefaultSection({
                 >
                   {hostName(mine)}
                 </Link>
-                <Tag tone="brand">Morcheh</Tag>
+                <Tag tone="brand">Morche</Tag>
               </span>
               <span className="block truncate text-caption text-muted-foreground">
                 Every visit gets {hostTarget(mine.config)}
@@ -381,7 +381,7 @@ function SiteLabel({ site: s, released }: { site: Site; released: string[] }) {
   const tag = holdsDefault(s)
     ? "Default"
     : released.includes(s.file)
-      ? "Default moved to Morcheh"
+      ? "Default moved to Morche"
       : ""
   return (
     <>

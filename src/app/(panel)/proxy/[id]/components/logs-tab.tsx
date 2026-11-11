@@ -67,7 +67,7 @@ const levelLabels: Record<ErrorLevel, string> = {
   notice: "Notices",
 }
 
-// Both of Morcheh's formats (and nginx's combined one) put the status right
+// Both of Morche's formats (and nginx's combined one) put the status right
 // after the quoted request: ] "GET / HTTP/1.1" 200 …
 const statusRe = /\] "(?:[^"\\]|\\.)*" (\d{3}) /
 // 2026/11/09 10:00:00 [error] 1234#1234: …
@@ -119,7 +119,7 @@ export function LogsTab({ detail }: { detail: ProxyDetail }) {
   const host = detail.hosts.find((h) => h.id === f.site)
   const site = host ? host.id : OWN_LOG
   const log = f.log === "error" ? "error" : "access"
-  // The table reads Morcheh's own request lines, so only a site's requests.
+  // The table reads Morche's own request lines, so only a site's requests.
   const tableable = !!host && log === "access"
   const view: LogView = tableable ? f.view : "raw"
 
@@ -184,7 +184,7 @@ export function LogsTab({ detail }: { detail: ProxyDetail }) {
         <Empty
           icon={ScrollText}
           title="Logs show once the server answers"
-          body="Morcheh reads them over SSH."
+          body="Morche reads them over SSH."
         />
       </>
     )

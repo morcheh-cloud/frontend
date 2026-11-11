@@ -292,7 +292,7 @@ export function ChannelFormLayer({
       description={
         channel
           ? undefined
-          : "Where Morcheh sends a message when a monitor goes down or comes back."
+          : "Where Morche sends a message when a monitor goes down or comes back."
       }
       className="sm:max-w-2xl"
     >
@@ -505,7 +505,7 @@ function Form({
                 {...p}
                 value={d.from}
                 onChange={(e) => set({ from: e.target.value })}
-                placeholder="Morcheh <alerts@example.com>"
+                placeholder="Morche <alerts@example.com>"
                 autoCapitalize="none"
                 className="placeholder:text-ash"
               />
@@ -801,7 +801,7 @@ function Form({
           </div>
           <Field
             label="Signing key"
-            hint="Optional: each body is signed with HMAC-SHA256 in X-Morcheh-Signature: sha256=…"
+            hint="Optional: each body is signed with HMAC-SHA256 in X-Morche-Signature: sha256=…"
           >
             {(p) => (
               <SecretInput

@@ -70,7 +70,7 @@ function Security({ s }: { s: DatabaseSnapshot }) {
       <Pairs
         items={[
           {
-            label: "Morcheh's connection encrypted",
+            label: "Morche's connection encrypted",
             value:
               x.encrypted === false ? (
                 <Tag tone="warning">No</Tag>

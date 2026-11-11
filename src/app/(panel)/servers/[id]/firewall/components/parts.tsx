@@ -25,7 +25,7 @@ export function ActionTag({ action }: { action: FilterRule["action"] }) {
 export function SshLock() {
   return (
     <span
-      title="This rule keeps SSH open for Morcheh"
+      title="This rule keeps SSH open for Morche"
       className="text-ash"
       role="img"
       aria-label="Keeps SSH open"

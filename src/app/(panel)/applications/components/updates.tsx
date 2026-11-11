@@ -65,7 +65,7 @@ export function UpdatesPanel({
         title="Everything is up to date"
         body={
           hosts.length
-            ? `As of the last check of ${hosts.length} ${hosts.length === 1 ? "server" : "servers"}. Morcheh looks again every few hours.`
+            ? `As of the last check of ${hosts.length} ${hosts.length === 1 ? "server" : "servers"}. Morche looks again every few hours.`
             : "No server has been checked yet: Check servers looks for applications and package updates."
         }
         action={

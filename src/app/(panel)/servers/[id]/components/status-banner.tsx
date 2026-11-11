@@ -26,7 +26,7 @@ export function StatusBanner({ className }: { className?: string }) {
         }
       : status === "auth_failed"
         ? {
-            title: "Morcheh couldn't log in with the saved credentials",
+            title: "Morche couldn't log in with the saved credentials",
             label: "Edit credentials",
             min: "owner" as const,
             run: () => actions.editServer(server),

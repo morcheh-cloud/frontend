@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 #
-# Morcheh panel (Next.js, standalone output). Every request runs in the
+# Morche panel (Next.js, standalone output). Every request runs in the
 # browser, so the backend's public address is baked in at build time:
 #   docker build --build-arg NEXT_PUBLIC_API_URL=https://api.example.com -t morcheh-frontend .
 

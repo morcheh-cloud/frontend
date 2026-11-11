@@ -18,7 +18,7 @@ export function PendingBanner() {
 }
 
 // A change that could have cut the server off stands only until the time
-// runs out. Still seeing this page proves Morcheh can reach it.
+// runs out. Still seeing this page proves Morche can reach it.
 function Banner({ pending }: { pending: FirewallPending }) {
   const { server, phone } = useServerPage()
   const a = useFirewallActions()
@@ -53,7 +53,7 @@ function Banner({ pending }: { pending: FirewallPending }) {
               : "Time ran out, undoing the change…"}
           </p>
           <p className="break-words text-muted-foreground">
-            {pending.summary}. Morcheh can still reach the server. Check that
+            {pending.summary}. Morche can still reach the server. Check that
             what you use still works, then keep it.
           </p>
         </div>

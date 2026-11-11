@@ -199,7 +199,7 @@ export function useHome() {
         ? `${p.host_problems} site${p.host_problems === 1 ? "" : "s"} changed`
         : proxyStatusMeta[p.status].label,
       detail: sites
-        ? "Their files on the server aren't what Morcheh wrote."
+        ? "Their files on the server aren't what Morche wrote."
         : p.status_message || proxyStatusMeta[p.status].hint,
       href: `/proxy/${p.id}`,
       tone: p.status === "stopped" || sites ? "warning" : "destructive",

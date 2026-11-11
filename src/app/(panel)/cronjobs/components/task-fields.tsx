@@ -1122,7 +1122,7 @@ function RebootSections(props: Props) {
               value={t.message}
               onChange={(e) => set({ message: e.target.value })}
               maxLength={200}
-              placeholder="Scheduled reboot by Morcheh"
+              placeholder="Scheduled reboot by Morche"
               className="placeholder:text-ash"
             />
           )}

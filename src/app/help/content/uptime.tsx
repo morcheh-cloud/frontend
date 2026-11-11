@@ -121,7 +121,7 @@ export const uptime: GuideSection[] = [
             ["TCP port", "The port accepts a connection."],
             [
               "UDP port",
-              "An answer to the payload you send. From Morcheh only.",
+              "An answer to the payload you send. From Morche only.",
             ],
             ["Ping", "The host answers ICMP echo."],
             [
@@ -154,7 +154,7 @@ export const uptime: GuideSection[] = [
               "Command",
               "Your command on a server exits 0. Exit 1 = degraded, anything else = down.",
             ],
-            ["Push (heartbeat)", "Your job calls Morcheh's address in time."],
+            ["Push (heartbeat)", "Your job calls Morche's address in time."],
           ]}
         />
         <P>
@@ -178,8 +178,8 @@ export const uptime: GuideSection[] = [
         </P>
         <List>
           <li>
-            <UI>Morcheh</UI>: the check runs on Morcheh's own machine. Use it
-            for anything public, like your website.
+            <UI>Morche</UI>: the check runs on Morche's own machine. Use it for
+            anything public, like your website.
           </li>
           <li>
             <UI>A server</UI>: the check runs on one of your servers over SSH.
@@ -197,7 +197,7 @@ export const uptime: GuideSection[] = [
           .
         </P>
         <P>
-          By default Morcheh won't check private addresses (10.x, 192.168.x,
+          By default Morche won't check private addresses (10.x, 192.168.x,
           localhost) from its own machine. A system admin can tick{" "}
           <UI>Allow a private address</UI> on a monitor that really needs it.
         </P>
@@ -226,7 +226,7 @@ export const uptime: GuideSection[] = [
           {[
             <>
               Open the monitor's <UI>Edit</UI> page and, in <UI>Check from</UI>,
-              tick two or more locations (Morcheh and any servers you have
+              tick two or more locations (Morche and any servers you have
               Engineer access on).
             </>,
             <>
@@ -249,7 +249,7 @@ export const uptime: GuideSection[] = [
         </Steps>
         <Example title="Your website, from three places">
           <P>
-            Morcheh plus two servers in different data centers, <UI>Down</UI> ={" "}
+            Morche plus two servers in different data centers, <UI>Down</UI> ={" "}
             <UI>Most</UI>, <UI>Degraded</UI> = <UI>Any</UI>. One location
             failing makes it degraded (you see it, no outage alert); two of
             three failing make it down and send the alert.
@@ -402,7 +402,7 @@ export const uptime: GuideSection[] = [
       <>
         <P>
           Some things can't be checked from outside: a nightly backup, a cron
-          job, a worker behind a firewall. Turn it around: the job calls Morcheh
+          job, a worker behind a firewall. Turn it around: the job calls Morche
           when it's done, and the monitor goes down when the call doesn't come
           in time.
         </P>
@@ -519,7 +519,7 @@ export const uptime: GuideSection[] = [
         <List>
           <li>
             <UI>Down</UI> but the site works in your browser: the check runs
-            from Morcheh's machine (or the server you picked), not from yours. A
+            from Morche's machine (or the server you picked), not from yours. A
             firewall, DNS that differs inside your network, or a site that
             blocks unknown clients can explain it. Try it from a server.
           </li>
@@ -530,7 +530,7 @@ export const uptime: GuideSection[] = [
             trouble shouldn't show.
           </li>
           <li>
-            A location says <UI>Couldn't check</UI>: Morcheh can't reach that
+            A location says <UI>Couldn't check</UI>: Morche can't reach that
             server over SSH; fix the server (its page shows why), or untick it.
           </li>
           <li>
@@ -543,7 +543,7 @@ export const uptime: GuideSection[] = [
           </li>
           <li>
             A push monitor goes down although the job ran: check the job can
-            reach Morcheh's address (try the <C>curl</C> line by hand) and that{" "}
+            reach Morche's address (try the <C>curl</C> line by hand) and that{" "}
             <UI>Expect a ping</UI> is longer than the job's interval.
           </li>
           <li>

@@ -556,7 +556,7 @@ export function TargetFields(props: FieldProps) {
             hint={
               serverLocations(d).length
                 ? "Required when checked from a server, e.g. 1.1.1.1 or 10.0.0.2:53."
-                : "Optional: blank asks Morcheh's own resolver. e.g. 1.1.1.1 or 10.0.0.2:53."
+                : "Optional: blank asks Morche's own resolver. e.g. 1.1.1.1 or 10.0.0.2:53."
             }
           >
             {(p) => (

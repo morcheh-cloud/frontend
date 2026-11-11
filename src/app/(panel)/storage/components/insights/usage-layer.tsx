@@ -131,7 +131,7 @@ function UsageDetails({
     return (
       <p className="px-2 text-body-sm text-muted-foreground">
         {s.status === "online"
-          ? "Morcheh measures each storage about once a day. Measure it now to see what it holds."
+          ? "Morche measures each storage about once a day. Measure it now to see what it holds."
           : "It can be measured once it's online again."}
       </p>
     )

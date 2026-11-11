@@ -44,7 +44,7 @@ import { useUsersActions } from "./users-actions"
 
 const FORM_ID = "users-user-form"
 const NEW_GROUP = "__new__"
-// Morcheh's lock is an expiry date of 1970-01-02.
+// Morche's lock is an expiry date of 1970-01-02.
 const LOCK_DATE = "1970-01-02"
 const KEY_RE = /^(ssh-|ecdsa-|sk-)\S+\s+\S+/
 

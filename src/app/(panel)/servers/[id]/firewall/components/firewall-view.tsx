@@ -246,7 +246,7 @@ function notes(
     out.push({
       key: "readonly",
       title: `${TOOL[o.backend]} is shown read-only`,
-      body: "Morcheh changes ufw and firewalld. Rules managed another way stay untouched.",
+      body: "Morche changes ufw and firewalld. Rules managed another way stay untouched.",
     })
   } else if (!o.active) {
     out.push({

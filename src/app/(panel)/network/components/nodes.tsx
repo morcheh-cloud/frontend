@@ -151,7 +151,7 @@ export function HubNode({ data, selected }: NodeProps) {
     <Shell
       flow={flow}
       selected={selected}
-      title="Morcheh"
+      title="Morche"
       box="size-22 rounded-2xl bg-brand-soft"
     >
       <LogoMark className="h-5 w-10 text-brand" />

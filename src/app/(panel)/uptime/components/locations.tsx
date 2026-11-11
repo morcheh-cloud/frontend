@@ -26,7 +26,7 @@ export type LocationOption = {
   status?: string
 }
 
-// Ticks the places a monitor is checked from: Morcheh itself and any server
+// Ticks the places a monitor is checked from: Morche itself and any server
 // the person can manage. Ticked ones that aren't offered (no access any
 // more, or a removed server) stay listed so they can be unticked.
 export function LocationsPicker({
@@ -63,10 +63,10 @@ export function LocationsPicker({
       ? [
           {
             id: MORCHEH,
-            label: "Morcheh",
+            label: "Morche",
             meta: outboundIp
-              ? `From Morcheh's own network · ${outboundIp}`
-              : "From Morcheh's own network",
+              ? `From Morche's own network · ${outboundIp}`
+              : "From Morche's own network",
           },
         ]
       : []),
@@ -80,7 +80,7 @@ export function LocationsPicker({
   const toggle = (id: string, on: boolean) => {
     const next = value.filter((l) => l !== id)
     if (on) next.push(id)
-    // Morcheh first, then the order they were ticked in.
+    // Morche first, then the order they were ticked in.
     next.sort((a, b) => Number(b === MORCHEH) - Number(a === MORCHEH))
     onChange(next)
   }

@@ -274,7 +274,7 @@ export function ServerActionsProvider({ children }: { children: ReactNode }) {
             ? `Delete “${toDelete.servers[0]?.name}”?`
             : `Delete ${deleteCount} servers?`
         }
-        description="Morcheh forgets the connection details and stored credentials. Nothing on the server itself is touched."
+        description="Morche forgets the connection details and stored credentials. Nothing on the server itself is touched."
         confirmLabel={
           deleteCount === 1 ? "Delete server" : `Delete ${deleteCount} servers`
         }

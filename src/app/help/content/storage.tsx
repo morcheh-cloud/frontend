@@ -22,7 +22,7 @@ export const storage: GuideSection[] = [
     body: (
       <>
         <P>
-          <UI>Storage</UI> connects Morcheh to places that hold files but aren't
+          <UI>Storage</UI> connects Morche to places that hold files but aren't
           servers you manage: an S3 bucket, an FTP or SFTP account, a WebDAV
           share. Browse them with the same file manager as a server's{" "}
           <See guide="files" />, and send files between them and your servers
@@ -52,7 +52,7 @@ export const storage: GuideSection[] = [
     body: (
       <>
         <P>
-          Morcheh re-checks every storage by itself every 30 seconds, even when
+          Morche re-checks every storage by itself every 30 seconds, even when
           nobody has the panel open, by signing in afresh. The list and the
           storage's page pick up new statuses every 10 seconds, so a storage
           that went away stops showing <UI>Online</UI> within about a minute.
@@ -97,7 +97,7 @@ export const storage: GuideSection[] = [
             it found or why it failed.
           </P>
           <P>
-            Press <UI>Add storage</UI>. Morcheh checks the connection once more
+            Press <UI>Add storage</UI>. Morche checks the connection once more
             and shows the result in the list.
           </P>
         </Steps>
@@ -130,8 +130,8 @@ export const storage: GuideSection[] = [
             servers; AWS and the big clouds use the default (off).
           </li>
           <li>
-            Use an access key limited to the buckets Morcheh needs, not your
-            root account's.
+            Use an access key limited to the buckets Morche needs, not your root
+            account's.
           </li>
         </List>
         <Example title="A MinIO on one of your servers">
@@ -145,7 +145,7 @@ export const storage: GuideSection[] = [
               ],
               [<UI key="r">Region</UI>, <C key="v">us-east-1</C>],
               [<UI key="p">Path-style URLs</UI>, "On"],
-              [<UI key="k">Access key</UI>, "A user made for Morcheh"],
+              [<UI key="k">Access key</UI>, "A user made for Morche"],
             ]}
           />
           <P>
@@ -185,7 +185,7 @@ export const storage: GuideSection[] = [
         </List>
         <Warn>
           <UI>Accept any certificate</UI> turns off the TLS check: anyone
-          between Morcheh and the storage can read the traffic, password
+          between Morche and the storage can read the traffic, password
           included. Use it only for a self-signed certificate on a network you
           trust.
         </Warn>
@@ -236,8 +236,8 @@ export const storage: GuideSection[] = [
           server or storage), then the folder in its tree (or type a path in{" "}
           <UI>Folder</UI>; <UI>Change</UI> goes back to the list). On an S3
           storage that shows every bucket, pick a bucket or a folder inside one.
-          Morcheh streams the files from one to the other: nothing passes
-          through your browser, so it's as fast as the link between them.
+          Morche streams the files from one to the other: nothing passes through
+          your browser, so it's as fast as the link between them.
         </P>
         <P>
           To pull files the other way, open the folder they should land in and
@@ -287,7 +287,7 @@ export const storage: GuideSection[] = [
     body: (
       <>
         <P>
-          To use a storage outside Morcheh (the AWS CLI, an FTP client, a backup
+          To use a storage outside Morche (the AWS CLI, an FTP client, a backup
           script), open its credentials on demand:
         </P>
         <Steps>
@@ -342,7 +342,7 @@ aws s3 ls s3://backups --endpoint-url https://s3.example.com
 `}</Code>
         </Example>
         <Warn>
-          Anyone who can open Morcheh can read these. Don't share your screen
+          Anyone who can open Morche can read these. Don't share your screen
           with a secret visible, and delete a downloaded key once it is in{" "}
           <C>~/.ssh</C>.
         </Warn>
@@ -447,7 +447,7 @@ aws s3 ls s3://backups --endpoint-url https://s3.example.com
         <P>
           A setting the provider doesn't offer (MinIO has no CORS, and needs a
           KMS for encryption) says so when you save, and nothing changes. When
-          the provider won't tell Morcheh a setting, the tab shows{" "}
+          the provider won't tell Morche a setting, the tab shows{" "}
           <UI>Couldn't read this setting</UI> with its reason.
         </P>
       </>
@@ -460,7 +460,7 @@ aws s3 ls s3://backups --endpoint-url https://s3.example.com
       <>
         <P>
           <UI>Access</UI> decides what anonymous users (no key) may do.
-          Signed-in use through Morcheh, access keys and share links work
+          Signed-in use through Morche, access keys and share links work
           whatever you pick.
         </P>
         <Table
@@ -552,7 +552,7 @@ https://assets.s3.amazonaws.com/img/logo.png  (AWS)`}</Code>
           ]}
         />
         <Tip>
-          A rule made outside Morcheh with tag or size filters says{" "}
+          A rule made outside Morche with tag or size filters says{" "}
           <UI>more set elsewhere</UI>. Those parts are kept when you save.
         </Tip>
       </>
@@ -616,7 +616,7 @@ https://assets.s3.amazonaws.com/img/logo.png  (AWS)`}</Code>
             ],
             [
               "Availability",
-              "One strip per storage: each block is a stretch of connection checks. Green = all passed, orange = some failed, red = all failed, grey = no checks (Morcheh wasn't running).",
+              "One strip per storage: each block is a stretch of connection checks. Green = all passed, orange = some failed, red = all failed, grey = no checks (Morche wasn't running).",
             ],
             [
               "Response time",
@@ -649,7 +649,7 @@ https://assets.s3.amazonaws.com/img/logo.png  (AWS)`}</Code>
     body: (
       <>
         <P>
-          Storages don't report their size, so Morcheh walks every folder and
+          Storages don't report their size, so Morche walks every folder and
           adds up the files. It does this on its own about once a day for each
           online storage, as a background task. To measure one now, press{" "}
           <UI>Measure now</UI> (the scan icon in its row, or in its space
@@ -721,13 +721,13 @@ https://assets.s3.amazonaws.com/img/logo.png  (AWS)`}</Code>
         rows={[
           {
             setting: "Credentials",
-            value: "A key or user just for Morcheh",
-            why: "Limit it to what Morcheh needs; revoke it without touching anything else.",
+            value: "A key or user just for Morche",
+            why: "Limit it to what Morche needs; revoke it without touching anything else.",
           },
           {
             setting: "Read-only",
             value: "On for archives and backups",
-            why: "Morcheh refuses every write, so a mis-click can't delete a backup.",
+            why: "Morche refuses every write, so a mis-click can't delete a backup.",
           },
           {
             setting: "FTP encryption",
@@ -777,7 +777,7 @@ https://assets.s3.amazonaws.com/img/logo.png  (AWS)`}</Code>
           <UI>Measure now</UI> to skip the wait.
         </li>
         <li>
-          Grey blocks in an availability strip: Morcheh wasn't running then, or
+          Grey blocks in an availability strip: Morche wasn't running then, or
           the storage was added later.
         </li>
         <li>

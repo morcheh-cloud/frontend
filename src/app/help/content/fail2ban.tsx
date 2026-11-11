@@ -190,7 +190,7 @@ export const fail2ban: GuideSection[] = [
     body: (
       <>
         <P>
-          From Morcheh (it connects from its own address, which is usually not
+          From Morche (it connects from its own address, which is usually not
           the one banned): open <UI>Bans</UI>, find your address and unban it (
           <UI>Unban from every jail</UI> if several jails banned it), then add
           it to <UI>Never ban</UI>.

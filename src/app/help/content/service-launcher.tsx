@@ -69,7 +69,7 @@ export const serviceLauncher: GuideSection[] = [
             </>,
             <>
               Paste the <UI>Address</UI>. Without <C>http://</C> or{" "}
-              <C>https://</C>, Morcheh adds <C>https://</C>. The <UI>Name</UI>{" "}
+              <C>https://</C>, Morche adds <C>https://</C>. The <UI>Name</UI>{" "}
               fills itself from the address (<C>portainer.acme.ir</C> becomes{" "}
               <C>Portainer</C>); change it if you like.
             </>,
@@ -318,9 +318,9 @@ export const serviceLauncher: GuideSection[] = [
                 Grafana opens in a new tab.
               </>,
               <>
-                Back in Morcheh, open <UI>Services</UI> and press the key icon
-                on Grafana's tile: the password is copied, ready to paste into
-                its sign-in page.
+                Back in Morche, open <UI>Services</UI> and press the key icon on
+                Grafana's tile: the password is copied, ready to paste into its
+                sign-in page.
               </>,
             ]}
           </Steps>

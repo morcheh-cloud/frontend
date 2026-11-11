@@ -187,7 +187,7 @@ export function StorageActionsProvider({ children }: { children: ReactNode }) {
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title={`Remove “${toDelete.storage?.name}”?`}
-        description="Morcheh forgets the connection and its stored credentials. Nothing on the storage itself is deleted."
+        description="Morche forgets the connection and its stored credentials. Nothing on the storage itself is deleted."
         confirmLabel="Remove storage"
         pending={remove.isPending}
         onConfirm={() =>

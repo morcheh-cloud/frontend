@@ -133,7 +133,7 @@ function View({ phone }: { phone: boolean }) {
       <Empty
         icon={CalendarClock}
         title="No cron jobs yet"
-        body="Back up a server's folder to a storage every night, copy a storage onto several servers each hour, or mirror one server to another. Morcheh runs them itself; nothing is installed on the servers."
+        body="Back up a server's folder to a storage every night, copy a storage onto several servers each hour, or mirror one server to another. Morche runs them itself; nothing is installed on the servers."
         action={
           can.edit && (
             <Button className="h-11 w-full md:h-9 md:w-auto" onClick={create}>

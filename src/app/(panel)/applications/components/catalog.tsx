@@ -309,7 +309,7 @@ function RecipeDetails({
               : []),
             {
               label: "Source",
-              value: r.builtin ? "Built into Morcheh" : "This workspace's own",
+              value: r.builtin ? "Built into Morche" : "This workspace's own",
             },
           ]}
         />

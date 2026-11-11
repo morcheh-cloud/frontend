@@ -40,12 +40,12 @@ export const proxyStatusMeta: Record<
   not_installed: {
     label: "Not installed",
     dot: "bg-mist",
-    hint: "Set it up: Morcheh installs it with the server's package manager.",
+    hint: "Set it up: Morche installs it with the server's package manager.",
   },
   not_set_up: {
     label: "Not set up",
     dot: "bg-mist",
-    hint: "Installed, but Morcheh's sites aren't wired in yet. Set it up.",
+    hint: "Installed, but Morche's sites aren't wired in yet. Set it up.",
   },
   config_error: {
     label: "Config error",
@@ -55,12 +55,12 @@ export const proxyStatusMeta: Record<
   unreachable: {
     label: "Unreachable",
     dot: "bg-destructive",
-    hint: "Morcheh couldn't reach the server over SSH.",
+    hint: "Morche couldn't reach the server over SSH.",
   },
   error: {
     label: "Error",
     dot: "bg-destructive",
-    hint: "Morcheh couldn't read the proxy on this server.",
+    hint: "Morche couldn't read the proxy on this server.",
   },
   unknown: {
     label: "Not checked",
@@ -168,7 +168,7 @@ export function hostTarget(c: HostConfig) {
 }
 
 // A hand-written site that answers every unknown name on port 80 or 443
-// (default_server): what a catch-all site of Morcheh's takes over when it
+// (default_server): what a catch-all site of Morche's takes over when it
 // saves (the backend's DefaultHolders).
 export const holdsDefault = (s: Pick<Site, "listen" | "managed">) =>
   !s.managed &&
@@ -178,7 +178,7 @@ export const holdsDefault = (s: Pick<Site, "listen" | "managed">) =>
       l.split(/\s+/).includes("default_server"),
   )
 
-// The site of Morcheh's answering every unknown name, when one is on.
+// The site of Morche's answering every unknown name, when one is on.
 export const catchAllHost = (hosts: ProxyHost[]) =>
   hosts.find((h) => h.enabled && h.config.catch_all && !h.handwritten)
 

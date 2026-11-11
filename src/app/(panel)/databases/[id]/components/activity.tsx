@@ -270,7 +270,7 @@ function Sessions({
             cell: (x) => (
               <span className="flex items-center gap-1.5 font-mono text-caption">
                 {x.id}
-                {x.ours && <Tag>Morcheh</Tag>}
+                {x.ours && <Tag>Morche</Tag>}
               </span>
             ),
           },

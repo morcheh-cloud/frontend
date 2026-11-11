@@ -43,7 +43,7 @@ export const networkMap: GuideSection[] = [
               "Matrix",
               "The same tests as a table: every pair, both directions",
             ],
-            ["From Morcheh", "How Morcheh itself gets to each server"],
+            ["From Morche", "How Morche itself gets to each server"],
           ]}
         />
       </>
@@ -55,7 +55,7 @@ export const networkMap: GuideSection[] = [
     body: (
       <>
         <P>
-          Morcheh connects to each server over SSH and reads its interfaces,
+          Morche connects to each server over SSH and reads its interfaces,
           addresses and default routes. Then each server tries to reach the
           others on their SSH port, and pings them. Nothing is installed and no
           settings change.
@@ -163,13 +163,13 @@ export const networkMap: GuideSection[] = [
   },
   {
     id: "from-morcheh",
-    title: "From Morcheh view",
+    title: "From Morche view",
     body: (
       <P>
-        Morcheh sits in the middle, with a line to each server colored by its
+        Morche sits in the middle, with a line to each server colored by its
         current status and labeled with the connection time. A red line here
         with green lines in Reachability means the server is fine and only
-        Morcheh can't get to it.
+        Morche can't get to it.
       </P>
     ),
   },
@@ -243,7 +243,7 @@ export const networkMap: GuideSection[] = [
         rows={[
           [
             "A server shows a warning triangle",
-            "Morcheh couldn't read it. Click it for the error, usually a connection or login problem. Other servers still try to reach it.",
+            "Morche couldn't read it. Click it for the error, usually a connection or login problem. Other servers still try to reach it.",
           ],
           [
             "Two servers in one office aren't joined",

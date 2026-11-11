@@ -124,7 +124,7 @@ export function PackagesView() {
         <Empty
           icon={PackageX}
           title="No package manager found"
-          body="Morcheh works with apt, dnf, yum, zypper, apk and pacman. None of them is on this server's path."
+          body="Morche works with apt, dnf, yum, zypper, apk and pacman. None of them is on this server's path."
           className="max-md:mt-4"
         />
       </>

@@ -318,7 +318,7 @@ export function ProxyActionsProvider({ children }: { children: ReactNode }) {
         }
         description={
           toAsk?.action === "stop"
-            ? "Every site it serves stops answering, including ones not made in Morcheh, until you start it again."
+            ? "Every site it serves stops answering, including ones not made in Morche, until you start it again."
             : "Open connections drop for a moment. A reload applies changes without that."
         }
         confirmLabel={toAsk?.action === "stop" ? "Stop" : "Restart"}
@@ -348,7 +348,7 @@ export function ProxyActionsProvider({ children }: { children: ReactNode }) {
         description={
           <div className="flex flex-col gap-3">
             <p>
-              Morcheh forgets this proxy and its sites.{" "}
+              Morche forgets this proxy and its sites.{" "}
               {toRemove?.proxy.kind_label} itself stays installed on the server.
             </p>
             {/* biome-ignore lint/a11y/noLabelWithoutControl: Base UI checkbox renders the control inside */}
@@ -359,7 +359,7 @@ export function ProxyActionsProvider({ children }: { children: ReactNode }) {
                 onCheckedChange={(v) => setRemoveFiles(v)}
               />
               <span>
-                Take Morcheh's sites off the server too
+                Take Morche's sites off the server too
                 <span className="block text-caption text-muted-foreground">
                   Untick to leave them running as they are, unmanaged.
                 </span>
@@ -567,7 +567,7 @@ function SiteLayer({
         </dd>
       </dl>
       <p className="text-caption text-muted-foreground">
-        Written by hand on the server, so Morcheh only shows it. To change it,
+        Written by hand on the server, so Morche only shows it. To change it,
         edit the file (Files tab of the server) or make a new site here for the
         same name and remove this one.
       </p>

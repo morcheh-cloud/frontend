@@ -21,7 +21,7 @@ export const alerts: GuideSection[] = [
     body: (
       <>
         <P>
-          <UI>Alerts</UI> decides when Morcheh tells someone and where. It has
+          <UI>Alerts</UI> decides when Morche tells someone and where. It has
           three tabs:
         </P>
         <List>
@@ -58,7 +58,7 @@ export const alerts: GuideSection[] = [
       <>
         <P>
           A rule watches one measure on some servers, checked on every sample
-          Morcheh takes (every minute by default), or on every connection check
+          Morche takes (every minute by default), or on every connection check
           for <UI>Unreachable</UI>.
         </P>
         <Steps>
@@ -192,9 +192,9 @@ export const alerts: GuideSection[] = [
       <>
         <P>
           Under <UI>Watch</UI> › <UI>Databases</UI> two measures watch the
-          databases Morcheh monitors: <UI>Unreachable</UI> (Morcheh can't
-          connect) and <UI>Health</UI> (one of its health checks turned
-          critical: connections, replication lag, disk…). <UI>On</UI> then picks{" "}
+          databases Morche monitors: <UI>Unreachable</UI> (Morche can't connect)
+          and <UI>Health</UI> (one of its health checks turned critical:
+          connections, replication lag, disk…). <UI>On</UI> then picks{" "}
           <UI>Every database</UI> (new ones too) or <UI>Chosen databases</UI>.
         </P>
         <P>
@@ -349,7 +349,7 @@ export const alerts: GuideSection[] = [
         </Steps>
         <P>
           <UI>Bot API address</UI> is only for a self-hosted Bot API or a relay
-          (for example when api.telegram.org isn't reachable from Morcheh's
+          (for example when api.telegram.org isn't reachable from Morche's
           machine). Leave it blank for the official one; Bale uses{" "}
           <C>tapi.bale.ai</C> by default. <UI>Without a sound</UI> delivers
           quietly, good for a busy group.
@@ -421,7 +421,7 @@ export const alerts: GuideSection[] = [
     body: (
       <>
         <P>
-          Morcheh sends through your own SMTP server: <UI>SMTP server</UI>,{" "}
+          Morche sends through your own SMTP server: <UI>SMTP server</UI>,{" "}
           <UI>Port</UI>, <UI>Encryption</UI>, the login, <UI>From</UI> and up to
           50 addresses in <UI>To</UI>.
         </P>
@@ -434,7 +434,7 @@ export const alerts: GuideSection[] = [
             },
             {
               setting: "From",
-              value: "Morcheh <alerts@your-domain>",
+              value: "Morche <alerts@your-domain>",
               why: "A sender your mail server is allowed to use, so it isn't marked as spam.",
             },
           ]}
@@ -478,13 +478,13 @@ export const alerts: GuideSection[] = [
         </Example>
         <P>
           <C>event</C> is <C>down</C>, <C>up</C>, <C>degraded</C>,{" "}
-          <C>reminder</C> or <C>test</C>, also sent in the{" "}
-          <C>X-Morcheh-Event</C> header.
+          <C>reminder</C> or <C>test</C>, also sent in the <C>X-Morche-Event</C>{" "}
+          header.
         </P>
         <P>
           With a <UI>Signing key</UI>, each request carries{" "}
-          <C>X-Morcheh-Timestamp</C> and{" "}
-          <C>{"X-Morcheh-Signature: sha256=<hex>"}</C>, the HMAC-SHA256 of{" "}
+          <C>X-Morche-Timestamp</C> and{" "}
+          <C>{"X-Morche-Signature: sha256=<hex>"}</C>, the HMAC-SHA256 of{" "}
           <C>timestamp + "." + body</C> with your key. Check it on your side and
           refuse old timestamps.
         </P>
@@ -541,7 +541,7 @@ ok = hmac.compare_digest("sha256=" + mac, signature_header)`}
           or the chat id lost its leading minus.
         </li>
         <li>
-          Times out: Morcheh's machine can't reach the service. Use a relay in{" "}
+          Times out: Morche's machine can't reach the service. Use a relay in{" "}
           <UI>Bot API address</UI>, your own ntfy/Gotify server, or email.
         </li>
         <li>

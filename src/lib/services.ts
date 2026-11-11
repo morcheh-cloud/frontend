@@ -307,6 +307,19 @@ export interface AlertRuleState {
   value: number;
 }
 
+export interface AllowEntry {
+  /**
+   * An address (203.0.113.7) or a range (203.0.113.0/24, 2001:db8::/48)
+   * @maxLength 64
+   */
+  address: string;
+  /**
+   * What it is, e.g. Office or VPN
+   * @maxLength 100
+   */
+  note?: string;
+}
+
 export interface AlwaysOnline {
   /**
    * A copy no one asks for is dropped after this many days; 0 = 7
@@ -500,6 +513,15 @@ export interface AnsibleStatus {
   sandbox: boolean;
   /** ansible-core version */
   version: string;
+}
+
+export interface AnswerSignInInputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  answer: "me" | "not_me";
 }
 
 export interface App {
@@ -777,6 +799,10 @@ export interface AuthState {
    * @format uri
    */
   $schema?: string;
+  /** The address the panel sees for this request. */
+  address: string;
+  /** False when the allowlist keeps this address out; nothing else is said then. */
+  address_allowed: boolean;
   /** No user exists yet: show the first-run form. */
   needs_setup: boolean;
   registration_open: boolean;
@@ -7127,6 +7153,34 @@ export interface PanelProfile {
   full_name: string;
 }
 
+export interface PanelSession {
+  /** @format date-time */
+  created_at: string;
+  /** The session making this request. */
+  current: boolean;
+  /** Browser and system, like Chrome on Windows. */
+  device: string;
+  device_kind: "desktop" | "phone" | "tablet" | "other";
+  /** @format date-time */
+  expires_at: string;
+  /** @format uuid */
+  id: string;
+  ip: string;
+  /** @format date-time */
+  last_seen_at: string;
+  remember: boolean;
+  user_agent: string;
+}
+
+export interface PanelSessionsOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: PanelSession[];
+}
+
 export interface PanelSettings {
   /**
    * A URL to the JSON Schema for this object.
@@ -10304,6 +10358,65 @@ export interface SearchStorageFilesResponse {
   truncated: boolean;
 }
 
+export interface SecurityChannel {
+  enabled: boolean;
+  /** @format uuid */
+  id: string;
+  kind: string;
+  name: string;
+  /** @format uuid */
+  workspace_id: string;
+  workspace_name: string;
+}
+
+export interface SecuritySettings {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  alert_failed_sign_ins: boolean;
+  alert_new_address: boolean;
+  /** @maxItems 200 */
+  allowlist: AllowEntry[];
+  /** Only the addresses below reach the panel. */
+  allowlist_enabled: boolean;
+  /** Every notification channel there is, to pick from. */
+  channels: SecurityChannel[];
+  /**
+   * Notification channels that get sign-in alerts.
+   * @maxItems 20
+   */
+  sign_in_channels: string[];
+  /** The backend reads the client address from X-Forwarded-For (TRUST_PROXY). */
+  trust_proxy: boolean;
+  /** The address the panel sees for this request. */
+  your_address: string;
+  /** Whether it's in the saved list. */
+  your_address_allowed: boolean;
+  /** A private address: the panel probably sees a proxy, not you. */
+  your_address_private: boolean;
+}
+
+export interface SecuritySettingsBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  alert_failed_sign_ins: boolean;
+  alert_new_address: boolean;
+  /** @maxItems 200 */
+  allowlist: AllowEntry[];
+  /** Only the addresses below reach the panel. */
+  allowlist_enabled: boolean;
+  /**
+   * Notification channels that get sign-in alerts.
+   * @maxItems 20
+   */
+  sign_in_channels: string[];
+}
+
 export interface Server {
   /**
    * A URL to the JSON Schema for this object.
@@ -11285,6 +11398,57 @@ export interface ShareStorageFileResponse {
   /** @format date-time */
   expires_at: string;
   url: string;
+}
+
+export interface SignInAlertsOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: SignInEntry[];
+}
+
+export interface SignInEntry {
+  /** What the person said about a new-address alert. */
+  answer: "" | "me" | "not_me";
+  /** @format date-time */
+  answered_at?: string;
+  /** @format date-time */
+  at: string;
+  /** Who ended the session, when someone did. */
+  by_name?: string;
+  /** It started the session making this request. */
+  current: boolean;
+  device: string;
+  device_kind: "desktop" | "phone" | "tablet" | "other";
+  /** @format uuid */
+  id: string;
+  ip: string;
+  kind: "signed_in" | "failed" | "signed_out" | "ended";
+  /** A sign-in from a network this account hadn't used. */
+  new_address: boolean;
+  /** failed: unknown_user, wrong_password, blocked_account, address_not_allowed. signed_out: everywhere. ended: by_self, by_admin, by_admin_everywhere, not_me, password_changed. */
+  reason: string;
+  session_id?: string;
+  /** The session it started is still signed in. */
+  session_open: boolean;
+  user_agent: string;
+  /** Empty when the name typed isn't an account. */
+  user_id?: string;
+  /** The account, or what was typed. */
+  username: string;
+}
+
+export interface SignInsOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: SignInEntry[];
+  /** Pass as before for the next page. */
+  next?: string;
 }
 
 export interface SignalProcessesInputBody {
@@ -13806,6 +13970,41 @@ export class Api<
      * No description
      *
      * @tags Admin
+     * @name AdminEndUserSession
+     * @summary End one of someone's sessions
+     * @request DELETE:/admin/users/{id}/sessions/{session}
+     */
+    adminEndUserSession: (
+      id: string,
+      session: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, ErrorModel>({
+        path: `/admin/users/${id}/sessions/${session}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * @description Allowed addresses and sign-in alerts.
+     *
+     * @tags Admin
+     * @name AdminGetSecurity
+     * @summary Panel security settings
+     * @request GET:/admin/security
+     */
+    adminGetSecurity: (params: RequestParams = {}) =>
+      this.request<SecuritySettings, ErrorModel>({
+        path: `/admin/security`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Admin
      * @name AdminGetSettings
      * @summary Get panel settings
      * @request GET:/admin/settings
@@ -13870,6 +14069,22 @@ export class Api<
         path: `/admin/users`,
         method: "GET",
         query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminListUserSessions
+     * @summary Someone's open sessions
+     * @request GET:/admin/users/{id}/sessions
+     */
+    adminListUserSessions: (id: string, params: RequestParams = {}) =>
+      this.request<PanelSessionsOutputBody, ErrorModel>({
+        path: `/admin/users/${id}/sessions`,
+        method: "GET",
         format: "json",
         ...params,
       }),
@@ -13980,6 +14195,27 @@ export class Api<
       this.request<PanelGroup, ErrorModel>({
         path: `/admin/groups/${id}`,
         method: "PATCH",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Turning the allowlist on is refused unless your own address is in it, so you can't lock yourself out.
+     *
+     * @tags Admin
+     * @name AdminUpdateSecurity
+     * @summary Save panel security settings
+     * @request PUT:/admin/security
+     */
+    adminUpdateSecurity: (
+      data: SecuritySettingsBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<SecuritySettings, ErrorModel>({
+        path: `/admin/security`,
+        method: "PUT",
         body: data,
         type: ContentType.Json,
         format: "json",
@@ -14841,6 +15077,27 @@ export class Api<
   };
   auth = {
     /**
+     * @description not_me ends that session and closes your terminals; change your password next.
+     *
+     * @tags Auth
+     * @name AnswerSignInAlert
+     * @summary Say whether a new-address sign-in was you
+     * @request POST:/auth/sign-in-alerts/{alert}/answer
+     */
+    answerSignInAlert: (
+      alert: string,
+      data: AnswerSignInInputBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, ErrorModel>({
+        path: `/auth/sign-in-alerts/${alert}/answer`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        ...params,
+      }),
+
+    /**
      * No description
      *
      * @tags Auth
@@ -14943,6 +15200,36 @@ export class Api<
       }),
 
     /**
+     * @description Ends every session but this one. Your terminals stay open.
+     *
+     * @tags Auth
+     * @name EndMyOtherSessions
+     * @summary Sign out your other devices
+     * @request POST:/auth/sessions/end-others
+     */
+    endMyOtherSessions: (params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/auth/sessions/end-others`,
+        method: "POST",
+        ...params,
+      }),
+
+    /**
+     * @description Signs that device out. To end this one, sign out.
+     *
+     * @tags Auth
+     * @name EndMySession
+     * @summary End one of your sessions
+     * @request DELETE:/auth/sessions/{session}
+     */
+    endMySession: (session: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/auth/sessions/${session}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
      * No description
      *
      * @tags Auth
@@ -14985,6 +15272,38 @@ export class Api<
     getMyAccess: (params: RequestParams = {}) =>
       this.request<MyAccess, ErrorModel>({
         path: `/auth/access`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Auth
+     * @name ListMySessions
+     * @summary Your open sessions
+     * @request GET:/auth/sessions
+     */
+    listMySessions: (params: RequestParams = {}) =>
+      this.request<PanelSessionsOutputBody, ErrorModel>({
+        path: `/auth/sessions`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Only sign-ins of other sessions, from the last 14 days.
+     *
+     * @tags Auth
+     * @name ListSignInAlerts
+     * @summary Sign-ins from a new address you haven't answered
+     * @request GET:/auth/sign-in-alerts
+     */
+    listSignInAlerts: (params: RequestParams = {}) =>
+      this.request<SignInAlertsOutputBody, ErrorModel>({
+        path: `/auth/sign-in-alerts`,
         method: "GET",
         format: "json",
         ...params,
@@ -21906,6 +22225,53 @@ export class Api<
         method: "PATCH",
         body: data,
         type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  auditLog = {
+    /**
+     * @description Successful and failed sign-ins, sign-outs and ended sessions, newest first. Admins see everyone; others only their own account.
+     *
+     * @tags Audit log
+     * @name ListSignIns
+     * @summary The sign-in log
+     * @request GET:/sign-ins
+     */
+    listSignIns: (
+      query?: {
+        /**
+         * The next cursor of the previous page.
+         * @maxLength 100
+         */
+        before?: string;
+        /** @default "all" */
+        kind?: "all" | "signed_in" | "failed" | "signed_out" | "ended";
+        /**
+         * @format int32
+         * @min 1
+         * @max 200
+         * @default 50
+         */
+        limit?: number;
+        /** Only sign-ins from a new address. */
+        new_only?: boolean;
+        /**
+         * Account name or the start of an address.
+         * @maxLength 100
+         */
+        q?: string;
+        /** @default "all" */
+        since?: "all" | "24h" | "7d" | "30d";
+        /** One account (admins only; others always see their own). */
+        user?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<SignInsOutputBody, ErrorModel>({
+        path: `/sign-ins`,
+        method: "GET",
+        query: query,
         format: "json",
         ...params,
       }),

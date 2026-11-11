@@ -272,7 +272,7 @@ function LifecycleCard({
         <div className="flex flex-col gap-4 border-t border-border p-4">
           {r.advanced && (
             <Callout>
-              This rule also has filters or dates set outside Morcheh (tags,
+              This rule also has filters or dates set outside Morche (tags,
               object size…). They're kept when you save.
             </Callout>
           )}

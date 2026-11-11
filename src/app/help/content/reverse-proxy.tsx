@@ -31,11 +31,11 @@ export const reverseProxy: GuideSection[] = [
           https from a certificate already on the server.
         </P>
         <P>
-          Morcheh reaches the server over SSH, like everything else. Nothing
-          else is installed: no agent. nginx can be installed on the server or
-          run in a Docker / Podman container there (see{" "}
+          Morche reaches the server over SSH, like everything else. Nothing else
+          is installed: no agent. nginx can be installed on the server or run in
+          a Docker / Podman container there (see{" "}
           <See guide="reverse-proxy" section="docker" />
-          ). To manage nginx on Morcheh's own machine, add that machine as a
+          ). To manage nginx on Morche's own machine, add that machine as a
           server first.
         </P>
         <Table
@@ -123,13 +123,13 @@ export const reverseProxy: GuideSection[] = [
           that minute.
         </P>
         <P>
-          Numbers refresh every 5 seconds. Morcheh reads them from each site's
+          Numbers refresh every 5 seconds. Morche reads them from each site's
           access log over SSH; nothing extra runs on the server. For{" "}
           <UI>Streams</UI> they count connections, and <UI>Failed</UI> = the
           target couldn't be reached.
         </P>
         <Tip>
-          A card saying <UI>Couldn't read this proxy's log</UI> means Morcheh
+          A card saying <UI>Couldn't read this proxy's log</UI> means Morche
           couldn't read that proxy's log just now (it's unreachable or the log
           was rotated away). The sites still work.
         </Tip>
@@ -204,7 +204,7 @@ export const reverseProxy: GuideSection[] = [
             access are greyed out.
           </P>
           <P>
-            Morcheh looks at the server and lists what it found under{" "}
+            Morche looks at the server and lists what it found under{" "}
             <UI>Where it runs</UI>: nginx <UI>Installed on the server</UI>, each
             container running an nginx image (Docker or Podman, with its Compose
             project), or <UI>Install on the server</UI> when there's neither.
@@ -213,7 +213,7 @@ export const reverseProxy: GuideSection[] = [
             <UI>Added</UI> with a button to open it.
           </P>
           <P>
-            Leave <UI>Set it up now</UI> ticked. Morcheh installs nginx with the
+            Leave <UI>Set it up now</UI> ticked. Morche installs nginx with the
             server's package manager if it's missing (never inside a container),
             makes the folder <C>/etc/nginx/morcheh/</C> and includes it in
             nginx's config. It runs as a background task (see{" "}
@@ -238,7 +238,7 @@ export const reverseProxy: GuideSection[] = [
       <>
         <P>
           When nginx runs in a Docker or Podman container on the server, add
-          that container as the proxy: Morcheh works on the nginx inside it over
+          that container as the proxy: Morche works on the nginx inside it over
           the same SSH connection (<C>docker exec</C>), so sites, https, tests,
           reloads, logs and live numbers all work as they do for an installed
           nginx. A server can have both: each is its own proxy, named{" "}
@@ -247,13 +247,13 @@ export const reverseProxy: GuideSection[] = [
         <Steps>
           <P>
             <UI>Add proxy</UI>, pick the server, then the container under{" "}
-            <UI>Where it runs</UI>. Not listed (an image Morcheh didn't
+            <UI>Where it runs</UI>. Not listed (an image Morche didn't
             recognise)? Pick <UI>Another container</UI> and type its name.
           </P>
           <P>
-            Set it up. Morcheh adds its folder and one <C>include</C> line
-            inside the container, and log rotation on the server. The image
-            isn't changed.
+            Set it up. Morche adds its folder and one <C>include</C> line inside
+            the container, and log rotation on the server. The image isn't
+            changed.
           </P>
           <P>
             The proxy's page shows the container as a chip beside the server's
@@ -289,7 +289,7 @@ export const reverseProxy: GuideSection[] = [
             ],
             [
               "Modules",
-              "Brotli, the web firewall, image resizing and countries come with the image. Morcheh doesn't add them: use an image that has them.",
+              "Brotli, the web firewall, image resizing and countries come with the image. Morche doesn't add them: use an image that has them.",
             ],
             [
               "Stop / Start",
@@ -329,10 +329,10 @@ networks:
         </Example>
         <Warn>
           Images that write nginx's config themselves (Nginx Proxy Manager,
-          nginx-proxy, SWAG) can't be added: they'd overwrite Morcheh's changes.
+          nginx-proxy, SWAG) can't be added: they'd overwrite Morche's changes.
         </Warn>
         <Tip>
-          Recreated the container (a new image, <C>compose up</C>)? Morcheh
+          Recreated the container (a new image, <C>compose up</C>)? Morche
           notices on its next check, sets it up again and writes its sites back.
         </Tip>
         <H3>Troubleshooting</H3>
@@ -371,7 +371,7 @@ networks:
           On the proxy's page press <UI>New site</UI>. A site's page works like
           a server's: a header with the site's name, then tabs, each holding one
           kind of setting (see <See guide="reverse-proxy" section="tabs" />
-          ). The config Morcheh will write has a tab of its own, <UI>Config</UI>{" "}
+          ). The config Morche will write has a tab of its own, <UI>Config</UI>{" "}
           (see <See guide="reverse-proxy" section="config" />
           ). <UI>Save</UI> sits at the end of the tab bar, so it's in reach from
           every tab.
@@ -396,7 +396,7 @@ networks:
             ).
           </P>
           <P>
-            Press <UI>Add site</UI>. Morcheh writes the site's file, runs{" "}
+            Press <UI>Add site</UI>. Morche writes the site's file, runs{" "}
             <C>nginx -t</C> and reloads only if the test passes.
           </P>
         </Steps>
@@ -412,8 +412,8 @@ networks:
                 <UI>Port</UI> (e.g. <C>3000</C>; empty = 80, or 443 on https)
                 and an optional <UI>Path</UI>. Paste or type a whole address
                 like <C>http://10.0.0.12:8080/api</C> into Address and it is
-                split into the fields. Under it Morcheh says whether the app
-                runs on the proxy's server itself or across the network
+                split into the fields. Under it Morche says whether the app runs
+                on the proxy's server itself or across the network
               </>,
             ],
             [
@@ -692,7 +692,7 @@ networks:
           <UI>No certificate</UI> usually means the CA couldn't reach{" "}
           <C>http://name/.well-known/acme-challenge/</C>: a domain points
           elsewhere, port 80 is closed, or a CDN in front answers for it. The
-          task's details show certbot's own message. Every site Morcheh writes
+          task's details show certbot's own message. Every site Morche writes
           answers that path, even when it redirects to https or blocks visitors.
         </P>
       </>
@@ -780,7 +780,7 @@ networks:
             ],
             [
               <UI key="c">Config</UI>,
-              "The whole file Morcheh writes for the site, tested on the server, and written by hand if you need to (see The config file)",
+              "The whole file Morche writes for the site, tested on the server, and written by hand if you need to (see The config file)",
             ],
           ]}
         />
@@ -887,7 +887,7 @@ networks:
         </P>
         <Tip>
           Response times, domains and cache hits come from the detailed log
-          format Morcheh writes since this version. A site saved before it shows
+          format Morche writes since this version. A site saved before it shows
           a notice with <UI>Write the site again</UI> (Engineer): it saves the
           site as it is, nothing else changes, and new lines carry the details.
           Older lines stay as they were.
@@ -2127,7 +2127,7 @@ networks:
           <P>Save. Clear the address to stop.</P>
         </Steps>
         <P>
-          Copies carry the header <C>X-Morcheh-Mirror: 1</C>, so the test app
+          Copies carry the header <C>X-Morche-Mirror: 1</C>, so the test app
           (and its logs) can tell them apart.
         </P>
         <Warn>
@@ -3085,15 +3085,15 @@ https://example.com/old-shop,https://shop.example.com/,301
           <li>
             If a site written by hand on the server already does this (
             <C>default_server</C>, like nginx's stock{" "}
-            <C>sites-enabled/default</C>), saving moves the role to Morcheh's
-            site. Morcheh takes only the word <C>default_server</C> off that
+            <C>sites-enabled/default</C>), saving moves the role to Morche's
+            site. Morche takes only the word <C>default_server</C> off that
             file's <C>listen</C> lines on ports 80 and 443 (a copy is kept), in
             the same change that adds its own site, tested with <C>nginx -t</C>;
             if the test fails, everything is put back.
           </li>
           <li>
             When the site stops answering other names, is turned off or removed,
-            or the proxy is removed from Morcheh, the word goes back. A file
+            or the proxy is removed from Morche, the word goes back. A file
             someone edited by hand in the meantime is left as it is, and the
             change says so.
           </li>
@@ -3111,7 +3111,7 @@ https://example.com/old-shop,https://shop.example.com/,301
     body: (
       <>
         <P>
-          The <UI>Config</UI> tab shows the file Morcheh writes for the site,
+          The <UI>Config</UI> tab shows the file Morche writes for the site,
           made from the other tabs and updated as you change them. Nothing is
           sent to the server until you save.
         </P>
@@ -3131,7 +3131,7 @@ https://example.com/old-shop,https://shop.example.com/,301
         <P>
           <UI>Edit by hand</UI> is for what the tabs can't express (a <C>map</C>
           , several <C>location</C> blocks with their own rules, a module's
-          directives). It starts from the generated file. From then on, Morcheh
+          directives). It starts from the generated file. From then on, Morche
           writes your text exactly as it is, and the tab shows <UI>By hand</UI>.
         </P>
         <Steps>
@@ -3149,10 +3149,10 @@ https://example.com/old-shop,https://shop.example.com/,301
         </Steps>
         <Warn>
           At your own risk: while the file is written by hand, HTTPS, Security,
-          Login, Routing, Pages and Advanced don't change it, and Morcheh
-          doesn't check what's in it, only that nginx accepts it. A file nginx
-          refuses is never loaded (every save is still tested), but one it
-          accepts can still send visitors to the wrong place.
+          Login, Routing, Pages and Advanced don't change it, and Morche doesn't
+          check what's in it, only that nginx accepts it. A file nginx refuses
+          is never loaded (every save is still tested), but one it accepts can
+          still send visitors to the wrong place.
         </Warn>
         <Tip>
           Keep the <C>access_log</C> and <C>error_log</C> lines as they are:
@@ -3164,7 +3164,7 @@ https://example.com/old-shop,https://shop.example.com/,301
         <P>
           <UI>Use the generated one</UI> drops your text; once you save, the
           file is made from the other tabs again. Lines starting with{" "}
-          <C>MORCHEH_</C> or holding <C>@@morcheh-</C> are refused: Morcheh uses
+          <C>MORCHEH_</C> or holding <C>@@morcheh-</C> are refused: Morche uses
           them for itself.
         </P>
         <P>
@@ -3181,7 +3181,7 @@ https://example.com/old-shop,https://shop.example.com/,301
       <>
         <List>
           <li>
-            Morcheh writes only its own files, one per site, in{" "}
+            Morche writes only its own files, one per site, in{" "}
             <C>/etc/nginx/morcheh/</C>. Nothing else on the server is changed.
           </li>
           <li>
@@ -3199,8 +3199,8 @@ https://example.com/old-shop,https://shop.example.com/,301
             , so any earlier state can be restored in one step.
           </li>
           <li>
-            If someone edits one of Morcheh's files by hand, the site shows as{" "}
-            <UI>Changed</UI>. Saving it from Morcheh writes it back.
+            If someone edits one of Morche's files by hand, the site shows as{" "}
+            <UI>Changed</UI>. Saving it from Morche writes it back.
           </li>
         </List>
       </>
@@ -3215,20 +3215,20 @@ https://example.com/old-shop,https://shop.example.com/,301
           The <UI>On the server</UI> tab lists the sites written by hand or by
           another tool (certbot, a control panel), what they listen on and
           serve, and the certificates nginx uses. They are read-only here and
-          keep working next to Morcheh's sites.
+          keep working next to Morche's sites.
         </P>
         <P>
           At the top, <UI>Default site</UI> says who answers names no site has
-          and visits by the server's IP address: a site of Morcheh's, a
+          and visits by the server's IP address: a site of Morche's, a
           hand-written one (tagged <UI>Default</UI> in the list), or nobody, in
           which case nginx uses the first site it reads.{" "}
-          <UI>Manage in Morcheh</UI> (Engineer) opens a new 404 host with{" "}
+          <UI>Manage in Morche</UI> (Engineer) opens a new 404 host with{" "}
           <UI>Answer every other name too</UI> on; saving it takes the role
           over, as{" "}
           <See guide="reverse-proxy" section="catch-all">
             Names no site has
           </See>{" "}
-          explains. That is the only change Morcheh makes to hand-written files.
+          explains. That is the only change Morche makes to hand-written files.
         </P>
         <Steps>
           {[
@@ -3236,7 +3236,7 @@ https://example.com/old-shop,https://shop.example.com/,301
               Open the proxy, tab <UI>On the server</UI>.
             </>,
             <>
-              In <UI>Default site</UI>, press <UI>Manage in Morcheh</UI> (or{" "}
+              In <UI>Default site</UI>, press <UI>Manage in Morche</UI> (or{" "}
               <UI>Set up a default site</UI> when nothing holds it).
             </>,
             <>
@@ -3246,9 +3246,9 @@ https://example.com/old-shop,https://shop.example.com/,301
           ]}
         </Steps>
         <Tip>
-          A domain served by both a hand-written site and a Morcheh site is a
+          A domain served by both a hand-written site and a Morche site is a
           conflict: nginx picks one and warns. Remove the old one by hand before
-          adding the same domain in Morcheh.
+          adding the same domain in Morche.
         </Tip>
       </>
     ),
@@ -3314,7 +3314,7 @@ https://example.com/old-shop,https://shop.example.com/,301
             ],
             [
               <UI key="n">Not installed / Not set up</UI>,
-              "Press Set up: Morcheh installs it or wires in its folder",
+              "Press Set up: Morche installs it or wires in its folder",
             ],
             [
               <UI key="c">Config error</UI>,
@@ -3386,7 +3386,7 @@ https://example.com/old-shop,https://shop.example.com/,301
           ]}
         />
         <P>
-          Removing a proxy asks whether to take Morcheh's sites off the server
+          Removing a proxy asks whether to take Morche's sites off the server
           too, or leave them running unmanaged. nginx itself stays installed.
         </P>
       </>

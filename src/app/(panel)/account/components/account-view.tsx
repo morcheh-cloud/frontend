@@ -1,19 +1,31 @@
 "use client"
 
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { LogOut } from "lucide-react"
+import { ArrowRight, LogOut } from "lucide-react"
+import Link from "next/link"
 import { type FormEvent, type ReactNode, useState } from "react"
 import { toast } from "sonner"
 
+import { signInsHref } from "@/app/(panel)/recordings/components/command-meta"
 import { useAuth } from "@/components/auth/auth"
 import { ChangePasswordForm } from "@/components/auth/change-password"
 import { meKey } from "@/components/auth/keys"
 import { Field } from "@/components/field"
 import { PageHeader } from "@/components/panel/page-header"
 import { ConfirmDialog } from "@/components/responsive-dialog"
+import {
+  useEndMySession,
+  useEndOtherSessions,
+  useMySessions,
+  useSignIns,
+} from "@/components/sessions/api"
+import { SessionList } from "@/components/sessions/session-list"
+import { SignInRows, SignInTable } from "@/components/sessions/sign-in-list"
 import { ThemePicker } from "@/components/theme-picker"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useIsPhone } from "@/hooks/useIsPhone"
 import { useOpen } from "@/hooks/useOpen"
 import { api, fieldErrors } from "@/lib/api"
 
@@ -32,6 +44,21 @@ export function AccountView() {
           <ThemePicker />
         </Section>
         <Section
+          id="sessions"
+          title="Signed-in devices"
+          note="Every browser signed in to your account right now. Sign out one you don't recognise, then change your password."
+        >
+          <MySessions />
+        </Section>
+        <Section
+          id="sign-ins"
+          title="Recent sign-ins"
+          note="Sign-ins, failed tries and sign-outs on your account."
+        >
+          <RecentSignIns />
+        </Section>
+        <Section
+          id="password"
           title="Password"
           note="Changing it signs out your other browsers and closes your open terminals."
         >
@@ -55,16 +82,21 @@ export function AccountView() {
 }
 
 function Section({
+  id,
   title,
   note,
   children,
 }: {
+  id?: string
   title: string
   note?: string
   children: ReactNode
 }) {
   return (
-    <section className="border-border max-md:border-y max-md:px-4 max-md:py-5 md:rounded-2xl md:border md:p-6">
+    <section
+      id={id}
+      className="scroll-mt-16 border-border max-md:border-y max-md:px-4 max-md:py-5 md:rounded-2xl md:border md:p-6"
+    >
       <h2 className="font-medium">{title}</h2>
       {note && (
         <p className="mt-1 text-body-sm text-muted-foreground">{note}</p>
@@ -183,5 +215,93 @@ function SignOutEverywhere() {
         onConfirm={() => signOut.mutate()}
       />
     </>
+  )
+}
+
+function MySessions() {
+  const sessions = useMySessions()
+  const end = useEndMySession()
+  const endOthers = useEndOtherSessions()
+  const [open, setOpen] = useOpen("account-sign-out-others")
+  const others = (sessions.data ?? []).filter((s) => !s.current).length
+  return (
+    <div className="flex flex-col gap-4">
+      <SessionList
+        id="mine"
+        items={sessions.data}
+        loading={sessions.isPending}
+        error={sessions.error}
+        onEnd={(s) => end.mutateAsync(s.id)}
+      />
+      {others > 0 && (
+        <div>
+          <Button
+            variant="outline"
+            className="max-md:h-11 max-md:w-full"
+            onClick={() => setOpen(true)}
+          >
+            <LogOut />
+            Sign out the other {others === 1 ? "device" : `${others} devices`}
+          </Button>
+        </div>
+      )}
+      <ConfirmDialog
+        open={open}
+        onOpenChange={setOpen}
+        title="Sign out your other devices?"
+        description="Every session but this one ends now. Your terminals stay open."
+        confirmLabel="Sign out"
+        pending={endOthers.isPending}
+        onConfirm={() =>
+          endOthers.mutate(undefined, {
+            onSuccess: () => {
+              toast.success("Your other devices are signed out")
+              setOpen(false)
+            },
+            onError: (err) => toast.error(err.message),
+          })
+        }
+      />
+    </div>
+  )
+}
+
+function RecentSignIns() {
+  const { user } = useAuth()
+  const phone = useIsPhone()
+  const list = useSignIns({ user: user.id, limit: 8 })
+  const items = list.data?.pages[0]?.items ?? []
+  if (list.isPending) return <Skeleton className="h-32 rounded-xl" />
+  if (list.isError)
+    return (
+      <p className="text-body-sm text-destructive">
+        Couldn't load your sign-ins: {list.error.message}
+      </p>
+    )
+  return (
+    <div className="flex flex-col gap-3">
+      {items.length === 0 ? (
+        <p className="text-body-sm text-muted-foreground">
+          Nothing yet. Sign-ins from now on show up here.
+        </p>
+      ) : phone ? (
+        <div className="-mx-4 border-t border-border">
+          <SignInRows items={items} showUser={false} sticky={false} />
+        </div>
+      ) : (
+        <SignInTable items={items} showUser={false} />
+      )}
+      <div>
+        <Button
+          variant="link"
+          className="h-auto px-0 max-md:h-11"
+          render={<Link href={signInsHref({ user: user.id })} />}
+          nativeButton={false}
+        >
+          See every sign-in
+          <ArrowRight />
+        </Button>
+      </div>
+    </div>
   )
 }

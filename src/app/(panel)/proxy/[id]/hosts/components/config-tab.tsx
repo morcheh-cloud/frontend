@@ -38,7 +38,7 @@ import { NginxCode } from "./nginx-code"
 import { PreviewBody, useConfigPreview } from "./preview"
 
 // The same checks the backend makes before it takes a hand-written file,
-// run as you type: blocks and quotes closed, no words Morcheh keeps for
+// run as you type: blocks and quotes closed, no words Morche keeps for
 // itself. nginx -t (Test, Save) checks the rest.
 export function checkConfig(text: string): string {
   const lines = text.split("\n")
@@ -47,7 +47,7 @@ export function checkConfig(text: string): string {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
     if (/^\s*MORCHEH_/.test(line) || line.includes("@@morcheh-")) {
-      return `Line ${i + 1} starts with a word Morcheh keeps for itself (MORCHEH_ / @@morcheh-).`
+      return `Line ${i + 1} starts with a word Morche keeps for itself (MORCHEH_ / @@morcheh-).`
     }
     for (const ch of line) {
       if (quote) {
@@ -69,7 +69,7 @@ type TestResult = { ok: boolean; output: string; tested: string }
 
 // The line of this site's file nginx -t complains about, if it's this one:
 // "... in /etc/nginx/morcheh/hosts/<id>.conf:12". A new site is tested
-// under an id of its own, so any file of Morcheh's sites counts then.
+// under an id of its own, so any file of Morche's sites counts then.
 function failedLine(output: string, hostId: string | undefined) {
   for (const m of output.matchAll(/in (\S+\.conf):(\d+)/g)) {
     const file = m[1]
@@ -80,7 +80,7 @@ function failedLine(output: string, hostId: string | undefined) {
   return 0
 }
 
-// The site's whole file: what Morcheh generates from the other tabs, or a
+// The site's whole file: what Morche generates from the other tabs, or a
 // file written by hand (at your own risk) that's written instead.
 export function ConfigTab({
   proxy: p,
@@ -116,7 +116,7 @@ export function ConfigTab({
   const current = JSON.stringify(config)
   const noDomain = draft.type !== "stream" && config.domains.length === 0
 
-  // Gentle notes on a hand-written file: things Morcheh relies on that it
+  // Gentle notes on a hand-written file: things Morche relies on that it
   // no longer has.
   const notes = useMemo(() => {
     if (!byHand) return []
@@ -129,7 +129,7 @@ export function ConfigTab({
     }
     if (preview.text.includes("access_log") && !custom.includes("access_log")) {
       out.push(
-        "There's no access_log line: live traffic and the Logs tab read the one Morcheh wrote, so they'll stay empty.",
+        "There's no access_log line: live traffic and the Logs tab read the one Morche wrote, so they'll stay empty.",
       )
     }
     return out
@@ -302,7 +302,7 @@ export function ConfigTab({
 
       {byHand && (
         <Callout icon={<TriangleAlert />} tone="warning">
-          At your own risk: Morcheh no longer checks what's inside, only that
+          At your own risk: Morche no longer checks what's inside, only that
           {` ${p.kind_label} `}accepts it. It's still tested (nginx -t) before
           it's loaded, so a file {p.kind_label} refuses never goes live. Use
           Test to check it on the server first.
@@ -417,7 +417,7 @@ export function ConfigTab({
         description={
           <>
             You start from the generated file and change what you like. From
-            then on Morcheh writes your text as it is: HTTPS, Security, Paths,
+            then on Morche writes your text as it is: HTTPS, Security, Paths,
             Headers and Advanced no longer change it, until you go back to the
             generated one. It's still tested before it's loaded.
           </>

@@ -20,7 +20,7 @@ export const serverMetrics: GuideSection[] = [
       <>
         <P>
           A server's <UI>Metrics</UI> tab (Monitoring group) draws how busy it
-          was over time: CPU, memory, load, network and each disk. Morcheh reads
+          was over time: CPU, memory, load, network and each disk. Morche reads
           these over SSH on its own, every minute by default, and keeps them 30
           days, so the charts are there even if nobody had the page open.
         </P>
@@ -150,7 +150,7 @@ export const serverMetrics: GuideSection[] = [
       <>
         <P>
           The caption beside the span says how often the server is read and when
-          the last sample came in. Whoever runs Morcheh sets it with{" "}
+          the last sample came in. Whoever runs Morche sets it with{" "}
           <C>SERVER_SAMPLE_INTERVAL</C> (default <C>1m</C>; <C>0</C> turns
           sampling off) and how long samples are kept with <C>SERVER_HISTORY</C>{" "}
           (default 31 days).
@@ -171,7 +171,7 @@ export const serverMetrics: GuideSection[] = [
         <List>
           <li>
             <UI>Sampling is off</UI>: <C>SERVER_SAMPLE_INTERVAL</C> is <C>0</C>{" "}
-            on Morcheh's backend. Set it (for example <C>1m</C>) and restart it.
+            on Morche's backend. Set it (for example <C>1m</C>) and restart it.
           </li>
           <li>
             <UI>No samples yet</UI>: the first one comes within one interval of

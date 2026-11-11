@@ -21,14 +21,14 @@ export const dns: GuideSection[] = [
       <>
         <P>
           <UI>DNS</UI> manages your domains' records on{" "}
-          <UI>Technitium DNS Server</UI>, from Morcheh. Connect as many
+          <UI>Technitium DNS Server</UI>, from Morche. Connect as many
           Technitium servers as you run (say <C>ns1</C> and <C>ns2</C>) and see
           every zone on all of them in one list: which server holds it, whether
           it's the editable Primary or a copied Secondary, and whether the
           copies agree.
         </P>
         <P>
-          Morcheh talks to each server through Technitium's HTTP API with an API
+          Morche talks to each server through Technitium's HTTP API with an API
           token. Nothing is installed on the DNS server, and what you change
           here is what Technitium's own console shows, and the other way round.
         </P>
@@ -70,7 +70,7 @@ export const dns: GuideSection[] = [
             token.
           </P>
           <P>
-            In Morcheh open <UI>DNS</UI> and press <UI>Add DNS server</UI>.
+            In Morche open <UI>DNS</UI> and press <UI>Add DNS server</UI>.
           </P>
           <P>
             Fill in a <UI>Name</UI>, the <UI>Address</UI> of the console (e.g.{" "}
@@ -83,10 +83,9 @@ export const dns: GuideSection[] = [
           </P>
         </Steps>
         <P>
-          Repeat for each server. The token is stored encrypted on Morcheh's
-          side and is never shown again; to change it, use{" "}
-          <UI>Edit connection</UI> and paste a new one (blank keeps the old
-          one).
+          Repeat for each server. The token is stored encrypted on Morche's side
+          and is never shown again; to change it, use <UI>Edit connection</UI>{" "}
+          and paste a new one (blank keeps the old one).
         </P>
         <Recommended
           rows={[
@@ -116,7 +115,7 @@ export const dns: GuideSection[] = [
     body: (
       <>
         <P>
-          Morcheh checks every DNS server by itself every 30 seconds, even when
+          Morche checks every DNS server by itself every 30 seconds, even when
           nobody has the panel open, and the pages pick up the result every 10
           seconds. Press <UI>Check</UI> on a server's page to check right now. A
           server that's down gets a red count on <UI>DNS</UI> in the menu.
@@ -222,7 +221,7 @@ export const dns: GuideSection[] = [
           <UI>Disable</UI> keeps a record but stops it being served: handy to
           switch an address off and back on. The <UI>Note</UI> is stored on the
           DNS server, so it shows in Technitium's console too. Records of types
-          Morcheh doesn't edit (SOA, DNSSEC records…) are listed and can be
+          Morche doesn't edit (SOA, DNSSEC records…) are listed and can be
           copied, but are changed in Technitium.
         </P>
         <Example title="Point a website at a new server">
@@ -326,7 +325,7 @@ export const dns: GuideSection[] = [
             ],
             [
               "Unreachable",
-              "Open the address in a browser from where Morcheh runs. Technitium's console listens on 5380 (http) and 53443 (https) by default; check the firewall.",
+              "Open the address in a browser from where Morche runs. Technitium's console listens on 5380 (http) and 53443 (https) by default; check the firewall.",
             ],
             [
               "Couldn't read zones from …",

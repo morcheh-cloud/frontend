@@ -402,7 +402,7 @@ function Tags({ p }: { p: Process }) {
             : p.container}
         </Tag>
       )}
-      {p.morcheh && <Tag title="Morcheh's own connection">Morcheh</Tag>}
+      {p.morcheh && <Tag title="Morche's own connection">Morche</Tag>}
       {p.protected && !p.morcheh && (
         <Tag title="The system relies on it: ending it asks to confirm">
           system

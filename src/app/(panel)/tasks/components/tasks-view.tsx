@@ -19,7 +19,7 @@ import { type ApiError, api } from "@/lib/api"
 
 const shows = ["all", "active", "finished"] as const
 
-// Everything Morcheh has been doing in the background. The list is live (see
+// Everything Morche has been doing in the background. The list is live (see
 // JobsProvider), so filters only narrow what's already here.
 export function TasksView() {
   const list = useJobList()

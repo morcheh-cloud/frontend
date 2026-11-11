@@ -113,7 +113,7 @@ export const alertsItem: NavItem = {
   label: "Alerts",
   icon: Bell,
 }
-// Every command Morcheh ran on a server, and terminal replays.
+// Every command Morche ran on a server, and terminal replays.
 export const recordingsItem: NavItem = {
   href: "/recordings",
   label: "Audit log",
@@ -133,6 +133,7 @@ export const settingsItem: NavItem = {
     { href: "/settings/members", label: "Members" },
     { href: "/settings/groups", label: "Groups" },
     { href: "/settings/workspaces", label: "Workspaces" },
+    { href: "/settings/security", label: "Security" },
   ],
 }
 

@@ -25,7 +25,7 @@ export const firewall: GuideSection[] = [
           This page lets you do that without typing commands. It works with{" "}
           <UI>ufw</UI> (usual on Ubuntu and Debian) and <UI>firewalld</UI>{" "}
           (usual on RHEL, Rocky and Fedora), and the rules stay in that tool, so
-          they keep working if you stop using Morcheh.
+          they keep working if you stop using Morche.
         </P>
         <List>
           <li>
@@ -67,7 +67,7 @@ export const firewall: GuideSection[] = [
           </div>
           <div>
             Tick the ports that should stay open. The list shows what's
-            listening now. SSH is always kept open, so Morcheh can still reach
+            listening now. SSH is always kept open, so Morche can still reach
             the server.
           </div>
           <div>Confirm, then check that what you use still works.</div>
@@ -142,12 +142,12 @@ export const firewall: GuideSection[] = [
       <>
         <P>
           A firewall mistake can cut you off from your own server. Before a
-          change that could affect SSH, or turns the firewall on, Morcheh saves
+          change that could affect SSH, or turns the firewall on, Morche saves
           the current rules and starts a 90-second timer on the server itself.
         </P>
         <List>
           <li>
-            If Morcheh can't open a new connection after the change, it puts
+            If Morche can't open a new connection after the change, it puts
             everything back and tells you the change was undone.
           </li>
           <li>
@@ -165,7 +165,7 @@ export const firewall: GuideSection[] = [
           countdown.
         </P>
         <Tip>
-          The SSH rule shows a lock icon. Morcheh won't stop you editing it, but
+          The SSH rule shows a lock icon. Morche won't stop you editing it, but
           check the banner before moving on.
         </Tip>
       </>
@@ -178,7 +178,7 @@ export const firewall: GuideSection[] = [
       <>
         <P>
           <UI>⋯</UI> › <UI>History</UI> lists the last 50 changes made through
-          Morcheh: what changed, who did it and when. It still opens while the
+          Morche: what changed, who did it and when. It still opens while the
           server is down.
         </P>
         <Steps>
@@ -231,7 +231,7 @@ export const firewall: GuideSection[] = [
         </P>
         <List>
           <li>
-            Morcheh also allows the traffic a forward needs, so you don't need a
+            Morche also allows the traffic a forward needs, so you don't need a
             separate rule.
           </li>
           <li>
@@ -250,8 +250,8 @@ export const firewall: GuideSection[] = [
           <li>IPv4 only.</li>
         </List>
         <Warn>
-          The port Morcheh reaches the server on can't be forwarded, because
-          that would cut Morcheh off.
+          The port Morche reaches the server on can't be forwarded, because that
+          would cut Morche off.
         </Warn>
       </>
     ),
@@ -344,7 +344,7 @@ export const firewall: GuideSection[] = [
             <See guide="firewall" section="history">
               History
             </See>
-            : what changed through Morcheh, with a way back.
+            : what changed through Morche, with a way back.
           </li>
           <li>
             <See guide="firewall" section="apply">
@@ -453,8 +453,8 @@ export const firewall: GuideSection[] = [
       <>
         <H3>The change was undone</H3>
         <P>
-          Morcheh lost its connection after the change, so it put the old rules
-          back. Check that a rule still allows the SSH port from Morcheh's
+          Morche lost its connection after the change, so it put the old rules
+          back. Check that a rule still allows the SSH port from Morche's
           address.
         </P>
         <H3>I allowed a port but it still can't be reached</H3>
@@ -491,8 +491,8 @@ export const firewall: GuideSection[] = [
             server, and allow the port.
           </li>
           <li>
-            A forward set up by hand that Morcheh doesn't recognise isn't
-            listed: see <UI>View raw rules</UI>.
+            A forward set up by hand that Morche doesn't recognise isn't listed:
+            see <UI>View raw rules</UI>.
           </li>
         </List>
         <H3>Applying rules failed on some servers</H3>
@@ -505,7 +505,7 @@ export const firewall: GuideSection[] = [
         <P>
           Blocked connections are only recorded while logging is on. The tab
           offers <UI>Turn on logging</UI>, or use <UI>Settings</UI>. Without
-          root or password-less sudo, Morcheh may not be able to read the log.
+          root or password-less sudo, Morche may not be able to read the log.
         </P>
         <H3>"Couldn't list the ports"</H3>
         <P>

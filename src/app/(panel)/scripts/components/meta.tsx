@@ -22,7 +22,7 @@ export const runAsLabels: Record<RunAs, string> = {
 }
 
 export const runAsHints: Record<RunAs, string> = {
-  user: "As the user Morcheh logs in with on each server.",
+  user: "As the user Morche logs in with on each server.",
   root: "Through sudo when the login user isn't root. Servers where it can't become root fail with a clear message.",
 }
 

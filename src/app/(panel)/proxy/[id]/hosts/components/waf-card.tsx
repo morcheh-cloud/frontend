@@ -143,7 +143,7 @@ export function WafCard({
             </p>
             <p>
               Adding it installs ModSecurity and the OWASP Core Rule Set from
-              the server's packages (Debian and Ubuntu), writes Morcheh's base
+              the server's packages (Debian and Ubuntu), writes Morche's base
               settings and reloads {p.kind_label}. Sites without the firewall
               aren't touched.
             </p>

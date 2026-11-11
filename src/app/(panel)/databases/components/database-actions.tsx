@@ -173,7 +173,7 @@ export function DatabaseActionsProvider({ children }: { children: ReactNode }) {
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title={`Remove “${toDelete.database?.name}”?`}
-        description="Morcheh stops watching it and forgets the connection, its history and stored password. Nothing in the database itself changes."
+        description="Morche stops watching it and forgets the connection, its history and stored password. Nothing in the database itself changes."
         confirmLabel="Remove database"
         pending={remove.isPending}
         onConfirm={() =>
@@ -211,7 +211,7 @@ function reportCheck(d: Database) {
   }
 }
 
-// Whether a save changes how Morcheh connects, so it should be re-checked.
+// Whether a save changes how Morche connects, so it should be re-checked.
 function connectionChanged(d: Database, saved: Database) {
   return (
     d.engine !== saved.engine ||

@@ -29,7 +29,7 @@ export const users: GuideSection[] = [
         <List>
           <li>
             <UI>People</UI>: real accounts (uid at or above <C>UID_MIN</C>,
-            usually 1000), plus root and the account Morcheh logs in with.{" "}
+            usually 1000), plus root and the account Morche logs in with.{" "}
             <UI>All</UI> also shows service accounts like <C>www-data</C>.
           </li>
           <li>
@@ -129,7 +129,7 @@ export const users: GuideSection[] = [
         </P>
         <List>
           <li>
-            <UI>No sudo</UI>: Morcheh takes the account out of every group that
+            <UI>No sudo</UI>: Morche takes the account out of every group that
             gives sudo and disables rules that grant sudo to it alone.
           </li>
           <li>
@@ -143,8 +143,8 @@ export const users: GuideSection[] = [
           </li>
         </List>
         <P>
-          Rules in other files are never deleted: Morcheh comments them out with{" "}
-          <C># (disabled by Morcheh)</C>. Every sudoers change is checked with{" "}
+          Rules in other files are never deleted: Morche comments them out with{" "}
+          <C># (disabled by Morche)</C>. Every sudoers change is checked with{" "}
           <C>visudo</C> first and put back if it doesn't parse, so a change
           can't break sudo. A rule that names several accounts at once has to be
           changed by hand.
@@ -179,8 +179,8 @@ export const users: GuideSection[] = [
           </li>
         </List>
         <P>
-          Root and the account Morcheh logs in with can't be locked, removed,
-          renamed or have their sudo changed here, so Morcheh can't cut off its
+          Root and the account Morche logs in with can't be locked, removed,
+          renamed or have their sudo changed here, so Morche can't cut off its
           own access.
         </P>
         <Tip>
@@ -251,7 +251,7 @@ export const users: GuideSection[] = [
       <List>
         <li>
           Read-only view: changes need root, or sudo without a password, for the
-          account Morcheh logs in with.
+          account Morche logs in with.
         </li>
         <li>
           Password status shows as unknown: <C>/etc/shadow</C> can't be read

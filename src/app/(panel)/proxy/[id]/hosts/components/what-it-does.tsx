@@ -821,7 +821,7 @@ function NotFoundFields({
         <Callout icon={<ArrowRightLeft />}>
           A hand-written site in{" "}
           <span className="font-mono">{defaultTaken}</span> answers other names
-          now (default_server). Saving moves that to this site: Morcheh takes
+          now (default_server). Saving moves that to this site: Morche takes
           only the word default_server off that file's listen lines (a copy is
           kept) and puts it back when this site stops answering other names or
           is removed.

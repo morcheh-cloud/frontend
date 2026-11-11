@@ -23,7 +23,7 @@ export const packages: GuideSection[] = [
         <P>
           <UI>Packages</UI> is the server's package manager in the browser:
           what's installed, which updates are waiting, and what was installed,
-          upgraded or removed before. Morcheh works with <C>apt</C> (Debian,
+          upgraded or removed before. Morche works with <C>apt</C> (Debian,
           Ubuntu), <C>dnf</C> and <C>yum</C> (Fedora, RHEL, Rocky, Alma),{" "}
           <C>zypper</C> (openSUSE, SLES), <C>apk</C> (Alpine) and <C>pacman</C>{" "}
           (Arch). It finds the one the server has by itself; nothing is
@@ -43,7 +43,7 @@ export const packages: GuideSection[] = [
           <li>
             <UI>History</UI>: the manager's own log, grouped by day. It also
             shows changes made over SSH or by automatic updates, not just ones
-            made from Morcheh.
+            made from Morche.
           </li>
         </List>
         <P>
@@ -120,7 +120,7 @@ export const packages: GuideSection[] = [
     body: (
       <>
         <P>
-          Every install, upgrade and removal shows a review first. Morcheh asks
+          Every install, upgrade and removal shows a review first. Morche asks
           the package manager to simulate the change (<C>apt -s</C>,{" "}
           <C>dnf --assumeno</C>…), so the list is what the manager would really
           do, including what it pulls in or takes away.
@@ -142,8 +142,8 @@ export const packages: GuideSection[] = [
           </li>
         </List>
         <Warn>
-          Removing <C>openssh-server</C> or the package that gives Morcheh its
-          login cuts off SSH: Morcheh, and you, can't reach the server any more
+          Removing <C>openssh-server</C> or the package that gives Morche its
+          login cuts off SSH: Morche, and you, can't reach the server any more
           except through its console.
         </Warn>
       </>
@@ -197,7 +197,7 @@ export const packages: GuideSection[] = [
           under the <UI>Held</UI> filter.
         </P>
         <P>
-          Morcheh uses the manager's own mechanism (<C>apt-mark hold</C>,{" "}
+          Morche uses the manager's own mechanism (<C>apt-mark hold</C>,{" "}
           <C>dnf versionlock</C>, <C>zypper addlock</C>), so the hold holds for
           anyone upgrading over SSH too. On Alpine and Arch, holding isn't
           offered; packages listed in pacman's <C>IgnorePkg</C> still show as
@@ -252,7 +252,7 @@ export const packages: GuideSection[] = [
       <>
         <P>
           The <UI>Updates</UI> tab says whether the server installs updates by
-          itself, and switches it on or off. Morcheh uses the distribution's own
+          itself, and switches it on or off. Morche uses the distribution's own
           tool:
         </P>
         <Table
@@ -339,7 +339,7 @@ export const packages: GuideSection[] = [
           ]}
         />
         <P>
-          Changes also need root on the server: Morcheh logs in as root or uses{" "}
+          Changes also need root on the server: Morche logs in as root or uses{" "}
           <C>sudo</C> without a password. With a plain login the page is
           read-only and says so.
         </P>

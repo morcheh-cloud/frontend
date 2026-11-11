@@ -134,7 +134,7 @@ export function PasswordDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={`Set ${user.name}'s password`}
-      description="It's hashed before it leaves Morcheh. Their SSH keys keep working."
+      description="It's hashed before it leaves Morche. Their SSH keys keep working."
       footer={
         <Footer
           form="users-password"
@@ -209,8 +209,8 @@ export function SudoDialog({
       title={`Sudo for ${user.name}`}
       description={
         a.overview.sudo_group
-          ? `Morcheh uses the ${a.overview.sudo_group} group, or its own file in /etc/sudoers.d, and checks it with visudo before saving.`
-          : "Morcheh writes its own file in /etc/sudoers.d and checks it with visudo before saving."
+          ? `Morche uses the ${a.overview.sudo_group} group, or its own file in /etc/sudoers.d, and checks it with visudo before saving.`
+          : "Morche writes its own file in /etc/sudoers.d and checks it with visudo before saving."
       }
       footer={
         <Footer

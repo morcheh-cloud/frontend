@@ -366,7 +366,7 @@ function ResourcesChart({
       phone={phone}
     >
       {!data.sample_seconds ? (
-        <Quiet>Reading resources is turned off on this Morcheh server.</Quiet>
+        <Quiet>Reading resources is turned off on this Morche server.</Quiet>
       ) : sampled.length === 0 ? (
         <Quiet>
           Resources are read from online Linux servers every {minutes} minutes.
@@ -470,7 +470,7 @@ function Disks({
         <Quiet>
           {data.sample_seconds
             ? "No disk has been read yet."
-            : "Reading resources is turned off on this Morcheh server."}
+            : "Reading resources is turned off on this Morche server."}
         </Quiet>
       ) : (
         <ul className={cn("divide-y divide-border", phone ? "-mx-4" : "-mx-2")}>

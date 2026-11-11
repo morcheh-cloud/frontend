@@ -1,14 +1,16 @@
 "use client"
 
-import { History, MonitorPlay } from "lucide-react"
+import { History, LogIn, MonitorPlay } from "lucide-react"
 
 import { Segmented } from "@/app/(panel)/servers/[id]/components/parts"
 import { clearedFilters, useCommandFilters } from "./command-meta"
 import { CommandsBrowser } from "./commands-browser"
 import { RecordingsBrowser } from "./recordings-browser"
+import { SignInsBrowser } from "./sign-ins-browser"
 
 // The audit log of a workspace (/recordings) or one server (its tab):
-// Commands (every command Morcheh ran) and Recordings (terminal replays).
+// Commands (every command Morche ran), Recordings (terminal replays) and,
+// panel-wide only, Sign-ins (who signed in to the panel, from where).
 export function AuditBrowser({
   workspace,
   serverId,
@@ -20,7 +22,9 @@ export function AuditBrowser({
   serverName?: string
   phone: boolean
 }) {
-  const [{ tab }, setFilters] = useCommandFilters()
+  const [filters, setFilters] = useCommandFilters()
+  // Sign-ins belong to the panel, not to a server.
+  const tab = serverId && filters.tab === "sign-ins" ? "commands" : filters.tab
   const tabs = (
     <Segmented
       label="Audit log"
@@ -29,7 +33,7 @@ export function AuditBrowser({
           value: "commands" as const,
           label: (
             <span className="flex items-center gap-1.5">
-              <History className="size-4" />
+              <History className="size-4 max-sm:hidden" />
               Commands
             </span>
           ),
@@ -38,11 +42,24 @@ export function AuditBrowser({
           value: "recordings" as const,
           label: (
             <span className="flex items-center gap-1.5">
-              <MonitorPlay className="size-4" />
+              <MonitorPlay className="size-4 max-sm:hidden" />
               Recordings
             </span>
           ),
         },
+        ...(serverId
+          ? []
+          : [
+              {
+                value: "sign-ins" as const,
+                label: (
+                  <span className="flex items-center gap-1.5">
+                    <LogIn className="size-4 max-sm:hidden" />
+                    Sign-ins
+                  </span>
+                ),
+              },
+            ]),
       ]}
       value={tab}
       onChange={(t) =>
@@ -51,6 +68,7 @@ export function AuditBrowser({
       }
     />
   )
+  if (tab === "sign-ins") return <SignInsBrowser phone={phone} leading={tabs} />
   return tab === "recordings" ? (
     <RecordingsBrowser
       workspace={workspace}

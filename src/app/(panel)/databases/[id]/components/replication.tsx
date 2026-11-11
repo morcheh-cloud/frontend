@@ -22,7 +22,7 @@ const roles: Record<DatabaseSnapshot["role"], string> = {
 
 const lag = (s: number | null | undefined) => (s == null ? "—" : secs(s))
 
-// Copies of this database and how far behind they are. Read-only: Morcheh
+// Copies of this database and how far behind they are. Read-only: Morche
 // never promotes, re-points or rebuilds a replica.
 export function ReplicationTab() {
   const { snapshot: s } = useDashboard()

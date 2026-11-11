@@ -176,17 +176,17 @@ export function AddProxyDialog({
   const isContainer = !!choice && choice !== "host"
   const hostInstalled = found?.native.installed ?? false
   const setupHint = isContainer
-    ? "Wires Morcheh's folder into the container and rotates its logs from the server. The image isn't changed; sites already in it keep working."
+    ? "Wires Morche's folder into the container and rotates its logs from the server. The image isn't changed; sites already in it keep working."
     : hostInstalled
-      ? "Wires in Morcheh's folder. Sites already on the server keep working."
-      : `Installs ${kindLabel} with the server's package manager and wires in Morcheh's folder.`
+      ? "Wires in Morche's folder. Sites already on the server keep working."
+      : `Installs ${kindLabel} with the server's package manager and wires in Morche's folder.`
 
   return (
     <ResponsiveDialog
       open={open}
       onOpenChange={onOpenChange}
       title="Add reverse proxy"
-      description={`Pick the server. Morcheh looks for ${kindLabel} on it, installed or in a Docker / Podman container, and manages it over SSH.`}
+      description={`Pick the server. Morche looks for ${kindLabel} on it, installed or in a Docker / Podman container, and manages it over SSH.`}
       className="sm:max-w-xl"
       footer={
         <>
@@ -210,7 +210,7 @@ export function AddProxyDialog({
             servers.isPending
               ? "Loading servers…"
               : choices.length === 0
-                ? "No servers in this workspace yet. To use the machine Morcheh runs on, add it as a server first."
+                ? "No servers in this workspace yet. To use the machine Morche runs on, add it as a server first."
                 : undefined
           }
         >
@@ -404,8 +404,8 @@ function Found({
   const summary = {
     host: `Found ${kindLabel} installed on ${serverName}.`,
     container: `Found ${kindLabel} in a container on ${serverName}.`,
-    choose: `Found ${kindLabel} in more than one place on ${serverName}. Pick the one whose sites Morcheh should manage.`,
-    install: `${kindLabel} isn't on ${serverName}, neither installed nor in a container. Morcheh can install it.`,
+    choose: `Found ${kindLabel} in more than one place on ${serverName}. Pick the one whose sites Morche should manage.`,
+    install: `${kindLabel} isn't on ${serverName}, neither installed nor in a container. Morche can install it.`,
     added: `Everything found on ${serverName} is already in the panel.`,
   }[found.suggestion]
 
@@ -461,7 +461,7 @@ function Found({
             onPick={() => onPick("other")}
             icon={SquarePen}
             title="Another container"
-            hint="Type its name, if it runs an image Morcheh didn't recognise."
+            hint="Type its name, if it runs an image Morche didn't recognise."
           />
         )}
       </div>

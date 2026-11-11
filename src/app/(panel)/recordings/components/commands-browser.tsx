@@ -76,7 +76,7 @@ const entryLabels = {
   shell: "Terminals opened only",
 } as const
 
-// Every command Morcheh ran on a workspace's servers (/recordings) or on one
+// Every command Morche ran on a workspace's servers (/recordings) or on one
 // server (its tab): one toolbar row, then the list by day.
 export function CommandsBrowser({
   workspace,
@@ -391,7 +391,7 @@ export function CommandsBrowser({
         body={
           settings && !settings.enabled
             ? can.manage
-              ? "Turn it on and every command Morcheh runs on this workspace's servers is kept here: who ran it, why, and how it ended."
+              ? "Turn it on and every command Morche runs on this workspace's servers is kept here: who ran it, why, and how it ended."
               : "An Owner of this workspace can turn it on."
             : everyone
               ? "Commands run on these servers from now on show up here: typed in a terminal, from a button, a task or a cron job."

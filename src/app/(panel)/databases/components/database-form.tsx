@@ -253,7 +253,7 @@ export function DatabaseForm({
   function fill(raw: string) {
     const p = parseConnectionString(raw)
     if (!p) {
-      setPasteNote("Not a connection string Morcheh can read.")
+      setPasteNote("Not a connection string Morche can read.")
       return
     }
     setValues((v) => ({
@@ -437,7 +437,7 @@ export function DatabaseForm({
       </Field>
       {!lockedServer && canDirect && (
         <Segmented
-          label="How Morcheh reaches it"
+          label="How Morche reaches it"
           value={values.mode}
           onChange={pickMode}
           options={[
@@ -448,8 +448,8 @@ export function DatabaseForm({
       )}
       <p className="-mt-2 text-caption text-muted-foreground">
         {direct
-          ? "Morcheh connects straight to a public IP or domain, e.g. a managed database."
-          : "Morcheh opens an SSH tunnel to one of your servers and connects from there, so the port stays closed to the internet."}
+          ? "Morche connects straight to a public IP or domain, e.g. a managed database."
+          : "Morche opens an SSH tunnel to one of your servers and connects from there, so the port stays closed to the internet."}
       </p>
       {!direct && (
         <>
@@ -545,7 +545,7 @@ export function DatabaseForm({
           checked={values.allow_internal}
           onChange={(on) => set("allow_internal", on)}
           label="Allow a private address"
-          text="10.x, 192.168.x, localhost and the like are refused by default, so nobody can probe Morcheh's own network."
+          text="10.x, 192.168.x, localhost and the like are refused by default, so nobody can probe Morche's own network."
         />
       )}
       <div className="flex flex-col gap-1.5">
@@ -835,7 +835,7 @@ function OutboundIp({ ip, loading }: { ip?: string; loading: boolean }) {
     <div className="flex items-center gap-3 rounded-lg border bg-subtle px-3 py-2.5 text-body-sm">
       <span className="min-w-0 flex-1">
         <span className="block text-caption text-muted-foreground">
-          Morcheh connects from
+          Morche connects from
         </span>
         <span className="font-mono">
           {ip ?? (loading ? "Finding out…" : "Unknown")}

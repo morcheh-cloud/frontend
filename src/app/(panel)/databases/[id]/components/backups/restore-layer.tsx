@@ -41,9 +41,9 @@ const errorKey: Record<string, keyof Errors> = {
 function localHint(local?: LocalTools) {
   if (local && !local.supported) return local.note
   if (local?.missing.length) {
-    return `Morcheh's own machine lacks ${local.missing.join(", ")}. Install them there, or choose a server.`
+    return `Morche's own machine lacks ${local.missing.join(", ")}. Install them there, or choose a server.`
   }
-  return "Morcheh's own machine loads it, the same way it reaches the database to watch it."
+  return "Morche's own machine loads it, the same way it reaches the database to watch it."
 }
 
 // Formats that name their database inside the file: they go back only there.
@@ -322,7 +322,7 @@ function RestoreForm({
               Use another login
             </span>
             <span className="block text-caption text-muted-foreground">
-              Off = the plan's login, or the one Morcheh monitors with. It needs
+              Off = the plan's login, or the one Morche monitors with. It needs
               the right to create and overwrite databases.
             </span>
           </label>

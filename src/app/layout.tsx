@@ -17,10 +17,10 @@ const spaceGrotesk = Space_Grotesk({
 })
 
 export const metadata: Metadata = {
-  title: { default: "Morcheh", template: "%s | Morcheh" },
+  title: { default: "Morche", template: "%s | Morche" },
   description:
     "Manage and monitor your servers and the services running on them.",
-  appleWebApp: { title: "Morcheh", statusBarStyle: "default" },
+  appleWebApp: { title: "Morche", statusBarStyle: "default" },
 }
 
 // Native-app shell on phones: draw under the notch (pages pad with

@@ -309,7 +309,7 @@ export function DnsActionsProvider({ children }: { children: ReactNode }) {
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title={`Remove “${toDelete.server?.name}”?`}
-        description="Morcheh forgets this connection and its token. The DNS server, its zones and records stay as they are."
+        description="Morche forgets this connection and its token. The DNS server, its zones and records stay as they are."
         confirmLabel="Remove server"
         pending={removeServer.isPending}
         onConfirm={() =>
@@ -603,7 +603,7 @@ export function useZoneMenu() {
   }
 }
 
-// A record's actions. Records of a copied zone, or of a type Morcheh can't
+// A record's actions. Records of a copied zone, or of a type Morche can't
 // edit, only copy.
 export function useRecordMenu(
   server: DNSServer,

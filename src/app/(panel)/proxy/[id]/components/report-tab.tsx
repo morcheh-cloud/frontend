@@ -606,7 +606,7 @@ function AtAGlance({
             .slice(0, 3)
             .map((h) => domainsText(h.domains))
             .join(", ")
-        : "Every site on the server is as Morcheh wrote it",
+        : "Every site on the server is as Morche wrote it",
       tone: look.length ? "warning" : undefined,
       go: look.length ? () => t.setTab("sites") : undefined,
       goLabel: "Open the sites",

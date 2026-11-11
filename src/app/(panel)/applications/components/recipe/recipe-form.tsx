@@ -148,7 +148,7 @@ export function RecipeForm({
             kind === "docker"
               ? "Kept in /opt/morcheh/apps/<id> on the server and started with Docker Compose."
               : kind === "package"
-                ? "Installed with the server's package manager; Morcheh updates and removes them too."
+                ? "Installed with the server's package manager; Morche updates and removes them too."
                 : "Run as root, in order. Helpers: pkg_refresh, pkg_install <names>, and $PM (the package manager)."
           }
         >
@@ -215,7 +215,7 @@ export function RecipeForm({
             {problems.os ??
               (draft.os?.length
                 ? `Only servers with ${listText(draft.os)}.`
-                : "None picked = every server Morcheh supports.")}
+                : "None picked = every server Morche supports.")}
           </p>
         </div>
       </Section>
@@ -540,7 +540,7 @@ function Params({
       count={params.length}
       hint={
         <>
-          What Morcheh asks when someone installs it. Each value reaches the
+          What Morche asks when someone installs it. Each value reaches the
           compose file and the scripts as{" "}
           <code className="font-mono">{"${NAME}"}</code>.
         </>
@@ -1198,7 +1198,7 @@ function VersionField({
       <Field
         label={optional ? "Version command · optional" : "Version command"}
         error={problems.version_command}
-        hint="Prints the installed version; Morcheh also reads from it whether it's there."
+        hint="Prints the installed version; Morche also reads from it whether it's there."
       >
         {(a) => (
           <Input
@@ -1333,7 +1333,7 @@ function After({
               rows={4}
               value={draft.notes ?? ""}
               onChange={(e) => onChange({ notes: e.target.value })}
-              placeholder="Sign in as **admin** with the password Morcheh made (Details › Show passwords)."
+              placeholder="Sign in as **admin** with the password Morche made (Details › Show passwords)."
             />
           )}
         </Field>

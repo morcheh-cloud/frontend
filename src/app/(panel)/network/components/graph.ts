@@ -274,7 +274,7 @@ const statusTone = {
   error: "destructive",
 } as const
 
-// Morcheh in the middle: how it, not the servers, gets to each one.
+// Morche in the middle: how it, not the servers, gets to each one.
 export function morchehGraph(
   map: NetworkMap,
   filters: Pick<Filters, "problems">,

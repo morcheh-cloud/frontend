@@ -66,7 +66,7 @@ export const dnsServersQuery = queryOptions({
   refetchInterval: STATUS_POLL,
 })
 
-// A DNS server Morcheh can't reach or log in to. Not yet checked = fine.
+// A DNS server Morche can't reach or log in to. Not yet checked = fine.
 export const dnsServerBroken = (s: Pick<DNSServer, "status">) =>
   s.status !== "online" && s.status !== "unknown"
 

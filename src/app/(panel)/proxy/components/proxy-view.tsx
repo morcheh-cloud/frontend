@@ -889,7 +889,7 @@ function NoProxies({ onAdd }: { onAdd?: () => void }) {
       title={onAdd ? "Add your first reverse proxy" : "No proxies to show"}
       body={
         onAdd
-          ? "Pick a server and Morcheh runs nginx on it over SSH: put your apps behind domains, redirect old addresses, forward ports and serve files, all from here. Sites already on the server keep working."
+          ? "Pick a server and Morche runs nginx on it over SSH: put your apps behind domains, redirect old addresses, forward ports and serve files, all from here. Sites already on the server keep working."
           : "Nothing here is shared with you yet. Ask an admin or the workspace owner for access."
       }
       action={

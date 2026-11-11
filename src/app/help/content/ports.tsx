@@ -43,7 +43,7 @@ export const ports: GuideSection[] = [
           ]}
         />
         <P>
-          Reach is worked out from the address alone: Morcheh doesn't know about
+          Reach is worked out from the address alone: Morche doesn't know about
           your cloud firewall, so <UI>Public</UI> means "open unless something
           else blocks it".
         </P>
@@ -163,7 +163,7 @@ sudo ufw deny 5432/tcp
           </li>
           <li>
             Containers have no names: the login user isn't in the <C>docker</C>{" "}
-            group, so Morcheh can't ask Docker.
+            group, so Morche can't ask Docker.
           </li>
           <li>
             <UI>No tool to list sockets</UI>: install <C>iproute2</C> (for{" "}

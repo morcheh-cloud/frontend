@@ -20,7 +20,7 @@ export const terminal: GuideSection[] = [
       <>
         <P>
           The <UI>Terminal</UI> tab opens a real shell on the server, logged in
-          as the server's SSH user. The shell lives on Morcheh's backend, not in
+          as the server's SSH user. The shell lives on Morche's backend, not in
           your browser: reload the page, close the tab or lose Wi-Fi, and it is
           still there when you come back, with its recent output replayed.
         </P>
@@ -160,7 +160,7 @@ tmux attach -t backup
         </List>
         <Warn>
           A terminal runs with the full rights of the server's SSH user. Anyone
-          who can open this server in Morcheh can use its shells.
+          who can open this server in Morche can use its shells.
         </Warn>
       </>
     ),

@@ -216,7 +216,7 @@ function notice(map: NetworkMap, filters: Filters, edges: number) {
       : "Nothing could be tested yet."
   }
   if (filters.view === "morcheh" && filters.problems) {
-    return "No problems: Morcheh reaches every server."
+    return "No problems: Morche reaches every server."
   }
   return undefined
 }

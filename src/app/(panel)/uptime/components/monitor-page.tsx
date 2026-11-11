@@ -868,7 +868,7 @@ function DetailsSection({ m, phone }: { m: UptimeMonitor; phone: boolean }) {
       label: "Checked from",
       value:
         m.kind === "push" ? (
-          "Your job pings Morcheh"
+          "Your job pings Morche"
         ) : (
           <span className="flex flex-col gap-0.5">
             <span className="flex flex-wrap gap-x-1">

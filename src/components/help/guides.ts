@@ -54,7 +54,7 @@ export const guides: GuideMeta[] = [
   {
     slug: "getting-started",
     title: "Getting started",
-    summary: "What Morcheh does, how the panel is laid out, and a first setup.",
+    summary: "What Morche does, how the panel is laid out, and a first setup.",
     icon: Rocket,
     group: "Basics",
     keywords: [
@@ -559,7 +559,7 @@ export const guides: GuideMeta[] = [
     slug: "cronjobs",
     title: "Cron jobs",
     summary:
-      "Jobs Morcheh runs on a schedule: copy or archive folders, download files, run scripts and playbooks, restart services, reboot servers, upgrade packages, verify backups.",
+      "Jobs Morche runs on a schedule: copy or archive folders, download files, run scripts and playbooks, restart services, reboot servers, upgrade packages, verify backups.",
     icon: CalendarClock,
     group: "Infrastructure",
     keywords: [
@@ -681,7 +681,7 @@ export const guides: GuideMeta[] = [
     slug: "command-log",
     title: "Audit log",
     summary:
-      "Every command Morcheh runs on a server, and every command line typed in its terminals: who, why, where, how it ended and what it printed.",
+      "Every command Morche runs on a server, and every command line typed in its terminals: who, why, where, how it ended and what it printed.",
     icon: ScrollText,
     group: "Infrastructure",
     keywords: [
@@ -1126,6 +1126,16 @@ export const guides: GuideMeta[] = [
       "workspace logo",
       "workspace avatar",
       "workspace icon",
+      "allowlist",
+      "ip allowlist",
+      "whitelist",
+      "sessions",
+      "devices",
+      "sign out",
+      "sign-in history",
+      "new address",
+      "security",
+      "trust proxy",
     ],
     routes: [
       "/settings",
@@ -1137,6 +1147,7 @@ export const guides: GuideMeta[] = [
       "/settings/workspaces/*#grants",
       "/servers/*/access#grants",
       "/account#account",
+      "/settings/security#allowlist",
     ],
   },
 ]

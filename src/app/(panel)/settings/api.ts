@@ -38,11 +38,13 @@ function useRefreshUsers() {
 
 export function useMembers(
   filter: { status?: PanelUser["status"]; q?: string } = {},
+  enabled = true,
 ) {
   return useQuery({
     queryKey: [...adminKeys.users, filter],
     queryFn: () => api.admin.adminListUsers(filter),
     placeholderData: (previous) => previous,
+    enabled,
   })
 }
 

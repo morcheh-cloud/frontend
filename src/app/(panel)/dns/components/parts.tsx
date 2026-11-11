@@ -168,8 +168,7 @@ export function ServerBanner({
           )}
         </p>
         <p className="text-muted-foreground">
-          {s.status_message ||
-            "Morcheh couldn't talk to this DNS server's API."}
+          {s.status_message || "Morche couldn't talk to this DNS server's API."}
         </p>
       </div>
       {fix.allowed && (

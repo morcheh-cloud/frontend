@@ -12,13 +12,13 @@ import { type ProxyModule, useModuleJob, useSetupModule } from "../../../api"
 import { inContainer } from "../../../components/meta"
 import { useProxyCan } from "../../../components/permissions"
 
-// Why a container proxy can't get a module from Morcheh: it comes with the
-// image, which Morcheh never changes.
+// Why a container proxy can't get a module from Morche: it comes with the
+// image, which Morche never changes.
 export function ImageNote({ proxy: p }: { proxy: ReverseProxy }) {
   return (
     <p className="mt-1">
       {p.kind_label} runs in the container {p.container}, so modules come with
-      its image: Morcheh doesn't change images. Use an image that has it, then
+      its image: Morche doesn't change images. Use an image that has it, then
       recreate the container; the proxy picks it up on its next check.
     </p>
   )

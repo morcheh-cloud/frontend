@@ -189,7 +189,7 @@ export function SoftwareActionsProvider({ children }: { children: ReactNode }) {
         open={forgetOpen}
         onOpenChange={setForgetOpen}
         title={`Forget ${toForget?.name ?? ""} on ${toForget?.server_name ?? ""}?`}
-        description="Morcheh stops tracking it; nothing on the server changes. The next scan finds it again if it's still there."
+        description="Morche stops tracking it; nothing on the server changes. The next scan finds it again if it's still there."
         confirmLabel="Forget"
         pending={forget.isPending}
         onConfirm={() => {

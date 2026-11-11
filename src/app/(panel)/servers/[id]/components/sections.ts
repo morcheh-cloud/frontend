@@ -275,7 +275,7 @@ export const sectionGroups: SectionGroup[] = [
         slug: "access",
         label: "Panel access",
         icon: UsersRound,
-        summary: "Who can use this server in Morcheh, and how far.",
+        summary: "Who can use this server in Morche, and how far.",
         ready: true,
       },
       {

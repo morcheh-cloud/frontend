@@ -52,7 +52,7 @@ export function ContainerLayer({
         <p className="text-body-sm text-muted-foreground">
           {inspection.error?.message ||
             p.status_message ||
-            "Morcheh couldn't read the container on the last check."}
+            "Morche couldn't read the container on the last check."}
         </p>
       )}
       <Differences c={c} />
@@ -185,11 +185,11 @@ function Differences({ c }: { c?: ContainerInfo }) {
       : `Apps in containers on the same network answer by name (http://app:3000).${gateway ? ` Apps on the server itself answer on ${gateway}, ` : " Apps on the server itself answer on the network's gateway address, "}not 127.0.0.1 (that's the container itself).`,
     host
       ? null
-      : "Port forwards answer only on ports the container publishes. Morcheh warns on the ones it doesn't.",
+      : "Port forwards answer only on ports the container publishes. Morche warns on the ones it doesn't.",
     "Certificates are kept on the server and copied in; certbot runs on the server and copies renewals in too.",
     "Static sites can only serve folders mounted into the container.",
-    "Modules (Brotli, firewall, image resizing, countries) come with the image: Morcheh doesn't change images.",
-    "If the container is recreated (a new image, compose up), Morcheh sets it up again and writes its sites back on the next check.",
+    "Modules (Brotli, firewall, image resizing, countries) come with the image: Morche doesn't change images.",
+    "If the container is recreated (a new image, compose up), Morche sets it up again and writes its sites back on the next check.",
   ].filter(Boolean)
   return (
     <section className="flex flex-col gap-2">

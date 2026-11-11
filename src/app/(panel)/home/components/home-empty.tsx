@@ -17,7 +17,7 @@ export function HomeEmpty() {
         <>
           <h2 className="text-subheading font-medium">No servers yet</h2>
           <p className="mt-1 max-w-sm text-body-sm text-muted-foreground">
-            Connect a server over SSH and Morcheh will start watching it and the
+            Connect a server over SSH and Morche will start watching it and the
             services it runs.
           </p>
           <Link

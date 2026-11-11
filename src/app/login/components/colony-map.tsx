@@ -2,7 +2,7 @@ import type { CSSProperties } from "react"
 
 import { LogoMark } from "@/components/logo"
 
-// Morcheh means "ant": the fleet is drawn as a colony. Morcheh sits in the
+// Morche means "ant": the fleet is drawn as a colony. Morche sits in the
 // central chamber, servers are the chambers around it, and ants (the logo's
 // three segments) walk the tunnels between them like SSH sessions.
 // Coordinates are in a 100×100 viewBox; HTML chips use the same numbers as %.

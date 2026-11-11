@@ -80,7 +80,7 @@ export function ServerSettings() {
 
       <Group
         title="Host key"
-        description="Morcheh trusts the key a server presents on its first check and refuses to connect if it changes."
+        description="Morche trusts the key a server presents on its first check and refuses to connect if it changes."
       >
         <Row
           title="Fingerprint"
@@ -119,7 +119,7 @@ export function ServerSettings() {
         />
         <Row
           title="Delete server"
-          value="Morcheh forgets it and its credentials. Nothing on the server is touched."
+          value="Morche forgets it and its credentials. Nothing on the server is touched."
           muted
           action={{
             label: "Delete…",

@@ -142,7 +142,7 @@ function View({ phone }: { phone: boolean }) {
       <Empty
         icon={HeartPulse}
         title="No monitors yet"
-        body="Watch a website, an API, a port, a certificate, a database or a queue, a container on a server, or a cron job that should call in. Morcheh checks it on a schedule and tells your team when it goes down."
+        body="Watch a website, an API, a port, a certificate, a database or a queue, a container on a server, or a cron job that should call in. Morche checks it on a schedule and tells your team when it goes down."
         action={
           can.edit && (
             <Button className="h-11 w-full md:h-9 md:w-auto" onClick={create}>

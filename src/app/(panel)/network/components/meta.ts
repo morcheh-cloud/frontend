@@ -30,7 +30,7 @@ export const viewItems: readonly { value: View; label: string }[] = [
   { value: "networks", label: "Networks" },
   { value: "reach", label: "Reachability" },
   { value: "matrix", label: "Matrix" },
-  { value: "morcheh", label: "From Morcheh" },
+  { value: "morcheh", label: "From Morche" },
 ]
 
 export function useNetworkFilters() {
@@ -115,7 +115,7 @@ export const pingLabel: Record<ReachProbe["ping"], string> = {
 export const viaLabel: Record<ReachProbe["via"], string> = {
   lan: "Shared network",
   vpn: "VPN",
-  host: "Address Morcheh uses",
+  host: "Address Morche uses",
   address: "Its own address",
 }
 

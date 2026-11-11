@@ -31,7 +31,7 @@ export function EmptyState() {
       <Empty
         icon={<Server />}
         title="Add your first server"
-        text="Connect over SSH with a password or a private key. Morcheh checks the connection and detects the OS."
+        text="Connect over SSH with a password or a private key. Morche checks the connection and detects the OS."
         action={<Button onClick={() => actions.addServer()}>Add server</Button>}
       />
     )

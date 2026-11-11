@@ -21,7 +21,7 @@ const STATUS: Partial<Record<FirewallChange["status"], string>> = {
   undone: "Undone",
 }
 
-// What was done here through Morcheh, each with a way back to before it.
+// What was done here through Morche, each with a way back to before it.
 export function HistoryLayer({
   open,
   onOpenChange,
@@ -48,7 +48,7 @@ export function HistoryLayer({
         open={open}
         onOpenChange={onOpenChange}
         title="History"
-        description="Changes made through Morcheh. Changes made by hand on the server aren't listed."
+        description="Changes made through Morche. Changes made by hand on the server aren't listed."
       >
         {query.isPending && open && <Skeleton className="h-40 rounded-2xl" />}
         {query.error && (

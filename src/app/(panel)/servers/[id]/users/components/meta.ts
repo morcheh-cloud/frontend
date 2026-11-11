@@ -28,10 +28,10 @@ export const NAME_HINT =
 
 // ---- Accounts ----
 
-// Morcheh can't lock, remove or rename root or the account it logs in with.
+// Morche can't lock, remove or rename root or the account it logs in with.
 export function guarded(o: UsersOverview, u: User) {
   if (u.uid === 0) return "It's root."
-  if (u.name === o.login_user) return "Morcheh logs in to this server with it."
+  if (u.name === o.login_user) return "Morche logs in to this server with it."
   return null
 }
 
@@ -40,7 +40,7 @@ export function displayName(u: User) {
   return u.full_name && u.full_name !== u.name ? u.full_name : ""
 }
 
-// People: accounts above UID_MIN, plus root and Morcheh's own login (which
+// People: accounts above UID_MIN, plus root and Morche's own login (which
 // may be a low uid on some images). The rest are service accounts.
 export function isPerson(o: UsersOverview, u: User) {
   return !u.system || u.uid === 0 || u.name === o.login_user

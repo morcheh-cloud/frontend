@@ -22,7 +22,7 @@ export const cronjobs: GuideSection[] = [
     body: (
       <>
         <P>
-          <A href="/cronjobs">Cron jobs</A> are jobs Morcheh runs itself, on a
+          <A href="/cronjobs">Cron jobs</A> are jobs Morche runs itself, on a
           schedule: every night, every hour, every 15 minutes, whatever you set.
           Each job does one thing, chosen when it's made: copy files, archive a
           folder, download a file, run a script or a playbook, act on a service,
@@ -37,8 +37,8 @@ export const cronjobs: GuideSection[] = [
             source can go to up to 20 destinations at once.
           </li>
           <li>
-            Nothing is installed on your servers. Morcheh connects with the
-            saved SSH login or storage credentials and streams the files itself.
+            Nothing is installed on your servers. Morche connects with the saved
+            SSH login or storage credentials and streams the files itself.
           </li>
           <li>
             Each run is kept in the job's history with its result on every
@@ -405,12 +405,12 @@ export const cronjobs: GuideSection[] = [
         <P>
           Times are read in the job's time zone (your browser's by default), so{" "}
           <C>0 3 * * *</C> in <C>Asia/Tehran</C> is 03:00 in Tehran whatever
-          zone the Morcheh server uses. The editor shows the next three runs
+          zone the Morche server uses. The editor shows the next three runs
           before you save.
         </P>
         <List>
           <li>
-            If Morcheh was down when a run was due, it runs once when Morcheh is
+            If Morche was down when a run was due, it runs once when Morche is
             back (not once per missed time).
           </li>
           <li>
@@ -478,7 +478,7 @@ cache/tmp`}</Code>
             [<UI key="k">Skipped</UI>, "The run before was still going."],
             [
               <UI key="i">Interrupted</UI>,
-              "Morcheh was restarted during the run. The next run picks up what's missing.",
+              "Morche was restarted during the run. The next run picks up what's missing.",
             ],
             [<UI key="c">Stopped</UI>, "Someone pressed Stop."],
           ]}
@@ -591,7 +591,7 @@ cache/tmp`}</Code>
           ],
           [
             "Failed: source …",
-            "Morcheh couldn't reach or read the source. Check the server or storage status and its saved login.",
+            "Morche couldn't reach or read the source. Check the server or storage status and its saved login.",
           ],
           [
             "Partly done with permission errors",
@@ -631,7 +631,7 @@ cache/tmp`}</Code>
           ],
           [
             "Every file copied every time (FTP)",
-            "FTP servers often report times to the minute only; Morcheh allows for that, but a server that reports no times at all is compared by size.",
+            "FTP servers often report times to the minute only; Morche allows for that, but a server that reports no times at all is compared by size.",
           ],
         ]}
       />

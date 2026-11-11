@@ -166,7 +166,7 @@ export const terminalRecordings: GuideSection[] = [
         <P>
           <UI>Download</UI> saves the recording as a <C>.cast</C> file, the
           standard asciinema format. It's plain text and plays anywhere, without
-          Morcheh:
+          Morche:
         </P>
         <Code>asciinema play web-1-2026-11-07-21-40.cast</Code>
         <Tip>
@@ -217,16 +217,16 @@ export const terminalRecordings: GuideSection[] = [
           but the rest isn't saved, and the replay says it was cut.
         </li>
         <li>
-          Recordings are compressed and stored in Morcheh's own database. A
-          noisy shell, like a long build or <C>tail -f</C> on a busy log, takes
-          the most room.
+          Recordings are compressed and stored in Morche's own database. A noisy
+          shell, like a long build or <C>tail -f</C> on a busy log, takes the
+          most room.
         </li>
         <li>
-          If Morcheh restarts while a shell is open, up to the last 30 seconds
+          If Morche restarts while a shell is open, up to the last 30 seconds
           may be missing, and the recording says so.
         </li>
         <li>
-          Only terminals opened in Morcheh are recorded. Someone connecting over
+          Only terminals opened in Morche are recorded. Someone connecting over
           SSH directly leaves no recording here.
         </li>
       </List>
@@ -275,7 +275,7 @@ export const terminalRecordings: GuideSection[] = [
             ],
             [
               "The replay ends early",
-              "It reached the 50 MiB limit, or Morcheh restarted. The page says which.",
+              "It reached the 50 MiB limit, or Morche restarted. The page says which.",
             ],
             [
               "The replay looks broken",

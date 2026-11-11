@@ -59,7 +59,7 @@ function View({ phone }: { phone: boolean }) {
     notes.push({
       key: "missing",
       warn: true,
-      title: "Ansible isn't installed on the Morcheh host",
+      title: "Ansible isn't installed on the Morche host",
       body: "Playbooks can be written and saved, but not run, until ansible-core is installed there. See the guide.",
     })
   } else if (status.data && !status.data.can_run && status.data.problem) {

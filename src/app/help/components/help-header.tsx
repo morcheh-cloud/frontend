@@ -23,7 +23,7 @@ export function HelpHeader() {
           className="flex shrink-0 items-center gap-2.5 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <LogoMark className="text-brand" />
-          <span className="text-body font-medium">Morcheh</span>
+          <span className="text-body font-medium">Morche</span>
           <span aria-hidden className="h-4 w-px bg-mist" />
           <span className="text-body text-muted-foreground">Help center</span>
         </Link>

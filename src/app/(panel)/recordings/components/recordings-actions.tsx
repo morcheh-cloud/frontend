@@ -301,7 +301,7 @@ function CommandSettingsDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Command log"
-      description={`For every command Morcheh runs on ${workspace?.name ?? "this workspace"}'s servers.`}
+      description={`For every command Morche runs on ${workspace?.name ?? "this workspace"}'s servers.`}
     >
       {settings.data && workspace ? (
         <CommandSettingsForm
@@ -372,7 +372,7 @@ function CommandSettingsForm({
       <SwitchRow
         id="command-log-enabled"
         label="Log commands"
-        hint="Every command Morcheh runs over SSH, and the command lines typed into its terminals."
+        hint="Every command Morche runs over SSH, and the command lines typed into its terminals."
         checked={enabled}
         onChange={setEnabled}
       />
@@ -438,7 +438,7 @@ function CommandSettingsForm({
         />
         <SwitchRow
           id="command-log-automatic"
-          label="Morcheh's upkeep"
+          label="Morche's upkeep"
           hint="Live stats, checks and monitors nobody started. Very many rows, mostly the same few commands."
           checked={automatic}
           disabled={!enabled}

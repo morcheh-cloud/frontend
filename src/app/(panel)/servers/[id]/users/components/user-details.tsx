@@ -167,7 +167,7 @@ function GuardNote({ reason }: { reason: string }) {
     <p className="mx-2 mb-3 flex gap-3 rounded-2xl border border-border p-4 text-body-sm text-muted-foreground md:mx-0 md:mb-0">
       <ShieldAlert className="mt-0.5 size-4 shrink-0 text-ash" />
       <span>
-        {reason} Morcheh won't lock, remove or rename it, or change its sudo, so
+        {reason} Morche won't lock, remove or rename it, or change its sudo, so
         it can't cut off its own access.
       </span>
     </p>
@@ -228,7 +228,7 @@ function userFacts(u: User, history: boolean): Fact[] {
       label: "Account expires",
       value:
         u.account_expires === "1970-01-02"
-          ? "Locked by Morcheh"
+          ? "Locked by Morche"
           : u.account_expires
             ? day(u.account_expires)
             : "Never",

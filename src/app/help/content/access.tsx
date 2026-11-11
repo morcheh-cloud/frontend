@@ -23,8 +23,8 @@ export const access: GuideSection[] = [
     body: (
       <>
         <P>
-          Nothing in Morcheh opens without signing in. Each person gets their
-          own account, and sees only the servers, storage and services they were
+          Nothing in Morche opens without signing in. Each person gets their own
+          account, and sees only the servers, storage and services they were
           given access to. The rules are enforced on the backend, so a hidden
           button is never the only thing standing in the way.
         </P>
@@ -214,7 +214,7 @@ export const access: GuideSection[] = [
           </li>
           <li>
             <UI>Set a temporary password</UI> is the way back in for a forgotten
-            password. Morcheh doesn't send email yet.
+            password. Morche doesn't send email yet.
           </li>
           <li>
             <UI>Sign out everywhere</UI> ends their sessions without changing
@@ -420,8 +420,207 @@ export const access: GuideSection[] = [
           <A href="/account">Account</A>, at the bottom of the sidebar, changes
           your name, email and password. Changing the password signs out your
           other browsers and closes your terminals. <UI>Sign out everywhere</UI>{" "}
-          ends every session, including this one.
+          ends every session, including this one; see{" "}
+          <See guide="access" section="sessions" /> to end just one.
         </P>
+      </>
+    ),
+  },
+  {
+    id: "sessions",
+    title: "Signed-in devices",
+    body: (
+      <>
+        <P>
+          <A href="/account#sessions">Account</A> › <UI>Signed-in devices</UI>{" "}
+          lists every browser where you are signed in now: the device, its
+          address, when it signed in and when it was last active. A green dot
+          means it was used in the last two minutes; <UI>This device</UI> is the
+          one you're on.
+        </P>
+        <Steps>
+          {[
+            <>
+              Press <UI>Sign out</UI> on a row to end that session at once. Its
+              next page goes to the sign-in screen and its terminals close.
+            </>,
+            <>
+              <UI>Sign out the other devices</UI> ends all of them but this one,
+              for example after using a shared computer.
+            </>,
+          ]}
+        </Steps>
+        <P>
+          An admin sees the same list for anyone in{" "}
+          <A href="/settings/members">Settings › Members</A>: open a member and
+          look under <UI>Signed in on</UI>, with <UI>Sign-in history</UI> next
+          to it.
+        </P>
+        <Tip>
+          Don't recognise a device? Sign it out, then change your password: that
+          signs out every other device too.
+        </Tip>
+      </>
+    ),
+  },
+  {
+    id: "sign-ins",
+    title: "Sign-in history",
+    body: (
+      <>
+        <P>
+          Every sign-in, wrong password, sign-out and ended session is kept in
+          the <A href="/recordings?tab=sign-ins">Audit log</A> under{" "}
+          <UI>Sign-ins</UI>, with the account, device and address. Admins see
+          every account; everyone else sees only their own. Your last few are
+          also on <A href="/account#sign-ins">Account</A>.
+        </P>
+        <Table
+          head={["Mark", "Meaning"]}
+          rows={[
+            [
+              "Failed sign-in",
+              "A wrong password, a blocked account, too many tries, or an address not on the allowlist.",
+            ],
+            [
+              "New address",
+              "The first sign-in to that account from this network (the same /24 for IPv4, /64 for IPv6).",
+            ],
+            [
+              "Still signed in",
+              "That session is open now; end it from Signed-in devices.",
+            ],
+            [
+              "Confirmed / Not them",
+              "What the person answered when asked about a new address.",
+            ],
+          ]}
+        />
+        <P>
+          Filter by result, account and period, or turn on{" "}
+          <UI>New addresses</UI>. Click an address or account in the table to
+          show only its rows.
+        </P>
+        <Example title="Who tried to guess a password this week?">
+          <P>
+            <UI>Any result</UI> › <UI>Failed sign-in</UI>, then{" "}
+            <UI>Any time</UI> › <UI>Last 7 days</UI>. Click an address to see
+            everything it did.
+          </P>
+        </Example>
+      </>
+    ),
+  },
+  {
+    id: "sign-in-alerts",
+    title: "Sign-in alerts",
+    body: (
+      <>
+        <P>
+          When someone signs in from a network their account hasn't used before,
+          the panel asks them on their next page:{" "}
+          <UI>New sign-in to your account. Was it you?</UI>{" "}
+          <UI>Yes, it was me</UI> just records the answer;{" "}
+          <UI>No, sign it out</UI> ends that session and its terminals at once.
+          Change your password afterwards.
+        </P>
+        <P>
+          An admin can also have these sent as messages, in{" "}
+          <A href="/settings/security#sign-in-alerts">Settings › Security</A>:
+        </P>
+        <Steps>
+          {[
+            <>
+              Turn on <UI>Sign-in from a new address</UI>,{" "}
+              <UI>Repeated wrong passwords</UI> (several wrong passwords for one
+              account within 15 minutes), or both.
+            </>,
+            <>
+              Under <UI>Send to</UI>, tick the channels to use (up to 20, from
+              any workspace). Channels are made under{" "}
+              <A href="/alerts?tab=channels">Alerts › Channels</A>; see{" "}
+              <See guide="alerts" />.
+            </>,
+            <>
+              Press <UI>Save</UI>. The message links to the sign-in history.
+            </>,
+          ]}
+        </Steps>
+        <Tip>
+          A very first sign-in of an account isn't called out: only a new
+          network after it has been used.
+        </Tip>
+      </>
+    ),
+  },
+  {
+    id: "allowlist",
+    title: "Allowed addresses (allowlist)",
+    body: (
+      <>
+        <P>
+          With the allowlist on, only the listed addresses and ranges can reach
+          the panel at all, the sign-in page included. Anyone else gets a{" "}
+          <UI>not allowed</UI> page and can't try a password. The monitoring
+          push URLs and the health check stay open, so heartbeats keep arriving.
+        </P>
+        <Steps>
+          {[
+            <>
+              Open <A href="/settings/security">Settings › Security</A> (admins
+              only).
+            </>,
+            <>
+              Check <UI>Your address</UI>. If it says <UI>Not in the list</UI>,
+              press <UI>Add my address</UI> first.
+            </>,
+            <>
+              Add the other addresses: one per row, with an optional note. Paste
+              a list into an address field to add many rows at once.
+            </>,
+            <>
+              Turn the switch on and press <UI>Save</UI>.
+            </>,
+          ]}
+        </Steps>
+        <Table
+          head={["Entry", "Allows"]}
+          rows={[
+            ["203.0.113.7", "That one address."],
+            [
+              "203.0.113.0/24",
+              "203.0.113.0 to 203.0.113.255 (an office network).",
+            ],
+            ["2001:db8:42::/48", "An IPv6 network."],
+            [
+              "10.8.0.0/24",
+              "Everyone on a VPN that hands out those addresses.",
+            ],
+          ]}
+        />
+        <Warn>
+          Morche won't save a list that is on and leaves out your own address,
+          so you can't lock yourself out by accident. If your address changes
+          later (a new ISP, travelling), you will be. Prefer a VPN or an office
+          range over a home address.
+        </Warn>
+        <P>
+          Locked out anyway? On the machine that runs the backend, with the same
+          environment or <UI>.env</UI> file:
+        </P>
+        <Code>bin/server allowlist off</Code>
+        <P>
+          It turns the list off (the entries stay) and works within a minute;{" "}
+          <C>bin/server allowlist show</C> prints the list. With a source
+          checkout use <C>go run ./cmd/server allowlist off</C>.
+        </P>
+        <Tip>
+          Behind a reverse proxy or load balancer, every visitor looks like the
+          proxy's own address. Start the backend with <C>TRUST_PROXY=true</C>{" "}
+          there so it reads the real address from <C>X-Forwarded-For</C>; the
+          page warns when your address looks private. Never set it when the
+          backend is reachable directly, or anyone could fake their address.
+        </Tip>
       </>
     ),
   },
@@ -485,6 +684,16 @@ export const access: GuideSection[] = [
             why: "One to work, one spare in case that account is locked out.",
           },
           {
+            setting: "Allowlist",
+            value: "VPN or office range",
+            why: "The sign-in page isn't even reachable from elsewhere. Avoid home addresses: they change.",
+          },
+          {
+            setting: "Sign-in alerts",
+            value: "Both on, to a team channel",
+            why: "A new address or a password-guessing burst reaches someone right away.",
+          },
+          {
             setting: "SETUP_TOKEN",
             value: "Set in production",
             why: "Nobody can claim a fresh install before you do.",
@@ -543,6 +752,14 @@ export const access: GuideSection[] = [
           [
             "“N changes weren't saved” on the access page",
             "Those changes stay selected and the rest went through. Read the message, fix the cause, and press Save changes again.",
+          ],
+          [
+            "“This address isn't allowed” page",
+            "The allowlist is on and your address isn't in it. Ask an admin to add it, or run bin/server allowlist off on the backend's machine.",
+          ],
+          [
+            "Everyone shows the same address in Sign-ins",
+            "The backend sits behind a proxy: start it with TRUST_PROXY=true so it reads X-Forwarded-For.",
           ],
           [
             "Signing in works but I'm sent straight back",

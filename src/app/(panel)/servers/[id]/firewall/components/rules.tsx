@@ -577,7 +577,7 @@ function RuleSheet({
       <Facts items={facts} />
       {rule.protects_ssh && (
         <p className="px-4 pb-3 text-caption text-muted-foreground">
-          This rule keeps SSH open for Morcheh.
+          This rule keeps SSH open for Morche.
         </p>
       )}
       <SheetItems groups={menu} onOpenChange={onOpenChange} />

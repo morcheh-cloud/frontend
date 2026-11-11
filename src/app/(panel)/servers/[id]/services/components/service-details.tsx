@@ -251,9 +251,8 @@ function Overview({
         <p className="mx-2 flex gap-3 rounded-2xl border border-border p-4 text-body-sm text-muted-foreground md:mx-0">
           <ShieldAlert className="mt-0.5 size-4 shrink-0 text-ash" />
           <span>
-            Morcheh or the system relies on it. Stopping, disabling or masking
-            it asks you to confirm first: this server may stop answering over
-            SSH.
+            Morche or the system relies on it. Stopping, disabling or masking it
+            asks you to confirm first: this server may stop answering over SSH.
           </span>
         </p>
       )}

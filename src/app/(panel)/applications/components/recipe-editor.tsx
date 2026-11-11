@@ -696,7 +696,7 @@ const fields: [string, ReactNode][] = [
   ],
   [
     "compose",
-    "docker kind: the compose file. Morcheh keeps it in /opt/morcheh/apps/<id> on the server.",
+    "docker kind: the compose file. Morche keeps it in /opt/morcheh/apps/<id> on the server.",
   ],
 ]
 
@@ -704,8 +704,8 @@ function Reference() {
   return (
     <div className="flex flex-col gap-3 text-body-sm">
       <p className="text-muted-foreground">
-        The YAML fields, written like Morcheh's own applications. The Visual
-        form writes the same text.
+        The YAML fields, written like Morche's own applications. The Visual form
+        writes the same text.
       </p>
       <dl className="flex flex-col gap-3">
         {fields.map(([k, v]) => (

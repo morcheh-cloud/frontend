@@ -20,10 +20,10 @@ export const commandLog: GuideSection[] = [
     body: (
       <>
         <P>
-          The <UI>Audit log</UI> keeps a row for every command Morcheh runs on a
+          The <UI>Audit log</UI> keeps a row for every command Morche runs on a
           server over SSH: who ran it, from which address, why, in which folder,
           whether it ran as root, how long it took, how it ended and what it
-          printed. It also keeps the command lines people type into Morcheh's
+          printed. It also keeps the command lines people type into Morche's
           terminals, with their output.
         </P>
         <P>
@@ -53,7 +53,7 @@ export const commandLog: GuideSection[] = [
           rows={[
             [
               <UI key="t">Typed in a terminal</UI>,
-              "Command lines typed into a terminal opened from Morcheh (bash and zsh), plus a row for each terminal opened",
+              "Command lines typed into a terminal opened from Morche (bash and zsh), plus a row for each terminal opened",
             ],
             [
               <UI key="c">Changes from the panel</UI>,
@@ -63,13 +63,13 @@ export const commandLog: GuideSection[] = [
               <UI key="j">Background tasks</UI>,
               "Copies, installs, scripts, Ansible runs and other tasks",
             ],
-            [<UI key="s">Cron jobs</UI>, "Morcheh's own scheduled tasks"],
+            [<UI key="s">Cron jobs</UI>, "Morche's own scheduled tasks"],
             [
               <UI key="r">Page reads</UI>,
               "Commands run just to show a page: lists, details, logs. On by default; can be turned off",
             ],
             [
-              <UI key="a">Morcheh's upkeep</UI>,
+              <UI key="a">Morche's upkeep</UI>,
               "Live stats, status checks and monitors nobody pressed anything for. Off by default",
             ],
           ]}
@@ -143,7 +143,7 @@ export const commandLog: GuideSection[] = [
     body: (
       <>
         <P>
-          Morcheh starts bash and zsh with small hooks that report each command
+          Morche starts bash and zsh with small hooks that report each command
           line, its folder and how it ended. Nothing reads keystrokes, so a
           password typed at a sudo prompt is never seen. The hooks live in{" "}
           <C>~/.cache/morcheh/shell</C> on the server.
@@ -194,7 +194,7 @@ export const commandLog: GuideSection[] = [
             row says so instead.
           </li>
           <li>
-            Passwords Morcheh itself hands to a command (a sudo password, a
+            Passwords Morche itself hands to a command (a sudo password, a
             database login) are blanked out before the output is stored.
             Anything else a command prints is kept as printed, so don't print
             secrets in a terminal.
@@ -238,7 +238,7 @@ export const commandLog: GuideSection[] = [
             its row goes.
           </li>
           <li>
-            <UI>Page reads</UI> and <UI>Morcheh's upkeep</UI> add the quieter
+            <UI>Page reads</UI> and <UI>Morche's upkeep</UI> add the quieter
             kinds of rows.
           </li>
         </List>
@@ -257,8 +257,8 @@ export const commandLog: GuideSection[] = [
           and filter by <UI>Person</UI>.
         </P>
         <P>
-          Rows Morcheh ran by itself (cron jobs, upkeep) show <UI>Morcheh</UI>{" "}
-          as who, and are seen by Owners only.
+          Rows Morche ran by itself (cron jobs, upkeep) show <UI>Morche</UI> as
+          who, and are seen by Owners only.
         </P>
       </>
     ),
@@ -290,7 +290,7 @@ export const commandLog: GuideSection[] = [
             why: "Shows who looked at what. Repeats are folded, so it stays readable.",
           },
           {
-            setting: <UI>Morcheh's upkeep</UI>,
+            setting: <UI>Morche's upkeep</UI>,
             value: "Off",
             why: "Very many rows that are always the same few commands; turn it on only while chasing a problem.",
           },
@@ -310,7 +310,7 @@ export const commandLog: GuideSection[] = [
           whether its commands were listed.
         </P>
         <P>
-          <UI>A command shows Cut off</UI>: Morcheh was restarted, or the
+          <UI>A command shows Cut off</UI>: Morche was restarted, or the
           connection dropped, before it ended. Its result was never seen.
         </P>
         <P>

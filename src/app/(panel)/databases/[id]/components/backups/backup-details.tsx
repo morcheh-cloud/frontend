@@ -177,7 +177,7 @@ export function BackupDetails({
             </Callout>
           )}
           {b.state === "succeeded" && !b.restorable && b.restore_problem && (
-            <Callout title="Morcheh can't restore this one">
+            <Callout title="Morche can't restore this one">
               {b.restore_problem}
             </Callout>
           )}
@@ -311,7 +311,7 @@ export function BackupDetails({
               </pre>
               <p className="text-caption text-muted-foreground">
                 {can.restore
-                  ? "Restore… above does this for you. These are the same steps, for a machine Morcheh can't reach: download the file, then run them where the database is."
+                  ? "Restore… above does this for you. These are the same steps, for a machine Morche can't reach: download the file, then run them where the database is."
                   : "Download the file, then run this where the database can be reached."}
               </p>
             </section>

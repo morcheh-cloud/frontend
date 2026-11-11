@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils"
 
-// Morcheh means "ant": the mark is its three body segments.
+// Morche means "ant": the mark is its three body segments.
 export function LogoMark({ className }: { className?: string }) {
   return (
     <svg
@@ -25,7 +25,7 @@ export function Logo({ className }: { className?: string }) {
       )}
     >
       <LogoMark className="text-brand" />
-      Morcheh
+      Morche
     </span>
   )
 }

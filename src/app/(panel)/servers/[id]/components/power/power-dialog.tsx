@@ -19,7 +19,7 @@ import { actionMeta, clock, delays } from "./meta"
 type When = "now" | "later"
 
 // Reboot or shut down, now or in a while, with an optional note to whoever is
-// logged in. Shutting down asks for the server's name: Morcheh can't turn it
+// logged in. Shutting down asks for the server's name: Morche can't turn it
 // back on.
 export function PowerDialog({
   open,
@@ -177,8 +177,8 @@ export function PowerDialog({
         {mustType && (
           <>
             <Warning>
-              Morcheh can't turn it back on. You'll need your provider's
-              console, a power button or Wake-on-LAN.
+              Morche can't turn it back on. You'll need your provider's console,
+              a power button or Wake-on-LAN.
             </Warning>
             <Field label={`Type ${server.name} to confirm`}>
               {(p) => (

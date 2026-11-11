@@ -58,7 +58,7 @@ import {
   type Errors,
   errorKeysOf,
   freshDraft,
-  fromMorcheh,
+  fromMorche,
   locationsOf,
   sameDraft,
   serverLocations,
@@ -220,7 +220,7 @@ function Editor({
 
   const servers = useServers({ limit: 500 })
   const channels = useChannels(ws)
-  const outbound = useOutboundIp(fromMorcheh(draft))
+  const outbound = useOutboundIp(fromMorche(draft))
 
   usePageCrumbs(
     saved
@@ -516,13 +516,13 @@ function Editor({
           hint={
             onServer(k)
               ? "It runs over SSH on this server."
-              : "Morcheh itself and/or your servers (over SSH). Several places tell a real outage from one network's trouble."
+              : "Morche itself and/or your servers (over SSH). Several places tell a real outage from one network's trouble."
           }
           phone={phone}
         >
           {k === "udp" ? (
             <Callout icon={<Info />}>
-              UDP checks go out from Morcheh only.
+              UDP checks go out from Morche only.
             </Callout>
           ) : onServer(k) ? (
             <Field
@@ -586,11 +586,11 @@ function Editor({
               {locCount > 1 && (
                 <RuleFields d={draft} set={set} errors={errors} />
               )}
-              {fromMorcheh(draft) && can.admin && (
+              {fromMorche(draft) && can.admin && (
                 <ToggleRow
                   id="monitor-internal"
                   label="Allow a private address"
-                  hint="From Morcheh, loopback and private ranges are refused unless a system admin allows it here."
+                  hint="From Morche, loopback and private ranges are refused unless a system admin allows it here."
                   checked={draft.allowInternal}
                   onChange={(allowInternal) => set({ allowInternal })}
                 />

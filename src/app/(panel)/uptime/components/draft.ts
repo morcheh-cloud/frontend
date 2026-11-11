@@ -54,7 +54,7 @@ export const MORCHEH = "morcheh"
 // The servers among a draft's locations.
 export const serverLocations = (d: Pick<Draft, "locations">) =>
   d.locations.filter((l) => l !== MORCHEH)
-export const fromMorcheh = (d: Pick<Draft, "locations" | "kind">) =>
+export const fromMorche = (d: Pick<Draft, "locations" | "kind">) =>
   !onServer(d.kind) && d.locations.includes(MORCHEH)
 // Locations the kind actually uses.
 export function locationsOf(d: Pick<Draft, "locations" | "kind">): string[] {

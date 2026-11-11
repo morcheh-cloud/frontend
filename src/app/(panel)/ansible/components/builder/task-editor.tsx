@@ -244,8 +244,8 @@ export function TaskEditor({
         <p className="flex gap-2 text-body-sm text-muted-foreground">
           <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
           <span>
-            This module isn't installed on the Morcheh host, so its options
-            can't be listed. Write them as YAML below; the run will fail if the
+            This module isn't installed on the Morche host, so its options can't
+            be listed. Write them as YAML below; the run will fail if the
             servers' Ansible doesn't have it either.
           </span>
         </p>

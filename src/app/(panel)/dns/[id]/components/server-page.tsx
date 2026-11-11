@@ -249,7 +249,7 @@ function ZonesBody({
       <Empty
         icon={CloudOff}
         title="Zones show once the server answers"
-        body={`Morcheh can't reach this server right now (${dnsStatusMeta[s.status].label.toLowerCase()}).`}
+        body={`Morche can't reach this server right now (${dnsStatusMeta[s.status].label.toLowerCase()}).`}
       />
     )
   }

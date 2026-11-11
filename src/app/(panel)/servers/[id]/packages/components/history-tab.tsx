@@ -21,7 +21,7 @@ import { changeMeta, usePackageFilters } from "./meta"
 import { usePackagesActions } from "./packages-actions"
 
 // What the package manager did on this server, from its own log: installs,
-// upgrades and removals, whoever made them (Morcheh, a person over SSH,
+// upgrades and removals, whoever made them (Morche, a person over SSH,
 // automatic updates).
 export function HistoryTab() {
   const { server, phone } = useServerPage()
@@ -35,7 +35,7 @@ export function HistoryTab() {
       <Empty
         icon={History}
         title="No history on this server"
-        body="This package manager keeps no log of past changes that Morcheh can read."
+        body="This package manager keeps no log of past changes that Morche can read."
         className="max-md:mt-4"
       />
     )

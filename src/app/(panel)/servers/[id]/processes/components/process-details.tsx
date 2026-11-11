@@ -468,8 +468,8 @@ function Overview({
         )}
       {p.morcheh && (
         <Callout icon={ShieldAlert}>
-          Part of Morcheh's own connection to this server. It can't be signalled
-          from here: ending it would cut Morcheh off.
+          Part of Morche's own connection to this server. It can't be signalled
+          from here: ending it would cut Morche off.
         </Callout>
       )}
       {p.protected && !p.morcheh && (

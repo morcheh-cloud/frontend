@@ -44,7 +44,7 @@ export default function HelpHome() {
             How can we help?
           </h1>
           <p className="hidden max-w-xl text-body text-muted-foreground md:mt-4 md:block">
-            Every part of Morcheh, explained with steps, real examples and the
+            Every part of Morche, explained with steps, real examples and the
             settings we recommend.
           </p>
           <div className="w-full md:mt-8 md:max-w-2xl">

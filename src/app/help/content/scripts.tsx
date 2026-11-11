@@ -84,7 +84,7 @@ export const scripts: GuideSection[] = [
           ]}
         </Steps>
         <P>
-          If someone else saved the script while you were editing, Morcheh says
+          If someone else saved the script while you were editing, Morche says
           so instead of overwriting: <UI>Load theirs</UI> drops your changes,{" "}
           <UI>Overwrite</UI> keeps yours.
         </P>
@@ -131,7 +131,7 @@ export const scripts: GuideSection[] = [
           rows={[
             [
               <UI key="u">Login user</UI>,
-              "The script runs as the user Morcheh logs in with on each server.",
+              "The script runs as the user Morche logs in with on each server.",
             ],
             [
               <UI key="r">root (sudo)</UI>,
@@ -171,7 +171,7 @@ export const scripts: GuideSection[] = [
         </Steps>
         <P>
           The run is a background task: you can leave the page, and it shows
-          under <UI>Tasks</UI> until it ends. Morcheh works on 5 servers at a
+          under <UI>Tasks</UI> until it ends. Morche works on 5 servers at a
           time; the rest wait their turn.
         </P>
         <P>
@@ -308,7 +308,7 @@ echo "No reboot needed"`}</Code>
           ],
           [
             "A run says “interrupted”",
-            "Morcheh restarted while it ran. Check the server, then use Run again if needed.",
+            "Morche restarted while it ran. Check the server, then use Run again if needed.",
           ],
         ]}
       />

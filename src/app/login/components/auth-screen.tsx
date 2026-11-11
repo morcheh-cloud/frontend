@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs"
 import { useEffect } from "react"
 
+import { AddressBlocked } from "@/components/auth/address"
 import { authStateKey, meKey } from "@/components/auth/keys"
 import { safeNext } from "@/components/auth/local-data"
 import { api } from "@/lib/api"
@@ -45,10 +46,14 @@ export function AuthScreen() {
 
   if (signedIn || me.isPending || state.isPending) return null
 
+  if (state.data?.address_allowed === false) {
+    return <AddressBlocked address={state.data.address} />
+  }
+
   if (state.data?.needs_setup) {
     return (
       <Panel
-        title="Set up Morcheh"
+        title="Set up Morche"
         note="This first account becomes the admin. You add everyone else from inside."
       >
         <SignupForm
@@ -64,7 +69,7 @@ export function AuthScreen() {
     return (
       <Panel
         title="Create your account"
-        note="An admin approves new accounts before they can use Morcheh."
+        note="An admin approves new accounts before they can use Morche."
         footer={
           <>
             Already have an account?{" "}
@@ -84,7 +89,7 @@ export function AuthScreen() {
       title="Sign in"
       footer={
         <>
-          Forgot your password? Ask your Morcheh admin to reset it.
+          Forgot your password? Ask your Morche admin to reset it.
           {state.data?.registration_open && (
             <span className="mt-1 block">
               New here?{" "}

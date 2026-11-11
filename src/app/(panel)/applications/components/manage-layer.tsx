@@ -135,7 +135,7 @@ function ManageBody({
       )}
       {gone ? (
         <LayerBody>
-          <Callout title="Morcheh no longer tracks this application">
+          <Callout title="Morche no longer tracks this application">
             It was uninstalled or forgotten.
           </Callout>
         </LayerBody>
@@ -313,8 +313,8 @@ function Overview({
                 i.origin === "found"
                   ? "Found on the server"
                   : i.installed_at
-                    ? `${timeAgo(i.installed_at)} by Morcheh`
-                    : "By Morcheh",
+                    ? `${timeAgo(i.installed_at)} by Morche`
+                    : "By Morche",
             },
             ...(i.checked_at
               ? [{ label: "Checked", value: timeAgo(i.checked_at) }]

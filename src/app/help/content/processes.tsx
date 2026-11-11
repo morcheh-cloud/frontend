@@ -124,7 +124,7 @@ export const processes: GuideSection[] = [
           ]}
         />
         <P>
-          The <UI>User</UI> menu narrows the list to one user; the login Morcheh
+          The <UI>User</UI> menu narrows the list to one user; the login Morche
           uses is marked. Search, view, filters and sort are kept in the
           address, so a link opens the same list.
         </P>
@@ -154,7 +154,7 @@ export const processes: GuideSection[] = [
         />
         <P>
           Tags beside the name say where a process comes from: its systemd
-          service, its container, <UI>Morcheh</UI> for the panel's own SSH
+          service, its container, <UI>Morche</UI> for the panel's own SSH
           connection and <UI>system</UI> for programs the server can't do
           without. A process that needs a look carries its state as an orange
           tag.
@@ -303,7 +303,7 @@ export const processes: GuideSection[] = [
         </P>
         <P>
           Two kinds are never offered: kernel threads (they can't be signalled)
-          and Morcheh's own SSH connection, since ending it would cut the panel
+          and Morche's own SSH connection, since ending it would cut the panel
           off this very page.
         </P>
         <Warn>

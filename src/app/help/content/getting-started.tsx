@@ -15,11 +15,11 @@ import {
 export const gettingStarted: GuideSection[] = [
   {
     id: "what",
-    title: "What Morcheh does",
+    title: "What Morche does",
     body: (
       <>
         <P>
-          Morcheh manages your servers and the services on them from one place.
+          Morche manages your servers and the services on them from one place.
           It logs in over SSH, the same way you would, so there is nothing to
           install on the servers themselves: add a server with its address and
           credentials and you can open a terminal, edit files, schedule jobs,
@@ -65,7 +65,7 @@ export const gettingStarted: GuideSection[] = [
           </li>
           <li>
             <UI>Needs attention</UI> lists every server, storage or DNS server
-            Morcheh can't reach or log in to, every database that is down or
+            Morche can't reach or log in to, every database that is down or
             critical, every firing alert and every cron job that can't run or
             whose last run failed. Red is down, orange needs a look. It only
             shows when something is wrong and can't be hidden.
@@ -212,7 +212,7 @@ export const gettingStarted: GuideSection[] = [
         <P>
           A workspace keeps one team's or one customer's servers apart from the
           rest. Switch workspace from the top of the sidebar, or on a phone from{" "}
-          <UI>More</UI> in the tab bar. Morcheh remembers the last one you used
+          <UI>More</UI> in the tab bar. Morche remembers the last one you used
           on this browser. Admins create them; you only see those you have
           access to (see <See guide="access" section="workspaces" />
           ).

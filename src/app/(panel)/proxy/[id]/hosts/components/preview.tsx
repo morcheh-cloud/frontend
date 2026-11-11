@@ -46,7 +46,7 @@ export function fieldLabel(field: string) {
 
 export type Preview = ReturnType<typeof useConfigPreview>
 
-// What Morcheh would generate for this site, rendered by the backend as
+// What Morche would generate for this site, rendered by the backend as
 // the form changes. A hand-written file is left out: this is always the
 // generated one. Nothing is saved or sent to the server.
 export function useConfigPreview(

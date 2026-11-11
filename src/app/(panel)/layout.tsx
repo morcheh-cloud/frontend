@@ -6,6 +6,7 @@ import { CommandProvider } from "@/components/panel/command/command-palette"
 import { PanelHeader } from "@/components/panel/panel-header"
 import { TabBar } from "@/components/panel/tab-bar"
 import { WorkspaceProvider } from "@/components/panel/workspace"
+import { SignInAlertBanner } from "@/components/sessions/sign-in-alerts"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { RouteHistory } from "@/hooks/useBack"
 
@@ -23,6 +24,7 @@ export default function PanelLayout({ children }: LayoutProps<"/">) {
               <AppSidebar />
               <SidebarInset className="pb-[calc(--spacing(16)+env(safe-area-inset-bottom))] md:pb-0">
                 <PanelHeader />
+                <SignInAlertBanner />
                 {children}
               </SidebarInset>
               <TabBar />

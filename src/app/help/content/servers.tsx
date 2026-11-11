@@ -29,7 +29,7 @@ export const servers: GuideSection[] = [
           rows={[
             [
               <UI key="n">Name</UI>,
-              "How the server shows up in Morcheh, e.g. web-1 or db-prod.",
+              "How the server shows up in Morche, e.g. web-1 or db-prod.",
             ],
             [
               <UI key="h">Host</UI>,
@@ -42,7 +42,7 @@ export const servers: GuideSection[] = [
             [<UI key="p">Port</UI>, "The SSH port, 22 unless you changed it."],
             [
               <UI key="u">Username</UI>,
-              "The account Morcheh logs in as. Every feature runs as this user.",
+              "The account Morche logs in as. Every feature runs as this user.",
             ],
             [
               <UI key="a">Authentication</UI>,
@@ -60,7 +60,7 @@ export const servers: GuideSection[] = [
           ]}
         />
         <P>
-          Press <UI>Test connection</UI> to try the login before saving. Morcheh
+          Press <UI>Test connection</UI> to try the login before saving. Morche
           then checks the server, detects its OS and trusts its host key (see{" "}
           <A href="#host-keys">Host keys</A>).
         </P>
@@ -87,12 +87,12 @@ export const servers: GuideSection[] = [
             {
               setting: "sudo",
               value: "Without a password (sudo -n)",
-              why: "Lets Morcheh see every port owner and crontab and manage fail2ban without logging in as root.",
+              why: "Lets Morche see every port owner and crontab and manage fail2ban without logging in as root.",
             },
             {
               setting: "Key passphrase",
               value: "Optional",
-              why: "Morcheh stores the key encrypted already; a passphrase adds a second secret to keep.",
+              why: "Morche stores the key encrypted already; a passphrase adds a second secret to keep.",
             },
           ]}
         />
@@ -143,7 +143,7 @@ ssh-copy-id -i ~/.ssh/morcheh.pub morcheh@203.0.113.10
             ],
             [
               <UI key="4">Host key changed</UI>,
-              "The server presented a different key from the one Morcheh trusted. Morcheh won't connect until you review it.",
+              "The server presented a different key from the one Morche trusted. Morche won't connect until you review it.",
             ],
             [
               <UI key="5">Error</UI>,
@@ -161,7 +161,7 @@ ssh-copy-id -i ~/.ssh/morcheh.pub morcheh@203.0.113.10
           <UI>Edit credentials</UI> or <UI>Review key…</UI>.
         </P>
         <P>
-          Morcheh re-checks every server by itself every 15 seconds, even when
+          Morche re-checks every server by itself every 15 seconds, even when
           nobody has the panel open, and the list on screen picks up new
           statuses every 10 seconds. So a server that went down stops showing{" "}
           <UI>Online</UI> within about half a minute (an unreachable server
@@ -192,7 +192,7 @@ ssh-copy-id -i ~/.ssh/morcheh.pub morcheh@203.0.113.10
       <>
         <P>
           Every SSH server has a host key that proves it is the same machine.
-          Morcheh trusts the key the server presents on its first check and
+          Morche trusts the key the server presents on its first check and
           refuses to connect if it ever changes, which is what a
           man-in-the-middle would cause.
         </P>
@@ -206,7 +206,7 @@ ssh-copy-id -i ~/.ssh/morcheh.pub morcheh@203.0.113.10
           <P>
             From the provider's web console (not over SSH, which is what you are
             verifying), print the server's key fingerprint and compare it with
-            the one Morcheh shows:
+            the one Morche shows:
           </P>
           <Code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</Code>
         </Example>
@@ -223,7 +223,7 @@ ssh-copy-id -i ~/.ssh/morcheh.pub morcheh@203.0.113.10
     body: (
       <>
         <P>
-          Morcheh stores passwords and keys encrypted and never shows them in
+          Morche stores passwords and keys encrypted and never shows them in
           lists. To connect by hand (from your own terminal, an SFTP client, a
           deploy script), open the credentials on demand:
         </P>
@@ -254,7 +254,7 @@ ssh-copy-id -i ~/.ssh/morcheh.pub morcheh@203.0.113.10
             ],
             [
               <UI key="pk">Private key</UI>,
-              "The key Morcheh logs in with. The download button saves it as a file for ssh -i.",
+              "The key Morche logs in with. The download button saves it as a file for ssh -i.",
             ],
             [
               <UI key="pub">Public key</UI>,
@@ -274,7 +274,7 @@ ssh -i ~/Downloads/web-01.key -p 22 deploy@10.0.0.12
 `}</Code>
         </Example>
         <Warn>
-          Anyone who can open Morcheh can read these. Don't share your screen
+          Anyone who can open Morche can read these. Don't share your screen
           with a secret visible, and delete a downloaded key once it is in{" "}
           <C>~/.ssh</C>.
         </Warn>
@@ -286,7 +286,7 @@ ssh -i ~/Downloads/web-01.key -p 22 deploy@10.0.0.12
         </P>
         <P>
           Passwords of the server's own users (the <UI>Users</UI> section) can't
-          be shown: Morcheh sets them on the server without keeping a copy, and
+          be shown: Morche sets them on the server without keeping a copy, and
           the server stores only a one-way hash.
         </P>
         <Tip>
@@ -436,7 +436,7 @@ ssh -i ~/Downloads/web-01.key -p 22 deploy@10.0.0.12
             <UI>Tags</UI>: add or remove tags on all of them at once.
           </div>
           <div>
-            <UI>Delete</UI>: remove them from Morcheh.
+            <UI>Delete</UI>: remove them from Morche.
           </div>
         </Steps>
       </>
@@ -464,7 +464,7 @@ ssh -i ~/Downloads/web-01.key -p 22 deploy@10.0.0.12
             ],
             [
               "Availability",
-              "One strip per server: each block is a stretch of status checks. Green = all passed, orange = some failed, red = all failed, grey = no checks (Morcheh wasn't running).",
+              "One strip per server: each block is a stretch of status checks. Green = all passed, orange = some failed, red = all failed, grey = no checks (Morche wasn't running).",
             ],
             [
               "Response time",
@@ -489,7 +489,7 @@ ssh -i ~/Downloads/web-01.key -p 22 deploy@10.0.0.12
           ]}
         />
         <P>
-          Resources come from a small sample Morcheh reads over SSH from every
+          Resources come from a small sample Morche reads over SSH from every
           online Linux server, every 5 minutes by default. History starts when
           sampling starts, so a new server's charts fill up over time. Hover a
           chart (or tap it on a phone) for the exact numbers; on a keyboard,
@@ -519,8 +519,8 @@ ssh -i ~/Downloads/web-01.key -p 22 deploy@10.0.0.12
           <UI>Host key</UI> fingerprint and the <UI>Danger zone</UI>.
         </P>
         <P>
-          <UI>Delete server</UI> only makes Morcheh forget the server and its
-          saved credentials. Nothing on the server is touched: remove Morcheh's
+          <UI>Delete server</UI> only makes Morche forget the server and its
+          saved credentials. Nothing on the server is touched: remove Morche's
           key from <C>authorized_keys</C> yourself if you want to revoke its
           access.
         </P>
@@ -533,7 +533,7 @@ ssh -i ~/Downloads/web-01.key -p 22 deploy@10.0.0.12
     body: (
       <List>
         <li>
-          <UI>Unreachable</UI> but you can SSH from your computer? Morcheh
+          <UI>Unreachable</UI> but you can SSH from your computer? Morche
           connects from where its backend runs, not from your browser. Allow
           that machine's address in the server's firewall or security group.
         </li>
@@ -543,7 +543,7 @@ ssh -i ~/Downloads/web-01.key -p 22 deploy@10.0.0.12
           <C>700</C> and the file <C>600</C>.
         </li>
         <li>
-          A key that won't load: Morcheh needs the private key (it starts with{" "}
+          A key that won't load: Morche needs the private key (it starts with{" "}
           <C>-----BEGIN</C>), not the <C>.pub</C> file.
         </li>
       </List>

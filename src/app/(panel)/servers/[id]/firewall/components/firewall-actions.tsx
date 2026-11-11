@@ -265,7 +265,7 @@ export function FirewallActionsProvider({
         title="Delete this forward?"
         description={
           forward
-            ? `Port ${forwardFrom(forward)} stops being forwarded. What Morcheh allowed for it goes too.`
+            ? `Port ${forwardFrom(forward)} stops being forwarded. What Morche allowed for it goes too.`
             : undefined
         }
         confirmLabel="Delete"
@@ -287,7 +287,7 @@ export function FirewallActionsProvider({
         title={n === 1 ? "Delete this rule?" : `Delete ${n} rules?`}
         description={
           ssh
-            ? "One of these lets SSH in. If it's the last one, Morcheh tests the connection and undoes the change if it's cut off."
+            ? "One of these lets SSH in. If it's the last one, Morche tests the connection and undoes the change if it's cut off."
             : "Traffic these rules allowed or stopped goes back to the next rule or the default."
         }
         confirmLabel="Delete"

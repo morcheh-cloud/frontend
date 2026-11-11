@@ -372,7 +372,7 @@ function UnusedIndexes({ rows }: { rows: DatabaseIndex[] }) {
         }
       >
         Each one still slows every write. Before dropping one, check that no
-        replica or rare report (month-end, yearly) uses it. Morcheh only
+        replica or rare report (month-end, yearly) uses it. Morche only
         suggests; it never changes the schema.
       </p>
       <Rows

@@ -20,7 +20,7 @@ export const cron: GuideSection[] = [
     body: (
       <>
         <P>
-          <UI>Cron jobs</UI> lists every scheduled command Morcheh can read on
+          <UI>Cron jobs</UI> lists every scheduled command Morche can read on
           the server, grouped by table: each user's crontab and the system ones
           (<C>/etc/crontab</C>, <C>/etc/cron.d/*</C>). Each row shows the
           schedule in plain words, the user it runs as, the next run and, when
@@ -239,7 +239,7 @@ flock -n /tmp/sync.lock /opt/app/sync.sh >> /var/log/sync.log 2>&1
         </li>
         <li>
           <UI>Last runs unavailable</UI>: the server doesn't log cron runs where
-          Morcheh can read them; redirect the job's output to a log file.
+          Morche can read them; redirect the job's output to a log file.
         </li>
       </List>
     ),

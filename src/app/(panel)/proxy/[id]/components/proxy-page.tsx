@@ -300,16 +300,16 @@ export function ProxyBanner({
             ? boxed
               ? `No ${p.kind_label} found in ${p.container}`
               : `${p.kind_label} isn't installed yet`
-            : `${p.kind_label} isn't set up for Morcheh yet`}
+            : `${p.kind_label} isn't set up for Morche yet`}
         </p>
         <p className="text-muted-foreground">
           {p.status === "not_installed"
             ? boxed
-              ? `Morcheh looks for ${p.kind_label} at its usual paths inside the container and doesn't install anything there. Check the container's image, or remove this proxy and add the right container.`
-              : "Set up installs it with the server's package manager, then wires in a folder for Morcheh's sites. Sites already on the server keep working."
+              ? `Morche looks for ${p.kind_label} at its usual paths inside the container and doesn't install anything there. Check the container's image, or remove this proxy and add the right container.`
+              : "Set up installs it with the server's package manager, then wires in a folder for Morche's sites. Sites already on the server keep working."
             : boxed
-              ? "Set up adds one include line and a folder for Morcheh's sites inside the container, and log rotation on the server. Nothing already there is changed."
-              : "Set up adds one include line and a folder for Morcheh's sites. Nothing already there is changed."}
+              ? "Set up adds one include line and a folder for Morche's sites inside the container, and log rotation on the server. Nothing already there is changed."
+              : "Set up adds one include line and a folder for Morche's sites. Nothing already there is changed."}
           {!engineer &&
             !(boxed && p.status === "not_installed") &&
             " Someone with Engineer access on the server can do it."}

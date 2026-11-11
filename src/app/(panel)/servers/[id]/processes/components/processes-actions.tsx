@@ -130,18 +130,18 @@ export function ProcessesActionsProvider({
         `Left out ${left} ${left === 1 ? "process" : "processes"} this login can't signal`,
         {
           description:
-            "Kernel threads, Morcheh's own connection, and other users' processes without root.",
+            "Kernel threads, Morche's own connection, and other users' processes without root.",
         },
       )
     } else if (out.length === 0) {
       toast.error(
         ps.length === 1 && ps[0].morcheh
-          ? "That's Morcheh's own connection to this server"
+          ? "That's Morche's own connection to this server"
           : "This login can't signal that",
         {
           description:
             ps.length === 1 && ps[0].morcheh
-              ? "Ending it would cut Morcheh off. Close the terminal or page that uses it instead."
+              ? "Ending it would cut Morche off. Close the terminal or page that uses it instead."
               : "It belongs to another user (needs root or sudo without a password), or it's a kernel thread.",
         },
       )

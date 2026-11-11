@@ -32,7 +32,7 @@ export function ModulesPanel({ phone }: { phone: boolean }) {
     return (
       <Empty
         icon={Puzzle}
-        title="Ansible isn't installed on the Morcheh host"
+        title="Ansible isn't installed on the Morche host"
         body="The module list comes from the Ansible installed there. Install ansible-core (or the full ansible package) and come back."
       />
     )
@@ -104,7 +104,7 @@ export function ModulesPanel({ phone }: { phone: boolean }) {
       <p className={cn("text-caption text-ash", phone && "px-4")}>
         {all.length} modules · ansible-core {modules.data.version}
         {onlyBuiltin &&
-          ". Only Ansible's own modules are installed: install the full ansible package on the Morcheh host to get thousands more (Docker, MySQL, UFW…)."}
+          ". Only Ansible's own modules are installed: install the full ansible package on the Morche host to get thousands more (Docker, MySQL, UFW…)."}
       </p>
       <ModuleDetailsLayer
         name={picked}

@@ -297,7 +297,7 @@ export const moved = <T,>(list: T[], from: number, to: number) => {
 
 // ---- Logo / icon ----
 
-// The tile shown in the catalog, and a picker for it: a brand logo Morcheh
+// The tile shown in the catalog, and a picker for it: a brand logo Morche
 // ships, or one of the icons.
 export function LookPicker({
   kind,
@@ -338,7 +338,7 @@ export function LookPicker({
           </span>
           {(unknownLogo || unknownIcon) && (
             <span className="block text-caption text-warning">
-              Morcheh doesn't have “{unknownLogo ?? unknownIcon}”.
+              Morche doesn't have “{unknownLogo ?? unknownIcon}”.
             </span>
           )}
         </span>

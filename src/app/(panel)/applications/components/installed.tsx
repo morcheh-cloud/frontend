@@ -308,7 +308,7 @@ export function NoInstalls({ onScan }: { onScan?: () => void }) {
     <Empty
       icon={Package}
       title="Nothing installed yet"
-      body="Install something from the catalog, or check the servers: Morcheh finds Docker, web servers, databases and the rest that are already there."
+      body="Install something from the catalog, or check the servers: Morche finds Docker, web servers, databases and the rest that are already there."
       action={
         onScan && (
           <Button

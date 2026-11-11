@@ -120,7 +120,7 @@ export function SitesTab({ detail }: { detail: ProxyDetail }) {
           body={
             q
               ? "Try another name."
-              : "Add a domain and say where it goes: an app's address, another URL, or a folder on the server. Morcheh writes the config, tests it and reloads."
+              : "Add a domain and say where it goes: an app's address, another URL, or a folder on the server. Morche writes the config, tests it and reloads."
           }
           action={
             !q &&

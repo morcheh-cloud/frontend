@@ -36,7 +36,7 @@ export const power: GuideSection[] = [
             ],
             [
               <UI key="s">Shut down</UI>,
-              "The server powers off and stays off. Morcheh can't turn it back on: you'll need your provider's console, a power button or Wake-on-LAN.",
+              "The server powers off and stays off. Morche can't turn it back on: you'll need your provider's console, a power button or Wake-on-LAN.",
             ],
           ]}
         />
@@ -92,9 +92,9 @@ export const power: GuideSection[] = [
       <>
         <P>
           Pick <UI>Shut down…</UI> in the power menu. Shutting down right away
-          asks you to type the server's name, since there's no undo from
-          Morcheh. A scheduled shutdown doesn't ask: you can still cancel it
-          until it happens.
+          asks you to type the server's name, since there's no undo from Morche.
+          A scheduled shutdown doesn't ask: you can still cancel it until it
+          happens.
         </P>
         <Warn>
           Many cloud providers keep billing a stopped VM. To stop paying, delete

@@ -135,7 +135,7 @@ function Recording({ r, phone }: { r: TerminalRecording; phone: boolean }) {
       )}
       {r.interrupted && (
         <Callout title="The end is missing">
-          Morcheh restarted while this shell was open, so up to the last 30
+          Morche restarted while this shell was open, so up to the last 30
           seconds weren't saved.
         </Callout>
       )}

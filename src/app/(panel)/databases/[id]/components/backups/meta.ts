@@ -196,5 +196,5 @@ export const methodText = (
 export const storedOn = (b: Pick<Backup, "copies">) =>
   b.copies.filter((c) => c.state === "stored")
 
-// Morcheh's own machine as a backup's runner; the backend's runner_name for it.
-export const LOCAL_RUNNER = "This Morcheh server"
+// Morche's own machine as a backup's runner; the backend's runner_name for it.
+export const LOCAL_RUNNER = "This Morche server"

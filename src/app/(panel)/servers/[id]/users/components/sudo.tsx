@@ -37,7 +37,7 @@ export function SudoTab() {
         hint={
           o.sudo_group
             ? `Sudo with a password comes from the ${o.sudo_group} group; without a password, from a rule in /etc/sudoers.d/morcheh-<name>.`
-            : "Morcheh gives sudo with a rule in /etc/sudoers.d/morcheh-<name>."
+            : "Morche gives sudo with a rule in /etc/sudoers.d/morcheh-<name>."
         }
       >
         <People users={list} />
@@ -46,7 +46,7 @@ export function SudoTab() {
         title="Rules"
         hint={
           o.sudo_readable
-            ? "Everything /etc/sudoers and /etc/sudoers.d grant, line by line. Morcheh only changes its own files."
+            ? "Everything /etc/sudoers and /etc/sudoers.d grant, line by line. Morche only changes its own files."
             : "The sudoers files can't be read with this login."
         }
       >
@@ -174,7 +174,7 @@ function Rules({ rules }: { rules: Rule[] }) {
               {r.file}:{r.line}
               {r.end_line > r.line && `–${r.end_line}`}
             </span>
-            {r.managed && <Tag>Morcheh</Tag>}
+            {r.managed && <Tag>Morche</Tag>}
             {!r.active && <Tag>Ignored by sudo</Tag>}
             {r.full && <Tag>Every command</Tag>}
             {r.nopasswd && <Tag>No password</Tag>}

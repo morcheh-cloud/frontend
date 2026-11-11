@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils"
 import { usePreview } from "../api"
 import { cronText, formatInZone, zones } from "./meta"
 
-// Morcheh runs these, so there's no "at boot".
+// Morche runs these, so there's no "at boot".
 const modes = allModes.filter((m) => m.value !== "reboot")
 
 const presets = [

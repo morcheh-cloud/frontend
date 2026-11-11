@@ -375,7 +375,7 @@ export function AccessSection({ storage, bucket: b, can }: SectionProps) {
     <div className="flex flex-col gap-6">
       <Block
         title="Who can read it without a key"
-        description="Signed-in access through Morcheh and access keys work either way. Share links (Share link… on a file) work on a private bucket too."
+        description="Signed-in access through Morche and access keys work either way. Share links (Share link… on a file) work on a private bucket too."
       >
         <Unreadable text={b.problems.policy} />
         {b.public_write && (
@@ -461,7 +461,7 @@ export function AccessSection({ storage, bucket: b, can }: SectionProps) {
           description={
             chosen === "custom"
               ? "Saved exactly as written. Empty removes the policy."
-              : "Morcheh changes only the statements for anonymous users and keeps the rest."
+              : "Morche changes only the statements for anonymous users and keeps the rest."
           }
         >
           <CodeMirror

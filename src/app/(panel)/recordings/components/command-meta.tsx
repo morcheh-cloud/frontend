@@ -41,7 +41,7 @@ export const kindMeta: Record<
   terminal: {
     label: "Typed in a terminal",
     short: "Terminal",
-    hint: "Command lines typed into Morcheh's terminals (bash, zsh)",
+    hint: "Command lines typed into Morche's terminals (bash, zsh)",
     icon: SquareTerminal,
   },
   change: {
@@ -59,7 +59,7 @@ export const kindMeta: Record<
   schedule: {
     label: "Cron jobs",
     short: "Cron job",
-    hint: "Morcheh's scheduled tasks",
+    hint: "Morche's scheduled tasks",
     icon: CalendarClock,
   },
   read: {
@@ -69,7 +69,7 @@ export const kindMeta: Record<
     icon: Eye,
   },
   automatic: {
-    label: "Morcheh's upkeep",
+    label: "Morche's upkeep",
     short: "Upkeep",
     hint: "Live stats, checks and monitors, nobody pressed anything",
     icon: Bot,
@@ -104,7 +104,15 @@ export const periodLabels: Record<Period | "any", string> = {
   "30d": "Last 30 days",
 }
 
-export const auditTabs = ["commands", "recordings"] as const
+export const signInResults = [
+  "signed_in",
+  "failed",
+  "signed_out",
+  "ended",
+] as const
+export const signInPeriods = ["24h", "7d", "30d"] as const
+
+export const auditTabs = ["commands", "recordings", "sign-ins"] as const
 export type AuditTab = (typeof auditTabs)[number]
 
 const parsers = {
@@ -121,6 +129,10 @@ const parsers = {
   period: parseAsStringLiteral(periods),
   ref: parseAsString.withDefault(""),
   entry: parseAsStringLiteral(["command", "shell"] as const),
+  // The Sign-ins tab (with q and user above).
+  result: parseAsStringLiteral(signInResults),
+  since: parseAsStringLiteral(signInPeriods),
+  fresh: parseAsBoolean.withDefault(false),
 }
 
 export const useCommandFilters = () =>
@@ -138,6 +150,9 @@ export const clearedFilters = {
   period: null,
   ref: null,
   entry: null,
+  result: null,
+  since: null,
+  fresh: null,
 }
 
 const serialize = createSerializer(parsers)
@@ -156,6 +171,18 @@ export function commandsHref(
   }>,
 ) {
   return serialize(base, f)
+}
+
+// A link into the Sign-ins tab of /recordings.
+export function signInsHref(
+  f: Partial<{
+    q: string
+    user: string
+    result: (typeof signInResults)[number]
+    fresh: boolean
+  }> = {},
+) {
+  return serialize("/recordings", { ...f, tab: "sign-ins" })
 }
 
 type Values = ReturnType<typeof useCommandFilters>[0]
@@ -208,7 +235,7 @@ export function resultText(c: CommandLogEntry) {
     case "running":
       return "Running"
     case "interrupted":
-      return c.entry === "shell" ? "Morcheh restarted" : "Cut off"
+      return c.entry === "shell" ? "Morche restarted" : "Cut off"
     case "ok":
       return c.entry === "shell" ? "Closed" : "Exit 0"
     case "failed":
@@ -220,7 +247,7 @@ export function resultText(c: CommandLogEntry) {
 }
 
 export const whoText = (c: CommandLogEntry) =>
-  c.mine ? "You" : c.user_name || "Morcheh"
+  c.mine ? "You" : c.user_name || "Morche"
 
 const fullTime = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",

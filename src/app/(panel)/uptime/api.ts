@@ -17,7 +17,7 @@ import type {
   UptimeMonitor,
 } from "@/lib/services"
 
-// Uptime monitors: checks Morcheh (or a server) runs on a schedule.
+// Uptime monitors: checks Morche (or a server) runs on a schedule.
 
 export type ReportRange = "24h" | "7d" | "30d" | "90d" | "365d"
 export type CheckStatus = "up" | "degraded" | "down"

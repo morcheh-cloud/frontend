@@ -96,7 +96,7 @@ export function LogoPicker({
       {value.kind === "auto" && (
         <div className="flex flex-wrap items-center gap-3">
           <p className="flex-1 text-caption text-muted-foreground">
-            Morcheh fetches the site's own icon from its address. Until it has
+            Morche fetches the site's own icon from its address. Until it has
             one, the first letter shows on the service's color.
           </p>
           {app && (

@@ -166,7 +166,7 @@ const fresh = (name: string): Draft => ({
   enabled: true,
 })
 
-// What the runner field says under it: for Morcheh's own machine, which
+// What the runner field says under it: for Morche's own machine, which
 // tools it still lacks.
 function runnerHint(runner: string, local?: LocalTools) {
   if (runner) {
@@ -174,9 +174,9 @@ function runnerHint(runner: string, local?: LocalTools) {
   }
   if (local && !local.supported) return local.note
   if (local?.missing.length) {
-    return `Morcheh's own machine runs it, but it lacks ${local.missing.join(", ")}. Install them there (the Docker image has them), or choose a server.`
+    return `Morche's own machine runs it, but it lacks ${local.missing.join(", ")}. Install them there (the Docker image has them), or choose a server.`
   }
-  return "Morcheh's own machine runs the dump, the same way it reaches the database to watch it."
+  return "Morche's own machine runs the dump, the same way it reaches the database to watch it."
 }
 
 const num = (s: string) => (s.trim() === "" ? Number.NaN : Number(s))
@@ -886,7 +886,7 @@ function Editor({
         )}
         {draft.retention === "forever" && (
           <Note icon={<Info />}>
-            Nothing is deleted by Morcheh. Keep an eye on the storage's space.
+            Nothing is deleted by Morche. Keep an eye on the storage's space.
           </Note>
         )}
         <FieldError text={errors.retention} />
@@ -905,7 +905,7 @@ function Editor({
               Use another login
             </span>
             <span className="block text-caption text-muted-foreground">
-              Off = the login Morcheh monitors with. A dump has to read all the
+              Off = the login Morche monitors with. A dump has to read all the
               data, which a monitoring login usually can't.
             </span>
           </label>

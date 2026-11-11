@@ -17,6 +17,7 @@ import { Logo } from "@/components/logo"
 import { Button } from "@/components/ui/button"
 import { ApiError, api, onRefused } from "@/lib/api"
 import type { MyAccess, PanelUser } from "@/lib/services"
+import { AddressBlocked, isAddressRefused, refusedAddress } from "./address"
 import { ChangePasswordForm } from "./change-password"
 import { accessKey, meKey } from "./keys"
 import { atLeast, higher, type Level } from "./level"
@@ -153,6 +154,15 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }, [id])
 
   if (lost) return null
+  // The allowlist now keeps this address out: show nothing of the panel.
+  const refused = [me.error, access.error].find(isAddressRefused)
+  if (refused) {
+    return (
+      <Screen>
+        <AddressBlocked address={refusedAddress(refused)} />
+      </Screen>
+    )
+  }
   if (me.error && !user) {
     return <Unreachable onRetry={() => me.refetch()} checking={me.isFetching} />
   }
@@ -223,7 +233,7 @@ function WaitingView({ onSignOut }: { onSignOut: () => Promise<void> }) {
       <div className="flex flex-1 flex-col gap-3 sm:flex-none">
         <h1 className="text-subheading font-medium">Waiting for approval</h1>
         <p className="text-body-sm text-muted-foreground">
-          An admin has to approve your account before you can use Morcheh. This
+          An admin has to approve your account before you can use Morche. This
           page opens by itself as soon as they do.
         </p>
         <Button

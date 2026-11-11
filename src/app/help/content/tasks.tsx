@@ -19,9 +19,9 @@ export const tasks: GuideSection[] = [
     body: (
       <>
         <P>
-          Some work can take minutes or hours. Morcheh runs it on its own
-          backend as a task, so it doesn't depend on your browser: you can leave
-          the page, close the tab or switch computers, and it carries on.
+          Some work can take minutes or hours. Morche runs it on its own backend
+          as a task, so it doesn't depend on your browser: you can leave the
+          page, close the tab or switch computers, and it carries on.
         </P>
         <List>
           <li>
@@ -88,7 +88,7 @@ export const tasks: GuideSection[] = [
         rows={[
           [
             "Waiting",
-            "All slots are busy. Morcheh runs 4 tasks at once, and at most 2 per server or storage, so a big copy doesn't choke the machine. Moves inside one server or storage skip the wait, since they're usually instant.",
+            "All slots are busy. Morche runs 4 tasks at once, and at most 2 per server or storage, so a big copy doesn't choke the machine. Moves inside one server or storage skip the wait, since they're usually instant.",
           ],
           ["Running", "Working now."],
           ["Done", "Finished without a problem."],
@@ -96,7 +96,7 @@ export const tasks: GuideSection[] = [
           ["Canceled", "You canceled it."],
           [
             "Interrupted",
-            "Morcheh restarted while it was running. Waiting tasks resume by themselves after a restart; running ones don't, because a half-done copy can't always be picked up safely.",
+            "Morche restarted while it was running. Waiting tasks resume by themselves after a restart; running ones don't, because a half-done copy can't always be picked up safely.",
           ],
         ]}
       />

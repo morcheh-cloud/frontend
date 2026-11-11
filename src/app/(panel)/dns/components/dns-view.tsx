@@ -531,7 +531,7 @@ function NoServers({ onAdd }: { onAdd?: () => void }) {
       title={onAdd ? "Connect your first DNS server" : "No DNS servers to show"}
       body={
         onAdd
-          ? "Morcheh manages Technitium DNS Server through its API. Add as many as you run: each one's zones and records show up here."
+          ? "Morche manages Technitium DNS Server through its API. Add as many as you run: each one's zones and records show up here."
           : "Nothing here is shared with you yet. Ask an admin or the workspace owner for access."
       }
       action={

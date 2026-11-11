@@ -46,7 +46,7 @@ export function useFirewallRaw(serverId: string, enabled: boolean) {
   })
 }
 
-// Read from Morcheh's own database, so it's always cheap to ask again.
+// Read from Morche's own database, so it's always cheap to ask again.
 export function useFirewallHistory(serverId: string, enabled: boolean) {
   return useQuery({
     queryKey: firewallKeys.history(serverId),
