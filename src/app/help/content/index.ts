@@ -15,6 +15,7 @@ import { networkMap } from "./network-map"
 import { packages } from "./packages"
 import { ports } from "./ports"
 import { power } from "./power"
+import { processes } from "./processes"
 import { reverseProxy } from "./reverse-proxy"
 import { scripts } from "./scripts"
 import { serverNotes } from "./server-notes"
@@ -47,6 +48,7 @@ export const content: Record<string, GuideSection[]> = {
   fail2ban,
   users,
   services,
+  processes,
   packages,
   power,
   databases,

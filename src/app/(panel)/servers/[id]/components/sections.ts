@@ -96,10 +96,7 @@ export const sectionGroups: SectionGroup[] = [
         label: "Processes",
         icon: Cpu,
         summary: "What is using CPU and memory right now.",
-        planned: [
-          "A live, sortable process list",
-          "Send a signal or kill a process",
-        ],
+        ready: true,
       },
       {
         slug: "packages",

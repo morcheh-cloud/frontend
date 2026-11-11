@@ -146,10 +146,12 @@ export function ConfirmDialog({
   return (
     <AlertDialog open={open} onOpenChange={(next) => onOpenChange(next)}>
       <AlertDialogContent className="p-6">
-        <AlertDialogHeader>
+        {/* min-w-0: grid items default to min-width auto, so a long
+            nowrap line (a truncated command) would widen the dialog */}
+        <AlertDialogHeader className="min-w-0">
           <AlertDialogTitle>{title}</AlertDialogTitle>
           {description && (
-            <AlertDialogDescription render={<div />}>
+            <AlertDialogDescription render={<div />} className="w-full min-w-0">
               {description}
             </AlertDialogDescription>
           )}

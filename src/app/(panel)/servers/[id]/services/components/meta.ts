@@ -1,6 +1,11 @@
 "use client"
 
-import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs"
+import {
+  createSerializer,
+  parseAsString,
+  parseAsStringLiteral,
+  useQueryStates,
+} from "nuqs"
 
 import { formatDuration } from "@/lib/format"
 import type { Service } from "@/lib/services"
@@ -8,15 +13,24 @@ import type { Service } from "@/lib/services"
 const states = ["running", "failed", "stopped", "all"] as const
 export type StateFilter = (typeof states)[number]
 
+const parsers = {
+  state: parseAsStringLiteral(states).withDefault("running"),
+  q: parseAsString.withDefault(""),
+}
+
 export function useServicesFilters() {
-  const [filters, setFilters] = useQueryStates(
-    {
-      state: parseAsStringLiteral(states).withDefault("running"),
-      q: parseAsString.withDefault(""),
-    },
-    { history: "replace" },
-  )
+  const [filters, setFilters] = useQueryStates(parsers, { history: "replace" })
   return { filters, setFilters }
+}
+
+const serialize = createSerializer(parsers)
+
+// A link into a server's services list, e.g. a process's unit.
+export function servicesHref(
+  serverId: string,
+  state: Partial<{ q: string; state: StateFilter }> = {},
+) {
+  return serialize(`/servers/${serverId}/services`, state)
 }
 
 // ---- State ----

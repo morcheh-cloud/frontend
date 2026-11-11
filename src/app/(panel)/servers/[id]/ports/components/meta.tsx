@@ -1,7 +1,12 @@
 "use client"
 
 import { Globe, House, type LucideIcon, Network } from "lucide-react"
-import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs"
+import {
+  createSerializer,
+  parseAsString,
+  parseAsStringLiteral,
+  useQueryStates,
+} from "nuqs"
 
 import type { OpenPort } from "@/lib/services"
 
@@ -78,17 +83,23 @@ const shows = ["containers", "exposed"] as const
 const exposed = (p: OpenPort) => p.exposure === "public" && p.sensitive
 
 // Search and filters live in the URL, like the servers list.
+const parsers = {
+  q: parseAsString.withDefault(""),
+  exposure: parseAsStringLiteral(exposures),
+  proto: parseAsStringLiteral(protocols),
+  show: parseAsStringLiteral(shows),
+}
+
 export function usePortFilters() {
-  const [filters, setFilters] = useQueryStates(
-    {
-      q: parseAsString.withDefault(""),
-      exposure: parseAsStringLiteral(exposures),
-      proto: parseAsStringLiteral(protocols),
-      show: parseAsStringLiteral(shows),
-    },
-    { history: "replace" },
-  )
+  const [filters, setFilters] = useQueryStates(parsers, { history: "replace" })
   return { filters, setFilters }
+}
+
+const serialize = createSerializer(parsers)
+
+// A link into a server's open ports, e.g. from a process.
+export function portsHref(serverId: string, state: { q?: string } = {}) {
+  return serialize(`/servers/${serverId}/ports`, state)
 }
 
 type Filters = ReturnType<typeof usePortFilters>["filters"]

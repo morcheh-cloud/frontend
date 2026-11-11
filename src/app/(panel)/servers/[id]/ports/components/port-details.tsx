@@ -1,6 +1,7 @@
 "use client"
 
 import { Container, Cpu, TriangleAlert } from "lucide-react"
+import Link from "next/link"
 import type { ReactNode } from "react"
 
 import { BottomSheet } from "@/components/bottom-sheet"
@@ -15,6 +16,7 @@ import type { OpenPort } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { Copyable, Mono } from "../../components/facts"
 import { useServerPage } from "../../components/server-page"
+import { processesHref } from "../../processes/components/meta"
 import { endpoint, exposureMeta, risks } from "./meta"
 
 // Everything known about one port: a side sheet on desktop, a bottom sheet
@@ -191,6 +193,15 @@ function PortDetails({
                 · {proc.pids.length} processes share it
               </span>
             )}
+            <Link
+              href={processesHref(server.id, {
+                q: String(proc.pid),
+                view: "tree",
+              })}
+              className="block text-caption font-medium text-brand hover:underline max-md:py-2"
+            >
+              Open in Processes
+            </Link>
           </Row>
           {proc.user && <Row label="User">{proc.user}</Row>}
           {proc.command && (

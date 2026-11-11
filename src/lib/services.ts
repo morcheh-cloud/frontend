@@ -7164,6 +7164,293 @@ export interface ProblemListBody {
   items: BackupProblem[];
 }
 
+export interface Process {
+  /** Its full command line; empty for kernel threads and zombies */
+  command: string;
+  /** Name of the Docker/Podman container it runs in, else a short container id */
+  container?: string;
+  /**
+   * Percent of one core over the sample, like top (two busy cores = 200)
+   * @format double
+   */
+  cpu: number;
+  /**
+   * Seconds of CPU it has used since it started
+   * @format double
+   */
+  cpu_time: number;
+  /** A kernel thread: no program behind it, can't be signalled */
+  kernel: boolean;
+  /**
+   * Resident memory (RSS) in bytes
+   * @format int64
+   */
+  memory: number;
+  /**
+   * Of the server's RAM
+   * @format double
+   */
+  memory_percent: number;
+  /** Part of Morcheh's own SSH connection: ending it closes open terminals and running tasks here */
+  morcheh: boolean;
+  /** The kernel's name for it (comm, at most 15 characters) */
+  name: string;
+  /**
+   * @format int64
+   * @min -20
+   * @max 19
+   */
+  nice: number;
+  /** @format int64 */
+  pid: number;
+  /** @format int64 */
+  ppid: number;
+  /** The system or Morcheh relies on it (init, sshd, journald, dbus…): signals need force */
+  protected: boolean;
+  runtime?: "docker" | "podman" | "other";
+  /** The login session it belongs to (logind) */
+  session?: string;
+  /**
+   * When it started, in clock ticks since boot: with the PID it names this one process, so send it back with actions (a reused PID is refused)
+   * @format int64
+   */
+  start: number;
+  /** @format date-time */
+  started_at: string;
+  /** disk = waiting on I/O and can't be interrupted (D); idle = an idle kernel thread */
+  state:
+    | "running"
+    | "sleeping"
+    | "disk"
+    | "stopped"
+    | "zombie"
+    | "idle"
+    | "other";
+  /**
+   * Bytes swapped out (when readable)
+   * @format int64
+   */
+  swap: number;
+  /** @format int64 */
+  threads: number;
+  /** @format int64 */
+  uid: number;
+  /** The systemd service it belongs to */
+  unit?: string;
+  /** The account it runs as (the UID when /etc/passwd doesn't name it) */
+  user: string;
+  /**
+   * Virtual memory size in bytes
+   * @format int64
+   */
+  virtual: number;
+}
+
+export interface ProcessDetails {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Command line split into arguments */
+  argv: string[];
+  cgroup?: string;
+  /** Its working folder */
+  cwd?: string;
+  env?: ProcessEnv[];
+  /** The environment is left out: it needs Engineer access */
+  env_hidden: boolean;
+  /** The program file it runs */
+  exe?: string;
+  /** The program file was replaced or removed since it started (an update it hasn't restarted for) */
+  exe_deleted: boolean;
+  files: ProcessFile[];
+  files_truncated: boolean;
+  /** Supplementary group IDs */
+  groups?: number[];
+  /** Some details couldn't be read: the login user can't act as root on this server */
+  limited: boolean;
+  /** Its open-files limit (soft) */
+  max_open_files?: string;
+  /**
+   * Resident memory that is its own data (RssAnon), bytes
+   * @format int64
+   */
+  memory_anon: number;
+  /**
+   * Resident memory backed by files (RssFile), bytes
+   * @format int64
+   */
+  memory_file: number;
+  /**
+   * Most resident memory it has used (VmHWM), bytes
+   * @format int64
+   */
+  memory_peak: number;
+  /**
+   * Resident shared memory (RssShmem), bytes
+   * @format int64
+   */
+  memory_shared: number;
+  /**
+   * oom_score_adj (-1000 = never)
+   * @format int64
+   */
+  oom_adjust: number;
+  /**
+   * How likely the kernel is to kill it when memory runs out (0–1000+)
+   * @format int64
+   */
+  oom_score: number;
+  /**
+   * How many files, sockets and pipes it holds open
+   * @format int64
+   */
+  open_files: number;
+  /** @format int64 */
+  pid: number;
+  /**
+   * Bytes it has read from storage (-1 = unknown)
+   * @format int64
+   */
+  read_bytes: number;
+  /** Its root folder, when not / (chroot or container) */
+  root?: string;
+  sockets: ProcessSocket[];
+  /** @format int64 */
+  start: number;
+  /** @format int64 */
+  swap: number;
+  /**
+   * Times the kernel took the CPU from it
+   * @format int64
+   */
+  switches_forced: number;
+  /**
+   * Times it gave up the CPU to wait
+   * @format int64
+   */
+  switches_voluntary: number;
+  /**
+   * Bytes it has written to storage (-1 = unknown)
+   * @format int64
+   */
+  write_bytes: number;
+}
+
+export interface ProcessEnv {
+  name: string;
+  value: string;
+}
+
+export interface ProcessFile {
+  /** The file was removed while still open (its space isn't freed until the process closes it) */
+  deleted: boolean;
+  /** @format int64 */
+  fd: number;
+  kind: "file" | "socket" | "pipe" | "device" | "anon" | "other";
+  target: string;
+}
+
+export interface ProcessResult {
+  /** It ended within a couple of seconds after the signal */
+  ended: boolean;
+  error?: string;
+  /** It had already ended, or its PID belongs to another process now */
+  gone: boolean;
+  /** The signal was delivered (or the priority changed) */
+  ok: boolean;
+  /** @format int64 */
+  pid: number;
+}
+
+export interface ProcessResults {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** One per target, in the order sent */
+  results: ProcessResult[];
+}
+
+export interface ProcessSocket {
+  local: string;
+  proto: "tcp" | "udp";
+  remote?: string;
+  state: string;
+}
+
+export interface ProcessTarget {
+  /**
+   * @format int64
+   * @min 2
+   */
+  pid: number;
+  /**
+   * @format int64
+   * @min 0
+   */
+  start: number;
+}
+
+export interface ProcessesReport {
+  /** @format double */
+  load1: number;
+  /** @format double */
+  load15: number;
+  /** @format double */
+  load5: number;
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** How it was read: user = the login user can't act as root, so it can only signal its own processes */
+  access: "root" | "sudo" | "user";
+  /** @format date-time */
+  booted_at: string;
+  /** @format date-time */
+  collected_at: string;
+  /** Command lines are left out: they need Operator access */
+  commands_hidden: boolean;
+  /** @format int64 */
+  cores: number;
+  /**
+   * Every process's CPU added up, in percent of ALL cores (0–100)
+   * @format double
+   */
+  cpu_percent: number;
+  /** The login user Morcheh connects as */
+  login: string;
+  /**
+   * Bytes of RAM
+   * @format int64
+   */
+  memory_total: number;
+  /**
+   * Total minus available
+   * @format int64
+   */
+  memory_used: number;
+  /** Busiest first (CPU, then memory) */
+  processes: Process[];
+  /**
+   * How long CPU was measured over
+   * @format int64
+   */
+  sample_ms: number;
+  /** @format int64 */
+  swap_total: number;
+  /** @format int64 */
+  swap_used: number;
+  /**
+   * Threads of every process added up
+   * @format int64
+   */
+  threads: number;
+}
+
 export interface Progress {
   /** The file it's on */
   current?: string;
@@ -8322,6 +8609,27 @@ export interface RenameTerminalRequest {
    * @maxLength 64
    */
   title: string;
+}
+
+export interface ReniceProcessesInputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  force?: boolean;
+  /**
+   * -20 = most CPU, 19 = least
+   * @format int64
+   * @min -20
+   * @max 19
+   */
+  nice: number;
+  /**
+   * @maxItems 200
+   * @minItems 1
+   */
+  targets: ProcessTarget[];
 }
 
 export interface ReportBucket {
@@ -10384,6 +10692,32 @@ export interface ShareStorageFileResponse {
   /** @format date-time */
   expires_at: string;
   url: string;
+}
+
+export interface SignalProcessesInputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Also signal protected processes (PID 1, sshd, journald, Morcheh's own connection…) */
+  force?: boolean;
+  /** TERM asks it to stop, KILL ends it at once, HUP often reloads its configuration, STOP/CONT pause and resume it */
+  signal:
+    | "TERM"
+    | "KILL"
+    | "HUP"
+    | "INT"
+    | "QUIT"
+    | "STOP"
+    | "CONT"
+    | "USR1"
+    | "USR2";
+  /**
+   * @maxItems 200
+   * @minItems 1
+   */
+  targets: ProcessTarget[];
 }
 
 export interface Site {
@@ -19072,6 +19406,96 @@ export class Api<
     ) =>
       this.request<PowerActionResult, ErrorModel>({
         path: `/servers/${id}/power`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  processes = {
+    /**
+     * @description Its program file, working folder, arguments, memory breakdown, disk I/O, open files and sockets (with connections), limits and OOM score. The environment only for Engineers (it often holds secrets).
+     *
+     * @tags Processes
+     * @name GetProcess
+     * @summary One process in detail
+     * @request GET:/servers/{id}/processes/{pid}
+     */
+    getProcess: (
+      id: string,
+      pid: number,
+      query: {
+        /**
+         * The process's start from the list: a PID reused by another process answers 404
+         * @format int64
+         * @min 0
+         */
+        start: number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ProcessDetails, ErrorModel>({
+        path: `/servers/${id}/processes/${pid}`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Every process from /proc with CPU measured over about a second (percent of one core, like top), memory, user, state, threads, nice, start time and the systemd service, container or login session it belongs to. Read as root when the login user can be; Viewers get no command lines. Linux only (422 otherwise).
+     *
+     * @tags Processes
+     * @name ListProcesses
+     * @summary Processes on a server
+     * @request GET:/servers/{id}/processes
+     */
+    listProcesses: (id: string, params: RequestParams = {}) =>
+      this.request<ProcessesReport, ErrorModel>({
+        path: `/servers/${id}/processes`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Sets the nice value of each target (renice). Raising priority (lowering nice) needs root.
+     *
+     * @tags Processes
+     * @name ReniceProcesses
+     * @summary Change processes' priority
+     * @request POST:/servers/{id}/processes/renice
+     */
+    reniceProcesses: (
+      id: string,
+      data: ReniceProcessesInputBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<ProcessResults, ErrorModel>({
+        path: `/servers/${id}/processes/renice`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Sends one signal to each target (checked by PID and start, so a reused PID is never hit). For TERM/KILL/INT/QUIT/HUP it waits up to 2 seconds and says which ones ended. Protected processes are refused unless force is set.
+     *
+     * @tags Processes
+     * @name SignalProcesses
+     * @summary Send a signal to processes
+     * @request POST:/servers/{id}/processes/signal
+     */
+    signalProcesses: (
+      id: string,
+      data: SignalProcessesInputBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<ProcessResults, ErrorModel>({
+        path: `/servers/${id}/processes/signal`,
         method: "POST",
         body: data,
         type: ContentType.Json,
