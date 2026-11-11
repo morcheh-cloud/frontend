@@ -4,14 +4,15 @@ import {
   ArrowUpRight,
   CalendarClock,
   ChevronRight,
-  CircleCheck,
   ListChecks,
-  Plus,
+  Star,
   TriangleAlert,
 } from "lucide-react"
 import Link from "next/link"
-import type { ReactNode } from "react"
+
 import { jobSummary } from "@/app/(panel)/cronjobs/components/meta"
+import { Meter } from "@/app/(panel)/servers/[id]/components/resources"
+import type { ServerModel } from "@/app/(panel)/servers/components/insights/model"
 import {
   address,
   OsTile,
@@ -25,28 +26,24 @@ import {
   appsHref,
   safeHref,
 } from "@/app/(panel)/services/components/meta"
+import { formatPct } from "@/components/insights/format"
 import { JobRow } from "@/components/jobs/job-row"
 import { problemStatuses } from "@/components/panel/problems"
-import { Button, buttonVariants } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import type { Home, Issue } from "../api"
+import { type HomeLive, useHomeLive } from "../live"
+import { ActivityCard } from "./activity"
+import { Blank, Card, CardLink } from "./card"
+import { FleetCard } from "./fleet"
 import { HomeEmpty } from "./home-empty"
-import {
-  HealthBar,
-  kindItem,
-  type Summary,
-  summaries,
-  useAddActions,
-} from "./parts"
+import { MonitorsCard } from "./monitors-card"
+import { HealthBar, kindItem, type Summary, summaries } from "./parts"
+import { PerformanceCard } from "./performance-card"
+import { Pulse } from "./pulse"
+import { TrafficCard } from "./traffic-card"
+import { useHomeLayout } from "./widgets"
 
 export function HomeDesktop({
   home,
@@ -57,132 +54,71 @@ export function HomeDesktop({
   title: string
   subtitle: string
 }) {
+  const live = useHomeLive()
+  const layout = useHomeLayout()
+  const show = layout.shows
+  const noServers = home.serverTotal === 0
+
+  const main = [
+    show("sections") && <SectionsCard key="sections" home={home} />,
+    !noServers && show("performance") && <PerformanceCard key="perf" />,
+    !noServers && show("fleet") && <FleetCard key="fleet" live={live} />,
+    !noServers && show("servers") && (
+      <ServersCard key="servers" home={home} live={live} />
+    ),
+    show("services") && home.apps.length > 0 && (
+      <LaunchCard key="services" home={home} />
+    ),
+  ].filter(Boolean)
+  const side = [
+    show("activity") && <ActivityCard key="activity" live={live} />,
+    show("monitors") && <MonitorsCard key="monitors" live={live} />,
+    show("traffic") && live.hasProxies && (
+      <TrafficCard key="traffic" live={live} />
+    ),
+    show("tasks") && <TasksCard key="tasks" home={home} />,
+    show("upcoming") && <UpcomingCard key="upcoming" home={home} />,
+  ].filter(Boolean)
+
   return (
     <div className="flex w-full flex-col gap-6 px-6 pt-6 pb-12">
-      <header className="flex items-end justify-between gap-6">
-        <div className="min-w-0">
-          <p className="font-label text-caption tracking-label text-ash uppercase">
-            {home.workspace?.name ?? "Home"}
-          </p>
-          <h1 className="mt-1 truncate text-heading font-light">{title}</h1>
-          <p className="mt-1 text-body-sm text-muted-foreground">{subtitle}</p>
+      <Pulse
+        home={home}
+        live={live}
+        title={title}
+        subtitle={subtitle}
+        layout={layout}
+      />
+      {home.ready && home.issues.length > 0 && <Attention home={home} />}
+      {noServers && <HomeEmpty />}
+      {(main.length > 0 || side.length > 0) && (
+        <div
+          className={cn(
+            "grid items-start gap-6",
+            main.length > 0 && side.length > 0 && "lg:grid-cols-3",
+          )}
+        >
+          {main.length > 0 && (
+            <div
+              className={cn(
+                "flex min-w-0 flex-col gap-6",
+                side.length > 0 && "lg:col-span-2",
+              )}
+            >
+              {main}
+            </div>
+          )}
+          {side.length > 0 && (
+            <div className="flex min-w-0 flex-col gap-6">{side}</div>
+          )}
         </div>
-        <AddMenu />
-      </header>
-
-      {home.ready ? (
-        <Attention home={home} />
-      ) : (
-        <Skeleton className="h-16 rounded-2xl" />
       )}
-
-      <section
-        aria-label="Overview"
-        className="grid grid-cols-2 gap-4 lg:grid-cols-3 2xl:grid-cols-6"
-      >
-        {summaries(home).map((s) => (
-          <SummaryTile key={s.key} summary={s} ready={home.ready} />
-        ))}
-      </section>
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
-          {home.serverTotal === 0 ? <HomeEmpty /> : <ServersCard home={home} />}
-          {home.apps.length > 0 && <LaunchCard home={home} />}
-        </div>
-        <div className="flex min-w-0 flex-col gap-6">
-          <TasksCard home={home} />
-          <UpcomingCard home={home} />
-        </div>
-      </div>
     </div>
-  )
-}
-
-function AddMenu() {
-  const actions = useAddActions()
-  if (actions.length === 0) return null
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger render={<Button />}>
-        <Plus />
-        Add
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>Add to this workspace</DropdownMenuLabel>
-          {actions.map((a) => (
-            <DropdownMenuItem key={a.label} onClick={a.run}>
-              {a.label}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
-function Card({
-  title,
-  icon,
-  action,
-  children,
-  className,
-}: {
-  title: string
-  icon?: ReactNode
-  action?: ReactNode
-  children: ReactNode
-  className?: string
-}) {
-  return (
-    <section
-      className={cn(
-        "overflow-hidden rounded-2xl border border-border bg-card shadow-sm",
-        className,
-      )}
-    >
-      <header className="flex h-14 items-center gap-3 border-b border-border px-6">
-        {icon}
-        <h2 className="min-w-0 flex-1 truncate text-body font-medium">
-          {title}
-        </h2>
-        {action}
-      </header>
-      {children}
-    </section>
-  )
-}
-
-function CardLink({ href, children }: { href: string; children: ReactNode }) {
-  return (
-    <Link
-      href={href}
-      className="text-body-sm text-muted-foreground hover:text-foreground"
-    >
-      {children}
-    </Link>
   )
 }
 
 // Problems first: the one place that answers "is anything wrong?".
 function Attention({ home }: { home: Home }) {
-  if (home.issues.length === 0) {
-    return (
-      <div className="flex items-center gap-3 rounded-2xl border border-border bg-card px-6 py-4 shadow-sm">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-success/10 text-success">
-          <CircleCheck className="size-5" strokeWidth={1.75} />
-        </span>
-        <div className="min-w-0">
-          <p className="text-body-sm font-medium">All systems normal</p>
-          <p className="text-caption text-muted-foreground">
-            Servers, databases, storage, DNS and cron jobs are all fine. Morcheh
-            keeps checking them on its own.
-          </p>
-        </div>
-      </div>
-    )
-  }
   const count = home.issues.length + home.moreBroken
   return (
     <Card
@@ -198,7 +134,7 @@ function Attention({ home }: { home: Home }) {
         </span>
       }
     >
-      <ul className="divide-y divide-border">
+      <ul className="grid divide-border xl:grid-cols-2 xl:gap-x-px [&>li]:border-b [&>li]:border-border">
         {home.issues.map((issue) => (
           <li key={issue.key}>
             <IssueRow issue={issue} />
@@ -211,7 +147,7 @@ function Attention({ home }: { home: Home }) {
                 folder: "all",
                 status: [...problemStatuses],
               })}
-              className="flex items-center gap-2 px-6 py-3 text-body-sm text-muted-foreground hover:bg-subtle hover:text-foreground"
+              className="flex h-full items-center gap-2 px-5 py-3 text-body-sm text-muted-foreground hover:bg-subtle hover:text-foreground"
             >
               And {home.moreBroken} more{" "}
               {home.moreBroken === 1 ? "server" : "servers"}
@@ -226,44 +162,65 @@ function Attention({ home }: { home: Home }) {
 
 function IssueRow({ issue }: { issue: Issue }) {
   const { icon: Icon, label } = kindItem[issue.kind]
+  const bad = issue.tone === "destructive"
   return (
     <Link
       href={issue.href}
-      className="group flex items-center gap-4 px-6 py-3 outline-none hover:bg-subtle focus-visible:bg-muted"
+      className="group flex items-center gap-3 px-5 py-3 outline-none hover:bg-subtle focus-visible:bg-muted"
     >
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+      <span
+        className={cn(
+          "flex size-9 shrink-0 items-center justify-center rounded-lg",
+          bad
+            ? "bg-destructive/10 text-destructive"
+            : "bg-warning/10 text-warning",
+        )}
+      >
         <Icon className="size-4" strokeWidth={1.75} />
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-body-sm font-medium">{issue.name}</span>
+        <span className="flex items-baseline gap-2">
+          <span className="truncate text-body-sm font-medium">
+            {issue.name}
+          </span>
+          <span className="shrink-0 text-caption text-ash">{label}</span>
+        </span>
         <span className="truncate text-caption text-muted-foreground">
           {issue.detail || label}
         </span>
       </span>
-      <span className="w-24 shrink-0 text-caption text-ash max-lg:hidden">
-        {label}
-      </span>
       <span
         className={cn(
-          "flex w-40 shrink-0 items-center gap-2 text-body-sm",
-          issue.tone === "warning" ? "text-warning" : "text-destructive",
+          "max-w-40 shrink-0 truncate text-body-sm",
+          bad ? "text-destructive" : "text-warning",
         )}
       >
-        <span
-          aria-hidden
-          className={cn(
-            "size-2 shrink-0 rounded-full",
-            issue.tone === "warning" ? "bg-warning" : "bg-destructive",
-          )}
-        />
-        <span className="truncate">{issue.status}</span>
+        {issue.status}
       </span>
       <ChevronRight className="size-4 shrink-0 text-ash rtl:rotate-180" />
     </Link>
   )
 }
 
-function SummaryTile({
+// Every section's count and health in one card.
+function SectionsCard({ home }: { home: Home }) {
+  return (
+    <Card title="Sections">
+      <ul className="grid grid-cols-2 md:grid-cols-3">
+        {summaries(home).map((s) => (
+          <li
+            key={s.key}
+            className="min-w-0 border-border not-last:border-b md:[&:nth-child(3n+1)]:border-e md:[&:nth-child(3n+2)]:border-e max-md:odd:border-e"
+          >
+            <SectionTile summary={s} ready={home.ready} />
+          </li>
+        ))}
+      </ul>
+    </Card>
+  )
+}
+
+function SectionTile({
   summary: s,
   ready,
 }: {
@@ -275,11 +232,11 @@ function SummaryTile({
   return (
     <Link
       href={s.href}
-      className="group flex min-w-0 flex-col gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm transition-shadow outline-none hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="group flex h-full min-w-0 flex-col gap-3 px-5 py-4 outline-none hover:bg-subtle focus-visible:bg-muted"
     >
       <span className="flex items-center gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-strong">
-          <Icon className="size-4.5" strokeWidth={1.75} />
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-strong">
+          <Icon className="size-4" strokeWidth={1.75} />
         </span>
         <span className="min-w-0 flex-1 truncate text-body-sm font-medium">
           {s.label}
@@ -289,33 +246,44 @@ function SummaryTile({
             {s.alert}
           </span>
         ) : (
-          <ArrowUpRight className="size-4 text-ash opacity-0 transition-opacity group-hover:opacity-100" />
+          <ArrowUpRight className="size-4 text-ash opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
         )}
       </span>
-      {known ? (
-        <span className="text-heading font-light tabular-nums">{s.total}</span>
-      ) : (
-        <Skeleton className="h-10 w-12" />
-      )}
-      <span className="flex flex-col gap-2">
-        {s.tally ? (
-          <HealthBar tally={known ? s.tally : undefined} />
+      <span className="flex items-end gap-3">
+        {known ? (
+          <span className="text-subheading leading-none font-light tabular-nums">
+            {s.total}
+          </span>
         ) : (
-          <span className="h-1.5" />
+          <Skeleton className="h-6 w-8" />
         )}
-        <span className="truncate text-caption text-muted-foreground">
-          {known ? s.caption : " "}
-        </span>
+        {s.tally && (
+          <HealthBar
+            tally={known ? s.tally : undefined}
+            className="mb-1 min-w-0 flex-1"
+          />
+        )}
+      </span>
+      <span className="truncate text-caption text-muted-foreground">
+        {known ? s.caption : " "}
       </span>
     </Link>
   )
 }
 
-function ServersCard({ home }: { home: Home }) {
+function ServersCard({ home, live }: { home: Home; live: HomeLive }) {
   const { servers } = home
+  const byId = new Map<string, ServerModel>(
+    (live.model?.servers ?? []).map((s) => [s.id, s]),
+  )
   return (
     <Card
       title={servers.favorites ? "Favorite servers" : "Servers"}
+      icon={
+        servers.favorites ? (
+          <Star className="size-4 text-ash" strokeWidth={1.75} />
+        ) : undefined
+      }
       action={
         <CardLink
           href={
@@ -329,52 +297,105 @@ function ServersCard({ home }: { home: Home }) {
       }
     >
       {servers.pending ? (
-        <div className="flex flex-col gap-3 p-6">
+        <div className="flex flex-col gap-3 p-5">
           <Skeleton className="h-9" />
           <Skeleton className="h-9" />
           <Skeleton className="h-9" />
         </div>
       ) : (
-        <ul className="divide-y divide-border">
-          {servers.items.map((s) => (
-            <li key={s.id}>
-              <Link
-                href={`/servers/${s.id}`}
-                className="flex items-center gap-4 px-6 py-3 outline-none hover:bg-subtle focus-visible:bg-muted"
-              >
-                <OsTile os={s.os} className="size-9" />
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-body-sm font-medium">
-                    {s.name}
-                  </span>
-                  <span className="truncate text-caption text-muted-foreground">
-                    {address(s)}
-                  </span>
-                </span>
-                <span className="flex w-36 shrink-0 items-center gap-2 text-body-sm text-muted-foreground">
-                  <StatusDot status={s.status} />
-                  <span className="truncate">{statusMeta[s.status].label}</span>
-                </span>
-                <span className="w-16 shrink-0 text-end text-caption text-ash tabular-nums max-xl:hidden">
-                  {s.status === "online" && s.latency_ms !== null
-                    ? `${s.latency_ms} ms`
-                    : "—"}
-                </span>
-                <span className="w-28 shrink-0 text-end text-caption text-ash max-xl:hidden">
-                  {s.status === "online" ? "Seen " : "Last seen "}
-                  {timeAgo(s.last_seen_at).toLowerCase()}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div className="@container">
+          <div className="hidden grid-cols-[minmax(0,1fr)_8rem] gap-4 border-b border-border px-5 py-2 text-caption text-ash @xl:grid @xl:grid-cols-[minmax(0,1fr)_8rem_repeat(3,5.5rem)] @3xl:grid-cols-[minmax(0,1fr)_8rem_repeat(3,5.5rem)_4rem]">
+            <span>Server</span>
+            <span>Status</span>
+            <span>CPU</span>
+            <span>Memory</span>
+            <span>Disk</span>
+            <span className="hidden text-end @3xl:block">Ping</span>
+          </div>
+          <ul className="divide-y divide-border">
+            {servers.items.map((s) => {
+              const r = byId.get(s.id)?.latest
+              const online = s.status === "online"
+              const mem =
+                r && r.mem_total_bytes
+                  ? (100 * r.mem_used_bytes) / r.mem_total_bytes
+                  : null
+              return (
+                <li key={s.id}>
+                  <Link
+                    href={`/servers/${s.id}`}
+                    className="grid grid-cols-[minmax(0,1fr)_8rem] items-center gap-4 px-5 py-2.5 outline-none hover:bg-subtle focus-visible:bg-muted @xl:grid-cols-[minmax(0,1fr)_8rem_repeat(3,5.5rem)] @3xl:grid-cols-[minmax(0,1fr)_8rem_repeat(3,5.5rem)_4rem]"
+                  >
+                    <span className="flex min-w-0 items-center gap-3">
+                      <OsTile os={s.os} className="size-9" />
+                      <span className="flex min-w-0 flex-col">
+                        <span className="truncate text-body-sm font-medium">
+                          {s.name}
+                        </span>
+                        <span className="truncate text-caption text-muted-foreground">
+                          {address(s)}
+                        </span>
+                      </span>
+                    </span>
+                    <span className="flex min-w-0 flex-col">
+                      <span className="flex items-center gap-2 text-body-sm text-muted-foreground">
+                        <StatusDot status={s.status} />
+                        <span className="truncate">
+                          {statusMeta[s.status].label}
+                        </span>
+                      </span>
+                      <span className="truncate text-caption text-ash">
+                        {online ? "Seen " : "Last seen "}
+                        {timeAgo(s.last_seen_at).toLowerCase()}
+                      </span>
+                    </span>
+                    <Usage value={online ? r?.cpu_percent : null} label="CPU" />
+                    <Usage value={online ? mem : null} label="Memory" />
+                    <Usage
+                      value={online ? r?.disk_max_percent : null}
+                      label="Disk"
+                    />
+                    <span className="hidden text-end text-caption text-ash tabular-nums @3xl:block">
+                      {online && s.latency_ms !== null
+                        ? `${s.latency_ms} ms`
+                        : "—"}
+                    </span>
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
       )}
       {!servers.pending && !servers.favorites && (
-        <p className="border-t border-border px-6 py-3 text-caption text-ash">
+        <p className="border-t border-border px-5 py-3 text-caption text-ash">
           Star a server on the Servers page to keep it here.
         </p>
       )}
     </Card>
+  )
+}
+
+function Usage({
+  value,
+  label,
+}: {
+  value: number | null | undefined
+  label: string
+}) {
+  return (
+    <span className="hidden min-w-0 flex-col gap-1 @xl:flex">
+      {value == null ? (
+        <span className="text-caption text-ash">—</span>
+      ) : (
+        <>
+          <span className="text-caption text-muted-foreground tabular-nums">
+            {formatPct(value)}
+          </span>
+          <Meter value={value} label={label} className="h-1.5" />
+        </>
+      )}
+    </span>
   )
 }
 
@@ -384,6 +405,7 @@ function LaunchCard({ home }: { home: Home }) {
   return (
     <Card
       title="Services"
+      caption={home.appCount ? `${home.appCount} in this workspace` : undefined}
       action={<CardLink href="/services">View all</CardLink>}
     >
       <ul className="grid grid-cols-2 gap-1 p-3 md:grid-cols-3 xl:grid-cols-4">
@@ -396,7 +418,7 @@ function LaunchCard({ home }: { home: Home }) {
                 {app.name}
               </span>
               {href && (
-                <ArrowUpRight className="size-4 shrink-0 text-ash opacity-0 transition-opacity group-hover:opacity-100" />
+                <ArrowUpRight className="size-4 shrink-0 text-ash opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
               )}
             </>
           )
@@ -431,7 +453,11 @@ function LaunchCard({ home }: { home: Home }) {
 
 function TasksCard({ home }: { home: Home }) {
   return (
-    <Card title="Tasks" action={<CardLink href="/tasks">View all</CardLink>}>
+    <Card
+      title="Tasks"
+      caption={home.activeJobs ? `${home.activeJobs} running` : undefined}
+      action={<CardLink href="/tasks">View all</CardLink>}
+    >
       {home.jobs.length === 0 ? (
         <Blank
           icon={<ListChecks className="size-5" strokeWidth={1.75} />}
@@ -441,7 +467,7 @@ function TasksCard({ home }: { home: Home }) {
         <ul className="divide-y divide-border">
           {home.jobs.map((job) => (
             <li key={job.id}>
-              <JobRow job={job} className="[&>button]:px-6" />
+              <JobRow job={job} className="[&>button]:px-5" />
             </li>
           ))}
         </ul>
@@ -459,7 +485,7 @@ function UpcomingCard({ home }: { home: Home }) {
       {home.upcoming.length === 0 ? (
         <Blank
           icon={<CalendarClock className="size-5" strokeWidth={1.75} />}
-          text="Scheduled file syncs and backups show here before they run."
+          text="Scheduled syncs, backups and upgrades show here before they run."
           action={
             <Link
               href="/cronjobs/new"
@@ -475,8 +501,11 @@ function UpcomingCard({ home }: { home: Home }) {
             <li key={c.id}>
               <Link
                 href={`/cronjobs/${c.id}`}
-                className="flex items-center gap-3 px-6 py-3 outline-none hover:bg-subtle focus-visible:bg-muted"
+                className="flex items-center gap-3 px-5 py-3 outline-none hover:bg-subtle focus-visible:bg-muted"
               >
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                  <CalendarClock className="size-4" strokeWidth={1.75} />
+                </span>
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate text-body-sm font-medium">
                     {c.name}
@@ -494,25 +523,5 @@ function UpcomingCard({ home }: { home: Home }) {
         </ul>
       )}
     </Card>
-  )
-}
-
-function Blank({
-  icon,
-  text,
-  action,
-}: {
-  icon: ReactNode
-  text: string
-  action?: ReactNode
-}) {
-  return (
-    <div className="flex flex-col items-center gap-3 px-6 py-8 text-center">
-      <span className="flex size-10 items-center justify-center rounded-lg bg-muted text-ash">
-        {icon}
-      </span>
-      <p className="max-w-60 text-body-sm text-muted-foreground">{text}</p>
-      {action}
-    </div>
   )
 }

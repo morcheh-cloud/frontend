@@ -282,6 +282,8 @@ export function useHome() {
 
   return {
     workspace,
+    // When the server counts last came in: Home's "Updated …" line.
+    updatedAt: facets.dataUpdatedAt,
     ready:
       !facets.isPending &&
       !storages.isPending &&
