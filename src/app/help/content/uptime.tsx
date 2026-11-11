@@ -173,7 +173,8 @@ export const uptime: GuideSection[] = [
     body: (
       <>
         <P>
-          <UI>Check from</UI> decides who knocks on the door:
+          <UI>Locations</UI> under <UI>Check from</UI> decide who knocks on the
+          door. Tick one or several:
         </P>
         <List>
           <li>
@@ -183,10 +184,18 @@ export const uptime: GuideSection[] = [
           <li>
             <UI>A server</UI>: the check runs on one of your servers over SSH.
             Use it for things only reachable inside a network (a database on
-            127.0.0.1, a private API), and for containers, systemd units and
-            commands, which always run on a server.
+            127.0.0.1, a private API).
           </li>
         </List>
+        <P>
+          Containers, systemd units and commands always run on one server, so
+          they take exactly one location: the server they run on. With more than
+          one location, see{" "}
+          <See guide="uptime" section="locations">
+            Checking from several locations
+          </See>
+          .
+        </P>
         <P>
           By default Morcheh won't check private addresses (10.x, 192.168.x,
           localhost) from its own machine. A system admin can tick{" "}
@@ -198,6 +207,104 @@ export const uptime: GuideSection[] = [
           the check runs.
         </P>
         <Tip>Checking from a server needs Engineer access on that server.</Tip>
+      </>
+    ),
+  },
+  {
+    id: "locations",
+    title: "Checking from several locations",
+    body: (
+      <>
+        <P>
+          One place can be wrong on its own: its network hiccups, its DNS
+          differs, a firewall in between drops it. Tick several locations and
+          every round checks from all of them at the same moment; a rule then
+          turns their answers into one status. Alerts, incidents and the report
+          follow that one status.
+        </P>
+        <Steps>
+          <li>
+            Open the monitor's <UI>Edit</UI> page and, in <UI>Check from</UI>,
+            tick two or more locations (Morcheh and any servers you have
+            Engineer access on).
+          </li>
+          <li>
+            Under <UI>When the locations disagree</UI>, pick when it counts as{" "}
+            <UI>Down</UI>: <UI>Any</UI> (one failing is enough), <UI>Most</UI>{" "}
+            (more than half), <UI>All</UI>, or <UI>At least…</UI> a number.
+          </li>
+          <li>
+            Pick when fewer failures make it <UI>Degraded</UI> instead of up:{" "}
+            <UI>Any</UI>, <UI>Most</UI>, <UI>At least…</UI> or <UI>Never</UI>. A
+            location that's slow (over the slow limit) counts as trouble here
+            too.
+          </li>
+          <li>
+            Read the sentence under the rule: it says in plain words what will
+            happen. Press <UI>Try it now</UI> to see every location's answer
+            before saving.
+          </li>
+        </Steps>
+        <Example title="Your website, from three places">
+          <P>
+            Morcheh plus two servers in different data centers, <UI>Down</UI> ={" "}
+            <UI>Most</UI>, <UI>Degraded</UI> = <UI>Any</UI>. One location
+            failing makes it degraded (you see it, no outage alert); two of
+            three failing make it down and send the alert.
+          </P>
+        </Example>
+        <Example title="Strict: any failure is an outage">
+          <P>
+            A payment API checked from two servers with <UI>Down</UI> ={" "}
+            <UI>Any</UI>: if either can't reach it, it's down.
+          </P>
+        </Example>
+        <Recommended
+          rows={[
+            {
+              setting: "Locations",
+              value: "3",
+              why: "An odd number gives a clear majority; one bad network can't decide alone.",
+            },
+            {
+              setting: "Down",
+              value: "Most",
+              why: "Two of three must fail. With two locations, Most means both.",
+            },
+            {
+              setting: "Degraded",
+              value: "Any",
+              why: "One location's trouble still shows, without an outage alert.",
+            },
+          ]}
+        />
+        <P>
+          On the monitor's page, the <UI>Locations</UI> card shows each
+          location's own state, response time and uptime in the range, with a
+          strip of how it went over time (24h and 7d ranges). In{" "}
+          <UI>Recent checks</UI>, press <UI>N locations</UI> under a check to
+          see what each one answered. The list shows a dot per location.
+        </P>
+        <List>
+          <li>
+            A location whose server can't be reached over SSH{" "}
+            <UI>couldn't check</UI>: it doesn't vote, and the others decide.
+            When none can check, the monitor is down.
+          </li>
+          <li>
+            The response time shown is the average of the locations that
+            answered; the certificate date is the one that ends first.
+          </li>
+          <li>
+            A DNS monitor checked from a server needs a <UI>Resolver</UI>{" "}
+            address, since the server asks it with its own tools.
+          </li>
+          <li>
+            Removing a server from the panel removes it as a location too.
+            Someone without access to a location's server can still edit the
+            monitor; they can't add new servers they can't reach.
+          </li>
+        </List>
       </>
     ),
   },
@@ -413,6 +520,16 @@ export const uptime: GuideSection[] = [
             from Morcheh's machine (or the server you picked), not from yours. A
             firewall, DNS that differs inside your network, or a site that
             blocks unknown clients can explain it. Try it from a server.
+          </li>
+          <li>
+            Degraded although the site works: one location has trouble. Open the
+            monitor and look at the <UI>Locations</UI> card to see which one, or
+            set <UI>Degraded</UI> to <UI>Never</UI> if a single location's
+            trouble shouldn't show.
+          </li>
+          <li>
+            A location says <UI>Couldn't check</UI>: Morcheh can't reach that
+            server over SSH; fix the server (its page shows why), or untick it.
           </li>
           <li>
             A private address is refused: tick <UI>Allow a private address</UI>{" "}

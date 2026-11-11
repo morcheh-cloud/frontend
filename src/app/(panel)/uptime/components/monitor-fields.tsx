@@ -30,6 +30,7 @@ import {
   type Errors,
   newRow,
   type Row,
+  serverLocations,
   uses,
 } from "./draft"
 import { type Kind, KindIcon, kindGroups, kindMeta, kinds } from "./meta"
@@ -553,7 +554,7 @@ export function TargetFields(props: FieldProps) {
             label="DNS server"
             error={errors["config.resolver"]}
             hint={
-              d.via
+              serverLocations(d).length
                 ? "Required when checked from a server, e.g. 1.1.1.1 or 10.0.0.2:53."
                 : "Optional: blank asks Morcheh's own resolver. e.g. 1.1.1.1 or 10.0.0.2:53."
             }
@@ -563,7 +564,11 @@ export function TargetFields(props: FieldProps) {
                 {...p}
                 value={c.resolver ?? ""}
                 onChange={(e) => setC({ resolver: e.target.value })}
-                placeholder={d.via ? "1.1.1.1" : "The system's resolver"}
+                placeholder={
+                  serverLocations(d).length
+                    ? "1.1.1.1"
+                    : "The system's resolver"
+                }
                 className={mono}
                 {...plain}
               />

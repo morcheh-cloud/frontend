@@ -60,7 +60,9 @@ import {
   useMonitorIncidents,
   useMonitorReport,
 } from "../api"
+import { ruleText } from "./draft"
 import { IncidentList } from "./incidents"
+import { CheckLocations, LocationsSection } from "./location-report"
 import {
   BeatBar,
   certDaysLeft,
@@ -525,6 +527,14 @@ function ReportView({
   return (
     <>
       <Tiles tiles={tiles} phone={phone} />
+      {m.locations.length > 1 && (
+        <LocationsSection
+          m={m}
+          report={r.locations}
+          buckets={b}
+          phone={phone}
+        />
+      )}
       <div className={cn("grid", !phone && "gap-5 xl:grid-cols-2")}>
         <Section
           title="Checks"
@@ -767,6 +777,7 @@ function ChecksSection({
                   {new Date(c.at).toLocaleString()}
                   {c.code && ` · ${c.code}`}
                 </p>
+                <CheckLocations items={c.locations} />
               </div>
               {c.latency_ms != null && (
                 <span className="shrink-0 text-caption text-muted-foreground tabular-nums">
@@ -858,18 +869,34 @@ function DetailsSection({ m, phone }: { m: UptimeMonitor; phone: boolean }) {
       value:
         m.kind === "push" ? (
           "Your job pings Morcheh"
-        ) : m.via_server_id ? (
-          <Link
-            href={`/servers/${m.via_server_id}`}
-            className="text-brand hover:underline"
-          >
-            {serverName(m.via_server_id)}
-          </Link>
         ) : (
-          "Morcheh"
+          <span className="flex flex-col gap-0.5">
+            <span className="flex flex-wrap gap-x-1">
+              {m.locations.map((l, i) => (
+                <span key={l.location}>
+                  {l.server_id ? (
+                    <Link
+                      href={`/servers/${l.server_id}`}
+                      className="text-brand hover:underline"
+                    >
+                      {l.name}
+                    </Link>
+                  ) : (
+                    l.name
+                  )}
+                  {i < m.locations.length - 1 && ","}
+                </span>
+              ))}
+            </span>
+            {m.locations.length > 1 && (
+              <span className="text-caption text-muted-foreground">
+                {ruleText(m.rule, m.locations.length)}
+              </span>
+            )}
+          </span>
         ),
     },
-    ...(m.server_id && m.server_id !== m.via_server_id
+    ...(m.server_id && !m.locations.some((l) => l.server_id === m.server_id)
       ? [
           {
             label: "Related server",

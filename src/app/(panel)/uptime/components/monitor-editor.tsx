@@ -27,7 +27,7 @@ import {
   ToggleRow,
 } from "@/app/(panel)/cronjobs/components/editor-parts"
 import { useOutboundIp } from "@/app/(panel)/databases/api"
-import { Empty, Segmented } from "@/app/(panel)/servers/[id]/components/parts"
+import { Empty } from "@/app/(panel)/servers/[id]/components/parts"
 import { useServers } from "@/app/(panel)/servers/api"
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
 import { useAccess } from "@/components/auth/auth"
@@ -58,15 +58,19 @@ import {
   type Errors,
   errorKeysOf,
   freshDraft,
+  fromMorcheh,
+  locationsOf,
   sameDraft,
+  serverLocations,
   toBody,
   uses,
 } from "./draft"
+import { LocationResults } from "./location-report"
+import { LocationsPicker, RuleFields } from "./locations"
 import {
   type Kind,
   KindIcon,
   kindMeta,
-  morchehOnly,
   onServer,
   pushUrl,
   stateMeta,
@@ -168,7 +172,7 @@ export function MonitorEditor({ id }: { id?: string }) {
     const d = freshDraft(kind && kind in kindMeta ? (kind as Kind) : "http")
     if (server) {
       d.server = server
-      if (onServer(d.kind)) d.via = server
+      if (onServer(d.kind)) d.locations = [server]
     }
     const host = params.get("host")
     if (host) d.c = { ...d.c, host }
@@ -216,7 +220,7 @@ function Editor({
 
   const servers = useServers({ limit: 500 })
   const channels = useChannels(ws)
-  const outbound = useOutboundIp(!draft.via && !onServer(draft.kind))
+  const outbound = useOutboundIp(fromMorcheh(draft))
 
   usePageCrumbs(
     saved
@@ -265,7 +269,6 @@ function Editor({
       kind,
       port: "",
       c: { ...d.c, tls_mode: undefined },
-      via: morchehOnly(kind) ? "" : d.via,
     }))
     setTested(null)
     setErrors({})
@@ -378,13 +381,20 @@ function Editor({
 
   // Servers: checking from one needs Engineer there; "related" takes any.
   const all = servers.data?.items ?? []
-  const viaOptions = all
+  // A saved location stays offered: unticking it needs no access.
+  const savedLocs = saved?.locations ?? []
+  const locOptions = all
     .filter(
       (s) =>
-        s.id === draft.via ||
+        savedLocs.some((l) => l.server_id === s.id) ||
         atLeast(access.serverLevel(s.id, s.workspace_id), "engineer"),
     )
-    .map((s) => ({ value: s.id, label: s.name, detail: s.host }))
+    .map((s) => ({ id: s.id, name: s.name, host: s.host, status: s.status }))
+  const locNames = Object.fromEntries(
+    savedLocs.map((l) => [l.location, l.name]),
+  )
+  const onIt = serverLocations(draft)[0] ?? ""
+  const locCount = locationsOf(draft).length
   const relatedOptions = all.map((s) => ({
     value: s.id,
     label: s.name,
@@ -506,7 +516,7 @@ function Editor({
           hint={
             onServer(k)
               ? "It runs over SSH on this server."
-              : "Morcheh itself, or one of your servers: for what's only reachable inside a network."
+              : "Morcheh itself and/or your servers (over SSH). Several places tell a real outage from one network's trouble."
           }
           phone={phone}
         >
@@ -514,86 +524,76 @@ function Editor({
             <Callout icon={<Info />}>
               UDP checks go out from Morcheh only.
             </Callout>
+          ) : onServer(k) ? (
+            <Field
+              label="Server"
+              error={errors.locations}
+              hint="Servers where you have Engineer access."
+            >
+              {(p) => (
+                <Pick
+                  {...p}
+                  phone={phone}
+                  value={onIt}
+                  onChange={(id) =>
+                    set(
+                      !draft.server || draft.server === onIt
+                        ? { locations: id ? [id] : [], server: id }
+                        : { locations: id ? [id] : [] },
+                    )
+                  }
+                  items={[
+                    {
+                      value: "",
+                      label: servers.isPending
+                        ? "Loading…"
+                        : locOptions.length
+                          ? "Pick a server"
+                          : "No server you can manage",
+                    },
+                    ...locOptions.map((o) => ({
+                      value: o.id,
+                      label: o.name,
+                      detail: o.host,
+                    })),
+                  ]}
+                />
+              )}
+            </Field>
           ) : (
             <>
-              {!onServer(k) && (
-                <div className="[scrollbar-width:none] overflow-x-auto">
-                  <Segmented
-                    label="Check from"
-                    items={[
-                      { value: "morcheh", label: "Morcheh" },
-                      { value: "server", label: "A server" },
-                    ]}
-                    value={draft.via ? "server" : "morcheh"}
-                    onChange={(v) =>
-                      set({
-                        via:
-                          v === "morcheh"
-                            ? ""
-                            : draft.via ||
-                              draft.server ||
-                              viaOptions[0]?.value ||
-                              "",
-                      })
-                    }
+              <Field
+                label="Locations"
+                error={errors.locations}
+                hint={
+                  locCount > 1
+                    ? `${locCount} places, checked at the same time.`
+                    : "Tick more than one to tell a real outage from one network's trouble."
+                }
+              >
+                {() => (
+                  <LocationsPicker
+                    value={draft.locations}
+                    onChange={(locations) => set({ locations })}
+                    options={locOptions}
+                    names={locNames}
+                    outboundIp={outbound.data?.ip}
+                    loading={servers.isPending}
+                    phone={phone}
                   />
-                </div>
+                )}
+              </Field>
+              {locCount > 1 && (
+                <RuleFields d={draft} set={set} errors={errors} />
               )}
-              {(onServer(k) || draft.via) && (
-                <Field
-                  label="Server"
-                  error={errors.via_server_id}
-                  hint="Servers where you have Engineer access."
-                >
-                  {(p) => (
-                    <Pick
-                      {...p}
-                      phone={phone}
-                      value={draft.via}
-                      onChange={(via) =>
-                        set(
-                          onServer(k) &&
-                            (!draft.server || draft.server === draft.via)
-                            ? { via, server: via }
-                            : { via },
-                        )
-                      }
-                      items={[
-                        {
-                          value: "",
-                          label: servers.isPending
-                            ? "Loading…"
-                            : viaOptions.length
-                              ? "Pick a server"
-                              : "No server you can manage",
-                        },
-                        ...viaOptions,
-                      ]}
-                    />
-                  )}
-                </Field>
-              )}
-              {!draft.via && !onServer(k) && (
-                <>
-                  {outbound.data?.ip && (
-                    <p className="text-caption text-muted-foreground">
-                      Morcheh connects from{" "}
-                      <span className="font-mono text-foreground">
-                        {outbound.data.ip}
-                      </span>
-                      : let it through the firewall in front of the target.
-                    </p>
-                  )}
-                  {can.admin && (
-                    <ToggleRow
-                      id="monitor-internal"
-                      label="Allow a private address"
-                      hint="Morcheh refuses loopback and private ranges unless a system admin allows it here."
-                      checked={draft.allowInternal}
-                      onChange={(allowInternal) => set({ allowInternal })}
-                    />
-                  )}
-                </>
+              {fromMorcheh(draft) && can.admin && (
+                <ToggleRow
+                  id="monitor-internal"
+                  label="Allow a private address"
+                  hint="From Morcheh, loopback and private ranges are refused unless a system admin allows it here."
+                  checked={draft.allowInternal}
+                  onChange={(allowInternal) => set({ allowInternal })}
+                />
               )}
             </>
           )}
@@ -1076,6 +1076,12 @@ export function TestResult({ r }: { r: CheckResult }) {
             Certificate valid until{" "}
             {new Date(r.cert_expires).toLocaleDateString()}
           </p>
+        )}
+        {r.locations && r.locations.length > 1 && (
+          <LocationResults
+            items={r.locations}
+            className="mt-2 border-t border-border pt-2"
+          />
         )}
       </div>
       {r.status === "down" && <TriangleAlert className="sr-only" aria-hidden />}

@@ -1,5 +1,10 @@
 import { engineMeta } from "@/app/(panel)/databases/components/meta"
-import type { MonitorBody, MonitorConfig, UptimeMonitor } from "@/lib/services"
+import type {
+  LocationRule,
+  MonitorBody,
+  MonitorConfig,
+  UptimeMonitor,
+} from "@/lib/services"
 import { type Kind, morchehOnly, onServer } from "./meta"
 
 // The monitor editor's form state. The config is kept as the API's shape;
@@ -20,7 +25,12 @@ export type Draft = {
   secretHeaders: Row[]
   password: string
   token: string
-  via: string
+  // Where it's checked from: MORCHEH and/or server ids.
+  locations: string[]
+  ruleDown: LocationRule["down"]
+  ruleDownCount: string
+  ruleDegraded: LocationRule["degraded"]
+  ruleDegradedCount: string
   server: string
   interval: string
   retry: string
@@ -39,6 +49,21 @@ export type Draft = {
 }
 
 let rowSeq = 0
+export const MORCHEH = "morcheh"
+
+// The servers among a draft's locations.
+export const serverLocations = (d: Pick<Draft, "locations">) =>
+  d.locations.filter((l) => l !== MORCHEH)
+export const fromMorcheh = (d: Pick<Draft, "locations" | "kind">) =>
+  !onServer(d.kind) && d.locations.includes(MORCHEH)
+// Locations the kind actually uses.
+export function locationsOf(d: Pick<Draft, "locations" | "kind">): string[] {
+  if (d.kind === "push") return []
+  if (morchehOnly(d.kind)) return [MORCHEH]
+  if (onServer(d.kind)) return serverLocations(d).slice(0, 1)
+  return d.locations
+}
+
 export const newRow = (name = "", value = "", saved = false): Row => ({
   key: `r${++rowSeq}`,
   name,
@@ -68,7 +93,11 @@ export function freshDraft(kind: Kind = "http"): Draft {
     secretHeaders: [],
     password: "",
     token: "",
-    via: "",
+    locations: [MORCHEH],
+    ruleDown: "majority",
+    ruleDownCount: "2",
+    ruleDegraded: "any",
+    ruleDegradedCount: "1",
     server: "",
     interval: "60",
     retry: "20",
@@ -106,7 +135,11 @@ export function draftFrom(m: UptimeMonitor, copy = false): Draft {
           .map((s) => newRow(s.slice(7), "", true)),
     password: "",
     token: "",
-    via: m.via_server_id ?? "",
+    locations: m.locations.map((l) => l.location),
+    ruleDown: m.rule.down,
+    ruleDownCount: String(m.rule.down_count),
+    ruleDegraded: m.rule.degraded,
+    ruleDegradedCount: String(m.rule.degraded_count),
     server: m.server_id ?? "",
     interval: String(m.interval_seconds),
     retry: String(m.retry_seconds),
@@ -316,7 +349,8 @@ export function toBody(d: Draft, creating: boolean): MonitorBody {
       if (r.name.trim()) secretHeaders[r.name.trim()] = r.value
     }
   }
-  const via = morchehOnly(k) ? "" : d.via
+  const locations = locationsOf(d)
+  const onIt = onServer(k) ? (locations[0] ?? "") : ""
   return {
     kind: k,
     name: d.name.trim(),
@@ -328,8 +362,9 @@ export function toBody(d: Draft, creating: boolean): MonitorBody {
       token: uses.token(k) && d.token ? d.token : undefined,
       headers: Object.keys(secretHeaders).length ? secretHeaders : undefined,
     },
-    via_server_id: via || undefined,
-    server_id: d.server || (onServer(k) ? via : "") || undefined,
+    locations: k === "push" ? undefined : locations,
+    rule: k === "push" ? undefined : toRule(d),
+    server_id: d.server || onIt || undefined,
     interval_seconds: int(d.interval, 60),
     retry_seconds: int(d.retry, 20),
     timeout_seconds: int(d.timeout, 10),
@@ -342,6 +377,44 @@ export function toBody(d: Draft, creating: boolean): MonitorBody {
     reset_push_token:
       !creating && k === "push" && d.resetPush ? true : undefined,
   }
+}
+
+const count = (t: string, fallback: number) =>
+  Math.min(50, Math.max(1, int(t, fallback)))
+
+export const toRule = (d: Draft): LocationRule => ({
+  down: d.ruleDown,
+  down_count: count(d.ruleDownCount, 2),
+  degraded: d.ruleDegraded,
+  degraded_count: count(d.ruleDegradedCount, 1),
+})
+
+// The rule in words, for n locations: "Down when 2 of 3 fail; degraded
+// when 1 has trouble".
+export function ruleText(r: LocationRule, n: number) {
+  const of = (need: number) => (need >= n ? `all ${n}` : `${need} of ${n}`)
+  const down =
+    r.down === "any"
+      ? 1
+      : r.down === "all"
+        ? n
+        : r.down === "count"
+          ? Math.min(r.down_count, n)
+          : Math.floor(n / 2) + 1
+  const deg =
+    r.degraded === "never"
+      ? 0
+      : r.degraded === "any"
+        ? 1
+        : r.degraded === "count"
+          ? Math.min(r.degraded_count, n)
+          : Math.floor(n / 2) + 1
+  const downText =
+    down === 1 ? "Down when any location fails" : `Down when ${of(down)} fail`
+  if (deg === 0) return `${downText}; otherwise up.`
+  const degText =
+    deg === 1 ? "any location has trouble" : `${of(deg)} have trouble`
+  return `${downText}; otherwise degraded when ${degText}.`
 }
 
 export const sameDraft = (a: Draft, b: Draft) =>
@@ -390,7 +463,7 @@ export function checkDraft(d: Draft): Errors {
   }
   if (k === "dns") {
     if (!(c.name ?? "").trim()) e["config.name"] = "Enter the name to look up"
-    if (d.via && !(c.resolver ?? "").trim()) {
+    if (serverLocations(d).length && !(c.resolver ?? "").trim()) {
       e["config.resolver"] =
         "From a server, enter the DNS server to ask (e.g. 1.1.1.1)"
     }
@@ -404,7 +477,12 @@ export function checkDraft(d: Draft): Errors {
   if (k === "command" && !(c.script ?? "").trim()) {
     e["config.script"] = "Enter the command"
   }
-  if (onServer(k) && !d.via) e.via_server_id = "Pick the server it runs on"
+  if (onServer(k) && !serverLocations(d).length) {
+    e.locations = "Pick the server it runs on"
+  } else if (!morchehOnly(k) && !d.locations.length) {
+    e.locations = "Pick at least one place to check from"
+  }
+
   if (k === "http" && c.keyword_mode === "regex" && c.keyword) {
     try {
       new RegExp(c.keyword)
@@ -420,6 +498,10 @@ export function checkDraft(d: Draft): Errors {
     }
   }
   range("interval_seconds", d.interval, 10, 86400)
+  if (d.ruleDown === "count") range("rule.down_count", d.ruleDownCount, 1, 50)
+  if (d.ruleDegraded === "count") {
+    range("rule.degraded_count", d.ruleDegradedCount, 1, 50)
+  }
   range("retry_seconds", d.retry, 5, 86400)
   range("timeout_seconds", d.timeout, 1, 120)
   range("retries", d.retries, 0, 20)
@@ -450,7 +532,9 @@ export const errorKeysOf: Partial<Record<keyof Draft, string[]>> = {
   count: ["config.count"],
   statuses: ["config.statuses"],
   expected: ["config.expected"],
-  via: ["via_server_id", "config.resolver"],
+  locations: ["locations", "config.resolver", "allow_internal"],
+  ruleDownCount: ["rule.down_count"],
+  ruleDegradedCount: ["rule.degraded_count"],
   server: ["server_id"],
   allowInternal: ["allow_internal"],
   channels: ["channel_ids"],

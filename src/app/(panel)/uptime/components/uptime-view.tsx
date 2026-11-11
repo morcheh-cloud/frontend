@@ -32,6 +32,7 @@ import type { UptimeMonitor } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { useIncidents, useMonitors } from "../api"
 import { IncidentList } from "./incidents"
+import { LocationDots } from "./location-report"
 import {
   BeatBar,
   byState,
@@ -357,6 +358,7 @@ function Row({ m }: { m: UptimeMonitor }) {
             <span className="block truncate text-caption text-ash">
               {targetText(m)}
             </span>
+            <LocationDots m={m} className="text-caption text-ash" />
           </span>
         </Link>
       </td>
@@ -552,6 +554,15 @@ function MonitorSheet({
           { label: "Target", value: targetText(m), wide: true, mono: true },
           { label: "Uptime 24 h", value: uptimeText(m.uptime_24h) },
           { label: "Uptime 30 d", value: uptimeText(m.uptime_30d) },
+          ...(m.locations.length > 1
+            ? [
+                {
+                  label: "Locations",
+                  value: <LocationDots m={m} />,
+                  wide: true,
+                },
+              ]
+            : []),
         ]}
       />
       <SheetItems groups={menu} onOpenChange={onOpenChange} />

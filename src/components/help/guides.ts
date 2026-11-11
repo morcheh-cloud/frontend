@@ -520,6 +520,9 @@ export const guides: GuideMeta[] = [
     icon: HeartPulse,
     group: "Infrastructure",
     keywords: [
+      "locations",
+      "regions",
+      "multi-location",
       "monitor",
       "uptime",
       "status",

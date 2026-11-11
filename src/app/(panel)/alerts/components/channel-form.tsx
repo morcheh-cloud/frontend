@@ -880,7 +880,7 @@ function Form({
           "flex gap-2",
           phone
             ? "sticky bottom-0 -mx-4 flex-col border-t border-border bg-background px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
-            : "justify-end",
+            : "sticky bottom-0 z-10 -mx-6 -mb-1 justify-end border-t border-border bg-popover px-6 pt-4 pb-1",
         )}
       >
         <Button

@@ -66,14 +66,28 @@ export function ResponsiveDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => onOpenChange(next)}>
-      <DialogContent className={cn("gap-5 p-6 sm:max-w-md", className)}>
-        <DialogHeader>
+      {/* Never taller than the window: the header (and footer) stay put and
+          the body scrolls, so a long form keeps its buttons in reach. */}
+      <DialogContent
+        className={cn(
+          "flex max-h-[calc(100dvh-4rem)] flex-col gap-5 p-6 sm:max-w-md",
+          className,
+        )}
+      >
+        <DialogHeader className="shrink-0 pe-6">
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
-        {children}
+        <div
+          data-slot="dialog-body"
+          className="-mx-6 -my-1 grid min-h-0 flex-1 gap-5 overflow-y-auto px-6 py-1"
+        >
+          {children}
+        </div>
         {footer && (
-          <DialogFooter className="-mx-6 -mb-6 px-6">{footer}</DialogFooter>
+          <DialogFooter className="-mx-6 -mb-6 shrink-0 px-6">
+            {footer}
+          </DialogFooter>
         )}
       </DialogContent>
     </Dialog>

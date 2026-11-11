@@ -1551,6 +1551,7 @@ export interface CheckResult {
   detail?: string;
   /** @format int64 */
   latency_ms?: number;
+  locations?: LocationResult[];
   message: string;
   status: "up" | "degraded" | "down";
 }
@@ -1561,7 +1562,7 @@ export interface ChecksOutBody {
    * @format uri
    */
   $schema?: string;
-  items: MonitorChecksBetweenRow[];
+  items: MonitorCheck[];
 }
 
 export interface ChmodFilesRequest {
@@ -5278,6 +5279,49 @@ export interface LocalTools {
   supported: boolean;
 }
 
+export interface LocationBucket {
+  /** @format date-time */
+  at: string;
+  /** @format int32 */
+  checks: number;
+  /** @format int32 */
+  down: number;
+  /** @format double */
+  latency_avg?: number;
+}
+
+export interface LocationResult {
+  code?: string;
+  detail?: string;
+  /** @format int64 */
+  latency_ms?: number;
+  /** morcheh, or the server's id */
+  location: string;
+  message: string;
+  name: string;
+  /** unknown = it couldn't check (its server was unreachable); it doesn't vote */
+  status: "up" | "degraded" | "down" | "unknown";
+}
+
+export interface LocationRule {
+  /** Below that, degraded when any, a majority or at least degraded_count locations have trouble; never = stays up */
+  degraded: "any" | "majority" | "count" | "never";
+  /**
+   * @format int32
+   * @min 1
+   * @max 50
+   */
+  degraded_count: number;
+  /** Down when any, a majority, all or at least down_count locations fail */
+  down: "any" | "majority" | "all" | "count";
+  /**
+   * @format int32
+   * @min 1
+   * @max 50
+   */
+  down_count: number;
+}
+
 export interface LogEntry {
   /** Where this entry sits in the journal, to continue after it */
   cursor: string;
@@ -5501,6 +5545,11 @@ export interface MonitorBody {
     | "command"
     | "push";
   /**
+   * Where to check from: morcheh and/or server ids (over SSH). docker, systemd and command take one server. Left out: Morcheh on create, unchanged on update
+   * @maxItems 20
+   */
+  locations?: string[];
+  /**
    * @minLength 1
    * @maxLength 100
    */
@@ -5534,6 +5583,8 @@ export interface MonitorBody {
    * @default 20
    */
   retry_seconds?: number;
+  /** With several locations: when they make it down or degraded. Left out: majority down, any degraded on create, unchanged on update */
+  rule?: LocationRule;
   /** A blank secret keeps the saved one */
   secrets: MonitorSecrets;
   /**
@@ -5550,19 +5601,15 @@ export interface MonitorBody {
    * @default 10
    */
   timeout_seconds?: number;
-  /**
-   * Check from this server, over SSH (needed for docker, systemd and command)
-   * @format uuid
-   */
-  via_server_id?: string;
 }
 
-export interface MonitorChecksBetweenRow {
+export interface MonitorCheck {
   /** @format date-time */
   at: string;
   code: string;
   /** @format int32 */
-  latency_ms: number | null;
+  latency_ms?: number;
+  locations: LocationResult[];
   message: string;
   status: string;
 }
@@ -5724,6 +5771,24 @@ export interface MonitorEvent {
   to_status: string;
 }
 
+export interface MonitorLocation {
+  /** @format date-time */
+  checked_at?: string;
+  code: string;
+  /** @format int32 */
+  latency_ms?: number;
+  /** morcheh, or the server's id */
+  location: string;
+  name: string;
+  /** @format uuid */
+  server_id?: string;
+  /** unknown = it couldn't check (its server was unreachable) */
+  status: "pending" | "up" | "degraded" | "down" | "unknown";
+  status_message: string;
+  /** @format date-time */
+  status_since: string;
+}
+
 export interface MonitorReport {
   /**
    * A URL to the JSON Schema for this object.
@@ -5748,6 +5813,9 @@ export interface MonitorReport {
   latency_avg?: number;
   /** @format int32 */
   latency_max?: number;
+  locations: ReportLocation[];
+  /** @format date-time */
+  locations_since?: string;
   range: string;
   /** @format date-time */
   since: string;
@@ -5819,6 +5887,11 @@ export interface MonitorTestBody {
     | "command"
     | "push";
   /**
+   * Where to check from: morcheh and/or server ids (over SSH). docker, systemd and command take one server. Left out: Morcheh on create, unchanged on update
+   * @maxItems 20
+   */
+  locations?: string[];
+  /**
    * When editing: the saved monitor, whose secrets blank ones stand for
    * @format uuid
    */
@@ -5857,6 +5930,8 @@ export interface MonitorTestBody {
    * @default 20
    */
   retry_seconds?: number;
+  /** With several locations: when they make it down or degraded. Left out: majority down, any degraded on create, unchanged on update */
+  rule?: LocationRule;
   /** A blank secret keeps the saved one */
   secrets: MonitorSecrets;
   /**
@@ -5873,11 +5948,6 @@ export interface MonitorTestBody {
    * @default 10
    */
   timeout_seconds?: number;
-  /**
-   * Check from this server, over SSH (needed for docker, systemd and command)
-   * @format uuid
-   */
-  via_server_id?: string;
 }
 
 export interface MyAccess {
@@ -7833,6 +7903,35 @@ export interface ReportDay {
   down: number;
   /** @format int32 */
   up: number;
+}
+
+export interface ReportLocation {
+  /** @format double */
+  latency_p95?: number;
+  buckets: LocationBucket[];
+  /** @format int32 */
+  checks: number;
+  /** @format int32 */
+  degraded: number;
+  /** @format int32 */
+  down: number;
+  /** @format double */
+  latency_avg?: number;
+  /** morcheh, or the server's id */
+  location: string;
+  name: string;
+  /**
+   * Rounds it couldn't check in
+   * @format int32
+   */
+  unknown: number;
+  /** @format int32 */
+  up: number;
+  /**
+   * Of the rounds it could check in
+   * @format double
+   */
+  uptime?: number;
 }
 
 export interface ReportWindow {
@@ -11184,6 +11283,8 @@ export interface UptimeMonitor {
   last_checked_at?: string;
   /** @format int32 */
   last_latency_ms?: number;
+  /** Where it's checked from */
+  locations: MonitorLocation[];
   name: string;
   /** @format date-time */
   next_check_at: string;
@@ -11199,6 +11300,8 @@ export interface UptimeMonitor {
   retries: number;
   /** @format int32 */
   retry_seconds: number;
+  /** How the locations' answers make one status */
+  rule: LocationRule;
   /** Which secrets are saved */
   secrets: string[];
   /** @format uuid */
@@ -11213,8 +11316,6 @@ export interface UptimeMonitor {
   /** @format date-time */
   updated_at: string;
   updated_by_name: string;
-  /** @format uuid */
-  via_server_id?: string;
   /** @format uuid */
   workspace_id: string;
 }
