@@ -17,7 +17,9 @@ import {
   Image as ImageIcon,
   LayoutGrid,
   ListChecks,
+  ListRestart,
   type LucideIcon,
+  Package,
   PackageOpen,
   Play,
   Shield,
@@ -63,6 +65,8 @@ const icons: Record<string, LucideIcon> = {
   "proxy-certificate": FileKey,
   "software-run": LayoutGrid,
   "software-scan": FolderSearch,
+  "package-action": Package,
+  "package-refresh": ListRestart,
 }
 
 export function JobIcon({
@@ -136,6 +140,7 @@ export function resultText(job: Job) {
   if (typeof r.size === "number") return formatSize(r.size)
   if (typeof r.destination === "string") return r.destination
   if (typeof r.certificate === "string") return r.certificate
+  if (r.reboot_required === true) return "Restart the server to finish"
   return ""
 }
 
@@ -147,6 +152,11 @@ const past: Record<string, string> = {
   Download: "Downloaded",
   Install: "Installed",
   Remove: "Removed",
+  Upgrade: "Upgraded",
+  Purge: "Purged",
+  Reinstall: "Reinstalled",
+  Refresh: "Refreshed",
+  Empty: "Emptied",
 }
 
 // "Copy x from A to B" → "Copied x from A to B".
@@ -192,6 +202,8 @@ export function placeHref(job: Job) {
   }
   if (t?.run_id) return `/ansible/runs/${t.run_id}`
   if (job.kind === "storage-scan") return "/storage?tab=insights"
+  if (job.kind.startsWith("package-") && job.refs[0])
+    return `/servers/${job.refs[0]}/packages`
   if (job.kind.startsWith("proxy-") && job.refs[0])
     return `/proxy/${job.refs[0]}`
   if (!t?.path) return null
@@ -205,6 +217,7 @@ export function placeLabel(job: Job) {
   if (job.kind === "storage-scan") return "Open Insights"
   if (job.kind === "software-scan") return "Open applications"
   if (job.kind.startsWith("proxy-")) return "Open proxy"
+  if (job.kind.startsWith("package-")) return "Open packages"
   if (job.target?.database_id) return "Open backups"
   return job.target?.run_id ? "Open run" : "Open folder"
 }

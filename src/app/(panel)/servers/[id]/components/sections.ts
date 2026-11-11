@@ -106,11 +106,7 @@ export const sectionGroups: SectionGroup[] = [
         label: "Packages",
         icon: Package,
         summary: "Installed packages and pending updates.",
-        planned: [
-          "Search installed packages (apt, dnf, apk…)",
-          "See available and security updates",
-          "Upgrade one package or everything",
-        ],
+        ready: true,
       },
       {
         slug: "users",

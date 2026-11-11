@@ -5014,6 +5014,39 @@ export interface IncidentsOutBody {
   items: UptimeIncident[];
 }
 
+export interface InstalledPackage {
+  arch?: string;
+  /** Installed as a dependency of another package, not by hand */
+  auto: boolean;
+  /**
+   * When it was installed or last upgraded, when the manager keeps that
+   * @format date-time
+   */
+  changed_at?: string;
+  /** Held at its version: upgrades leave it alone */
+  held: boolean;
+  /** A newer version the repositories have */
+  latest?: string;
+  name: string;
+  /** No longer needed by anything: autoremove would take it */
+  removable: boolean;
+  /** Where the update comes from */
+  repo?: string;
+  /** The distribution's category for it */
+  section?: string;
+  /** That update fixes a security problem */
+  security?: boolean;
+  /**
+   * Installed size in bytes; 0 when unknown
+   * @format int64
+   */
+  size: number;
+  /** config-files: removed, but its configuration files are still there (apt); broken: half installed or half removed */
+  state: "installed" | "config-files" | "broken";
+  summary?: string;
+  version: string;
+}
+
 export interface InstallsOutputBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -5065,7 +5098,7 @@ export interface Job {
   finished_at?: string;
   /** @format uuid */
   id: string;
-  /** What it does: transfer, copy, move, storage-copy, storage-move, compress, extract, fetch, fail2ban-install, fail2ban-uninstall, firewall-install, firewall-apply, ansible-run, schedule-sync, schedule-run, script-run, database-backup, database-backup-verify, database-backup-restore, proxy-setup, proxy-geo, proxy-brotli, proxy-waf, proxy-image-filter, proxy-stream-geo, proxy-certificate, software-run or software-scan */
+  /** What it does: transfer, copy, move, storage-copy, storage-move, compress, extract, fetch, fail2ban-install, fail2ban-uninstall, firewall-install, firewall-apply, ansible-run, schedule-sync, schedule-run, script-run, database-backup, database-backup-verify, database-backup-restore, proxy-setup, proxy-geo, proxy-brotli, proxy-waf, proxy-image-filter, proxy-stream-geo, proxy-certificate, software-run, software-scan, package-action or package-refresh */
   kind: string;
   /** What it printed (newest last); only on GET /jobs/{id} */
   log?: string;
@@ -6208,6 +6241,251 @@ export interface OpenPort {
   service: string;
   service_source: "container" | "process" | "port" | "none";
   unit?: PortUnit;
+}
+
+export interface PackageActionBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** upgrade-all: every package (see mode); autoremove: packages nothing needs any more; clean: empty the download cache */
+  action:
+    | "install"
+    | "remove"
+    | "purge"
+    | "upgrade"
+    | "reinstall"
+    | "upgrade-all"
+    | "autoremove"
+    | "clean";
+  /** For upgrade-all: all = a normal upgrade, security = only security updates, full = may also add or remove packages (apt full-upgrade) */
+  mode?: "all" | "security" | "full";
+  /**
+   * The packages, for install, remove, purge, upgrade and reinstall
+   * @maxItems 200
+   */
+  names?: string[];
+  /**
+   * Install this version (also an older one); one package only
+   * @maxLength 128
+   */
+  version?: string;
+}
+
+export interface PackageAutoUpdates {
+  /** What exactly runs, in a few words */
+  detail?: string;
+  enabled: boolean;
+  /** The package to install before they can be turned on */
+  missing?: string;
+  /** Morcheh can turn them on or off on this server */
+  supported: boolean;
+  tool?: string;
+}
+
+export interface PackageAutoUpdatesBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  enabled: boolean;
+}
+
+export interface PackageCapabilities {
+  /** Turn automatic updates on or off from here */
+  auto_updates: boolean;
+  /** Remove packages nothing needs any more */
+  autoremove: boolean;
+  /** Read what was installed, upgraded and removed before */
+  history: boolean;
+  /** Hold a package at its version */
+  hold: boolean;
+  /** Mark a package as installed by hand or as a dependency */
+  mark: boolean;
+  /** Show what an action would change before it runs */
+  preview: boolean;
+  /** Remove with the configuration files */
+  purge: boolean;
+  reinstall: boolean;
+  /** Tell security updates apart, and install only those */
+  security: boolean;
+  /** Install a chosen version (also an older one) */
+  versions: boolean;
+}
+
+export interface PackageChange {
+  action:
+    | "install"
+    | "upgrade"
+    | "downgrade"
+    | "remove"
+    | "purge"
+    | "reinstall";
+  /** Version before */
+  from?: string;
+  name: string;
+  /** Version after */
+  to?: string;
+}
+
+export interface PackageHistory {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Newest first, at most 200 */
+  entries: PackageHistoryEntry[];
+  manager: string;
+  /** The manager keeps a history (apk doesn't) */
+  supported: boolean;
+}
+
+export interface PackageHistoryEntry {
+  /** @format date-time */
+  at: string;
+  changes: PackageChange[];
+  command?: string;
+  error?: string;
+  /** Only installs and upgrades are known (read from the package database, not a log) */
+  partial?: boolean;
+  user?: string;
+}
+
+export interface PackageInfo {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  arch?: string;
+  /** What it needs (alternatives as a | b) */
+  depends: string[];
+  description?: string;
+  /** Files it installed (not folders) */
+  files: string[];
+  files_truncated: boolean;
+  homepage?: string;
+  installed: boolean;
+  /** The newest version the repositories offer */
+  latest?: string;
+  license?: string;
+  maintainer?: string;
+  name: string;
+  repo?: string;
+  /** Installed packages that need it */
+  required_by: string[];
+  section?: string;
+  /** @format int64 */
+  size: number;
+  summary?: string;
+  /** The installed version */
+  version?: string;
+  /** Versions the server has or could install, newest first */
+  versions: PackageVersion[];
+}
+
+export interface PackageMarkBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** hold: keep at this version; auto: installed as a dependency (autoremove may take it); manual: installed by hand */
+  mark: "hold" | "unhold" | "auto" | "manual";
+  /**
+   * @maxItems 200
+   * @minItems 1
+   */
+  names: string[];
+}
+
+export interface PackageMatch {
+  /** The installed version, if any */
+  installed?: string;
+  name: string;
+  repo?: string;
+  summary?: string;
+  /** The version the repositories offer */
+  version?: string;
+}
+
+export interface PackagePreview {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  changes: PackageChange[];
+  /** Updates apt holds back for now (Ubuntu's phased updates reach servers a few at a time); upgrading them by name installs them anyway */
+  deferred: string[];
+  /** Updates left out because they would add or remove other packages; a full upgrade or upgrading them by name takes them */
+  kept_back: string[];
+  /** Why it can't be done as asked, in the package manager's words */
+  problems: string[];
+}
+
+export interface PackageSearchResult {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  manager: string;
+  /** Exact names first, then names starting with the search, then the rest */
+  matches: PackageMatch[];
+}
+
+export interface PackageVersion {
+  installed: boolean;
+  repo?: string;
+  version: string;
+}
+
+export interface PackagesOverview {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** How Morcheh acts on the server. Changing packages needs root or sudo */
+  access: "root" | "sudo" | "user";
+  auto_updates: PackageAutoUpdates;
+  /**
+   * Downloaded package files kept in the cache; -1 when unknown
+   * @format int64
+   */
+  cache_bytes: number;
+  capabilities: PackageCapabilities;
+  manager: "apt" | "dnf" | "yum" | "zypper" | "apk" | "pacman" | "none";
+  packages: InstalledPackage[];
+  /** Which packages asked for it, when the server says */
+  reboot_packages: string[];
+  /** An update (a new kernel, a core library) needs a restart to take effect */
+  reboot_required: boolean;
+  /**
+   * When the package lists were last downloaded; updates are only as fresh as these
+   * @format date-time
+   */
+  refreshed_at?: string;
+  /** @format int64 */
+  removable: number;
+  /**
+   * Of those, the security updates
+   * @format int64
+   */
+  security_updates: number;
+  /** More packages are installed than the list holds */
+  truncated: boolean;
+  /**
+   * Installed packages with a newer version
+   * @format int64
+   */
+  updates: number;
+  /** What couldn't be read */
+  warnings: string[];
 }
 
 export interface PanelApproveBody {
@@ -18498,6 +18776,204 @@ export class Api<
       this.request<ServerNote, ErrorModel>({
         path: `/servers/${id}/notes/${note}`,
         method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  packages = {
+    /**
+     * @description Its description, dependencies, what needs it, its files (when installed) and the versions the server could install. 404 when no repository has it.
+     *
+     * @tags Packages
+     * @name GetPackage
+     * @summary One package
+     * @request GET:/servers/{id}/packages/info
+     */
+    getPackage: (
+      id: string,
+      query: {
+        /**
+         * The package's name
+         * @maxLength 128
+         */
+        name: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<PackageInfo, ErrorModel>({
+        path: `/servers/${id}/packages/info`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Every installed package with its version, size, whether it was installed by hand, held or no longer needed, and the newer version the repositories have (security updates marked). Read from the package lists the server already has: refresh them for fresh updates.
+     *
+     * @tags Packages
+     * @name GetPackages
+     * @summary Installed packages and updates
+     * @request GET:/servers/{id}/packages
+     */
+    getPackages: (id: string, params: RequestParams = {}) =>
+      this.request<PackagesOverview, ErrorModel>({
+        path: `/servers/${id}/packages`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Answers the fresh overview. 422 when the server's package manager can't do it.
+     *
+     * @tags Packages
+     * @name MarkPackages
+     * @summary Hold packages, or mark them as installed by hand or as dependencies
+     * @request POST:/servers/{id}/packages/mark
+     */
+    markPackages: (
+      id: string,
+      data: PackageMarkBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<PackagesOverview, ErrorModel>({
+        path: `/servers/${id}/packages/mark`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Past installs, upgrades and removals from the manager's own log, with who ran them and the command.
+     *
+     * @tags Packages
+     * @name PackageHistory
+     * @summary What the package manager did before
+     * @request GET:/servers/{id}/packages/history
+     */
+    packageHistory: (id: string, params: RequestParams = {}) =>
+      this.request<PackageHistory, ErrorModel>({
+        path: `/servers/${id}/packages/history`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Asks the package manager to simulate it: the packages it would install, upgrade or remove (dependencies too), or why it can't. Nothing changes. Needs root or sudo.
+     *
+     * @tags Packages
+     * @name PreviewPackages
+     * @summary What an action would change
+     * @request POST:/servers/{id}/packages/preview
+     */
+    previewPackages: (
+      id: string,
+      data: PackageActionBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<PackagePreview, ErrorModel>({
+        path: `/servers/${id}/packages/preview`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description apt update, dnf makecache and the like, so the updates shown are current. Runs as a background job (kind `package-refresh`).
+     *
+     * @tags Packages
+     * @name RefreshPackageLists
+     * @summary Download fresh package lists
+     * @request POST:/servers/{id}/packages/refresh
+     */
+    refreshPackageLists: (id: string, params: RequestParams = {}) =>
+      this.request<Job, ErrorModel>({
+        path: `/servers/${id}/packages/refresh`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Checked at once, then runs as a background job (kind `package-action`); it can't be canceled once the package manager is running. Waits for another package manager on the server to finish first. 409 when Morcheh is already changing packages there.
+     *
+     * @tags Packages
+     * @name RunPackageAction
+     * @summary Install, upgrade or remove packages
+     * @request POST:/servers/{id}/packages/actions
+     */
+    runPackageAction: (
+      id: string,
+      data: PackageActionBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/servers/${id}/packages/actions`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Packages the server could install, with the version on offer and the installed one. Reads the lists the server has, downloads nothing.
+     *
+     * @tags Packages
+     * @name SearchPackages
+     * @summary Search the repositories
+     * @request GET:/servers/{id}/packages/search
+     */
+    searchPackages: (
+      id: string,
+      query: {
+        /**
+         * @format int64
+         * @min 1
+         * @max 200
+         * @default 50
+         */
+        limit?: number;
+        /**
+         * Part of a name (or a description, where the manager searches those)
+         * @maxLength 64
+         */
+        q: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<PackageSearchResult, ErrorModel>({
+        path: `/servers/${id}/packages/search`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description unattended-upgrades on apt, dnf-automatic on dnf; the tool has to be installed first. Answers the fresh overview.
+     *
+     * @tags Packages
+     * @name SetAutoUpdates
+     * @summary Turn automatic updates on or off
+     * @request POST:/servers/{id}/packages/auto-updates
+     */
+    setAutoUpdates: (
+      id: string,
+      data: PackageAutoUpdatesBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<PackagesOverview, ErrorModel>({
+        path: `/servers/${id}/packages/auto-updates`,
+        method: "POST",
         body: data,
         type: ContentType.Json,
         format: "json",

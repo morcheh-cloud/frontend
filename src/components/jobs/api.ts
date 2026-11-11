@@ -155,6 +155,10 @@ export function refreshAfterJob(qc: QueryClient, job: Job) {
     if (job.kind.startsWith("fail2ban-")) {
       qc.invalidateQueries({ queryKey: ["fail2ban", ref] })
     }
+    // Any package change, fail2ban's too, changes the package list.
+    if (job.kind.startsWith("package-") || job.kind.startsWith("fail2ban-")) {
+      qc.invalidateQueries({ queryKey: ["packages", ref] })
+    }
     for (const root of ["files", "storage-files"]) {
       for (const part of ["list", "size", "search"]) {
         qc.invalidateQueries({ queryKey: [root, ref, part] })

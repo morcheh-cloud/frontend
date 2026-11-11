@@ -12,6 +12,7 @@ import { files } from "./files"
 import { firewall } from "./firewall"
 import { gettingStarted } from "./getting-started"
 import { networkMap } from "./network-map"
+import { packages } from "./packages"
 import { ports } from "./ports"
 import { power } from "./power"
 import { reverseProxy } from "./reverse-proxy"
@@ -46,6 +47,7 @@ export const content: Record<string, GuideSection[]> = {
   fail2ban,
   users,
   services,
+  packages,
   power,
   databases,
   dns,
