@@ -639,7 +639,7 @@ export const guides: GuideMeta[] = [
     slug: "alerts",
     title: "Alerts",
     summary:
-      "Rules on CPU, memory, disk, load and outages, sent to Telegram, Bale, Slack, Teams, ntfy, email or your own webhook.",
+      "Rules on CPU, memory, disk, outages, services and databases, sent to Telegram, Bale, Slack, Teams, ntfy, email or your own webhook; muted for maintenance.",
     icon: Bell,
     group: "Infrastructure",
     keywords: [
@@ -666,6 +666,13 @@ export const guides: GuideMeta[] = [
       "memory",
       "disk full",
       "firing",
+      "mute",
+      "snooze",
+      "maintenance",
+      "silence",
+      "systemd",
+      "service failed",
+      "database down",
     ],
     routes: ["/alerts"],
   },

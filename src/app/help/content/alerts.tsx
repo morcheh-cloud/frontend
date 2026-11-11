@@ -26,8 +26,9 @@ export const alerts: GuideSection[] = [
         </P>
         <List>
           <li>
-            <UI>Rules</UI>: conditions on your servers, like{" "}
-            <C>Disk above 85%</C> or <C>Server unreachable for 2 min</C>. When
+            <UI>Rules</UI>: conditions on your servers, their services and your
+            databases, like <C>Disk above 85%</C>,{" "}
+            <C>Server unreachable for 2 min</C> or <C>nginx stopped</C>. When
             one holds long enough it <UI>fires</UI> and sends a message.{" "}
             <See guide="alerts" section="rules" />
           </li>
@@ -42,6 +43,11 @@ export const alerts: GuideSection[] = [
             back to normal.
           </li>
         </List>
+        <P>
+          Websites, ports, certificates and other outside checks are{" "}
+          <UI>Uptime</UI> monitors, not rules: each one alerts through the
+          channels ticked on it. <See guide="uptime" section="alerts" />
+        </P>
       </>
     ),
   },
@@ -65,7 +71,8 @@ export const alerts: GuideSection[] = [
             </>,
             <>
               <UI>Watch</UI>: the measure (CPU, memory, disk, unreachable, load
-              per core, I/O wait, swap, download, upload), <UI>Above</UI> or{" "}
+              per core, I/O wait, swap, download, upload, a service, or a
+              database's reachability or health), <UI>Above</UI> or{" "}
               <UI>Below</UI>, the limit, and how long it must last. For a disk,
               leave <UI>Filesystem</UI> empty to watch the fullest one, or name
               a mount like <C>/var</C>.
@@ -128,6 +135,151 @@ export const alerts: GuideSection[] = [
         <Tip>
           Workspace Engineers add, edit, turn off and delete rules; everyone
           else in the workspace sees them and their state.
+        </Tip>
+      </>
+    ),
+  },
+  {
+    id: "services",
+    title: "Services that stop or fail",
+    body: (
+      <>
+        <P>
+          Pick <UI>Service</UI> under <UI>Watch</UI> to hear about systemd
+          services on your servers. It's read on every sample, like the other
+          server measures.
+        </P>
+        <Table
+          head={["Service field", "Fires when"]}
+          rows={[
+            [
+              "Empty",
+              "Any service on the server failed (crashed, or gave up restarting). One stopped on purpose doesn't count.",
+            ],
+            [
+              <C key="n">nginx</C>,
+              "That service isn't running: stopped or failed. A server without it is skipped.",
+            ],
+          ]}
+        />
+        <Example title="Know when the web server dies">
+          <P>
+            <UI>Watch</UI> <C>Service</C>, <UI>Service</UI> <C>nginx</C>,{" "}
+            <UI>On</UI> <C>By tag</C> <C>web</C>, <C>2 min</C>, critical.
+          </P>
+        </Example>
+        <Recommended
+          rows={[
+            {
+              setting: <C>A service failed</C>,
+              value: "Every server, 2 min, warning",
+              why: "One rule covers every unit; the message names the ones that failed.",
+            },
+          ]}
+        />
+        <Tip>
+          A service that is meant to stop now and then (a one-shot job) shows as
+          failed only when it ends with an error. Reset it on the server's{" "}
+          <UI>Services</UI> tab once fixed. <See guide="services" />
+        </Tip>
+      </>
+    ),
+  },
+  {
+    id: "databases",
+    title: "Databases",
+    body: (
+      <>
+        <P>
+          Under <UI>Watch</UI> › <UI>Databases</UI> two measures watch the
+          databases Morcheh monitors: <UI>Unreachable</UI> (Morcheh can't
+          connect) and <UI>Health</UI> (one of its health checks turned
+          critical: connections, replication lag, disk…). <UI>On</UI> then picks{" "}
+          <UI>Every database</UI> (new ones too) or <UI>Chosen databases</UI>.
+        </P>
+        <P>
+          A database's own page has an <UI>Alerts</UI> tab: the rules that watch
+          it, mutes, and what they sent, with the two common rules one press
+          away. <See guide="databases" section="health" />
+        </P>
+        <Recommended
+          rows={[
+            {
+              setting: <C>Database unreachable</C>,
+              value: "2 min, critical",
+              why: "Apps stop working; someone should hear about it at once.",
+            },
+            {
+              setting: <C>Database critical</C>,
+              value: "5 min, warning",
+              why: "Skips a short spike in connections or lag.",
+            },
+          ]}
+        />
+        <Tip>
+          A check you muted on the database's Overview (its limits) never turns
+          critical, so it never fires this rule either.
+        </Tip>
+      </>
+    ),
+  },
+  {
+    id: "mutes",
+    title: "Muting for maintenance",
+    body: (
+      <>
+        <P>
+          Before a planned reboot or upgrade, mute alerts so nobody gets paged
+          for something you're doing on purpose.
+        </P>
+        <Steps>
+          {[
+            <>
+              Press <UI>Mute alerts</UI> on <UI>Alerts</UI> › <UI>Rules</UI>,{" "}
+              <UI>Mute</UI> on a server's <UI>Metrics</UI> tab or a database's{" "}
+              <UI>Alerts</UI> tab, or <UI>Mute…</UI> in a rule's menu.
+            </>,
+            <>
+              <UI>Which alerts</UI>: <UI>Every rule</UI> or one. <UI>Where</UI>:{" "}
+              <UI>Everywhere</UI> or one server or database.
+            </>,
+            <>
+              <UI>Starts</UI>: <UI>Now</UI>, or <UI>Later</UI> for a planned
+              window. Then how long (<C>30 min</C> to <C>1 week</C>, or{" "}
+              <UI>Until…</UI> a time), and an optional note like{" "}
+              <C>Kernel upgrade</C>.
+            </>,
+          ]}
+        </Steps>
+        <P>While a mute holds:</P>
+        <List>
+          <li>
+            Rules keep watching: a firing rule still shows in red, on Home and
+            in <UI>Activity</UI> (marked <UI>Muted</UI>), but no message goes
+            out.
+          </li>
+          <li>
+            If it's still firing when the mute ends, the message goes out then.
+            If it went back to normal during the mute, nothing is sent.
+          </li>
+          <li>
+            Mutes in effect or planned show above the rules, with{" "}
+            <UI>End now</UI> or <UI>Drop</UI>.
+          </li>
+        </List>
+        <Recommended
+          rows={[
+            {
+              setting: "Reboot of one server",
+              value: "That server, every rule, 30 min",
+              why: "Covers unreachable and the services coming back.",
+            },
+          ]}
+        />
+        <Tip>
+          A mute lasts up to 90 days. Anyone with Operator access to what it
+          covers can add or end one; <UI>Everywhere</UI> needs Operator on the
+          workspace. Uptime monitors have their own pause.
         </Tip>
       </>
     ),
@@ -408,6 +560,16 @@ ok = hmac.compare_digest("sha256=" + mac, signature_header)`}
         <li>
           Editing or turning off a firing rule starts it over: it goes back to{" "}
           <UI>Normal</UI> without a back-to-normal message.
+        </li>
+        <li>
+          A rule is firing but nothing was sent: a mute covers it (see the list
+          above the rules). The message goes out when the mute ends if it still
+          holds.
+        </li>
+        <li>
+          A <UI>Service</UI> rule never fires for a named service: that server
+          doesn't have it (skipped), or the name is wrong; try it with{" "}
+          <C>.service</C> and check <UI>Right now</UI>.
         </li>
         <li>
           A monitor went down but nothing came: check the channel is ticked on

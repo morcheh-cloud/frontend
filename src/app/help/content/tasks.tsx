@@ -108,14 +108,16 @@ export const tasks: GuideSection[] = [
     body: (
       <>
         <Steps>
-          <li>
-            Press <UI>Cancel</UI> on a running task (or open it and press{" "}
-            <UI>Cancel task</UI>). The command on the server is stopped too.
-          </li>
-          <li>
-            On a task that failed, was canceled or was interrupted, press{" "}
-            <UI>Try again</UI>. It starts a new task with the same settings.
-          </li>
+          {[
+            <>
+              Press <UI>Cancel</UI> on a running task (or open it and press{" "}
+              <UI>Cancel task</UI>). The command on the server is stopped too.
+            </>,
+            <>
+              On a task that failed, was canceled or was interrupted, press{" "}
+              <UI>Try again</UI>. It starts a new task with the same settings.
+            </>,
+          ]}
         </Steps>
         <Warn>
           Canceling doesn't undo what's already done. A canceled copy leaves the

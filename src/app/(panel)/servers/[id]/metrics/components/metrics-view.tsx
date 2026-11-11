@@ -1,13 +1,21 @@
 "use client"
 
 import { useQueryClient } from "@tanstack/react-query"
-import { BellPlus, ChartLine, CircleAlert, Plus, RefreshCw } from "lucide-react"
+import {
+  BellOff,
+  BellPlus,
+  ChartLine,
+  CircleAlert,
+  Plus,
+  RefreshCw,
+} from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import type { ReactNode } from "react"
 
 import { alertRuleKeys, useServerAlertRules } from "@/app/(panel)/alerts/api"
 import { AlertEventList } from "@/app/(panel)/alerts/components/events-list"
+import { MutesNotice } from "@/app/(panel)/alerts/components/mutes"
 import {
   RuleActionsProvider,
   useRuleActions,
@@ -23,8 +31,10 @@ import {
   type Metric,
   metricOf,
   presets,
+  targetOf,
 } from "@/app/(panel)/alerts/components/rules-meta"
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
+import { useServerCan } from "@/app/(panel)/servers/components/permissions"
 import {
   type Buckets,
   bucketLabel,
@@ -60,11 +70,13 @@ import {
 // alert rules that watch it, drawn as lines on the charts, and what they sent.
 
 export function MetricsView() {
-  const { phone } = useServerPage()
+  const { server, phone } = useServerPage()
   const router = useRouter()
+  const can = useServerCan()
   return (
     <RuleActionsProvider
       phone={phone}
+      canMute={can(server, "operator")}
       activity={(r) =>
         router.push(alertsHref("/alerts", { tab: "activity", rule: r.id }))
       }
@@ -121,6 +133,20 @@ function Content() {
       {!phone && "New alert rule"}
     </Button>
   )
+  const mute = a.canMute && (
+    <Button
+      variant="outline"
+      size={phone ? "icon" : "default"}
+      className="max-md:size-11 md:h-9"
+      aria-label="Mute alerts on this server"
+      onClick={() =>
+        a.mute({ target: { kind: "server", id: server.id, name: server.name } })
+      }
+    >
+      <BellOff />
+      {!phone && "Mute"}
+    </Button>
+  )
   const ranges = (
     <Segmented
       label="Time range"
@@ -169,6 +195,7 @@ function Content() {
               {ranges}
             </div>
             {refresh}
+            {mute}
             {add}
           </div>
           {caption}
@@ -179,6 +206,7 @@ function Content() {
           {caption}
           <div className="ms-auto flex shrink-0 items-center gap-2">
             {refresh}
+            {mute}
             {add}
           </div>
         </div>
@@ -186,9 +214,14 @@ function Content() {
 
       {list.length > 0 && (
         <div className={cn(phone && "px-4 pb-3")}>
-          <FiringNotice rules={list} serverId={server.id} />
+          <FiringNotice rules={list} targetId={server.id} />
         </div>
       )}
+      <MutesNotice
+        serverId={server.id}
+        canEnd={a.canMute}
+        className={cn(phone && "mx-4 mb-3")}
+      />
 
       {charts}
 
@@ -204,7 +237,7 @@ function Content() {
       >
         {rules.isPending ? null : list.length ? (
           <div className={cn(phone && "-mx-4 -mb-5")}>
-            <RulesList rules={list} phone={phone} serverId={server.id} />
+            <RulesList rules={list} phone={phone} targetId={server.id} />
           </div>
         ) : (
           <QuickStart here={here} />
@@ -300,20 +333,22 @@ function QuickStart({ here }: { here: { id: string; name: string } }) {
   }
   return (
     <div className="flex flex-wrap gap-2">
-      {presets.map((p) => {
-        const Icon = metricOf(p.metric).icon
-        return (
-          <Button
-            key={p.key}
-            variant="outline"
-            className={cn(phone ? "h-11" : "h-9")}
-            onClick={() => a.create({ preset: p, server: here })}
-          >
-            <Icon />
-            {p.name}
-          </Button>
-        )
-      })}
+      {presets
+        .filter((p) => targetOf(p.metric) === "server")
+        .map((p) => {
+          const Icon = metricOf(p.metric).icon
+          return (
+            <Button
+              key={p.key}
+              variant="outline"
+              className={cn(phone ? "h-11" : "h-9")}
+              onClick={() => a.create({ preset: p, server: here })}
+            >
+              <Icon />
+              {p.name}
+            </Button>
+          )
+        })}
     </div>
   )
 }

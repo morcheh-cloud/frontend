@@ -1,6 +1,8 @@
 "use client"
 
 import {
+  Activity,
+  BellOff,
   BellRing,
   CircleCheck,
   CircleX,
@@ -17,9 +19,9 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react"
+import Link from "next/link"
 import { type ReactNode, useDeferredValue, useRef, useState } from "react"
 import { toast } from "sonner"
-
 import { Callout } from "@/app/(panel)/cronjobs/components/editor-parts"
 import {
   Empty,
@@ -62,6 +64,7 @@ import {
   channelLabel,
   channelTarget,
 } from "./meta"
+import { MutesNotice } from "./mutes"
 import { RuleActionsProvider, useRuleActions } from "./rule-actions"
 import { FiringNotice, RulesList } from "./rules-list"
 import {
@@ -127,6 +130,7 @@ function View({ phone }: { phone: boolean }) {
   const firing = allRules.filter((r) => ruleState(r) === "firing").length
   const waiting = allRules.filter((r) => ruleState(r) === "pending").length
   const failing = items.filter(channelBroken).length
+  const canMute = tab === "rules" && ruleActions.canMute && allRules.length > 0
 
   const action =
     tab === "rules" && ruleActions.can
@@ -264,6 +268,17 @@ function View({ phone }: { phone: boolean }) {
             label="Alerts guide"
             className="ms-auto"
           />
+          {canMute && (
+            <Button
+              variant="ghost"
+              size="icon-lg"
+              aria-label="Mute alerts"
+              className="rounded-full"
+              onClick={() => ruleActions.mute()}
+            >
+              <BellOff className="size-5" />
+            </Button>
+          )}
           {action && (
             <Button
               size="icon-lg"
@@ -301,8 +316,21 @@ function View({ phone }: { phone: boolean }) {
                 {caption}
               </span>
             )}
+            {canMute && (
+              <Button
+                variant="outline"
+                className="ms-auto"
+                onClick={() => ruleActions.mute()}
+              >
+                <BellOff />
+                Mute alerts
+              </Button>
+            )}
             {action && (
-              <Button className="ms-auto" onClick={action.run}>
+              <Button
+                className={canMute ? undefined : "ms-auto"}
+                onClick={action.run}
+              >
                 <Plus />
                 {action.label}
               </Button>
@@ -395,8 +423,8 @@ function RulesBody({
         title="No alert rules yet"
         body={
           a.can
-            ? "Get told when a server is unreachable, a disk fills up, or CPU, memory, load or traffic stay high for a while. Start from one of these, or make your own."
-            : "Someone with Engineer access to the workspace adds rules: alerts when a server is unreachable, a disk fills up or CPU stays high."
+            ? "Get told when a server is unreachable, a disk fills up, a service fails, a database can't be reached, or CPU, memory, load or traffic stay high for a while. Start from one of these, or make your own."
+            : "Someone with Engineer access to the workspace adds rules: alerts when a server is unreachable, a disk fills up, a service fails or a database is down."
         }
         action={
           a.can && (
@@ -449,6 +477,7 @@ function RulesBody({
       <div className={phone ? "px-4" : undefined}>
         <FiringNotice rules={all} />
       </div>
+      <MutesNotice canEnd={a.canMute} className={phone ? "mx-4" : undefined} />
       {shown.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-12 text-center">
           <p className="text-body-sm text-muted-foreground">
@@ -465,6 +494,18 @@ function RulesBody({
       ) : (
         <RulesList rules={shown} phone={phone} />
       )}
+      <div className={phone ? "px-4" : undefined}>
+        <Callout icon={<Activity />}>
+          Websites, ports, certificates and other checks are uptime monitors:
+          each one alerts through its own channels.{" "}
+          <Link
+            href="/uptime"
+            className="font-medium text-foreground underline underline-offset-2"
+          >
+            Open Uptime
+          </Link>
+        </Callout>
+      </div>
     </>
   )
 }

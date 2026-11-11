@@ -3231,17 +3231,19 @@ https://example.com/old-shop,https://shop.example.com/,301
           explains. That is the only change Morcheh makes to hand-written files.
         </P>
         <Steps>
-          <li>
-            Open the proxy, tab <UI>On the server</UI>.
-          </li>
-          <li>
-            In <UI>Default site</UI>, press <UI>Manage in Morcheh</UI> (or{" "}
-            <UI>Set up a default site</UI> when nothing holds it).
-          </li>
-          <li>
-            Pick the answer (<C>444</C> closes the connection, the quietest) and
-            save.
-          </li>
+          {[
+            <>
+              Open the proxy, tab <UI>On the server</UI>.
+            </>,
+            <>
+              In <UI>Default site</UI>, press <UI>Manage in Morcheh</UI> (or{" "}
+              <UI>Set up a default site</UI> when nothing holds it).
+            </>,
+            <>
+              Pick the answer (<C>444</C> closes the connection, the quietest)
+              and save.
+            </>,
+          ]}
         </Steps>
         <Tip>
           A domain served by both a hand-written site and a Morcheh site is a

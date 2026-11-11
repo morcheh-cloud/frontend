@@ -1,13 +1,16 @@
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
+  Cog,
   Cpu,
+  DatabaseZap,
   Gauge,
   HardDrive,
   Hourglass,
   type LucideIcon,
   MemoryStick,
   Repeat,
+  ShieldAlert,
   Unplug,
 } from "lucide-react"
 import {
@@ -17,15 +20,17 @@ import {
   useQueryStates,
 } from "nuqs"
 
-import type { AlertRule, AlertRuleBody } from "@/lib/services"
+import type { AlertRule, AlertRuleBody, AlertRuleState } from "@/lib/services"
 
-// Alert rules on server metrics: what each metric means, its unit, and the
-// sensible starting values the editor and the presets use.
+// Alert rules on server metrics, services and databases: what each metric
+// means, its unit, and the sensible starting values the editor and the
+// presets use.
 
 export type Metric = AlertRuleBody["metric"]
 export type Op = "above" | "below"
 export type Severity = "warning" | "critical"
-export type Scope = "all" | "servers" | "tags"
+export type Scope = "all" | "servers" | "tags" | "databases"
+export type Target = "server" | "database"
 
 type MetricMeta = {
   label: string
@@ -37,6 +42,10 @@ type MetricMeta = {
   forMinutes: number
   max?: number
   step: number
+  // What it watches; database metrics cover databases, not servers.
+  target: Target
+  // Up or down, no number to compare (the backend keeps threshold 0).
+  state?: boolean
 }
 
 export const metrics: Record<Metric, MetricMeta> = {
@@ -49,6 +58,7 @@ export const metrics: Record<Metric, MetricMeta> = {
     forMinutes: 10,
     max: 100,
     step: 1,
+    target: "server",
   },
   load: {
     label: "Load per core",
@@ -58,6 +68,7 @@ export const metrics: Record<Metric, MetricMeta> = {
     threshold: 2,
     forMinutes: 10,
     step: 0.1,
+    target: "server",
   },
   iowait: {
     label: "I/O wait",
@@ -68,6 +79,7 @@ export const metrics: Record<Metric, MetricMeta> = {
     forMinutes: 10,
     max: 100,
     step: 1,
+    target: "server",
   },
   memory: {
     label: "Memory",
@@ -78,6 +90,7 @@ export const metrics: Record<Metric, MetricMeta> = {
     forMinutes: 10,
     max: 100,
     step: 1,
+    target: "server",
   },
   swap: {
     label: "Swap",
@@ -88,6 +101,7 @@ export const metrics: Record<Metric, MetricMeta> = {
     forMinutes: 15,
     max: 100,
     step: 1,
+    target: "server",
   },
   disk: {
     label: "Disk",
@@ -98,6 +112,7 @@ export const metrics: Record<Metric, MetricMeta> = {
     forMinutes: 0,
     max: 100,
     step: 1,
+    target: "server",
   },
   net_rx: {
     label: "Download",
@@ -107,6 +122,7 @@ export const metrics: Record<Metric, MetricMeta> = {
     threshold: 500,
     forMinutes: 5,
     step: 1,
+    target: "server",
   },
   net_tx: {
     label: "Upload",
@@ -116,6 +132,7 @@ export const metrics: Record<Metric, MetricMeta> = {
     threshold: 500,
     forMinutes: 5,
     step: 1,
+    target: "server",
   },
   offline: {
     label: "Unreachable",
@@ -125,6 +142,41 @@ export const metrics: Record<Metric, MetricMeta> = {
     threshold: 0,
     forMinutes: 2,
     step: 1,
+    target: "server",
+    state: true,
+  },
+  service: {
+    label: "Service",
+    icon: Cog,
+    unit: "",
+    hint: "A systemd service that failed, or one you name that stopped.",
+    threshold: 0,
+    forMinutes: 2,
+    step: 1,
+    target: "server",
+    state: true,
+  },
+  db_down: {
+    label: "Unreachable",
+    icon: DatabaseZap,
+    unit: "",
+    hint: "Morcheh can't connect to the database.",
+    threshold: 0,
+    forMinutes: 2,
+    step: 1,
+    target: "database",
+    state: true,
+  },
+  db_health: {
+    label: "Health",
+    icon: ShieldAlert,
+    unit: "",
+    hint: "One of its health checks turned critical (connections, replication lag, disk…).",
+    threshold: 0,
+    forMinutes: 5,
+    step: 1,
+    target: "database",
+    state: true,
   },
 }
 
@@ -138,12 +190,19 @@ export const metricOrder: Metric[] = [
   "swap",
   "net_rx",
   "net_tx",
+  "service",
 ]
+
+// Database metrics, listed apart in the editor.
+export const databaseMetricOrder: Metric[] = ["db_down", "db_health"]
 
 export const isMetric = (m: string): m is Metric => m in metrics
 export const metricOf = (m: string) => metrics[isMetric(m) ? m : "cpu"]
 export const isPercent = (m: string) => metricOf(m).unit === "%"
 export const isNet = (m: string) => m === "net_rx" || m === "net_tx"
+export const isStateMetric = (m: string) => !!metricOf(m).state
+export const targetOf = (m: string): Target => metricOf(m).target
+export const isDatabaseMetric = (m: string) => targetOf(m) === "database"
 
 // The rule's threshold in the editor's unit, and back.
 export const toFieldValue = (m: string, v: number) =>
@@ -163,9 +222,11 @@ export function formatValue(m: string, v: number) {
 }
 
 export function conditionText(
-  r: Pick<AlertRule, "metric" | "op" | "threshold">,
+  r: Pick<AlertRule, "metric" | "op" | "threshold"> & { unit?: string },
 ) {
-  if (r.metric === "offline") return "unreachable"
+  if (r.metric === "offline" || r.metric === "db_down") return "unreachable"
+  if (r.metric === "db_health") return "critical"
+  if (r.metric === "service") return r.unit ? "stopped or failed" : "failed"
   return `${r.op} ${formatValue(r.metric, r.threshold)}`
 }
 
@@ -191,27 +252,68 @@ export function repeatText(minutes: number) {
   return `Every ${minutes} min`
 }
 
-// "CPU above 90% for 10 min", "Disk / above 85%".
+// "CPU above 90% for 10 min", "Disk / above 85%", "Service nginx stopped or
+// failed", "Database unreachable for 2 min".
 export function ruleSentence(
-  r: Pick<AlertRule, "metric" | "op" | "threshold" | "mount" | "for_minutes">,
+  r: Pick<
+    AlertRule,
+    "metric" | "op" | "threshold" | "mount" | "for_minutes"
+  > & {
+    unit?: string
+  },
 ) {
   const label =
     r.metric === "disk" && r.mount
       ? `Disk ${r.mount}`
       : r.metric === "offline"
         ? "Server"
-        : metricOf(r.metric).label
+        : r.metric === "service"
+          ? r.unit
+            ? `Service ${r.unit}`
+            : "A service"
+          : isDatabaseMetric(r.metric)
+            ? "Database"
+            : metricOf(r.metric).label
   const minutes = r.for_minutes
   return `${label} ${conditionText(r)}${minutes > 0 ? ` ${forText(minutes)}` : ""}`
 }
 
-export function scopeText(r: Pick<AlertRule, "scope" | "server_ids" | "tags">) {
+export function scopeText(
+  r: Pick<AlertRule, "scope" | "server_ids" | "tags" | "metric"> & {
+    database_ids?: string[]
+  },
+) {
+  if (r.scope === "databases") {
+    const n = r.database_ids?.length ?? 0
+    return `${n} ${n === 1 ? "database" : "databases"}`
+  }
+  if (isDatabaseMetric(r.metric)) return "Every database"
   if (r.scope === "servers") {
     const n = r.server_ids.length
     return `${n} ${n === 1 ? "server" : "servers"}`
   }
   if (r.scope === "tags") return `Tagged ${r.tags.join(", ")}`
   return "Every server"
+}
+
+// What a pending/firing state reads: "93% on /var", "nginx.service, cron",
+// "connection refused".
+export function stateValue(
+  r: Pick<AlertRule, "metric" | "op" | "threshold"> & { unit?: string },
+  s: Pick<AlertRuleState, "value" | "detail">,
+) {
+  if (isStateMetric(r.metric)) return s.detail || conditionText(r)
+  return `${formatValue(r.metric, s.value)}${s.detail ? ` on ${s.detail}` : ""}`
+}
+
+// Where a state's server or database lives in the panel.
+export function targetHref(
+  s: Pick<AlertRuleState, "target_id" | "target_kind">,
+  metric: string,
+) {
+  if (s.target_kind === "database") return `/databases/${s.target_id}`
+  if (metric === "service") return `/servers/${s.target_id}/services`
+  return `/servers/${s.target_id}/metrics`
 }
 
 export const severityMeta: Record<Severity, { label: string; hint: string }> = {
@@ -269,6 +371,33 @@ export const presets: Preset[] = [
     threshold: 90,
     forMinutes: 10,
     severity: "critical",
+  },
+  {
+    key: "service",
+    name: "A service failed",
+    metric: "service",
+    op: "above",
+    threshold: 0,
+    forMinutes: 2,
+    severity: "warning",
+  },
+  {
+    key: "db-down",
+    name: "Database unreachable",
+    metric: "db_down",
+    op: "above",
+    threshold: 0,
+    forMinutes: 2,
+    severity: "critical",
+  },
+  {
+    key: "db-health",
+    name: "Database critical",
+    metric: "db_health",
+    op: "above",
+    threshold: 0,
+    forMinutes: 5,
+    severity: "warning",
   },
 ]
 

@@ -50,6 +50,8 @@ export interface AffectedOutputBody {
 export interface AlertEvent {
   /** @format date-time */
   at: string;
+  /** @format uuid */
+  database_id?: string;
   detail: string;
   /** @format int64 */
   id: number;
@@ -60,17 +62,82 @@ export interface AlertEvent {
    */
   lasted_secs: number;
   metric: string;
+  /** It happened during a mute: recorded, not sent */
+  muted: boolean;
   /** @format uuid */
   rule_id?: string;
   rule_name: string;
   /** @format uuid */
   server_id?: string;
+  /** The server's or the database's name */
   server_name: string;
   severity: string;
   /** @format double */
   threshold: number;
   /** @format double */
   value: number;
+}
+
+export interface AlertMute {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** On now (false = planned for later) */
+  active: boolean;
+  /** @format date-time */
+  created_at: string;
+  created_by_name: string;
+  /** @format uuid */
+  id: string;
+  note: string;
+  /**
+   * Missing = every rule
+   * @format uuid
+   */
+  rule_id?: string;
+  rule_name: string;
+  /** @format date-time */
+  starts_at: string;
+  /** @format uuid */
+  target_id?: string;
+  /** Empty = everywhere */
+  target_kind: "" | "server" | "database";
+  target_name: string;
+  /** @format date-time */
+  until: string;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface AlertMuteBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * How long; or give until
+   * @format int32
+   * @min 0
+   * @max 129600
+   */
+  minutes?: number;
+  /** @maxLength 500 */
+  note?: string;
+  /** One rule; empty = every rule */
+  rule_id?: string;
+  /**
+   * Empty = now
+   * @format date-time
+   */
+  starts_at?: string;
+  target_id?: string;
+  /** With target_id: one server or database; empty = everywhere */
+  target_kind?: "server" | "database";
+  /** @format date-time */
+  until?: string;
 }
 
 export interface AlertPreviewItem {
@@ -82,10 +149,11 @@ export interface AlertPreviewItem {
   detail: string;
   /** The condition holds now */
   met: boolean;
-  /** @format uuid */
-  server_id: string;
-  server_name: string;
   status: string;
+  /** @format uuid */
+  target_id: string;
+  target_kind: "server" | "database";
+  target_name: string;
   /** @format double */
   value?: number;
 }
@@ -96,7 +164,7 @@ export interface AlertPreviewOutputBody {
    * @format uri
    */
   $schema?: string;
-  /** Every server the rule covers, those that meet it first */
+  /** Every server or database the rule covers, those that meet it first */
   items: AlertPreviewItem[];
 }
 
@@ -110,6 +178,7 @@ export interface AlertRule {
   /** @format date-time */
   created_at: string;
   created_by_name: string;
+  database_ids: string[];
   enabled: boolean;
   /** @format int32 */
   for_minutes: number;
@@ -125,11 +194,12 @@ export interface AlertRule {
   scope: string;
   server_ids: string[];
   severity: string;
-  /** Servers where it's pending or firing, firing first */
+  /** Servers or databases where it's pending or firing, firing first */
   states: AlertRuleState[];
   tags: string[];
   /** @format double */
   threshold: number;
+  unit: string;
   /** @format date-time */
   updated_at: string;
   updated_by_name: string;
@@ -145,6 +215,8 @@ export interface AlertRuleBody {
   $schema?: string;
   /** Notification channels of the same workspace */
   channel_ids?: string[];
+  /** scope databases */
+  database_ids?: string[];
   /** Default true */
   enabled?: boolean;
   /**
@@ -163,7 +235,10 @@ export interface AlertRuleBody {
     | "disk"
     | "net_rx"
     | "net_tx"
-    | "offline";
+    | "offline"
+    | "service"
+    | "db_down"
+    | "db_health";
   /**
    * disk only: one mount point; empty = the fullest
    * @maxLength 255
@@ -185,8 +260,11 @@ export interface AlertRuleBody {
    * @max 10080
    */
   repeat_minutes?: number;
-  /** @default "all" */
-  scope?: "all" | "servers" | "tags";
+  /**
+   * databases = for db_down/db_health, which take all or databases
+   * @default "all"
+   */
+  scope?: "all" | "servers" | "tags" | "databases";
   /** scope servers */
   server_ids?: string[];
   /** @default "warning" */
@@ -194,24 +272,35 @@ export interface AlertRuleBody {
   /** scope tags: servers with any of them */
   tags?: string[];
   /**
-   * Percent for cpu, iowait, memory, swap and disk; load per core; bytes per second for net_rx/net_tx; ignored for offline
+   * Percent for cpu, iowait, memory, swap and disk; load per core; bytes per second for net_rx/net_tx; ignored for offline, service, db_down and db_health
    * @format double
    */
   threshold: number;
+  /**
+   * service only: one systemd unit that must keep running; empty = any service that failed
+   * @maxLength 255
+   */
+  unit?: string;
 }
 
 export interface AlertRuleState {
   /** @format date-time */
   breach_since?: string;
-  /** The disk's mount point, or why a server can't be reached */
+  /** The disk's mount point, the failed services, or why it can't be reached */
   detail: string;
   /** @format date-time */
   firing_since?: string;
-  /** @format uuid */
-  server_id: string;
-  server_name: string;
+  /** firing: it was sent (false = it fired during a mute) */
+  notified: boolean;
   /** pending = the condition holds, not yet for long enough */
   state: "pending" | "firing";
+  /**
+   * The server or database
+   * @format uuid
+   */
+  target_id: string;
+  target_kind: "server" | "database";
+  target_name: string;
   /** @format date-time */
   updated_at: string;
   /** @format double */
@@ -5465,6 +5554,15 @@ export interface ListOutBody2 {
    */
   $schema?: string;
   items: AlertRule[];
+}
+
+export interface ListOutBody3 {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: AlertMute[];
 }
 
 export interface ListPlaybooksResponse {
@@ -13778,6 +13876,24 @@ export class Api<
   };
   alerts = {
     /**
+     * @description One rule or all, on one server or database or everywhere, now or later. Alerts that fire meanwhile are recorded, not sent; one still firing when the mute ends is sent then. Needs Operator on what it covers.
+     *
+     * @tags Alerts
+     * @name CreateAlertMute
+     * @summary Mute alerts for a while
+     * @request POST:/alert-mutes
+     */
+    createAlertMute: (data: AlertMuteBody, params: RequestParams = {}) =>
+      this.request<AlertMute, ErrorModel>({
+        path: `/alert-mutes`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * No description
      *
      * @tags Alerts
@@ -13792,6 +13908,21 @@ export class Api<
         body: data,
         type: ContentType.Json,
         format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Ends it now; a planned one is dropped.
+     *
+     * @tags Alerts
+     * @name DeleteAlertMute
+     * @summary End a mute
+     * @request DELETE:/alert-mutes/{id}
+     */
+    deleteAlertMute: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/alert-mutes/${id}`,
+        method: "DELETE",
         ...params,
       }),
 
@@ -13836,6 +13967,8 @@ export class Api<
      */
     listAlertEvents: (
       query?: {
+        /** Only this database */
+        database_id?: string;
         /**
          * @format int32
          * @min 1
@@ -13859,7 +13992,30 @@ export class Api<
       }),
 
     /**
-     * @description The rules of the workspaces this person can see (in the selected one). With server_id, only the rules that cover that server.
+     * @description Mutes that are on now or planned, soonest first. With server_id or database_id, only those that cover it.
+     *
+     * @tags Alerts
+     * @name ListAlertMutes
+     * @summary List alert mutes
+     * @request GET:/alert-mutes
+     */
+    listAlertMutes: (
+      query?: {
+        database_id?: string;
+        server_id?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ListOutBody3, ErrorModel>({
+        path: `/alert-mutes`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The rules of the workspaces this person can see (in the selected one). With server_id or database_id, only the rules that cover it.
      *
      * @tags Alerts
      * @name ListAlertRules
@@ -13868,6 +14024,8 @@ export class Api<
      */
     listAlertRules: (
       query?: {
+        /** Only rules covering this database */
+        database_id?: string;
         /** Only rules covering this server */
         server_id?: string;
       },

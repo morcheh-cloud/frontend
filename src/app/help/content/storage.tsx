@@ -657,19 +657,21 @@ https://assets.s3.amazonaws.com/img/logo.png  (AWS)`}</Code>
           on the storage.
         </P>
         <Steps>
-          <li>
-            Open <UI>Storage</UI> › <UI>Insights</UI>.
-          </li>
-          <li>
-            In <UI>Space</UI>, open the storage you want to look at.
-          </li>
-          <li>
-            Press <UI>Measure now</UI>. The walk runs in{" "}
-            <See guide="tasks">Tasks</See>; the numbers update when it ends.
-          </li>
-          <li>
-            Click a folder in <UI>Biggest folders</UI> to browse it.
-          </li>
+          {[
+            <>
+              Open <UI>Storage</UI> › <UI>Insights</UI>.
+            </>,
+            <>
+              In <UI>Space</UI>, open the storage you want to look at.
+            </>,
+            <>
+              Press <UI>Measure now</UI>. The walk runs in{" "}
+              <See guide="tasks">Tasks</See>; the numbers update when it ends.
+            </>,
+            <>
+              Click a folder in <UI>Biggest folders</UI> to browse it.
+            </>,
+          ]}
         </Steps>
         <Example title="Finding what filled a backup bucket">
           <P>

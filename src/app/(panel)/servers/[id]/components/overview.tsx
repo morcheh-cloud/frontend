@@ -2,6 +2,7 @@
 
 import {
   Activity,
+  ChartLine,
   ChevronRight,
   KeySquare,
   Pencil,
@@ -27,6 +28,12 @@ import {
 } from "../../components/meta"
 import { useServerActions } from "../../components/server-actions"
 import { useServerStats } from "../api"
+import {
+  MetricsGlance,
+  MetricsGlanceRows,
+  metricsTabHref,
+  useMetricsGlance,
+} from "../metrics/components/metrics-glance"
 import {
   NotesCardAction,
   NotesCardBody,
@@ -61,6 +68,7 @@ function DesktopOverview() {
       <DesktopResources />
       <div className="grid gap-4 @3xl:grid-cols-2 @7xl:grid-cols-3">
         <DisksCard />
+        <MetricsCard />
         <Card
           title="Health"
           action={
@@ -145,6 +153,30 @@ function DisksCard() {
   )
 }
 
+function MetricsCard() {
+  const { server } = useServerPage()
+  const data = useMetricsGlance(server)
+  if (!data) return null
+  return (
+    <Card
+      title="Last 24 hours"
+      action={
+        <Button
+          variant="ghost"
+          size="sm"
+          render={<Link href={metricsTabHref(server.id)} />}
+          nativeButton={false}
+        >
+          <ChartLine />
+          Metrics
+        </Button>
+      }
+    >
+      <MetricsGlance server={server} data={data} />
+    </Card>
+  )
+}
+
 function Card({
   title,
   action,
@@ -189,6 +221,7 @@ function MobileOverview() {
   const stats = useServerStats(server)
   const hasNotes = useHasPinnedNotes()
   const proxies = useServerProxyList(server.id)
+  const metrics = useMetricsGlance(server)
 
   return (
     <div className="pb-6">
@@ -251,6 +284,11 @@ function MobileOverview() {
           <MobileResources />
         </Group>
       )}
+      {metrics && (
+        <Group title="Last 24 hours">
+          <MetricsGlanceRows server={server} data={metrics} />
+        </Group>
+      )}
       <Group title="Health">
         <FactRows facts={facts.health.slice(1)} />
       </Group>
@@ -291,11 +329,11 @@ function MobileOverview() {
         </Group>
       )}
 
-      {sectionsFor(level).map((group) => {
+      {sectionsFor(level).map((group, i) => {
         const sections = group.sections.filter((s) => s.slug)
         if (sections.length === 0) return null
         return (
-          <Group key={group.label} title={group.label ?? ""}>
+          <Group key={group.label ?? i} title={group.label ?? ""}>
             {sections.map((section) => (
               <SectionRow key={section.slug} section={section} />
             ))}

@@ -29,6 +29,11 @@ export const serverMetrics: GuideSection[] = [
           alerts they sent. For what is happening this second, use the live
           tiles on the server's overview. <See guide="server-overview" />
         </P>
+        <P>
+          The overview also has a <UI>Last 24 hours</UI> card: CPU, memory and
+          the root disk as small lines with their average and peak, and a red
+          line when an alert rule on the server is firing. It links here.
+        </P>
       </>
     ),
   },
@@ -130,6 +135,11 @@ export const serverMetrics: GuideSection[] = [
           ]}
         />
         <P>When the tab has no rules yet, these are one press away.</P>
+        <P>
+          <UI>Mute</UI> at the top silences this server's alerts for a while,
+          for a reboot or an upgrade: rules keep watching but send nothing until
+          it ends. <See guide="alerts" section="mutes" />
+        </P>
       </>
     ),
   },

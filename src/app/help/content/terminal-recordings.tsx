@@ -84,19 +84,21 @@ export const terminalRecordings: GuideSection[] = [
           You need to be an <UI>Owner</UI> of the workspace.
         </P>
         <Steps>
-          <li>
-            Open <UI>Recordings</UI> in the menu, under Observability.
-          </li>
-          <li>
-            Press <UI>Settings</UI>.
-          </li>
-          <li>
-            Switch on <UI>Record terminals</UI> and choose how many days to keep
-            recordings for.
-          </li>
-          <li>
-            Press <UI>Save</UI>.
-          </li>
+          {[
+            <>
+              Open <UI>Recordings</UI> in the menu, under Observability.
+            </>,
+            <>
+              Press <UI>Settings</UI>.
+            </>,
+            <>
+              Switch on <UI>Record terminals</UI> and choose how many days to
+              keep recordings for.
+            </>,
+            <>
+              Press <UI>Save</UI>.
+            </>,
+          ]}
         </Steps>
         <P>
           Only shells opened from then on are recorded. A shell that's already

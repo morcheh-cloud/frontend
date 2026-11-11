@@ -223,27 +223,29 @@ export const uptime: GuideSection[] = [
           follow that one status.
         </P>
         <Steps>
-          <li>
-            Open the monitor's <UI>Edit</UI> page and, in <UI>Check from</UI>,
-            tick two or more locations (Morcheh and any servers you have
-            Engineer access on).
-          </li>
-          <li>
-            Under <UI>When the locations disagree</UI>, pick when it counts as{" "}
-            <UI>Down</UI>: <UI>Any</UI> (one failing is enough), <UI>Most</UI>{" "}
-            (more than half), <UI>All</UI>, or <UI>At least…</UI> a number.
-          </li>
-          <li>
-            Pick when fewer failures make it <UI>Degraded</UI> instead of up:{" "}
-            <UI>Any</UI>, <UI>Most</UI>, <UI>At least…</UI> or <UI>Never</UI>. A
-            location that's slow (over the slow limit) counts as trouble here
-            too.
-          </li>
-          <li>
-            Read the sentence under the rule: it says in plain words what will
-            happen. Press <UI>Try it now</UI> to see every location's answer
-            before saving.
-          </li>
+          {[
+            <>
+              Open the monitor's <UI>Edit</UI> page and, in <UI>Check from</UI>,
+              tick two or more locations (Morcheh and any servers you have
+              Engineer access on).
+            </>,
+            <>
+              Under <UI>When the locations disagree</UI>, pick when it counts as{" "}
+              <UI>Down</UI>: <UI>Any</UI> (one failing is enough), <UI>Most</UI>{" "}
+              (more than half), <UI>All</UI>, or <UI>At least…</UI> a number.
+            </>,
+            <>
+              Pick when fewer failures make it <UI>Degraded</UI> instead of up:{" "}
+              <UI>Any</UI>, <UI>Most</UI>, <UI>At least…</UI> or <UI>Never</UI>.
+              A location that's slow (over the slow limit) counts as trouble
+              here too.
+            </>,
+            <>
+              Read the sentence under the rule: it says in plain words what will
+              happen. Press <UI>Try it now</UI> to see every location's answer
+              before saving.
+            </>,
+          ]}
         </Steps>
         <Example title="Your website, from three places">
           <P>

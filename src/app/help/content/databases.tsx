@@ -239,6 +239,11 @@ db.createUser({
           reached or have a <UI>Critical</UI> check. Paused databases never
           count. Pick <UI>Needs a look</UI> on the list to see which.
         </P>
+        <P>
+          To get a message when a database goes down or turns critical, open its{" "}
+          <UI>Alerts</UI> tab and press <UI>Database unreachable</UI> or{" "}
+          <UI>Database critical</UI>. <See guide="alerts" section="databases" />
+        </P>
       </>
     ),
   },

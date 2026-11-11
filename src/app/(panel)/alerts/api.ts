@@ -11,6 +11,7 @@ import { alertRulesQuery } from "@/components/panel/problems"
 import { useWorkspace } from "@/components/panel/workspace"
 import { api } from "@/lib/api"
 import type {
+  AlertMuteBody,
   AlertRule,
   AlertRuleBody,
   ChannelTestBody,
@@ -121,13 +122,18 @@ export function useTestChannelSettings() {
   })
 }
 
-// ---- Alert rules on server metrics ----
+// ---- Alert rules on servers and databases ----
 
 export const alertRuleKeys = {
   all: ["alert-rules"] as const,
   server: (id: string) => ["alert-rules", "server", id] as const,
-  events: (q: { server_id?: string; rule_id?: string; limit?: number }) =>
-    ["alert-rules", "events", q] as const,
+  database: (id: string) => ["alert-rules", "database", id] as const,
+  events: (q: {
+    server_id?: string
+    database_id?: string
+    rule_id?: string
+    limit?: number
+  }) => ["alert-rules", "events", q] as const,
   preview: (body: AlertRuleBody) => ["alert-rules", "preview", body] as const,
 }
 
@@ -147,8 +153,23 @@ export function useServerAlertRules(serverId: string) {
   })
 }
 
+export function useDatabaseAlertRules(databaseId: string) {
+  return useQuery({
+    queryKey: alertRuleKeys.database(databaseId),
+    queryFn: () => api.alerts.listAlertRules({ database_id: databaseId }),
+    select: (d) => d.items,
+    enabled: !!databaseId,
+    refetchInterval: 30_000,
+  })
+}
+
 export function useAlertEvents(
-  q: { server_id?: string; rule_id?: string; limit?: number },
+  q: {
+    server_id?: string
+    database_id?: string
+    rule_id?: string
+    limit?: number
+  },
   enabled = true,
 ) {
   return useQuery({
@@ -226,5 +247,50 @@ export function useDeleteAlertRule() {
       )
       refreshRules(qc)
     },
+  })
+}
+
+// Mutes: quiet times (maintenance). While one is on, the alerts it matches
+// are recorded but not sent.
+
+export const muteKeys = {
+  all: ["alert-mutes"] as const,
+  list: (ws: string, q: { server_id?: string; database_id?: string }) =>
+    ["alert-mutes", ws, q] as const,
+}
+
+export function useAlertMutes(
+  q: { server_id?: string; database_id?: string } = {},
+) {
+  const { workspace } = useWorkspace()
+  const ws = workspace?.id ?? ""
+  return useQuery({
+    queryKey: muteKeys.list(ws, q),
+    queryFn: () => api.alerts.listAlertMutes(q),
+    select: (d) => d.items,
+    enabled: !!ws,
+    refetchInterval: 30_000,
+  })
+}
+
+// A mute changes which states count as sent, so the rules refresh too.
+function refreshMutes(qc: QueryClient) {
+  qc.invalidateQueries({ queryKey: muteKeys.all })
+  qc.invalidateQueries({ queryKey: alertRuleKeys.all })
+}
+
+export function useCreateMute() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: AlertMuteBody) => api.alerts.createAlertMute(body),
+    onSuccess: () => refreshMutes(qc),
+  })
+}
+
+export function useEndMute() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.alerts.deleteAlertMute(id),
+    onSuccess: () => refreshMutes(qc),
   })
 }

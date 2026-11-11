@@ -347,22 +347,25 @@ export const access: GuideSection[] = [
           list, so you can tell them apart at a glance.
         </P>
         <Steps>
-          <li>
-            Open <UI>Settings › Workspaces</UI> and press <UI>Edit</UI> on the
-            workspace (or <UI>New workspace</UI>).
-          </li>
-          <li>
-            Under <UI>Logo</UI>, pick <UI>Letter</UI> (the first letter of the
-            name), <UI>Icon</UI>, or <UI>Picture</UI>.
-          </li>
-          <li>
-            For a letter or an icon, choose a color. For a picture, press{" "}
-            <UI>Choose image</UI>: PNG, JPEG, GIF, WebP, ICO or SVG, up to 1 MB.
-          </li>
-          <li>
-            Press <UI>Save</UI>. The picture uploads right after the workspace
-            is saved.
-          </li>
+          {[
+            <>
+              Open <UI>Settings › Workspaces</UI> and press <UI>Edit</UI> on the
+              workspace (or <UI>New workspace</UI>).
+            </>,
+            <>
+              Under <UI>Logo</UI>, pick <UI>Letter</UI> (the first letter of the
+              name), <UI>Icon</UI>, or <UI>Picture</UI>.
+            </>,
+            <>
+              For a letter or an icon, choose a color. For a picture, press{" "}
+              <UI>Choose image</UI>: PNG, JPEG, GIF, WebP, ICO or SVG, up to 1
+              MB.
+            </>,
+            <>
+              Press <UI>Save</UI>. The picture uploads right after the workspace
+              is saved.
+            </>,
+          ]}
         </Steps>
         <Example title="Production and staging side by side">
           Give <C>Production</C> a red shield icon and <C>Staging</C> an amber
@@ -433,18 +436,20 @@ export const access: GuideSection[] = [
           device does (for example at sunset).
         </P>
         <Steps>
-          <li>
-            Open the menu under your name at the bottom of the sidebar and pick{" "}
-            <UI>Light</UI>, <UI>Dark</UI> or <UI>System</UI>.
-          </li>
-          <li>
-            Or open <A href="/account">Account</A> › <UI>Appearance</UI> (on a
-            phone: <UI>More</UI> › <UI>Account</UI>).
-          </li>
-          <li>
-            Or press <Keys>Ctrl+K</Keys> (<Keys>⌘K</Keys> on a Mac) and type{" "}
-            <C>dark</C> or <C>light</C>.
-          </li>
+          {[
+            <>
+              Open the menu under your name at the bottom of the sidebar and
+              pick <UI>Light</UI>, <UI>Dark</UI> or <UI>System</UI>.
+            </>,
+            <>
+              Or open <A href="/account">Account</A> › <UI>Appearance</UI> (on a
+              phone: <UI>More</UI> › <UI>Account</UI>).
+            </>,
+            <>
+              Or press <Keys>Ctrl+K</Keys> (<Keys>⌘K</Keys> on a Mac) and type{" "}
+              <C>dark</C> or <C>light</C>.
+            </>,
+          ]}
         </Steps>
         <Tip>
           The choice is saved in this browser, not your account, so a phone and

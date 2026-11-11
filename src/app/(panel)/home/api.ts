@@ -1,7 +1,10 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { formatValue } from "@/app/(panel)/alerts/components/rules-meta"
+import {
+  stateValue,
+  targetHref,
+} from "@/app/(panel)/alerts/components/rules-meta"
 import { useCronjobs } from "@/app/(panel)/cronjobs/api"
 import { backupsHref } from "@/app/(panel)/databases/[id]/components/backups/meta"
 import { statusMeta as dbStatusMeta } from "@/app/(panel)/databases/components/meta"
@@ -254,15 +257,12 @@ export function useHome() {
     for (const st of r.states) {
       if (st.state !== "firing") continue
       issues.push({
-        key: `alert:${r.id}:${st.server_id}`,
+        key: `alert:${r.id}:${st.target_id}`,
         kind: "alert",
-        name: `${st.server_name} · ${r.name}`,
+        name: `${st.target_name} · ${r.name}`,
         status: r.severity === "critical" ? "Critical" : "Warning",
-        detail:
-          r.metric === "offline"
-            ? st.detail
-            : `${formatValue(r.metric, st.value)}${st.detail ? ` on ${st.detail}` : ""}`,
-        href: `/servers/${st.server_id}/metrics`,
+        detail: stateValue(r, st),
+        href: targetHref(st, r.metric),
         tone: r.severity === "critical" ? "destructive" : "warning",
       })
     }

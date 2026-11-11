@@ -51,6 +51,7 @@ import {
 } from "../../components/meta"
 import { useDatabaseCan } from "../../components/permissions"
 import { ActivityTab } from "./activity"
+import { AlertsTab } from "./alerts-tab"
 import { BackupsTab } from "./backups/backups-tab"
 import { ClientsTab } from "./clients"
 import { DashboardActionsProvider } from "./dashboard-actions"
@@ -70,6 +71,7 @@ const tabs = [
   "clients",
   "replication",
   "backups",
+  "alerts",
   "details",
 ] as const
 type Tab = (typeof tabs)[number]
@@ -82,6 +84,7 @@ const tabLabels = (d: Database): Record<Tab, string> => ({
   clients: "Clients",
   replication: "Replication",
   backups: "Backups",
+  alerts: "Alerts",
   details: "Details",
 })
 
@@ -405,6 +408,8 @@ function TabBody({ tab }: { tab: Tab }) {
       return <ReplicationTab />
     case "backups":
       return <BackupsTab />
+    case "alerts":
+      return <AlertsTab />
     case "details":
       return <DetailsTab />
     default:

@@ -1,6 +1,7 @@
 "use client"
 
-import { CircleAlert, Ellipsis, TriangleAlert } from "lucide-react"
+import { BellOff, CircleAlert, Ellipsis, TriangleAlert } from "lucide-react"
+import Link from "next/link"
 import { useRef, useState } from "react"
 
 import {
@@ -16,7 +17,6 @@ import { cn } from "@/lib/utils"
 import { useChannels } from "../api"
 import { useRuleMenu } from "./rule-actions"
 import {
-  formatValue,
   forText,
   metricOf,
   type RuleState,
@@ -26,24 +26,27 @@ import {
   type Severity,
   scopeText,
   severityMeta,
+  stateValue,
+  targetHref,
 } from "./rules-meta"
 
-// The rules as a table (desktop) or rows + a sheet (phone). With `serverId`
-// the states are that one server's and the scope column is left out.
+// The rules as a table (desktop) or rows + a sheet (phone). With `targetId`
+// (a server or a database) the states are that one's and the scope column is
+// left out.
 
 export function RulesList({
   rules,
   phone,
-  serverId,
+  targetId,
 }: {
   rules: AlertRule[]
   phone: boolean
-  serverId?: string
+  targetId?: string
 }) {
   return phone ? (
-    <Rows rules={rules} serverId={serverId} />
+    <Rows rules={rules} targetId={targetId} />
   ) : (
-    <Table rules={rules} serverId={serverId} />
+    <Table rules={rules} targetId={targetId} />
   )
 }
 
@@ -65,30 +68,27 @@ const stateMeta: Record<
 }
 
 function names(states: AlertRuleState[], max = 2) {
-  const n = states.map((s) => s.server_name)
+  const n = states.map((s) => s.target_name)
   return n.length <= max
     ? n.join(", ")
     : `${n.slice(0, max).join(", ")} +${n.length - max}`
 }
 
 // "Firing on web-1, db-2" / "Firing · 93% for 12 min" on one server.
-function stateLine(r: AlertRule, serverId?: string) {
+function stateLine(r: AlertRule, targetId?: string) {
   const st = ruleState(r)
   const firing = r.states.filter((s) => s.state === "firing")
   const pending = r.states.filter((s) => s.state === "pending")
-  const value = (s: AlertRuleState) =>
-    r.metric === "offline"
-      ? s.detail
-      : `${formatValue(r.metric, s.value)}${s.detail ? ` on ${s.detail}` : ""}`
+  const value = (s: AlertRuleState) => stateValue(r, s)
   if (st === "firing") {
-    if (serverId)
+    if (targetId)
       return [value(firing[0]), lasting(firing[0].firing_since)]
         .filter(Boolean)
         .join(" · ")
     return `on ${names(firing)}`
   }
   if (st === "pending") {
-    if (serverId)
+    if (targetId)
       return [
         value(pending[0]),
         `alerts after ${forText(r.for_minutes).replace("for ", "")}`,
@@ -102,16 +102,16 @@ function stateLine(r: AlertRule, serverId?: string) {
 
 export function RuleStateBadge({
   rule,
-  serverId,
+  targetId,
   className,
 }: {
   rule: AlertRule
-  serverId?: string
+  targetId?: string
   className?: string
 }) {
   const st = ruleState(rule)
   const m = stateMeta[st]
-  const line = stateLine(rule, serverId)
+  const line = stateLine(rule, targetId)
   return (
     <span
       className={cn(
@@ -200,7 +200,7 @@ function RuleIcon({ r }: { r: AlertRule }) {
 
 // ---- Desktop ----
 
-function Table({ rules, serverId }: { rules: AlertRule[]; serverId?: string }) {
+function Table({ rules, targetId }: { rules: AlertRule[]; targetId?: string }) {
   return (
     <div className="@container overflow-hidden rounded-2xl border border-border">
       <table className="w-full table-fixed text-body-sm">
@@ -215,7 +215,7 @@ function Table({ rules, serverId }: { rules: AlertRule[]; serverId?: string }) {
             >
               Now
             </th>
-            {!serverId && (
+            {!targetId && (
               <th
                 scope="col"
                 className="hidden h-10 w-[16%] px-3 text-start font-medium @3xl:table-cell"
@@ -236,7 +236,7 @@ function Table({ rules, serverId }: { rules: AlertRule[]; serverId?: string }) {
         </thead>
         <tbody className="divide-y divide-border">
           {rules.map((r) => (
-            <Row key={r.id} r={r} serverId={serverId} />
+            <Row key={r.id} r={r} targetId={targetId} />
           ))}
         </tbody>
       </table>
@@ -244,7 +244,7 @@ function Table({ rules, serverId }: { rules: AlertRule[]; serverId?: string }) {
   )
 }
 
-function Row({ r, serverId }: { r: AlertRule; serverId?: string }) {
+function Row({ r, targetId }: { r: AlertRule; targetId?: string }) {
   const menu = useRuleMenu(r)
   const edit = menu[0][0]
   return (
@@ -276,9 +276,9 @@ function Row({ r, serverId }: { r: AlertRule; serverId?: string }) {
         </button>
       </td>
       <td className="p-3">
-        <RuleStateBadge rule={r} serverId={serverId} />
+        <RuleStateBadge rule={r} targetId={targetId} />
       </td>
-      {!serverId && (
+      {!targetId && (
         <td className="hidden truncate p-3 text-muted-foreground @3xl:table-cell">
           {scopeText(r)}
         </td>
@@ -299,7 +299,7 @@ function Row({ r, serverId }: { r: AlertRule; serverId?: string }) {
 
 // ---- Phone ----
 
-function Rows({ rules, serverId }: { rules: AlertRule[]; serverId?: string }) {
+function Rows({ rules, targetId }: { rules: AlertRule[]; targetId?: string }) {
   const [sheetOpen, setSheetOpen] = useOpen("alert-rule-sheet")
   const [id, setId] = useState<string | null>(null)
   const last = useRef<AlertRule | null>(null)
@@ -334,7 +334,7 @@ function Rows({ rules, serverId }: { rules: AlertRule[]; serverId?: string }) {
                 </span>
                 <RuleStateBadge
                   rule={r}
-                  serverId={serverId}
+                  targetId={targetId}
                   className="mt-0.5"
                 />
               </span>
@@ -346,7 +346,7 @@ function Rows({ rules, serverId }: { rules: AlertRule[]; serverId?: string }) {
       {current && (
         <RuleSheet
           r={current}
-          serverId={serverId}
+          targetId={targetId}
           open={sheetOpen}
           onOpenChange={setSheetOpen}
         />
@@ -357,12 +357,12 @@ function Rows({ rules, serverId }: { rules: AlertRule[]; serverId?: string }) {
 
 function RuleSheet({
   r,
-  serverId,
+  targetId,
   open,
   onOpenChange,
 }: {
   r: AlertRule
-  serverId?: string
+  targetId?: string
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
@@ -375,10 +375,10 @@ function RuleSheet({
           { label: "When", value: ruleSentence(r), wide: true },
           {
             label: "Now",
-            value: <RuleStateBadge rule={r} serverId={serverId} />,
+            value: <RuleStateBadge rule={r} targetId={targetId} />,
             wide: true,
           },
-          ...(serverId ? [] : [{ label: "On", value: scopeText(r) }]),
+          ...(targetId ? [] : [{ label: "On", value: scopeText(r) }]),
           {
             label: "Severity",
             value: severityMeta[r.severity as Severity]?.label ?? r.severity,
@@ -397,10 +397,10 @@ function RuleSheet({
 // One line per server a rule is firing on, worst first.
 export function FiringNotice({
   rules,
-  serverId,
+  targetId,
 }: {
   rules: AlertRule[]
-  serverId?: string
+  targetId?: string
 }) {
   const firing = rules
     .filter((r) => r.enabled)
@@ -427,7 +427,7 @@ export function FiringNotice({
     >
       {firing.slice(0, 5).map(({ r, s }) => (
         <p
-          key={`${r.id}-${s.server_id}`}
+          key={`${r.id}-${s.target_id}`}
           className="flex items-start gap-2 text-body-sm"
         >
           <CircleAlert
@@ -438,15 +438,27 @@ export function FiringNotice({
           />
           <span className="min-w-0">
             <span className="font-medium">{r.name}</span>
-            {!serverId && ` on ${s.server_name}`}
+            {!targetId && (
+              <>
+                {" on "}
+                <Link
+                  href={targetHref(s, r.metric)}
+                  className="underline-offset-2 hover:underline"
+                >
+                  {s.target_name}
+                </Link>
+              </>
+            )}
             <span className="text-muted-foreground">
               {" "}
-              ·{" "}
-              {r.metric === "offline"
-                ? s.detail || "unreachable"
-                : `${formatValue(r.metric, s.value)}${s.detail ? ` on ${s.detail}` : ""}`}{" "}
-              · {lasting(s.firing_since ?? s.updated_at)}
+              · {stateValue(r, s)} · {lasting(s.firing_since ?? s.updated_at)}
             </span>
+            {!s.notified && (
+              <span className="ms-1.5 inline-flex items-center gap-1 rounded-full bg-muted px-2 align-middle text-caption text-muted-foreground">
+                <BellOff className="size-3" />
+                Muted, not sent
+              </span>
+            )}
           </span>
         </p>
       ))}

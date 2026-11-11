@@ -11,18 +11,20 @@ import { formatDuration } from "@/lib/format"
 import type { AlertEvent } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { useAlertEvents } from "../api"
-import { formatValue, isPercent, metricOf } from "./rules-meta"
+import { formatValue, isPercent, isStateMetric, metricOf } from "./rules-meta"
 
 // What the alert rules sent: fired and back-to-normal, newest first.
 
 export function AlertEventList({
   serverId,
+  databaseId,
   ruleId,
   limit = 100,
   phone,
   emptyText = "Nothing has fired yet. When a rule's condition holds long enough, it shows here.",
 }: {
   serverId?: string
+  databaseId?: string
   ruleId?: string
   limit?: number
   phone: boolean
@@ -30,6 +32,7 @@ export function AlertEventList({
 }) {
   const events = useAlertEvents({
     server_id: serverId,
+    database_id: databaseId,
     rule_id: ruleId,
     limit,
   })
@@ -92,7 +95,12 @@ export function AlertEventList({
             )}
           >
             {d.items.map((e) => (
-              <EventRow key={e.id} e={e} phone={phone} server={!serverId} />
+              <EventRow
+                key={e.id}
+                e={e}
+                phone={phone}
+                target={!serverId && !databaseId}
+              />
             ))}
           </ul>
         </section>
@@ -124,22 +132,22 @@ function dayLabel(iso: string) {
 function EventRow({
   e,
   phone,
-  server,
+  target,
 }: {
   e: AlertEvent
   phone: boolean
-  server: boolean
+  // Name the server or database (left out on its own page).
+  target: boolean
 }) {
   const fired = e.kind === "fired"
   const critical = e.severity === "critical"
-  const value =
-    e.metric === "offline"
-      ? e.detail
-      : `${formatValue(e.metric, e.value)}${
-          isPercent(e.metric) || e.metric === "load"
-            ? ` (limit ${formatValue(e.metric, e.threshold)})`
-            : ""
-        }${e.detail ? ` on ${e.detail}` : ""}`
+  const value = isStateMetric(e.metric)
+    ? e.detail
+    : `${formatValue(e.metric, e.value)}${
+        isPercent(e.metric) || e.metric === "load"
+          ? ` (limit ${formatValue(e.metric, e.threshold)})`
+          : ""
+      }${e.detail ? ` on ${e.detail}` : ""}`
   const time = new Date(e.at).toLocaleTimeString(undefined, {
     hour: "2-digit",
     minute: "2-digit",
@@ -164,12 +172,16 @@ function EventRow({
       <div className="min-w-0 flex-1">
         <p className="text-body-sm break-words">
           <span className="font-medium">{e.rule_name}</span>
-          {server && e.server_name && (
+          {target && e.server_name && (
             <>
               {" on "}
-              {e.server_id ? (
+              {e.database_id || e.server_id ? (
                 <Link
-                  href={`/servers/${e.server_id}/metrics`}
+                  href={
+                    e.database_id
+                      ? `/databases/${e.database_id}`
+                      : `/servers/${e.server_id}/${e.metric === "service" ? "services" : "metrics"}`
+                  }
                   className="font-medium hover:underline"
                 >
                   {e.server_name}
@@ -182,6 +194,15 @@ function EventRow({
           <span className="text-muted-foreground">
             {fired ? " fired" : " back to normal"}
           </span>
+          {e.muted && (
+            <span
+              title="It happened during a mute: recorded here, not sent"
+              className="ms-1.5 inline-flex items-center gap-1 rounded-full bg-muted px-2 align-middle text-caption text-muted-foreground"
+            >
+              <BellOff className="size-3" />
+              Muted
+            </span>
+          )}
         </p>
         <p className="text-caption text-muted-foreground">
           {fired
