@@ -249,11 +249,8 @@ export const sectionGroups: SectionGroup[] = [
         slug: "metrics",
         label: "Metrics",
         icon: ChartLine,
-        summary: "CPU, memory, disk and network over time.",
-        planned: [
-          "Charts for the last hour, day and month",
-          "Alert rules for this server",
-        ],
+        summary: "CPU, memory, disk and network over time, and alerts.",
+        ready: true,
       },
     ],
   },

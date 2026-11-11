@@ -226,7 +226,7 @@ type FrameProps = {
   height: number
   label: string
   tooltip: (i: number) => ReactNode
-  // Left edge reserved for the y labels.
+  // Left edge reserved for the y labels (default: fits the widest one).
   axisWidth?: number
   children: (scale: {
     x: (i: number) => number
@@ -246,16 +246,23 @@ function Frame({
   height,
   label,
   tooltip,
-  axisWidth = 44,
+  axisWidth: fixedAxis,
   children,
   highlight = "line",
 }: FrameProps) {
   const [ref, width] = useWidth()
   const n = b.starts.length
+  const ticks = yTicks(max)
+  // Wide enough for the longest label (11px tabular figures ≈ 6.5px each).
+  const axisWidth =
+    fixedAxis ??
+    Math.max(
+      44,
+      Math.ceil(Math.max(...ticks.map((v) => format(v).length)) * 6.5) + 12,
+    )
   const plotWidth = Math.max(0, width - axisWidth - pad.right)
   const plotHeight = height - pad.top - pad.bottom
   const step = n ? plotWidth / n : 0
-  const ticks = yTicks(max)
   const top = ticks[ticks.length - 1] || 1
   const x = (i: number) => axisWidth + step * (i + 0.5)
   const y = (v: number) => pad.top + plotHeight * (1 - v / top)
@@ -342,13 +349,8 @@ function Frame({
 
 // One series as a 2px line over a light area; null = no data (a gap).
 export function LineChart({
-  buckets: b,
   values,
-  format,
-  tooltip,
-  label,
-  height = 200,
-  max: ceiling,
+  ...rest
 }: {
   buckets: Buckets
   values: (number | null)[]
@@ -358,8 +360,67 @@ export function LineChart({
   height?: number
   // A fixed top of the scale (100 for percentages); a value above it wins.
   max?: number
+  guides?: Guide[]
 }) {
-  const max = Math.max(ceiling ?? 0, ...values.map((v) => v ?? 0))
+  return <MultiLineChart {...rest} series={[{ key: "v", values }]} />
+}
+
+// A line on a chart: `brand` = the main one (with its area), `quiet` = a
+// second measure (grey, no area), `peak` = the highest value in each bucket
+// (a faint brand line).
+export type Series = {
+  key: string
+  values: (number | null)[]
+  tone?: "brand" | "quiet" | "peak"
+}
+
+// A level drawn across the chart (an alert rule's threshold).
+export type Guide = {
+  value: number
+  label: string
+  tone?: "warning" | "destructive"
+}
+
+const lineClass = {
+  brand: "stroke-brand",
+  quiet: "stroke-muted-foreground",
+  peak: "stroke-brand/35",
+}
+const dotClass = {
+  brand: "fill-brand",
+  quiet: "fill-muted-foreground",
+  peak: "fill-brand/35",
+}
+
+// Several series over the same buckets, plus optional threshold guides.
+export function MultiLineChart({
+  buckets: b,
+  series,
+  guides = [],
+  format,
+  tooltip,
+  label,
+  height = 200,
+  max: ceiling,
+}: {
+  buckets: Buckets
+  series: Series[]
+  guides?: Guide[]
+  format: (v: number) => string
+  tooltip: (i: number) => ReactNode
+  label: string
+  height?: number
+  max?: number
+}) {
+  const max = Math.max(
+    ceiling ?? 0,
+    ...series.flatMap((s) => s.values.map((v) => v ?? 0)),
+    ...guides.map((g) => g.value),
+  )
+  // The main series is drawn last, over the others.
+  const order = [...series].sort(
+    (x, y) => rank[x.tone ?? "brand"] - rank[y.tone ?? "brand"],
+  )
   return (
     <Frame
       buckets={b}
@@ -370,63 +431,111 @@ export function LineChart({
       tooltip={tooltip}
     >
       {({ x, y, hover }) => {
-        // Runs of buckets with data; a lone one becomes a dot.
-        const runs: number[][] = []
-        values.forEach((v, i) => {
-          if (v === null) return
-          const last = runs[runs.length - 1]
-          if (last && last[last.length - 1] === i - 1) last.push(i)
-          else runs.push([i])
-        })
         const base = y(0)
+        const left = x(0) - (x(1) - x(0)) / 2
+        const right = x(b.starts.length - 1) + (x(1) - x(0)) / 2
         return (
           <g className="pointer-events-none">
-            {runs.map((run) => {
-              if (run.length === 1) {
-                const i = run[0]
-                return (
-                  <circle
-                    key={i}
-                    cx={x(i)}
-                    cy={y(values[i] ?? 0)}
-                    r={3}
-                    className="fill-brand"
-                  />
-                )
-              }
-              const line = run
-                .map((i, k) => `${k ? "L" : "M"}${x(i)},${y(values[i] ?? 0)}`)
-                .join("")
-              const area = `${line}L${x(run[run.length - 1])},${base}L${x(run[0])},${base}Z`
+            {order.map((s) => {
+              const tone = s.tone ?? "brand"
+              // Runs of buckets with data; a lone one becomes a dot.
+              const runs: number[][] = []
+              s.values.forEach((v, i) => {
+                if (v === null) return
+                const last = runs[runs.length - 1]
+                if (last && last[last.length - 1] === i - 1) last.push(i)
+                else runs.push([i])
+              })
               return (
-                <g key={run[0]}>
-                  <path d={area} className="fill-brand/10" />
-                  <path
-                    d={line}
-                    fill="none"
-                    className="stroke-brand"
-                    strokeWidth={2}
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                  />
+                <g key={s.key}>
+                  {runs.map((run) => {
+                    if (run.length === 1) {
+                      const i = run[0]
+                      return (
+                        <circle
+                          key={i}
+                          cx={x(i)}
+                          cy={y(s.values[i] ?? 0)}
+                          r={tone === "brand" ? 3 : 2}
+                          className={dotClass[tone]}
+                        />
+                      )
+                    }
+                    const line = run
+                      .map(
+                        (i, k) =>
+                          `${k ? "L" : "M"}${x(i)},${y(s.values[i] ?? 0)}`,
+                      )
+                      .join("")
+                    const area = `${line}L${x(run[run.length - 1])},${base}L${x(run[0])},${base}Z`
+                    return (
+                      <g key={run[0]}>
+                        {tone === "brand" && (
+                          <path d={area} className="fill-brand/10" />
+                        )}
+                        <path
+                          d={line}
+                          fill="none"
+                          className={lineClass[tone]}
+                          strokeWidth={tone === "brand" ? 2 : 1.5}
+                          strokeDasharray={tone === "quiet" ? "4 3" : undefined}
+                          strokeLinejoin="round"
+                          strokeLinecap="round"
+                        />
+                      </g>
+                    )
+                  })}
+                  {hover !== null && s.values[hover] != null && (
+                    <circle
+                      cx={x(hover)}
+                      cy={y(s.values[hover] ?? 0)}
+                      r={tone === "brand" ? 4 : 3}
+                      strokeWidth={2}
+                      className={cn(dotClass[tone], "stroke-background")}
+                    />
+                  )}
                 </g>
               )
             })}
-            {hover !== null && values[hover] !== null && (
-              <circle
-                cx={x(hover)}
-                cy={y(values[hover] ?? 0)}
-                r={4}
-                strokeWidth={2}
-                className="fill-brand stroke-background"
-              />
-            )}
+            {guides.map((g) => (
+              <g key={`${g.value}-${g.label}`}>
+                <line
+                  x1={left}
+                  x2={right}
+                  y1={y(g.value)}
+                  y2={y(g.value)}
+                  strokeWidth={1}
+                  strokeDasharray="6 4"
+                  shapeRendering="crispEdges"
+                  className={
+                    g.tone === "destructive"
+                      ? "stroke-destructive/70"
+                      : "stroke-warning/70"
+                  }
+                />
+                <text
+                  x={right - 4}
+                  y={y(g.value) - 4}
+                  textAnchor="end"
+                  className={cn(
+                    "text-[11px] font-medium",
+                    g.tone === "destructive"
+                      ? "fill-destructive"
+                      : "fill-warning",
+                  )}
+                >
+                  {g.label}
+                </text>
+              </g>
+            ))}
           </g>
         )
       }}
     </Frame>
   )
 }
+
+const rank = { peak: 0, quiet: 1, brand: 2 }
 
 export type Stack = { key: string; fill: string; values: number[] }
 

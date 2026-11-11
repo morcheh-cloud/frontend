@@ -21,23 +21,114 @@ export const alerts: GuideSection[] = [
     body: (
       <>
         <P>
-          <UI>Alerts</UI> holds the places Morcheh sends a message when
-          something breaks: a Telegram or Bale group, a Slack or Teams channel,
-          a phone push, an email list or your own webhook. Each one is a{" "}
-          <UI>channel</UI>, set up once per workspace and then picked by any
-          monitor.
+          <UI>Alerts</UI> decides when Morcheh tells someone and where. It has
+          three tabs:
         </P>
         <List>
           <li>
-            <UI>Alerts</UI> in the sidebar (phone: <UI>More</UI> ›{" "}
-            <UI>Alerts</UI>) lists the channels, whether the last message
-            arrived, and how many monitors use each.
+            <UI>Rules</UI>: conditions on your servers, like{" "}
+            <C>Disk above 85%</C> or <C>Server unreachable for 2 min</C>. When
+            one holds long enough it <UI>fires</UI> and sends a message.{" "}
+            <See guide="alerts" section="rules" />
           </li>
           <li>
-            A monitor's <UI>Alerts</UI> section picks which channels hear about
-            it. <See guide="uptime" section="alerts" />
+            <UI>Channels</UI>: the places a message goes: a Telegram or Bale
+            group, a Slack or Teams channel, a phone push, an email list or your
+            own webhook. Set up once per workspace, then picked by rules and
+            uptime monitors. <See guide="uptime" section="alerts" />
+          </li>
+          <li>
+            <UI>Activity</UI>: every alert the rules sent, and when each went
+            back to normal.
           </li>
         </List>
+      </>
+    ),
+  },
+  {
+    id: "rules",
+    title: "Alert rules",
+    body: (
+      <>
+        <P>
+          A rule watches one measure on some servers, checked on every sample
+          Morcheh takes (every minute by default), or on every connection check
+          for <UI>Unreachable</UI>.
+        </P>
+        <Steps>
+          {[
+            <>
+              On <UI>Alerts</UI> › <UI>Rules</UI> press <UI>New rule</UI>, or
+              pick a ready-made one under <UI>Start from</UI>. From a server's{" "}
+              <UI>Metrics</UI> tab, the bell on a chart starts one for that
+              server. <See guide="server-metrics" section="alerts" />
+            </>,
+            <>
+              <UI>Watch</UI>: the measure (CPU, memory, disk, unreachable, load
+              per core, I/O wait, swap, download, upload), <UI>Above</UI> or{" "}
+              <UI>Below</UI>, the limit, and how long it must last. For a disk,
+              leave <UI>Filesystem</UI> empty to watch the fullest one, or name
+              a mount like <C>/var</C>.
+            </>,
+            <>
+              <UI>On</UI>: <UI>Every server</UI> (new ones too),{" "}
+              <UI>Chosen servers</UI>, or <UI>By tag</UI> (any server with one
+              of the tags, now or later).
+            </>,
+            <>
+              <UI>Right now</UI> shows what each server reads at the moment and
+              whether the rule would fire, before you save.
+            </>,
+            <>
+              <UI>Tell</UI>: the channels, <UI>Warning</UI> or <UI>Critical</UI>
+              , <UI>Remind</UI> (while it keeps firing), and whether to send a
+              message when it's back to normal.
+            </>,
+          ]}
+        </Steps>
+        <Table
+          head={["State", "Means"]}
+          rows={[
+            [<UI key="n">Normal</UI>, "The condition doesn't hold."],
+            [
+              <UI key="w">Waiting</UI>,
+              "It holds, but not yet for as long as the rule asks.",
+            ],
+            [
+              <UI key="f">Firing</UI>,
+              "It held long enough; the message went out. Counted in red on the menu and on Home.",
+            ],
+            [<UI key="o">Off</UI>, "Turned off: watches and sends nothing."],
+          ]}
+        />
+        <Recommended
+          rows={[
+            {
+              setting: <C>Server unreachable</C>,
+              value: "2 min, critical",
+              why: "Skips a single dropped check, still tells within minutes.",
+            },
+            {
+              setting: <C>Disk almost full</C>,
+              value: "Above 85%, at once",
+              why: "Disks fill slowly; a warning leaves time to clean up.",
+            },
+            {
+              setting: <C>CPU busy</C>,
+              value: "Above 90% for 10 min",
+              why: "Builds and backups spike for a minute; 10 min means it's stuck.",
+            },
+            {
+              setting: <C>Memory running out</C>,
+              value: "Above 90% for 10 min, critical",
+              why: "The next step is the kernel killing processes.",
+            },
+          ]}
+        />
+        <Tip>
+          Workspace Engineers add, edit, turn off and delete rules; everyone
+          else in the workspace sees them and their state.
+        </Tip>
       </>
     ),
   },
@@ -304,6 +395,19 @@ ok = hmac.compare_digest("sha256=" + mac, signature_header)`}
         <li>
           Emails land in spam: send from an address of a domain your SMTP server
           is allowed to send for (SPF/DKIM).
+        </li>
+        <li>
+          A rule fired but nothing came: the rule has no channel (its row says{" "}
+          <UI>No channel</UI>) or its channels are turned off.
+        </li>
+        <li>
+          A rule stays <UI>Firing</UI> while the server is unreachable: no new
+          samples come in, so it can't clear. Add an <UI>Unreachable</UI> rule
+          so you hear about that instead.
+        </li>
+        <li>
+          Editing or turning off a firing rule starts it over: it goes back to{" "}
+          <UI>Normal</UI> without a back-to-normal message.
         </li>
         <li>
           A monitor went down but nothing came: check the channel is ticked on

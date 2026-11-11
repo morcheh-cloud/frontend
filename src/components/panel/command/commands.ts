@@ -184,6 +184,16 @@ export function actions(
         "uptime monitor check http website ping tcp port dns certificate database queue heartbeat push alert",
     },
     {
+      key: "action:add-alert-rule",
+      label: "New alert rule",
+      icon: Plus,
+      tile: "brand",
+      href: "/alerts",
+      intent: "add-alert-rule",
+      keywords:
+        "alarm notify notification cpu memory disk full load swap network down unreachable threshold metric",
+    },
+    {
       key: "action:add-alert-channel",
       label: "Add alert channel",
       icon: Plus,

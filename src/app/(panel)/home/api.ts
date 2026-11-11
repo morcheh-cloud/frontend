@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-
+import { formatValue } from "@/app/(panel)/alerts/components/rules-meta"
 import { useCronjobs } from "@/app/(panel)/cronjobs/api"
 import { backupsHref } from "@/app/(panel)/databases/[id]/components/backups/meta"
 import { statusMeta as dbStatusMeta } from "@/app/(panel)/databases/components/meta"
@@ -16,6 +16,7 @@ import { useApps } from "@/app/(panel)/services/api"
 import { monitorHref } from "@/app/(panel)/uptime/components/monitor-menu"
 import { isActive, useJobList } from "@/components/jobs/api"
 import {
+  alertRulesQuery,
   backupProblemsQuery,
   cronjobBroken,
   databaseBroken,
@@ -59,6 +60,7 @@ export type Kind =
   | "cronjob"
   | "application"
   | "monitor"
+  | "alert"
 export type Tone = "destructive" | "warning"
 
 export type Issue = {
@@ -127,6 +129,7 @@ export function useHome() {
   const cronjobs = useCronjobs(workspace?.id)
   const software = useQuery(softwareInstallsQuery(workspace?.id ?? ""))
   const monitors = useQuery(monitorsQuery(workspace?.id ?? ""))
+  const alertRules = useQuery(alertRulesQuery(workspace?.id ?? ""))
   const apps = useApps()
   const jobs = useJobList()
 
@@ -244,6 +247,25 @@ export function useHome() {
       href: monitorHref(m.id),
       tone: degraded ? "warning" : "destructive",
     })
+  }
+  // Alert rules firing right now: one row per rule and server.
+  for (const r of alertRules.data ?? []) {
+    if (!r.enabled) continue
+    for (const st of r.states) {
+      if (st.state !== "firing") continue
+      issues.push({
+        key: `alert:${r.id}:${st.server_id}`,
+        kind: "alert",
+        name: `${st.server_name} · ${r.name}`,
+        status: r.severity === "critical" ? "Critical" : "Warning",
+        detail:
+          r.metric === "offline"
+            ? st.detail
+            : `${formatValue(r.metric, st.value)}${st.detail ? ` on ${st.detail}` : ""}`,
+        href: `/servers/${st.server_id}/metrics`,
+        tone: r.severity === "critical" ? "destructive" : "warning",
+      })
+    }
   }
   for (const b of backups.data ?? []) {
     issues.push({

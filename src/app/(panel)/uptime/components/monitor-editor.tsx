@@ -870,18 +870,21 @@ function NumberField({
   )
 }
 
-function ChannelPicker({
+// Shared with the alert rule editor (`empty` = what happens without a channel).
+export function ChannelPicker({
   ws,
   query,
   value,
   onChange,
   error,
+  empty = "down times still show here and on Home.",
 }: {
   ws: string
   query: ReturnType<typeof useChannels>
   value: string[] | null
   onChange: (v: string[]) => void
   error?: string
+  empty?: string
 }) {
   if (query.isPending) return <Skeleton className="h-16 w-full rounded-lg" />
   const items = query.data ?? []
@@ -889,8 +892,7 @@ function ChannelPicker({
     return (
       <Callout icon={<Info />}>
         <span>
-          No alert channels in this workspace yet: down times still show here
-          and on Home.{" "}
+          No alert channels in this workspace yet: {empty}{" "}
           <Link
             href="/alerts"
             className="font-medium text-brand hover:underline"

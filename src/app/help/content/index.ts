@@ -18,6 +18,7 @@ import { power } from "./power"
 import { processes } from "./processes"
 import { reverseProxy } from "./reverse-proxy"
 import { scripts } from "./scripts"
+import { serverMetrics } from "./server-metrics"
 import { serverNotes } from "./server-notes"
 import { serverOverview } from "./server-overview"
 import { servers } from "./servers"
@@ -36,6 +37,7 @@ export const content: Record<string, GuideSection[]> = {
   servers,
   "network-map": networkMap,
   "server-overview": serverOverview,
+  "server-metrics": serverMetrics,
   "server-notes": serverNotes,
   "terminal-recordings": terminalRecordings,
   uptime,

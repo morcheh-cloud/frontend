@@ -4,6 +4,7 @@ import { queryOptions, useQuery } from "@tanstack/react-query"
 
 import { api } from "@/lib/api"
 import type {
+  AlertRule,
   Database,
   DNSServer,
   Proxy as ReverseProxy,
@@ -14,6 +15,7 @@ import type {
   UptimeMonitor,
 } from "@/lib/services"
 import {
+  alertsItem,
   applicationsItem,
   cronjobsItem,
   databasesItem,
@@ -162,6 +164,27 @@ export function useUptimeProblems() {
   return data?.filter(monitorBroken).length ?? 0
 }
 
+// The workspace's alert rules on server metrics, as /alerts lists them, each
+// with where it stands on the servers it covers.
+export const alertRulesQuery = (workspace: string) =>
+  queryOptions({
+    queryKey: ["alert-rules", "list", workspace] as const,
+    queryFn: () => api.alerts.listAlertRules({}),
+    enabled: !!workspace,
+    refetchInterval: 30_000,
+    select: (l) => l.items,
+  })
+
+// How many servers a rule is firing on right now.
+export const ruleFiring = (r: Pick<AlertRule, "enabled" | "states">) =>
+  r.enabled ? r.states.filter((s) => s.state === "firing").length : 0
+
+export function useAlertProblems() {
+  const { workspace } = useWorkspace()
+  const { data } = useQuery(alertRulesQuery(workspace?.id ?? ""))
+  return data?.reduce((n, r) => n + ruleFiring(r), 0) ?? 0
+}
+
 export type NavAlert = { count: number; label: string }
 
 const plural = (n: number, one: string, many: string) =>
@@ -255,6 +278,7 @@ export function useNavAlerts() {
   const proxies = useProxyProblems()
   const software = useSoftwareProblems()
   const uptime = useUptimeProblems()
+  const firing = useAlertProblems()
   const alerts = new Map<string, NavAlert>()
   if (servers > 0) {
     alerts.set(serversItem.href, {
@@ -303,6 +327,12 @@ export function useNavAlerts() {
     alerts.set(uptimeItem.href, {
       count: uptime,
       label: `${plural(uptime, "monitor", "monitors")} down`,
+    })
+  }
+  if (firing > 0) {
+    alerts.set(alertsItem.href, {
+      count: firing,
+      label: `${plural(firing, "alert", "alerts")} firing`,
     })
   }
   if (cronjobs > 0) {

@@ -47,6 +47,177 @@ export interface AffectedOutputBody {
   affected: number;
 }
 
+export interface AlertEvent {
+  /** @format date-time */
+  at: string;
+  detail: string;
+  /** @format int64 */
+  id: number;
+  kind: "fired" | "resolved";
+  /**
+   * resolved: how long it lasted
+   * @format int64
+   */
+  lasted_secs: number;
+  metric: string;
+  /** @format uuid */
+  rule_id?: string;
+  rule_name: string;
+  /** @format uuid */
+  server_id?: string;
+  server_name: string;
+  severity: string;
+  /** @format double */
+  threshold: number;
+  /** @format double */
+  value: number;
+}
+
+export interface AlertPreviewItem {
+  /**
+   * The sample it was read from; missing = no data
+   * @format date-time
+   */
+  at?: string;
+  detail: string;
+  /** The condition holds now */
+  met: boolean;
+  /** @format uuid */
+  server_id: string;
+  server_name: string;
+  status: string;
+  /** @format double */
+  value?: number;
+}
+
+export interface AlertPreviewOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Every server the rule covers, those that meet it first */
+  items: AlertPreviewItem[];
+}
+
+export interface AlertRule {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  channel_ids: string[];
+  /** @format date-time */
+  created_at: string;
+  created_by_name: string;
+  enabled: boolean;
+  /** @format int32 */
+  for_minutes: number;
+  /** @format uuid */
+  id: string;
+  metric: string;
+  mount: string;
+  name: string;
+  notify_resolved: boolean;
+  op: string;
+  /** @format int32 */
+  repeat_minutes: number;
+  scope: string;
+  server_ids: string[];
+  severity: string;
+  /** Servers where it's pending or firing, firing first */
+  states: AlertRuleState[];
+  tags: string[];
+  /** @format double */
+  threshold: number;
+  /** @format date-time */
+  updated_at: string;
+  updated_by_name: string;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface AlertRuleBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Notification channels of the same workspace */
+  channel_ids?: string[];
+  /** Default true */
+  enabled?: boolean;
+  /**
+   * How long it must hold before alerting; 0 = at once
+   * @format int32
+   * @min 0
+   * @max 1440
+   */
+  for_minutes: number;
+  metric:
+    | "cpu"
+    | "iowait"
+    | "load"
+    | "memory"
+    | "swap"
+    | "disk"
+    | "net_rx"
+    | "net_tx"
+    | "offline";
+  /**
+   * disk only: one mount point; empty = the fullest
+   * @maxLength 255
+   */
+  mount?: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  /** Send when it clears; default true */
+  notify_resolved?: boolean;
+  /** @default "above" */
+  op?: "above" | "below";
+  /**
+   * Remind while it fires; 0 = once
+   * @format int32
+   * @min 0
+   * @max 10080
+   */
+  repeat_minutes?: number;
+  /** @default "all" */
+  scope?: "all" | "servers" | "tags";
+  /** scope servers */
+  server_ids?: string[];
+  /** @default "warning" */
+  severity?: "warning" | "critical";
+  /** scope tags: servers with any of them */
+  tags?: string[];
+  /**
+   * Percent for cpu, iowait, memory, swap and disk; load per core; bytes per second for net_rx/net_tx; ignored for offline
+   * @format double
+   */
+  threshold: number;
+}
+
+export interface AlertRuleState {
+  /** @format date-time */
+  breach_since?: string;
+  /** The disk's mount point, or why a server can't be reached */
+  detail: string;
+  /** @format date-time */
+  firing_since?: string;
+  /** @format uuid */
+  server_id: string;
+  server_name: string;
+  /** pending = the condition holds, not yet for long enough */
+  state: "pending" | "firing";
+  /** @format date-time */
+  updated_at: string;
+  /** @format double */
+  value: number;
+}
+
 export interface AlwaysOnline {
   /**
    * A copy no one asks for is dropped after this many days; 0 = 7
@@ -3556,6 +3727,22 @@ export interface Disk {
   used_percent: number;
 }
 
+export interface DiskPoint {
+  /** @format double */
+  percent: number;
+  /** @format date-time */
+  t: string;
+  /** @format int64 */
+  total: number;
+  /** @format int64 */
+  used: number;
+}
+
+export interface DiskSeries {
+  mount: string;
+  points: DiskPoint[];
+}
+
 export interface DiskUsage {
   /**
    * A URL to the JSON Schema for this object.
@@ -3692,6 +3879,15 @@ export interface EventsOutBody {
    */
   $schema?: string;
   items: MonitorEvent[];
+}
+
+export interface EventsOutBody1 {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: AlertEvent[];
 }
 
 export interface ExplainDatabaseQueryRequest {
@@ -5189,6 +5385,32 @@ export interface KillDatabaseSessionRequest {
   id: string;
 }
 
+export interface LatestSample {
+  /** @format double */
+  load1: number;
+  /** @format date-time */
+  at: string;
+  /** @format int32 */
+  cores: number;
+  /** @format double */
+  cpu: number;
+  disks: SampleDisk[];
+  /** @format double */
+  iowait: number;
+  /** @format int64 */
+  mem_total: number;
+  /** @format int64 */
+  mem_used: number;
+  /** @format double */
+  rx: number;
+  /** @format int64 */
+  swap_total: number;
+  /** @format int64 */
+  swap_used: number;
+  /** @format double */
+  tx: number;
+}
+
 export interface ListAnsibleModulesResponse {
   /**
    * A URL to the JSON Schema for this object.
@@ -5234,6 +5456,15 @@ export interface ListOutBody1 {
    */
   $schema?: string;
   items: NotifyChannel[];
+}
+
+export interface ListOutBody2 {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: AlertRule[];
 }
 
 export interface ListPlaybooksResponse {
@@ -5496,6 +5727,65 @@ export interface Memory {
    * @format int64
    */
   used_bytes: number;
+}
+
+export interface MetricPoint {
+  /**
+   * Average %
+   * @format double
+   */
+  cpu: number;
+  /** @format double */
+  cpu_max: number;
+  /**
+   * Root filesystem %
+   * @format double
+   */
+  disk: number;
+  /** @format double */
+  disk_max: number;
+  /** @format double */
+  iowait: number;
+  /**
+   * 1-minute load per core
+   * @format double
+   */
+  load: number;
+  /** @format double */
+  load_max: number;
+  /**
+   * %
+   * @format double
+   */
+  memory: number;
+  /** @format double */
+  memory_max: number;
+  /**
+   * Bytes per second in
+   * @format double
+   */
+  rx: number;
+  /** @format double */
+  rx_max: number;
+  /** @format int64 */
+  samples: number;
+  /**
+   * %; 0 without swap
+   * @format double
+   */
+  swap: number;
+  /**
+   * Start of the bucket
+   * @format date-time
+   */
+  t: string;
+  /**
+   * Bytes per second out
+   * @format double
+   */
+  tx: number;
+  /** @format double */
+  tx_max: number;
 }
 
 export interface Mirror {
@@ -6140,6 +6430,9 @@ export interface NotificationLogEntry {
   monitor_id?: string;
   monitor_name: string;
   ok: boolean;
+  /** @format uuid */
+  rule_id?: string;
+  rule_name: string;
   title: string;
 }
 
@@ -6171,6 +6464,11 @@ export interface NotifyChannel {
    */
   monitors: number;
   name: string;
+  /**
+   * How many alert rules use it
+   * @format int32
+   */
+  rules: number;
   /** Which secrets are saved */
   secrets: string[];
   /** @format date-time */
@@ -8897,6 +9195,16 @@ export interface RunTask {
   started_at: string;
 }
 
+export interface SampleDisk {
+  mount: string;
+  /** @format double */
+  pct: number;
+  /** @format int64 */
+  total: number;
+  /** @format int64 */
+  used: number;
+}
+
 export interface SaveCrontabRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -10013,6 +10321,32 @@ export interface ServerListOutputBody {
   total: number;
 }
 
+export interface ServerMetrics {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format int64 */
+  bucket_seconds: number;
+  /** Each filesystem's use over the range */
+  disks: DiskSeries[];
+  /** @format date-time */
+  from: string;
+  /** The newest sample, at any age */
+  latest?: LatestSample;
+  /** Only buckets with samples, oldest first */
+  points: MetricPoint[];
+  range: string;
+  /**
+   * How often samples are taken; 0 = sampling is off
+   * @format int64
+   */
+  sample_seconds: number;
+  /** @format date-time */
+  to: string;
+}
+
 export interface ServerNote {
   /**
    * A URL to the JSON Schema for this object.
@@ -10509,6 +10843,15 @@ export interface Session {
   since: string;
   tty: string;
   user: string;
+}
+
+export interface SetAlertRuleEnabledRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  enabled: boolean;
 }
 
 export interface SetDatabaseFavoriteRequest {
@@ -13427,6 +13770,173 @@ export class Api<
       this.request<PanelUser, ErrorModel>({
         path: `/admin/users/${id}`,
         method: "PATCH",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  alerts = {
+    /**
+     * No description
+     *
+     * @tags Alerts
+     * @name CreateAlertRule
+     * @summary Add an alert rule
+     * @request POST:/alert-rules
+     */
+    createAlertRule: (data: AlertRuleBody, params: RequestParams = {}) =>
+      this.request<AlertRule, ErrorModel>({
+        path: `/alert-rules`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Alerts
+     * @name DeleteAlertRule
+     * @summary Remove an alert rule
+     * @request DELETE:/alert-rules/{id}
+     */
+    deleteAlertRule: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/alert-rules/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Alerts
+     * @name GetAlertRule
+     * @summary Get an alert rule
+     * @request GET:/alert-rules/{id}
+     */
+    getAlertRule: (id: string, params: RequestParams = {}) =>
+      this.request<AlertRule, ErrorModel>({
+        path: `/alert-rules/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Newest first.
+     *
+     * @tags Alerts
+     * @name ListAlertEvents
+     * @summary When rules fired and resolved
+     * @request GET:/alert-events
+     */
+    listAlertEvents: (
+      query?: {
+        /**
+         * @format int32
+         * @min 1
+         * @max 500
+         * @default 100
+         */
+        limit?: number;
+        /** Only this rule */
+        rule_id?: string;
+        /** Only this server */
+        server_id?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<EventsOutBody1, ErrorModel>({
+        path: `/alert-events`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The rules of the workspaces this person can see (in the selected one). With server_id, only the rules that cover that server.
+     *
+     * @tags Alerts
+     * @name ListAlertRules
+     * @summary List alert rules
+     * @request GET:/alert-rules
+     */
+    listAlertRules: (
+      query?: {
+        /** Only rules covering this server */
+        server_id?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ListOutBody2, ErrorModel>({
+        path: `/alert-rules`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Checks unsaved settings against each covered server's latest sample, without saving anything.
+     *
+     * @tags Alerts
+     * @name PreviewAlertRule
+     * @summary What a rule would see now
+     * @request POST:/alert-rules/preview
+     */
+    previewAlertRule: (data: AlertRuleBody, params: RequestParams = {}) =>
+      this.request<AlertPreviewOutputBody, ErrorModel>({
+        path: `/alert-rules/preview`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Alerts
+     * @name SetAlertRuleEnabled
+     * @summary Turn an alert rule on or off
+     * @request PUT:/alert-rules/{id}/enabled
+     */
+    setAlertRuleEnabled: (
+      id: string,
+      data: SetAlertRuleEnabledRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<AlertRule, ErrorModel>({
+        path: `/alert-rules/${id}/enabled`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Saving starts the rule over: what was pending or firing is forgotten (without a resolved message).
+     *
+     * @tags Alerts
+     * @name UpdateAlertRule
+     * @summary Update an alert rule
+     * @request PUT:/alert-rules/{id}
+     */
+    updateAlertRule: (
+      id: string,
+      data: AlertRuleBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<AlertRule, ErrorModel>({
+        path: `/alert-rules/${id}`,
+        method: "PUT",
         body: data,
         type: ContentType.Json,
         format: "json",
@@ -17994,6 +18504,32 @@ export class Api<
       this.request<FacetsOutputBody, ErrorModel>({
         path: `/servers/facets`,
         method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description CPU, load, memory, swap, disks and network from the samples taken every SERVER_SAMPLE_INTERVAL. Buckets: 1 min for 1h, 5 min for 6h, 15 min for 24h, 1 h for 7d, 6 h for 30d (never finer than the sampling).
+     *
+     * @tags Servers
+     * @name GetServerMetrics
+     * @summary Resource history of a server
+     * @request GET:/servers/{id}/metrics
+     */
+    getServerMetrics: (
+      id: string,
+      query?: {
+        /** @default "24h" */
+        range?: "1h" | "6h" | "24h" | "7d" | "30d";
+        /** IANA time zone the buckets line up with, e.g. Asia/Tehran */
+        tz?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ServerMetrics, ErrorModel>({
+        path: `/servers/${id}/metrics`,
+        method: "GET",
+        query: query,
         format: "json",
         ...params,
       }),

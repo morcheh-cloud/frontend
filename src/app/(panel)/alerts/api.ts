@@ -7,9 +7,12 @@ import {
   useQueryClient,
 } from "@tanstack/react-query"
 
+import { alertRulesQuery } from "@/components/panel/problems"
 import { useWorkspace } from "@/components/panel/workspace"
 import { api } from "@/lib/api"
 import type {
+  AlertRule,
+  AlertRuleBody,
   ChannelTestBody,
   NotifyChannel,
   NotifyChannelBody,
@@ -115,5 +118,113 @@ export function useTestChannelSettings() {
   return useMutation({
     mutationFn: (body: ChannelTestBody) =>
       api.notifications.testNotificationSettings(body),
+  })
+}
+
+// ---- Alert rules on server metrics ----
+
+export const alertRuleKeys = {
+  all: ["alert-rules"] as const,
+  server: (id: string) => ["alert-rules", "server", id] as const,
+  events: (q: { server_id?: string; rule_id?: string; limit?: number }) =>
+    ["alert-rules", "events", q] as const,
+  preview: (body: AlertRuleBody) => ["alert-rules", "preview", body] as const,
+}
+
+export function useAlertRules() {
+  const { workspace } = useWorkspace()
+  return useQuery(alertRulesQuery(workspace?.id ?? ""))
+}
+
+// The rules covering one server, with only that server's state.
+export function useServerAlertRules(serverId: string) {
+  return useQuery({
+    queryKey: alertRuleKeys.server(serverId),
+    queryFn: () => api.alerts.listAlertRules({ server_id: serverId }),
+    select: (d) => d.items,
+    enabled: !!serverId,
+    refetchInterval: 30_000,
+  })
+}
+
+export function useAlertEvents(
+  q: { server_id?: string; rule_id?: string; limit?: number },
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: alertRuleKeys.events(q),
+    queryFn: () => api.alerts.listAlertEvents(q),
+    select: (d) => d.items,
+    enabled,
+    refetchInterval: 30_000,
+  })
+}
+
+// What unsaved settings would see on each covered server right now.
+export function useAlertPreview(body: AlertRuleBody | null) {
+  return useQuery({
+    queryKey: alertRuleKeys.preview(body ?? ({} as AlertRuleBody)),
+    queryFn: () => api.alerts.previewAlertRule(body as AlertRuleBody),
+    select: (d) => d.items,
+    enabled: !!body,
+    placeholderData: (prev) => prev,
+    retry: false,
+    staleTime: 15_000,
+  })
+}
+
+// Every rule write changes the lists, the servers' views and the channels'
+// rule counts.
+function refreshRules(qc: QueryClient) {
+  qc.invalidateQueries({ queryKey: alertRuleKeys.all })
+  qc.invalidateQueries({ queryKey: channelKeys.all })
+}
+
+function putRule(qc: QueryClient, r: AlertRule) {
+  qc.setQueryData<{ items: AlertRule[] }>(
+    ["alert-rules", "list", r.workspace_id],
+    (d) =>
+      d && {
+        ...d,
+        items: d.items.some((x) => x.id === r.id)
+          ? d.items.map((x) => (x.id === r.id ? r : x))
+          : [...d.items, r],
+      },
+  )
+  refreshRules(qc)
+}
+
+export function useSaveAlertRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id?: string; body: AlertRuleBody }) =>
+      id
+        ? api.alerts.updateAlertRule(id, body)
+        : api.alerts.createAlertRule(body),
+    onSuccess: (r) => putRule(qc, r),
+  })
+}
+
+export function useToggleAlertRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
+      api.alerts.setAlertRuleEnabled(id, { enabled }),
+    onSuccess: (r) => putRule(qc, r),
+  })
+}
+
+export function useDeleteAlertRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (r: Pick<AlertRule, "id" | "workspace_id">) =>
+      api.alerts.deleteAlertRule(r.id),
+    onSuccess: (_, r) => {
+      qc.setQueryData<{ items: AlertRule[] }>(
+        ["alert-rules", "list", r.workspace_id],
+        (d) => d && { ...d, items: d.items.filter((x) => x.id !== r.id) },
+      )
+      refreshRules(qc)
+    },
   })
 }

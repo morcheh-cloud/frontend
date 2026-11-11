@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 
 import { useWorkspaceCan } from "@/app/(panel)/servers/components/permissions"
 import {
+  alertsItem,
   applicationsItem,
   cronjobsItem,
   databasesItem,
@@ -28,6 +29,7 @@ export const kindItem: Record<Kind, { label: string; icon: LucideIcon }> = {
   cronjob: { label: "Cron job", icon: cronjobsItem.icon },
   application: { label: "Application", icon: applicationsItem.icon },
   monitor: { label: "Monitor", icon: uptimeItem.icon },
+  alert: { label: "Alert", icon: alertsItem.icon },
 }
 
 export type Summary = {
