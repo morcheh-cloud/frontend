@@ -5,7 +5,7 @@ import { HelpButton } from "@/components/help/help-link"
 import { useWorkspace } from "@/components/panel/workspace"
 import { useIsPhone } from "@/hooks/useIsPhone"
 import { cn } from "@/lib/utils"
-import { RecordingsBrowser } from "./recordings-browser"
+import { AuditBrowser } from "./audit-browser"
 
 export function RecordingsView() {
   const phone = useIsPhone()
@@ -13,10 +13,10 @@ export function RecordingsView() {
   if (phone === null || !workspace) return null
   const header = phone ? (
     <header className="flex items-center gap-1 px-4 pt-[max(--spacing(5),env(safe-area-inset-top))]">
-      <h1 className="text-heading font-light">Recordings</h1>
+      <h1 className="text-heading font-light">Audit log</h1>
       <HelpButton
-        href={guideHref("terminal-recordings")}
-        label="Terminal recordings guide"
+        href={guideHref("command-log")}
+        label="Audit log guide"
         className="ms-auto"
       />
     </header>
@@ -30,7 +30,7 @@ export function RecordingsView() {
           phone ? "pt-4" : "gap-4 px-6 pt-5",
         )}
       >
-        <RecordingsBrowser
+        <AuditBrowser
           workspace={{ id: workspace.id, name: workspace.name }}
           phone={phone}
         />

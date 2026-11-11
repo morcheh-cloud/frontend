@@ -4,7 +4,7 @@ import { Suspense } from "react"
 import { RecordingsView } from "./components/recordings-view"
 
 export const metadata: Metadata = {
-  title: "Terminal recordings",
+  title: "Audit log",
 }
 
 // Waits on data loaded in the browser: skip instant-navigation checks.

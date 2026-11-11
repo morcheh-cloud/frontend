@@ -37,6 +37,11 @@ export const terminalRecordings: GuideSection[] = [
           workspace. A shell that's being recorded shows a <UI>Recorded</UI>{" "}
           badge in the terminal, so nobody is recorded without being told.
         </P>
+        <Tip>
+          To find a command rather than watch a whole session, use the{" "}
+          <See guide="command-log">command log</See>: each typed command there
+          opens the recording at its moment.
+        </Tip>
       </>
     ),
   },
@@ -114,9 +119,10 @@ export const terminalRecordings: GuideSection[] = [
     body: (
       <>
         <P>
-          <UI>Recordings</UI> lists the selected workspace's recordings, newest
-          first. A server's own <UI>Recordings</UI> tab shows just that server.
-          Search by server, person or shell title, and open one to replay it.
+          <UI>Audit log</UI> › <UI>Recordings</UI> lists the selected
+          workspace's recordings, newest first. A server's own{" "}
+          <UI>Audit log</UI> tab shows just that server. Search by server,
+          person or shell title, and open one to replay it.
         </P>
         <P>
           Long pauses are cut to two seconds, so a shell left open over lunch

@@ -38,6 +38,27 @@ function useCast(id: string, version: string) {
   })
 }
 
+const IDLE_LIMIT = 2
+
+// The player shortens pauses to IDLE_LIMIT seconds, so a moment of the
+// recording (seconds from its start) sits earlier on the player's bar. Walk
+// the events the way its limiter does (asciicast v2: absolute times).
+export function playerTime(data: string, sec: number) {
+  let prev = 0
+  let shift = 0
+  const lines = data.split("\n")
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i]
+    if (!line.startsWith("[")) continue
+    const t = Number.parseFloat(line.slice(1))
+    if (!Number.isFinite(t)) continue
+    if (t > sec) break
+    shift += Math.max(0, t - prev - IDLE_LIMIT)
+    prev = t
+  }
+  return Math.max(0, prev - shift + Math.min(sec - prev, IDLE_LIMIT))
+}
+
 // Replays a recorded shell (asciinema-player, in our terminal colors). Long
 // pauses are shortened to 2 s; the bar seeks, `space` pauses, arrows skip
 // 5 seconds.
@@ -45,16 +66,25 @@ export function CastPlayer({
   id,
   version,
   phone,
+  startMs,
+  seek,
   className,
 }: {
   id: string
   // Changes when a live recording should be loaded again.
   version: string
   phone: boolean
+  // Where to start, in ms from the recording's start.
+  startMs?: number
+  // A jump asked for (ms from the start); `n` tells two asks apart.
+  seek?: { ms: number; n: number }
   className?: string
 }) {
   const cast = useCast(id, version)
   const hostRef = useRef<HTMLDivElement>(null)
+  const playerRef = useRef<Player>(undefined)
+  // Only the first player starts at `startMs`; later ones start over.
+  const startRef = useRef(startMs)
   // The player reads its colors once, so a theme change makes a new one.
   const { resolved } = useTheme()
 
@@ -65,23 +95,37 @@ export function CastPlayer({
     if (!host || !data) return
     let player: Player | undefined
     let disposed = false
+    const start = startRef.current
+    startRef.current = undefined
     void import("asciinema-player").then(({ create }) => {
       if (disposed) return
       player = create({ data }, host, {
         theme: "morcheh",
         fit: phone ? "width" : "both",
-        idleTimeLimit: 2,
+        idleTimeLimit: IDLE_LIMIT,
         autoPlay: true,
+        // On the recording's own timeline; the player maps it.
+        startAt: start ? start / 1000 : undefined,
         controls: true,
         terminalFontFamily: font,
         terminalLineHeight: 1.2,
       })
+      playerRef.current = player
     })
     return () => {
       disposed = true
       player?.dispose()
+      if (playerRef.current === player) playerRef.current = undefined
     }
   }, [cast.data, phone, resolved])
+
+  useEffect(() => {
+    const player = playerRef.current
+    if (!seek || !player || !cast.data) return
+    void player
+      .seek(playerTime(cast.data, seek.ms / 1000))
+      .then(() => player.play())
+  }, [seek, cast.data])
 
   if (cast.isError) {
     return (

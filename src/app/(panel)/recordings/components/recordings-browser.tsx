@@ -41,12 +41,15 @@ export function RecordingsBrowser({
   workspace,
   serverId,
   phone,
+  leading,
   trailing,
 }: {
   workspace: { id: string; name: string }
   // Only this server's.
   serverId?: string
   phone: boolean
+  // The tabs, at the start of the bar.
+  leading?: ReactNode
   // Extra buttons at the end of the bar.
   trailing?: ReactNode
 }) {
@@ -120,6 +123,7 @@ export function RecordingsBrowser({
 
   const bar = phone ? (
     <div className="flex flex-col gap-3 px-4 pb-3">
+      {leading}
       <div className="flex items-center gap-2">
         {search}
         {refresh}
@@ -135,6 +139,8 @@ export function RecordingsBrowser({
     </div>
   ) : (
     <div className="@container flex flex-wrap items-center gap-2">
+      {leading}
+      {leading && <span className="mx-1 h-5 w-px bg-border" />}
       {whoSwitch}
       {whoSwitch && <span className="mx-1 h-5 w-px bg-border" />}
       {search}

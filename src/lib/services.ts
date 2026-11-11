@@ -1894,6 +1894,140 @@ export interface ClearJobsResponse {
   deleted: number;
 }
 
+export interface CommandLogEntry {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  as_root: boolean;
+  client_ip?: string;
+  command: string;
+  cwd?: string;
+  /** @format int64 */
+  duration_ms?: number;
+  /** @format date-time */
+  ended_at?: string;
+  /** shell = a terminal being opened; command = a command */
+  entry: "command" | "shell";
+  error?: string;
+  /** @format int64 */
+  exit_code?: number;
+  /** @format uuid */
+  id: string;
+  kind: "terminal" | "change" | "read" | "job" | "schedule" | "automatic";
+  /** @format date-time */
+  last_at: string;
+  mine: boolean;
+  note?: string;
+  /** What it printed, when kept (one entry only) */
+  output?: CommandOutput;
+  /** @format uuid */
+  recording_id?: string;
+  /**
+   * Where in the recording it starts
+   * @format int64
+   */
+  recording_ms?: number;
+  /** The task or terminal it belongs to */
+  ref?: string;
+  /**
+   * Times it ran the same way in a row (reads only)
+   * @format int64
+   */
+  repeats: number;
+  /**
+   * Missing when the server was deleted
+   * @format uuid
+   */
+  server_id?: string;
+  server_name: string;
+  /** What it was for: the page action, task or terminal name */
+  source: string;
+  /** @format date-time */
+  started_at: string;
+  status: "ok" | "failed" | "running" | "interrupted" | "ended";
+  /** Only the first 64 KiB were kept */
+  truncated: boolean;
+  /**
+   * Missing for Morcheh's own commands
+   * @format uuid
+   */
+  user_id?: string;
+  user_name: string;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface CommandLogFacet {
+  /** @format int64 */
+  count: number;
+  /**
+   * Missing for Morcheh itself
+   * @format uuid
+   */
+  id?: string;
+  name: string;
+}
+
+export interface CommandLogFacetsBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  people: CommandLogFacet[];
+  servers: CommandLogFacet[];
+}
+
+export interface CommandLogListBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  everyone: boolean;
+  items: CommandLogEntry[];
+  next?: string;
+}
+
+export interface CommandLogSettings {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  enabled: boolean;
+  /**
+   * Entries older than this are deleted
+   * @format int64
+   */
+  keep_days: number;
+  /** Also keep Morcheh's own upkeep (live stats, checks, monitors) */
+  log_automatic: boolean;
+  /** Keep what commands print (typed in a terminal, changes, tasks, cron jobs) */
+  log_output: boolean;
+  /** Also keep commands run to show a page (lists, details, logs) */
+  log_reads: boolean;
+  /** @format date-time */
+  updated_at?: string;
+  updated_by_name?: string;
+}
+
+export interface CommandOutput {
+  /** Why nothing was kept although it printed something */
+  note?: string;
+  /**
+   * Bytes printed in all
+   * @format int64
+   */
+  size: number;
+  /** stdout and stderr together; terminal output keeps its colours (ANSI) */
+  text: string;
+  /** Only the first 16 KiB and the last 48 KiB were kept */
+  truncated: boolean;
+}
+
 export interface ComposeOutputBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -10952,6 +11086,24 @@ export interface SetAlertRuleEnabledRequest {
   enabled: boolean;
 }
 
+export interface SetCommandLogSettingsRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  enabled: boolean;
+  /**
+   * @format int64
+   * @min 1
+   * @max 3650
+   */
+  keep_days: number;
+  log_automatic: boolean;
+  log_output: boolean;
+  log_reads: boolean;
+}
+
 export interface SetDatabaseFavoriteRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -14852,6 +15004,377 @@ export class Api<
         method: "PATCH",
         body: data,
         type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  commandLog = {
+    /**
+     * No description
+     *
+     * @tags Command log
+     * @name ExportServerCommandLog
+     * @summary A server's command log as CSV, with the same filters
+     * @request GET:/servers/{id}/command-log/export
+     */
+    exportServerCommandLog: (
+      id: string,
+      query?: {
+        /** The next page: the previous answer's next */
+        before?: string;
+        /** shell = terminals being opened */
+        entry?: "command" | "shell";
+        /** Why they ran; several are allowed */
+        kind?: (
+          | "terminal"
+          | "change"
+          | "read"
+          | "job"
+          | "schedule"
+          | "automatic"
+        )[];
+        /**
+         * @format int32
+         * @min 1
+         * @max 200
+         * @default 50
+         */
+        limit?: number;
+        /** Only the caller's own, even for an Owner */
+        mine?: boolean;
+        /** In the command, what it was for, or the folder */
+        q?: string;
+        /** Only the commands of this terminal recording */
+        recording?: string;
+        /** Only the commands of this task or terminal */
+        ref?: string;
+        /** Only commands run as root */
+        root?: boolean;
+        /** Only this server (workspace list) */
+        server?: string;
+        /**
+         * Started at or after
+         * @format date-time
+         */
+        since?: string;
+        /** How they ended */
+        status?: "ok" | "failed" | "running" | "interrupted";
+        /**
+         * Started before
+         * @format date-time
+         */
+        until?: string;
+        /** Only this person (Owners) */
+        user?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<string, ErrorModel>({
+        path: `/servers/${id}/command-log/export`,
+        method: "GET",
+        query: query,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Command log
+     * @name ExportWorkspaceCommandLog
+     * @summary A workspace's command log as CSV, with the same filters
+     * @request GET:/workspaces/{id}/command-log/export
+     */
+    exportWorkspaceCommandLog: (
+      id: string,
+      query?: {
+        /** The next page: the previous answer's next */
+        before?: string;
+        /** shell = terminals being opened */
+        entry?: "command" | "shell";
+        /** Why they ran; several are allowed */
+        kind?: (
+          | "terminal"
+          | "change"
+          | "read"
+          | "job"
+          | "schedule"
+          | "automatic"
+        )[];
+        /**
+         * @format int32
+         * @min 1
+         * @max 200
+         * @default 50
+         */
+        limit?: number;
+        /** Only the caller's own, even for an Owner */
+        mine?: boolean;
+        /** In the command, what it was for, or the folder */
+        q?: string;
+        /** Only the commands of this terminal recording */
+        recording?: string;
+        /** Only the commands of this task or terminal */
+        ref?: string;
+        /** Only commands run as root */
+        root?: boolean;
+        /** Only this server (workspace list) */
+        server?: string;
+        /**
+         * Started at or after
+         * @format date-time
+         */
+        since?: string;
+        /** How they ended */
+        status?: "ok" | "failed" | "running" | "interrupted";
+        /**
+         * Started before
+         * @format date-time
+         */
+        until?: string;
+        /** Only this person (Owners) */
+        user?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<string, ErrorModel>({
+        path: `/workspaces/${id}/command-log/export`,
+        method: "GET",
+        query: query,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Command log
+     * @name GetCommandLog
+     * @summary One command log entry
+     * @request GET:/command-log/{id}
+     */
+    getCommandLog: (id: string, params: RequestParams = {}) =>
+      this.request<CommandLogEntry, ErrorModel>({
+        path: `/command-log/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Command log
+     * @name GetCommandLogSettings
+     * @summary What a workspace's command log keeps, and for how long
+     * @request GET:/workspaces/{id}/command-log/settings
+     */
+    getCommandLogSettings: (id: string, params: RequestParams = {}) =>
+      this.request<CommandLogSettings, ErrorModel>({
+        path: `/workspaces/${id}/command-log/settings`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description An Owner of the server gets everyone's; anyone else only their own.
+     *
+     * @tags Command log
+     * @name ListServerCommandLog
+     * @summary Commands run on a server, newest first
+     * @request GET:/servers/{id}/command-log
+     */
+    listServerCommandLog: (
+      id: string,
+      query?: {
+        /** The next page: the previous answer's next */
+        before?: string;
+        /** shell = terminals being opened */
+        entry?: "command" | "shell";
+        /** Why they ran; several are allowed */
+        kind?: (
+          | "terminal"
+          | "change"
+          | "read"
+          | "job"
+          | "schedule"
+          | "automatic"
+        )[];
+        /**
+         * @format int32
+         * @min 1
+         * @max 200
+         * @default 50
+         */
+        limit?: number;
+        /** Only the caller's own, even for an Owner */
+        mine?: boolean;
+        /** In the command, what it was for, or the folder */
+        q?: string;
+        /** Only the commands of this terminal recording */
+        recording?: string;
+        /** Only the commands of this task or terminal */
+        ref?: string;
+        /** Only commands run as root */
+        root?: boolean;
+        /** Only this server (workspace list) */
+        server?: string;
+        /**
+         * Started at or after
+         * @format date-time
+         */
+        since?: string;
+        /** How they ended */
+        status?: "ok" | "failed" | "running" | "interrupted";
+        /**
+         * Started before
+         * @format date-time
+         */
+        until?: string;
+        /** Only this person (Owners) */
+        user?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<CommandLogListBody, ErrorModel>({
+        path: `/servers/${id}/command-log`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Every command Morcheh ran over SSH and every command line typed into its terminals (bash and zsh). A workspace Owner gets everyone's; anyone else only their own.
+     *
+     * @tags Command log
+     * @name ListWorkspaceCommandLog
+     * @summary Commands run on a workspace's servers, newest first
+     * @request GET:/workspaces/{id}/command-log
+     */
+    listWorkspaceCommandLog: (
+      id: string,
+      query?: {
+        /** The next page: the previous answer's next */
+        before?: string;
+        /** shell = terminals being opened */
+        entry?: "command" | "shell";
+        /** Why they ran; several are allowed */
+        kind?: (
+          | "terminal"
+          | "change"
+          | "read"
+          | "job"
+          | "schedule"
+          | "automatic"
+        )[];
+        /**
+         * @format int32
+         * @min 1
+         * @max 200
+         * @default 50
+         */
+        limit?: number;
+        /** Only the caller's own, even for an Owner */
+        mine?: boolean;
+        /** In the command, what it was for, or the folder */
+        q?: string;
+        /** Only the commands of this terminal recording */
+        recording?: string;
+        /** Only the commands of this task or terminal */
+        ref?: string;
+        /** Only commands run as root */
+        root?: boolean;
+        /** Only this server (workspace list) */
+        server?: string;
+        /**
+         * Started at or after
+         * @format date-time
+         */
+        since?: string;
+        /** How they ended */
+        status?: "ok" | "failed" | "running" | "interrupted";
+        /**
+         * Started before
+         * @format date-time
+         */
+        until?: string;
+        /** Only this person (Owners) */
+        user?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<CommandLogListBody, ErrorModel>({
+        path: `/workspaces/${id}/command-log`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Command log
+     * @name ServerCommandLogFacets
+     * @summary The people in a server's command log, for filters
+     * @request GET:/servers/{id}/command-log/facets
+     */
+    serverCommandLogFacets: (
+      id: string,
+      query?: {
+        mine?: boolean;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<CommandLogFacetsBody, ErrorModel>({
+        path: `/servers/${id}/command-log/facets`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Applies to commands from now on. A shorter keep_days deletes older entries within the hour.
+     *
+     * @tags Command log
+     * @name SetCommandLogSettings
+     * @summary Change what a workspace's command log keeps
+     * @request PUT:/workspaces/{id}/command-log/settings
+     */
+    setCommandLogSettings: (
+      id: string,
+      data: SetCommandLogSettingsRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<CommandLogSettings, ErrorModel>({
+        path: `/workspaces/${id}/command-log/settings`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Command log
+     * @name WorkspaceCommandLogFacets
+     * @summary The people and servers in a workspace's command log, for filters
+     * @request GET:/workspaces/{id}/command-log/facets
+     */
+    workspaceCommandLogFacets: (
+      id: string,
+      query?: {
+        mine?: boolean;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<CommandLogFacetsBody, ErrorModel>({
+        path: `/workspaces/${id}/command-log/facets`,
+        method: "GET",
+        query: query,
         format: "json",
         ...params,
       }),

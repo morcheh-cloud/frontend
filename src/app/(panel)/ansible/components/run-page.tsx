@@ -30,6 +30,7 @@ import {
   SheetItems,
 } from "@/app/(panel)/servers/[id]/components/parts"
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
+import { AnsiText, stripAnsi } from "@/components/ansi"
 import { BottomSheet } from "@/components/bottom-sheet"
 import { usePageCrumbs } from "@/components/panel/breadcrumbs"
 import { Button } from "@/components/ui/button"
@@ -48,7 +49,6 @@ import type {
 } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { runFinished, useLiveRun } from "../api"
-import { AnsiText, stripAnsi } from "./ansi"
 import { useAnsibleActions } from "./ansible-actions"
 import {
   duration,

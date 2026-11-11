@@ -9,6 +9,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
+import { parseAsInteger, useQueryState } from "nuqs"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -32,6 +33,7 @@ import type { TerminalRecording } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { downloadCast, useRecording } from "../api"
 import { CastPlayer } from "./cast-player"
+import { RecordingCommands } from "./recording-commands"
 import {
   clock,
   endText,
@@ -81,7 +83,7 @@ function RecordingPage({ id, phone }: { id: string; phone: boolean }) {
             <Button
               variant="outline"
               className="h-11 w-full md:h-9 md:w-auto"
-              render={<Link href="/recordings" />}
+              render={<Link href="/recordings?tab=recordings" />}
               nativeButton={false}
             >
               All recordings
@@ -96,11 +98,18 @@ function RecordingPage({ id, phone }: { id: string; phone: boolean }) {
 
 function Recording({ r, phone }: { r: TerminalRecording; phone: boolean }) {
   const router = useRouter()
-  const back = useBackOr("/recordings")
-  const menu = useRecordingMenu(r, () => router.replace("/recordings"))
+  const back = useBackOr("/recordings?tab=recordings")
+  const menu = useRecordingMenu(r, () =>
+    router.replace("/recordings?tab=recordings"),
+  )
   // A live recording is loaded as far as it has got; Reload fetches more.
   const [loads, setLoads] = useState(0)
   const version = r.live ? `live-${loads}` : `done-${r.ended_at ?? ""}`
+  // `?t=` (ms) = where to start, from a command log row.
+  const [startMs] = useQueryState("t", parseAsInteger)
+  // A click on a command; `n` makes a second click on the same one count.
+  const [seek, setSeek] = useState<{ ms: number; n: number }>()
+  const jump = (ms: number) => setSeek((s) => ({ ms, n: (s?.n ?? 0) + 1 }))
 
   const meta = [
     r.mine ? "You" : r.user_name,
@@ -184,9 +193,14 @@ function Recording({ r, phone }: { r: TerminalRecording; phone: boolean }) {
           id={r.id}
           version={version}
           phone
+          startMs={startMs ?? undefined}
+          seek={seek}
           className="min-h-48 border-y border-border bg-background"
         />
-        <div className="flex flex-col gap-3 px-4 pt-4">{notes}</div>
+        <div className="flex flex-col gap-3 px-4 pt-4 empty:hidden">
+          {notes}
+        </div>
+        <RecordingCommands r={r} phone onJump={jump} className="pt-2" />
         <div className="mt-auto flex gap-2 border-t border-border p-3">
           {reload}
           {download}
@@ -224,12 +238,22 @@ function Recording({ r, phone }: { r: TerminalRecording; phone: boolean }) {
         </div>
       </div>
       {notes}
-      <CastPlayer
-        id={r.id}
-        version={version}
-        phone={false}
-        className="min-h-0 flex-1 rounded-2xl border border-border bg-background"
-      />
+      <div className="flex min-h-0 flex-1 gap-4">
+        <CastPlayer
+          id={r.id}
+          version={version}
+          phone={false}
+          startMs={startMs ?? undefined}
+          seek={seek}
+          className="min-w-0 flex-1 rounded-2xl border border-border bg-background"
+        />
+        <RecordingCommands
+          r={r}
+          phone={false}
+          onJump={jump}
+          className="w-72 shrink-0 overflow-hidden rounded-2xl border border-border bg-background xl:w-80"
+        />
+      </div>
     </div>
   )
 }

@@ -12,7 +12,6 @@ import {
   LayoutDashboard,
   LayoutGrid,
   type LucideIcon,
-  MonitorPlay,
   NotebookPen,
   Package,
   PackageCheck,
@@ -267,9 +266,9 @@ export const sectionGroups: SectionGroup[] = [
       },
       {
         slug: "recordings",
-        label: "Recordings",
-        icon: MonitorPlay,
-        summary: "Replay the terminals opened on this server.",
+        label: "Audit log",
+        icon: ScrollText,
+        summary: "Every command run on this server, and terminal replays.",
         ready: true,
       },
       {

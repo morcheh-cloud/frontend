@@ -15,7 +15,7 @@ import {
   LayoutGrid,
   ListChecks,
   type LucideIcon,
-  MonitorPlay,
+  ScrollText,
   Server,
   Settings,
   Split,
@@ -113,10 +113,11 @@ export const alertsItem: NavItem = {
   label: "Alerts",
   icon: Bell,
 }
+// Every command Morcheh ran on a server, and terminal replays.
 export const recordingsItem: NavItem = {
   href: "/recordings",
-  label: "Recordings",
-  icon: MonitorPlay,
+  label: "Audit log",
+  icon: ScrollText,
 }
 export const keysItem: NavItem = {
   href: "/keys",

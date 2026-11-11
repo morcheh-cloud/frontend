@@ -22,6 +22,7 @@ import {
   Package,
   Power,
   Rocket,
+  ScrollText,
   Server,
   ServerCog,
   Shield,
@@ -677,6 +678,31 @@ export const guides: GuideMeta[] = [
     routes: ["/alerts"],
   },
   {
+    slug: "command-log",
+    title: "Audit log",
+    summary:
+      "Every command Morcheh runs on a server, and every command line typed in its terminals: who, why, where, how it ended and what it printed.",
+    icon: ScrollText,
+    group: "Infrastructure",
+    keywords: [
+      "audit",
+      "command log",
+      "commands",
+      "history",
+      "who did what",
+      "ssh",
+      "sudo",
+      "root",
+      "retention",
+      "keep",
+      "export",
+      "csv",
+      "output",
+      "stdout",
+    ],
+    routes: ["/recordings", "/servers/*/recordings"],
+  },
+  {
     slug: "terminal-recordings",
     title: "Terminal recordings",
     summary:
@@ -693,7 +719,7 @@ export const guides: GuideMeta[] = [
       "terminal history",
       "who did what",
     ],
-    routes: ["/recordings", "/recordings/*", "/servers/*/recordings"],
+    routes: ["/recordings/*"],
   },
   {
     slug: "scripts",

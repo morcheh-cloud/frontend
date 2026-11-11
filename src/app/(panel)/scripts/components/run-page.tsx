@@ -14,8 +14,6 @@ import {
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { useCallback, useLayoutEffect, useRef, useState } from "react"
-
-import { AnsiText, stripAnsi } from "@/app/(panel)/ansible/components/ansi"
 import { duration, RunStateBadge } from "@/app/(panel)/ansible/components/meta"
 import { Callout } from "@/app/(panel)/ansible/components/run-layer"
 import {
@@ -26,6 +24,7 @@ import {
   SheetItems,
 } from "@/app/(panel)/servers/[id]/components/parts"
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
+import { AnsiText, stripAnsi } from "@/components/ansi"
 import { BottomSheet } from "@/components/bottom-sheet"
 import { usePageCrumbs } from "@/components/panel/breadcrumbs"
 import { Button } from "@/components/ui/button"

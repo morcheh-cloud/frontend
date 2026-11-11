@@ -1,7 +1,8 @@
 import { memo, useMemo } from "react"
 
-// ansible-playbook's output with its colors (SGR codes) as styled spans,
-// using the terminal tokens. Anything else (cursor moves…) is dropped.
+// Command output with its colors (SGR codes) as styled spans, using the
+// terminal tokens. Anything else (cursor moves…) is dropped. Used by the
+// Ansible/script/application runs and the command log.
 
 type Style = { fg?: string; bold?: boolean; dim?: boolean }
 type Span = Style & { text: string }
@@ -65,6 +66,30 @@ export function parseAnsi(text: string): Span[][] {
 
 export function stripAnsi(text: string) {
   return text.replace(ESC, "")
+}
+
+// biome-ignore lint/suspicious/noControlCharactersInRegex: matching escape codes
+const OSC = /\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g
+// biome-ignore lint/suspicious/noControlCharactersInRegex: matching backspace
+const BACKSPACE = /[^\n\x08]\x08/g
+
+// What a terminal showed, as plain lines: window titles and other OSC
+// sequences dropped, a carriage return overwrites its line (progress bars
+// keep their last state) and backspaces erase.
+export function cleanTerminal(text: string) {
+  let out = text.replace(OSC, "").replace(/\r+\n/g, "\n")
+  if (out.includes("\b")) {
+    let prev = ""
+    while (prev !== out) {
+      prev = out
+      out = out.replace(BACKSPACE, "")
+    }
+  }
+  if (!out.includes("\r")) return out
+  return out
+    .split("\n")
+    .map((line) => line.slice(line.lastIndexOf("\r") + 1))
+    .join("\n")
 }
 
 const BLOCK = 200

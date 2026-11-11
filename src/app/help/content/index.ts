@@ -3,6 +3,7 @@ import { access } from "./access"
 import { alerts } from "./alerts"
 import { ansible } from "./ansible"
 import { applications } from "./applications"
+import { commandLog } from "./command-log"
 import { cron } from "./cron"
 import { cronjobs } from "./cronjobs"
 import { databases } from "./databases"
@@ -39,6 +40,7 @@ export const content: Record<string, GuideSection[]> = {
   "server-overview": serverOverview,
   "server-metrics": serverMetrics,
   "server-notes": serverNotes,
+  "command-log": commandLog,
   "terminal-recordings": terminalRecordings,
   uptime,
   alerts,
