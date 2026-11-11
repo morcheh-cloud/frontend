@@ -801,7 +801,7 @@ function Form({
           </div>
           <Field
             label="Signing key"
-            hint="Optional: each body is signed with HMAC-SHA256 in X-Morche-Signature: sha256=…"
+            hint="Optional: each body is signed with HMAC-SHA256 in X-Morcheh-Signature: sha256=…"
           >
             {(p) => (
               <SecretInput

@@ -478,13 +478,13 @@ export const alerts: GuideSection[] = [
         </Example>
         <P>
           <C>event</C> is <C>down</C>, <C>up</C>, <C>degraded</C>,{" "}
-          <C>reminder</C> or <C>test</C>, also sent in the <C>X-Morche-Event</C>{" "}
-          header.
+          <C>reminder</C> or <C>test</C>, also sent in the{" "}
+          <C>X-Morcheh-Event</C> header.
         </P>
         <P>
           With a <UI>Signing key</UI>, each request carries{" "}
-          <C>X-Morche-Timestamp</C> and{" "}
-          <C>{"X-Morche-Signature: sha256=<hex>"}</C>, the HMAC-SHA256 of{" "}
+          <C>X-Morcheh-Timestamp</C> and{" "}
+          <C>{"X-Morcheh-Signature: sha256=<hex>"}</C>, the HMAC-SHA256 of{" "}
           <C>timestamp + "." + body</C> with your key. Check it on your side and
           refuse old timestamps.
         </P>

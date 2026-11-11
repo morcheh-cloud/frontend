@@ -2127,7 +2127,7 @@ networks:
           <P>Save. Clear the address to stop.</P>
         </Steps>
         <P>
-          Copies carry the header <C>X-Morche-Mirror: 1</C>, so the test app
+          Copies carry the header <C>X-Morcheh-Mirror: 1</C>, so the test app
           (and its logs) can tell them apart.
         </P>
         <Warn>

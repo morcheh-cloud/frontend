@@ -32,7 +32,7 @@ Docker: `Dockerfile` (Node 26 slim, pnpm via npm since Node 25+ has no corepack,
 
 ## Product & app state
 
-- Morche ("ant"): SSH-based server management + monitoring for small/medium orgs — servers and the services on them in one place. Display name is "Morche" (renamed 2026-11-11); lowercase `morcheh` identifiers (localStorage keys, `urn:morcheh:*`, cookie, server paths, log format) stay as they are, and `src/lib/services.ts` keeps the backend's spelling until the backend is renamed.
+- Morche ("ant"): SSH-based server management + monitoring for small/medium orgs — servers and the services on them in one place. Display name is "Morche" (renamed 2026-11-11); lowercase `morcheh` identifiers (localStorage keys, `urn:morcheh:*`, cookie, server paths, log format) stay as they are. Wire-level names keep the old spelling too: headers `X-Morcheh-*`, the `# Managed by Morcheh` nginx marker, the ufw `Port forward (added by Morcheh)` comment (matched in `firewall/components/meta.ts`).
 - Local setup: `cp .env.example .env.local` (else requests go to :3200 and 404).
 - Backend lives in `../backend` (Go, see its CLAUDE.md); dev server on `:8080`, Swagger UI at `/docs`, OpenAPI spec at `/openapi.json` (use it to type/generate API calls).
 - Dev services (user rule): anything needed for development (MinIO on :9100, later databases…) runs as a container in `../backend/docker-compose.yml`, started with `make up` there; no plain `docker run`.

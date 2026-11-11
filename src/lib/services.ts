@@ -509,7 +509,7 @@ export interface AnsibleStatus {
   installed: boolean;
   /** Why they can't */
   problem: string;
-  /** Playbooks run in a bubblewrap sandbox on the Morcheh host */
+  /** Playbooks run in a bubblewrap sandbox on the Morche host */
   sandbox: boolean;
   /** ansible-core version */
   version: string;
@@ -811,7 +811,7 @@ export interface AuthState {
 
 export interface AuthUser {
   /**
-   * Set by Morcheh; never sent back, ignored when sent
+   * Set by Morche; never sent back, ignored when sent
    * @maxLength 200
    */
   hash?: string;
@@ -865,7 +865,7 @@ export interface Backup {
   /** @format uuid */
   plan_id: string | null;
   plan_name: string;
-  /** Morcheh can restore it from the panel */
+  /** Morche can restore it from the panel */
   restorable: boolean;
   /** The commands that bring it back by hand, for copying */
   restore: string;
@@ -932,7 +932,7 @@ export interface BackupOptions {
   /** Why they couldn't be listed; empty when they could */
   databases_error: string;
   incremental: BackupIncremental;
-  /** Whether the machine Morcheh runs on can run its backups and restores */
+  /** Whether the machine Morche runs on can run its backups and restores */
   local: LocalTools;
   /** Why some don't */
   selection_note: string;
@@ -977,7 +977,7 @@ export interface BackupPlan {
   /** Why it can't run right now; empty when it can */
   problem: string;
   retention: "days" | "gfs" | "forever";
-  /** The server the dump runs on ("This Morcheh server" for Morcheh's own machine) */
+  /** The server the dump runs on ("This Morche server" for Morche's own machine) */
   runner_name: string;
   /** @format uuid */
   runner_server_id: string | null;
@@ -1066,7 +1066,7 @@ export interface BackupPlanBody {
   /** How old backups are deleted */
   retention: "days" | "gfs" | "forever";
   /**
-   * For a direct database: the server that runs the dump; empty = the machine Morcheh runs on. Ignored otherwise
+   * For a direct database: the server that runs the dump; empty = the machine Morche runs on. Ignored otherwise
    * @format uuid
    */
   runner_server_id?: string;
@@ -1278,7 +1278,7 @@ export interface BucketDetails {
    * @format uri
    */
   $schema?: string;
-  /** Who can read without a key: nobody, anyone with a file's link, or anyone (and list it); custom = a policy Morcheh doesn't recognise */
+  /** Who can read without a key: nobody, anyone with a file's link, or anyone (and list it); custom = a policy Morche doesn't recognise */
   access: "private" | "download" | "public" | "custom";
   cors: BucketCORSRule[];
   /** @format date-time */
@@ -1314,7 +1314,7 @@ export interface BucketLifecycleRule {
    * @max 36500
    */
   abort_uploads_days: number;
-  /** Has parts Morcheh doesn't show (tag or size filters, dates…); they're kept when saved */
+  /** Has parts Morche doesn't show (tag or size filters, dates…); they're kept when saved */
   advanced: boolean;
   /** Remove delete markers with no versions left behind them */
   delete_markers: boolean;
@@ -1684,7 +1684,7 @@ export interface ChannelConfig {
    */
   chat_id?: string;
   /**
-   * Email: the sender, e.g. Morcheh <alerts@example.com>
+   * Email: the sender, e.g. Morche <alerts@example.com>
    * @maxLength 255
    */
   from?: string;
@@ -1976,7 +1976,7 @@ export interface CommandLogEntry {
   /** Only the first 64 KiB were kept */
   truncated: boolean;
   /**
-   * Missing for Morcheh's own commands
+   * Missing for Morche's own commands
    * @format uuid
    */
   user_id?: string;
@@ -1989,7 +1989,7 @@ export interface CommandLogFacet {
   /** @format int64 */
   count: number;
   /**
-   * Missing for Morcheh itself
+   * Missing for Morche itself
    * @format uuid
    */
   id?: string;
@@ -2029,7 +2029,7 @@ export interface CommandLogSettings {
    * @format int64
    */
   keep_days: number;
-  /** Also keep Morcheh's own upkeep (live stats, checks, monitors) */
+  /** Also keep Morche's own upkeep (live stats, checks, monitors) */
   log_automatic: boolean;
   /** Keep what commands print (typed in a terminal, changes, tasks, cron jobs) */
   log_output: boolean;
@@ -2156,7 +2156,7 @@ export interface ContainerInfo {
   compose_dir?: string;
   id: string;
   image: string;
-  /** The image is a proxy manager that writes nginx's config itself (Nginx Proxy Manager, nginx-proxy, SWAG): Morcheh doesn't take it over */
+  /** The image is a proxy manager that writes nginx's config itself (Nginx Proxy Manager, nginx-proxy, SWAG): Morche doesn't take it over */
   managed?: string;
   mounts: ContainerMount[];
   name: string;
@@ -2880,7 +2880,7 @@ export interface Database {
   latency_ms: number | null;
   /** @format int32 */
   max_connections: number | null;
-  /** server: reached through one of your servers over SSH; direct: Morcheh connects itself */
+  /** server: reached through one of your servers over SSH; direct: Morche connects itself */
   mode: "server" | "direct";
   muted_checks: string[];
   name: string;
@@ -2925,7 +2925,7 @@ export interface DatabaseActivity {
   database: string;
   /** What Kill takes: pid, thread id, session id, client id or opid */
   id: string;
-  /** Morcheh's own monitoring connection */
+  /** Morche's own monitoring connection */
   ours?: boolean;
   /** Empty below Engineer access, and when the login can't see it */
   query: string;
@@ -2984,7 +2984,7 @@ export interface DatabaseBody {
    * @max 3600
    */
   interval_seconds?: number;
-  /** server: through one of your servers over SSH (the database may run on it, in Docker on it, or behind it); direct: Morcheh connects to a public address itself */
+  /** server: through one of your servers over SSH (the database may run on it, in Docker on it, or behind it); direct: Morche connects to a public address itself */
   mode: "server" | "direct";
   /**
    * @minLength 1
@@ -3841,7 +3841,7 @@ export interface DatabaseTestBody {
    * @maxLength 255
    */
   host?: string;
-  /** server: through one of your servers over SSH (the database may run on it, in Docker on it, or behind it); direct: Morcheh connects to a public address itself */
+  /** server: through one of your servers over SSH (the database may run on it, in Docker on it, or behind it); direct: Morche connects to a public address itself */
   mode: "server" | "direct";
   /**
    * On update, leave out to keep the stored one
@@ -3920,7 +3920,7 @@ export interface DetectedContainer {
   compose_dir?: string;
   id: string;
   image: string;
-  /** The image is a proxy manager that writes nginx's config itself (Nginx Proxy Manager, nginx-proxy, SWAG): Morcheh doesn't take it over */
+  /** The image is a proxy manager that writes nginx's config itself (Nginx Proxy Manager, nginx-proxy, SWAG): Morche doesn't take it over */
   managed?: string;
   mounts: ContainerMount[];
   name: string;
@@ -4556,7 +4556,7 @@ export interface FilterRule {
   out_interface?: string;
   /** Empty = every port. A port, a range or a comma list */
   port: string;
-  /** Lets SSH in for Morcheh or for everyone */
+  /** Lets SSH in for Morche or for everyone */
   protects_ssh: boolean;
   /** any, tcp, udp, or another protocol name */
   protocol: string;
@@ -4594,10 +4594,10 @@ export interface FirewallCapabilities {
   comments: boolean;
   /** A forward can be limited to a source and an interface */
   forward_from: boolean;
-  /** Morcheh can change port forwards */
+  /** Morche can change port forwards */
   forwards: boolean;
   interface: boolean;
-  /** Morcheh can change this firewall */
+  /** Morche can change this firewall */
   manage: boolean;
   outbound: boolean;
   /** The order of the rules matters and can be changed */
@@ -4794,7 +4794,7 @@ export interface FirewallOverview {
   /** Ports sent on to another port or machine */
   forwards: Forward[];
   init: "systemd" | "openrc" | "none";
-  /** The address this server sees Morcheh's connection from */
+  /** The address this server sees Morche's connection from */
   morcheh_ip: string;
   package_manager: string;
   /** A change waiting to be kept; while it's here, other changes are refused */
@@ -4804,7 +4804,7 @@ export interface FirewallOverview {
   /** In the order the firewall applies them */
   rules: FilterRule[];
   /**
-   * The port Morcheh reaches this server on; 0 if unknown
+   * The port Morche reaches this server on; 0 if unknown
    * @format int64
    */
   ssh_port: number;
@@ -5833,7 +5833,7 @@ export interface LocalTools {
   missing: string[];
   /** Why not, when it can't */
   note: string;
-  /** Whether this kind of database can be backed up from the Morcheh server at all */
+  /** Whether this kind of database can be backed up from the Morche server at all */
   supported: boolean;
 }
 
@@ -6125,7 +6125,7 @@ export interface MonitorBody {
    * @format uri
    */
   $schema?: string;
-  /** Check a private or loopback address from Morcheh. System admins only. */
+  /** Check a private or loopback address from Morche. System admins only. */
   allow_internal?: boolean;
   /** Where alerts go; left out on create = the workspace's default channels, on update = unchanged */
   channel_ids?: string[];
@@ -6162,7 +6162,7 @@ export interface MonitorBody {
     | "command"
     | "push";
   /**
-   * Where to check from: morcheh and/or server ids (over SSH). docker, systemd and command take one server. Left out: Morcheh on create, unchanged on update
+   * Where to check from: morcheh and/or server ids (over SSH). docker, systemd and command take one server. Left out: Morche on create, unchanged on update
    * @maxItems 20
    */
   locations?: string[];
@@ -6467,7 +6467,7 @@ export interface MonitorTestBody {
    * @format uri
    */
   $schema?: string;
-  /** Check a private or loopback address from Morcheh. System admins only. */
+  /** Check a private or loopback address from Morche. System admins only. */
   allow_internal?: boolean;
   /** Where alerts go; left out on create = the workspace's default channels, on update = unchanged */
   channel_ids?: string[];
@@ -6504,7 +6504,7 @@ export interface MonitorTestBody {
     | "command"
     | "push";
   /**
-   * Where to check from: morcheh and/or server ids (over SSH). docker, systemd and command take one server. Left out: Morcheh on create, unchanged on update
+   * Where to check from: morcheh and/or server ids (over SSH). docker, systemd and command take one server. Left out: Morche on create, unchanged on update
    * @maxItems 20
    */
   locations?: string[];
@@ -6835,7 +6835,7 @@ export interface PackageAutoUpdates {
   enabled: boolean;
   /** The package to install before they can be turned on */
   missing?: string;
-  /** Morcheh can turn them on or off on this server */
+  /** Morche can turn them on or off on this server */
   supported: boolean;
   tool?: string;
 }
@@ -7006,7 +7006,7 @@ export interface PackagesOverview {
    * @format uri
    */
   $schema?: string;
-  /** How Morcheh acts on the server. Changing packages needs root or sudo */
+  /** How Morche acts on the server. Changing packages needs root or sudo */
   access: "root" | "sudo" | "user";
   auto_updates: PackageAutoUpdates;
   /**
@@ -7775,7 +7775,7 @@ export interface Process {
    * @format double
    */
   memory_percent: number;
-  /** Part of Morcheh's own SSH connection: ending it closes open terminals and running tasks here */
+  /** Part of Morche's own SSH connection: ending it closes open terminals and running tasks here */
   morcheh: boolean;
   /** The kernel's name for it (comm, at most 15 characters) */
   name: string;
@@ -7789,7 +7789,7 @@ export interface Process {
   pid: number;
   /** @format int64 */
   ppid: number;
-  /** The system or Morcheh relies on it (init, sshd, journald, dbus…): signals need force */
+  /** The system or Morche relies on it (init, sshd, journald, dbus…): signals need force */
   protected: boolean;
   runtime?: "docker" | "podman" | "other";
   /** The login session it belongs to (logind) */
@@ -8005,7 +8005,7 @@ export interface ProcessesReport {
    * @format double
    */
   cpu_percent: number;
-  /** The login user Morcheh connects as */
+  /** The login user Morche connects as */
   login: string;
   /**
    * Bytes of RAM
@@ -8362,7 +8362,7 @@ export interface ProxyInspection {
   init: string;
   installed: boolean;
   proxy: Proxy;
-  /** Hand-written files Morcheh took default_server from (ports 80 and 443) because one of its sites answers unknown names; they get it back when none does, or when the proxy is removed with its files */
+  /** Hand-written files Morche took default_server from (ports 80 and 443) because one of its sites answers unknown names; they get it back when none does, or when the proxy is removed with its files */
   released_default: string[];
   running: boolean;
   /** The panel's sites are loaded */
@@ -8372,10 +8372,10 @@ export interface ProxyInspection {
   stream_geo: "" | "ready" | "off";
   /** Port forwards: ready; no_module = the stream module is missing; not_wired = setup hasn't added the stream block; taken = nginx.conf has its own stream block. Empty when the kind has no streams */
   streams: "" | "ready" | "no_module" | "not_wired" | "taken";
-  /** Files in Morcheh's folder the panel doesn't know */
+  /** Files in Morche's folder the panel doesn't know */
   unknown: string[];
   version: string;
-  /** The web application firewall works: ModSecurity is loaded and Morcheh's rule set is written */
+  /** The web application firewall works: ModSecurity is loaded and Morche's rule set is written */
   waf: boolean;
 }
 
@@ -8923,7 +8923,7 @@ export interface ReachProbe {
     | "dns"
     | "failed"
     | "unavailable";
-  /** Why this address was tried: a shared LAN or VPN, the address Morcheh uses, or one of the server's own */
+  /** Why this address was tried: a shared LAN or VPN, the address Morche uses, or one of the server's own */
   via: "lan" | "vpn" | "host" | "address";
 }
 
@@ -9307,7 +9307,7 @@ export interface RestoreBody {
   /** @maxLength 1024 */
   password?: string;
   /**
-   * For a direct database: the server the restore runs on, or "local" for the machine Morcheh runs on; empty = the plan's (Morcheh's machine when there's no plan)
+   * For a direct database: the server the restore runs on, or "local" for the machine Morche runs on; empty = the plan's (Morche's machine when there's no plan)
    * @maxLength 36
    */
   runner_server_id?: string;
@@ -9367,7 +9367,7 @@ export interface Rule {
    * @format int64
    */
   line: number;
-  /** Written by Morcheh (sudoers.d/morcheh-*) */
+  /** Written by Morche (sudoers.d/morcheh-*) */
   managed: boolean;
   nopasswd: boolean;
   text: string;
@@ -10942,7 +10942,7 @@ export interface Service {
   path?: string;
   /** What the distribution's preset says it should be */
   preset?: string;
-  /** Morcheh reaches the server through it (sshd) or the system needs it to run; stopping it asks for force */
+  /** Morche reaches the server through it (sshd) or the system needs it to run; stopping it asks for force */
   protected: boolean;
   /**
    * Automatic restarts since it was started by hand
@@ -11087,13 +11087,13 @@ export interface ServiceDetails {
   name: string;
   /** Its unit file changed on disk since systemd read it (daemon-reload) */
   need_reload: boolean;
-  /** Where Morcheh writes overrides: <unit>.d/override.conf in /etc/systemd/system */
+  /** Where Morche writes overrides: <unit>.d/override.conf in /etc/systemd/system */
   override: string;
   /** Its unit file */
   path?: string;
   /** What the distribution's preset says it should be */
   preset?: string;
-  /** Morcheh reaches the server through it (sshd) or the system needs it to run; stopping it asks for force */
+  /** Morche reaches the server through it (sshd) or the system needs it to run; stopping it asks for force */
   protected: boolean;
   required_by: string[];
   requires: string[];
@@ -11457,7 +11457,7 @@ export interface SignalProcessesInputBody {
    * @format uri
    */
   $schema?: string;
-  /** Also signal protected processes (PID 1, sshd, journald, Morcheh's own connection…) */
+  /** Also signal protected processes (PID 1, sshd, journald, Morche's own connection…) */
   force?: boolean;
   /** TERM asks it to stop, KILL ends it at once, HUP often reloads its configuration, STOP/CONT pause and resume it */
   signal:
@@ -11483,7 +11483,7 @@ export interface Site {
   /** @format int64 */
   line: number;
   listen: string[];
-  /** Written by Morcheh */
+  /** Written by Morche */
   managed: boolean;
   redirect?: string;
   root?: string;
@@ -11961,7 +11961,7 @@ export interface Storage {
   protocol: "s3" | "ftp" | "sftp" | "webdav";
   /** Preset the settings came from (aws, minio, r2, nextcloud…) */
   provider: string;
-  /** Refuse every change through Morcheh */
+  /** Refuse every change through Morche */
   read_only: boolean;
   region: string;
   /** Folder shown as the top; empty = the login folder (or every bucket) */
@@ -12596,7 +12596,7 @@ export interface TerminalRecording {
   exit_code?: number;
   /** @format uuid */
   id: string;
-  /** Morcheh restarted while the shell was open; the end is missing */
+  /** Morche restarted while the shell was open; the end is missing */
   interrupted: boolean;
   /** The shell is still open */
   live: boolean;
@@ -13116,7 +13116,7 @@ export interface UsersOverview {
   groups: Group[];
   /** The server keeps login records (lastlog or wtmp), so last_login means something */
   login_history: boolean;
-  /** The account Morcheh logs in as; it can't be deleted, locked, renamed or lose sudo here */
+  /** The account Morche logs in as; it can't be deleted, locked, renamed or lose sudo here */
   login_user: string;
   /** Logged in right now (who) */
   sessions: Session[];
@@ -13126,7 +13126,7 @@ export interface UsersOverview {
   shells: string[];
   /** A group (sudo, wheel or admin) whose members get sudo for every command; empty when none does */
   sudo_group: string;
-  /** /etc/sudoers reads /etc/sudoers.d, where Morcheh writes its rules */
+  /** /etc/sudoers reads /etc/sudoers.d, where Morche writes its rules */
   sudo_includes_dir: boolean;
   sudo_installed: boolean;
   /** sudoers could be read; otherwise sudo rights are guessed from the sudo/wheel/admin groups */
@@ -13631,7 +13631,7 @@ export class HttpClient<SecurityDataType = unknown> {
 }
 
 /**
- * @title Morcheh API
+ * @title Morche API
  * @version 0.1.0
  */
 export class Api<
@@ -14595,7 +14595,7 @@ export class Api<
      *
      * @tags Ansible
      * @name GetAnsibleStatus
-     * @summary Can playbooks run on this Morcheh?
+     * @summary Can playbooks run on this Morche?
      * @request GET:/ansible/status
      */
     getAnsibleStatus: (params: RequestParams = {}) =>
@@ -15563,7 +15563,7 @@ export class Api<
       }),
 
     /**
-     * @description Every command Morcheh ran over SSH and every command line typed into its terminals (bash and zsh). A workspace Owner gets everyone's; anyone else only their own.
+     * @description Every command Morche ran over SSH and every command line typed into its terminals (bash and zsh). A workspace Owner gets everyone's; anyone else only their own.
      *
      * @tags Command log
      * @name ListWorkspaceCommandLog
@@ -16078,7 +16078,7 @@ export class Api<
       }),
 
     /**
-     * @description Forgets it in Morcheh with its history and events; nothing on the database itself is touched.
+     * @description Forgets it in Morche with its history and events; nothing on the database itself is touched.
      *
      * @tags Databases
      * @name DeleteDatabase
@@ -16175,7 +16175,7 @@ export class Api<
      *
      * @tags Databases
      * @name GetDatabaseOutboundIp
-     * @summary Morcheh's outbound address
+     * @summary Morche's outbound address
      * @request GET:/databases/outbound-ip
      */
     getDatabaseOutboundIp: (params: RequestParams = {}) =>
@@ -16512,7 +16512,7 @@ export class Api<
       }),
 
     /**
-     * @description Morcheh forgets the connection and its token. Nothing on the DNS server changes.
+     * @description Morche forgets the connection and its token. Nothing on the DNS server changes.
      *
      * @tags DNS
      * @name DeleteDnsServer
@@ -16784,7 +16784,7 @@ export class Api<
   };
   firewall = {
     /**
-     * @description Sends what arrives on a port to another port here or to another machine. IPv4 only. On ufw it also adds the rule that lets that traffic through. The port Morcheh uses for SSH can't be forwarded.
+     * @description Sends what arrives on a port to another port here or to another machine. IPv4 only. On ufw it also adds the rule that lets that traffic through. The port Morche uses for SSH can't be forwarded.
      *
      * @tags Firewall
      * @name AddFirewallForward
@@ -16846,7 +16846,7 @@ export class Api<
       }),
 
     /**
-     * @description All of them or none. The rules Morcheh added beside them go too.
+     * @description All of them or none. The rules Morche added beside them go too.
      *
      * @tags Firewall
      * @name DeleteFirewallForwards
@@ -16906,7 +16906,7 @@ export class Api<
       }),
 
     /**
-     * @description Allows the SSH port Morcheh uses first, whatever the body says. Answers with `pending`: keep it within the time shown or the server undoes it.
+     * @description Allows the SSH port Morche uses first, whatever the body says. Answers with `pending`: keep it within the time shown or the server undoes it.
      *
      * @tags Firewall
      * @name EnableFirewall
@@ -16944,11 +16944,11 @@ export class Api<
       }),
 
     /**
-     * @description Read from Morcheh's database, so it works while the server is down. Changes made on the server by hand aren't here.
+     * @description Read from Morche's database, so it works while the server is down. Changes made on the server by hand aren't here.
      *
      * @tags Firewall
      * @name FirewallHistory
-     * @summary Changes made through Morcheh
+     * @summary Changes made through Morche
      * @request GET:/servers/{id}/firewall/history
      */
     firewallHistory: (id: string, params: RequestParams = {}) =>
@@ -17006,7 +17006,7 @@ export class Api<
       }),
 
     /**
-     * @description Which firewall is in charge (ufw, firewalld, or plain nftables/iptables, which are read-only here), whether it's on, its defaults and rules in one shape, the SSH port Morcheh depends on, and any change waiting to be kept.
+     * @description Which firewall is in charge (ufw, firewalld, or plain nftables/iptables, which are read-only here), whether it's on, its defaults and rules in one shape, the SSH port Morche depends on, and any change waiting to be kept.
      *
      * @tags Firewall
      * @name GetFirewall
@@ -17839,7 +17839,7 @@ export class Api<
   };
   network = {
     /**
-     * @description Each server's interfaces, addresses and default routes (ip over SSH), the subnets they share, and whether each server reaches every other one: a TCP connect to its SSH port and a ping, on their shared LAN/VPN addresses and on the address Morcheh uses. Returns the last scan unless `refresh` is set or there is none; a scan takes a few seconds.
+     * @description Each server's interfaces, addresses and default routes (ip over SSH), the subnets they share, and whether each server reaches every other one: a TCP connect to its SSH port and a ping, on their shared LAN/VPN addresses and on the address Morche uses. Returns the last scan unless `refresh` is set or there is none; a scan takes a few seconds.
      *
      * @tags Network
      * @name GetNetworkMap
@@ -18120,7 +18120,7 @@ export class Api<
       }),
 
     /**
-     * @description With remove_files, first takes Morcheh's sites off the server and reloads (the proxy itself stays installed). Hand-written sites are left as they are, except that files Morcheh took default_server from get it back.
+     * @description With remove_files, first takes Morche's sites off the server and reloads (the proxy itself stays installed). Hand-written sites are left as they are, except that files Morche took default_server from get it back.
      *
      * @tags Reverse proxy
      * @name DeleteProxy
@@ -18574,7 +18574,7 @@ export class Api<
      *
      * @tags Reverse proxy
      * @name ListProxyKinds
-     * @summary Proxy kinds Morcheh can manage
+     * @summary Proxy kinds Morche can manage
      * @request GET:/proxy-kinds
      */
     listProxyKinds: (params: RequestParams = {}) =>
@@ -18696,7 +18696,7 @@ export class Api<
       }),
 
     /**
-     * @description Installs the package if needed, adds Morcheh's include, starts the proxy and writes the panel's sites. Runs as a background job (kind `proxy-setup`); 409 when one is already running.
+     * @description Installs the package if needed, adds Morche's include, starts the proxy and writes the panel's sites. Runs as a background job (kind `proxy-setup`); 409 when one is already running.
      *
      * @tags Reverse proxy
      * @name SetupProxy
@@ -20125,7 +20125,7 @@ export class Api<
       }),
 
     /**
-     * @description The server downloads it itself with curl (or wget), so it never passes through Morcheh or the browser. Only http and https. It's written to a hidden .part file and renamed when complete. Runs as a background job (kind `fetch`, result FileEntry); 409 when the name is taken and overwrite isn't set.
+     * @description The server downloads it itself with curl (or wget), so it never passes through Morche or the browser. Only http and https. It's written to a hidden .part file and renamed when complete. Runs as a background job (kind `fetch`, result FileEntry); 409 when the name is taken and overwrite isn't set.
      *
      * @tags Files
      * @name FetchUrl
@@ -20446,7 +20446,7 @@ export class Api<
       }),
 
     /**
-     * @description userdel (or deluser), and its Morcheh sudo rule. The login user and root can't be removed.
+     * @description userdel (or deluser), and its Morche sudo rule. The login user and root can't be removed.
      *
      * @tags Users
      * @name DeleteUser
@@ -20817,7 +20817,7 @@ export class Api<
       }),
 
     /**
-     * @description Checked at once, then runs as a background job (kind `package-action`); it can't be canceled once the package manager is running. Waits for another package manager on the server to finish first. 409 when Morcheh is already changing packages there.
+     * @description Checked at once, then runs as a background job (kind `package-action`); it can't be canceled once the package manager is running. Waits for another package manager on the server to finish first. 409 when Morche is already changing packages there.
      *
      * @tags Packages
      * @name RunPackageAction
@@ -21827,7 +21827,7 @@ export class Api<
       }),
 
     /**
-     * @description Passwords Morcheh made or was given at install time. Owner of the server.
+     * @description Passwords Morche made or was given at install time. Owner of the server.
      *
      * @tags Applications
      * @name RevealSoftwareSecrets
@@ -22319,7 +22319,7 @@ export class Api<
       }),
 
     /**
-     * @description Forgets the storage in Morcheh; nothing on the storage itself is touched.
+     * @description Forgets the storage in Morche; nothing on the storage itself is touched.
      *
      * @tags Storage
      * @name DeleteStorage
@@ -22783,7 +22783,7 @@ export class Api<
       }),
 
     /**
-     * @description Each end is a storage or a server (over SFTP). Files stream through Morcheh; two places on one storage copy on the storage itself when it can. Server paths are absolute or relative to the login user's home. A name already in the destination is 409 unless overwrite is set. The request is checked at once, then the copy runs as a background job (kind `transfer`, result StorageTransferResult); follow it on /jobs/stream.
+     * @description Each end is a storage or a server (over SFTP). Files stream through Morche; two places on one storage copy on the storage itself when it can. Server paths are absolute or relative to the login user's home. A name already in the destination is 409 unless overwrite is set. The request is checked at once, then the copy runs as a background job (kind `transfer`, result StorageTransferResult); follow it on /jobs/stream.
      *
      * @tags Storage files
      * @name TransferFiles

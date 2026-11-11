@@ -297,7 +297,7 @@ export function MirrorCard({ proxy: p, draft, set, errors, phone }: Props) {
             database or mail service.
           </Callout>
           <Callout icon={<Copy />}>
-            Copies carry <span className="font-mono">X-Morche-Mirror: 1</span>.
+            Copies carry <span className="font-mono">X-Morcheh-Mirror: 1</span>.
             A slow test server holds up the next request on the same connection
             (up to 10 s): keep it close and quick.
           </Callout>
