@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { CalendarClock, ChevronLeft, Info, TriangleAlert } from "lucide-react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
+import { useQueryStates } from "nuqs"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { useScripts } from "@/app/(panel)/scripts/api"
@@ -52,6 +53,7 @@ import {
   endId,
   modeMeta,
   modes,
+  newCronjobParams,
   type SyncMode,
   usesDestinations,
   usesSource,
@@ -107,8 +109,14 @@ const fromSaved = (s: Schedule): Draft => ({
   task: taskFromSaved(s),
 })
 
-const fresh = (): Draft => ({
-  action: "sync",
+type Prefill = {
+  action: Action | null
+  server: string | null
+  serverName: string | null
+}
+
+const fresh = (p?: Prefill): Draft => ({
+  action: p?.action ?? "sync",
   name: "",
   description: "",
   source: null,
@@ -120,7 +128,12 @@ const fresh = (): Draft => ({
   excludes: "",
   keep: "7",
   enabled: true,
-  task: freshTask(),
+  task: {
+    ...freshTask(),
+    ...(p?.server && {
+      servers: new Map([[p.server, p.serverName || "Server"]]),
+    }),
+  },
 })
 
 // Only what the API takes: Huma refuses unknown fields like name/missing.
@@ -173,6 +186,7 @@ const namePlaceholders: Record<Action, string> = {
   reboot: "Sunday reboots",
   "verify-backup": "Check last night's backups",
   "software-update": "Weekly updates",
+  "package-upgrade": "Weekly system upgrades",
 }
 
 function pickerTitle(a: Action, role: Role) {
@@ -265,8 +279,9 @@ function Editor({
   const home = saved ? `/cronjobs/${saved.id}` : "/cronjobs"
   const back = useBack(home)
 
+  const [prefill] = useQueryStates(newCronjobParams)
   const [draft, setDraft] = useState<Draft>(() =>
-    saved ? fromSaved(saved) : fresh(),
+    saved ? fromSaved(saved) : fresh(prefill),
   )
   const [revision, setRevision] = useState(saved?.updated_at)
   const [errors, setErrors] = useState<Errors>({})

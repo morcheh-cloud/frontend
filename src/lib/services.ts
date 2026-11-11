@@ -8635,7 +8635,8 @@ export interface Schedule {
     | "fetch"
     | "archive"
     | "verify-backup"
-    | "software-update";
+    | "software-update"
+    | "package-upgrade";
   /** @format date-time */
   created_at: string;
   cron: string;
@@ -8702,7 +8703,8 @@ export interface ScheduleBody {
     | "fetch"
     | "archive"
     | "verify-backup"
-    | "software-update";
+    | "software-update"
+    | "package-upgrade";
   /**
    * Five fields (minute hour day month weekday), or @hourly, @daily, @weekly, @monthly, @every 2h
    * @minLength 1
@@ -8810,6 +8812,44 @@ export interface ScheduleOptions {
   mode: "update" | "mirror" | "snapshot";
 }
 
+export interface SchedulePackages {
+  /** Then remove packages nothing needs any more */
+  autoremove?: boolean;
+  /** Then empty the package cache */
+  clean?: boolean;
+  /** Carry on with the other servers after one fails */
+  keep_going?: boolean;
+  /**
+   * Shown to logged-in users before a restart (wall)
+   * @maxLength 200
+   */
+  message?: string;
+  /**
+   * all = a normal upgrade; security = only security updates (apt, dnf, yum; other servers are skipped); full = apt full-upgrade (new dependencies and removals; a normal upgrade on other managers)
+   * @default "all"
+   */
+  mode?: "all" | "security" | "full";
+  /**
+   * Servers upgraded at a time; default 1
+   * @format int64
+   * @min 0
+   * @max 10
+   */
+  parallel?: number;
+  /**
+   * if-required = restart a server that says it needs one, and wait until it's back. Restarts go one server at a time
+   * @default "never"
+   */
+  reboot?: "never" | "if-required";
+  /**
+   * @maxItems 200
+   * @minItems 1
+   */
+  server_ids: string[];
+  /** Don't restart a server someone is logged in to */
+  skip_if_logged_in?: boolean;
+}
+
 export interface ScheduleReboot {
   /**
    * Shown to logged-in users first (wall)
@@ -8852,7 +8892,8 @@ export interface ScheduleRun {
     | "fetch"
     | "archive"
     | "verify-backup"
-    | "software-update";
+    | "software-update"
+    | "package-upgrade";
   /** @format int64 */
   bytes: number;
   /** @format date-time */
@@ -9060,6 +9101,8 @@ export interface ScheduleTask {
   ansible?: ScheduleAnsible;
   /** action fetch: what to download into the destination folders */
   fetch?: ScheduleFetch;
+  /** action package-upgrade */
+  packages?: SchedulePackages;
   /** action reboot */
   reboot?: ScheduleReboot;
   /** action script */
@@ -9091,7 +9134,8 @@ export interface ScheduleUpdate {
     | "fetch"
     | "archive"
     | "verify-backup"
-    | "software-update";
+    | "software-update"
+    | "package-upgrade";
   /**
    * Five fields (minute hour day month weekday), or @hourly, @daily, @weekly, @monthly, @every 2h
    * @minLength 1

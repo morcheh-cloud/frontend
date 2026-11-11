@@ -3,6 +3,7 @@
 import {
   ArrowDownUp,
   ArrowUpCircle,
+  CalendarClock,
   Ellipsis,
   Eraser,
   ListRestart,
@@ -16,8 +17,11 @@ import {
   Sparkles,
   TriangleAlert,
 } from "lucide-react"
+import { useRouter } from "next/navigation"
 import type { ReactNode } from "react"
 
+import { newCronjobHref } from "@/app/(panel)/cronjobs/components/meta"
+import { useCronjobCan } from "@/app/(panel)/cronjobs/components/permissions"
 import { BottomSheet } from "@/components/bottom-sheet"
 import { useJobActions } from "@/components/jobs/jobs-provider"
 import { progressText } from "@/components/jobs/meta"
@@ -444,6 +448,9 @@ function ShowChips() {
 
 function useMoreItems(): Item[][] {
   const a = usePackagesActions()
+  const { server } = useServerPage()
+  const cron = useCronjobCan(server.workspace_id)
+  const router = useRouter()
   const o = a.overview
   const caps = o.capabilities
   const off = a.locked
@@ -529,6 +536,23 @@ function useMoreItems(): Item[][] {
         />
       ),
       onSelect: () => a.setAutoUpdates(!on),
+    })
+  }
+  // A cron job that upgrades this server on a schedule (Engineer on the
+  // workspace to save one, Engineer on the server to upgrade it).
+  if (a.canChange && cron.edit) {
+    auto.push({
+      key: "schedule",
+      label: "Schedule upgrades…",
+      icon: <CalendarClock />,
+      onSelect: () =>
+        router.push(
+          newCronjobHref({
+            action: "package-upgrade",
+            server: server.id,
+            serverName: server.name,
+          }),
+        ),
     })
   }
   return [lists, tidy, auto]

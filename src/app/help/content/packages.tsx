@@ -274,8 +274,13 @@ export const packages: GuideSection[] = [
         />
         <P>
           When the tool isn't installed, the notice offers to install it first.
-          Other managers have no standard tool; use a{" "}
-          <See guide="cronjobs">cron job</See> instead.
+          Other managers have no standard tool; schedule an{" "}
+          <See guide="cronjobs" section="package-upgrade">
+            Upgrade packages
+          </See>{" "}
+          cron job instead (<UI>⋯</UI> › <UI>Schedule upgrades…</UI>). It also
+          works on apt and dnf servers, to take every update on a set day and
+          restart only the servers that need it.
         </P>
         <Recommended
           rows={[

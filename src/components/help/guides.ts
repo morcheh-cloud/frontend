@@ -504,11 +504,13 @@ export const guides: GuideMeta[] = [
     slug: "cronjobs",
     title: "Cron jobs",
     summary:
-      "Jobs Morcheh runs on a schedule: copy or archive folders, download files, run scripts and playbooks, restart services, reboot servers, verify backups.",
+      "Jobs Morcheh runs on a schedule: copy or archive folders, download files, run scripts and playbooks, restart services, reboot servers, upgrade packages, verify backups.",
     icon: CalendarClock,
     group: "Infrastructure",
     keywords: [
       "schedule",
+      "upgrade packages",
+      "scheduled updates",
       "sync",
       "backup",
       "mirror",

@@ -14,6 +14,7 @@ import {
   Loader2,
   type LucideIcon,
   OctagonX,
+  Package,
   PackageCheck,
   Play,
   Power,
@@ -269,6 +270,18 @@ export const actionMeta: Record<
     hint: "Update the applications installed from the catalog, and optionally the system packages.",
     short: "Catalog apps and system packages",
   },
+  "package-upgrade": {
+    label: "Upgrade packages",
+    icon: Package,
+    hint: "Upgrade the system packages on servers, then clean up and restart the ones that need it.",
+    short: "System updates, then restart if needed",
+  },
+}
+
+export const packageModes: Record<"all" | "security" | "full", string> = {
+  all: "Every update",
+  security: "Security updates only",
+  full: "Full upgrade (apt)",
 }
 
 // The picker's groups, in order.
@@ -277,7 +290,7 @@ export const actionGroups: { label: string; actions: Action[] }[] = [
   { label: "Run", actions: ["script", "ansible"] },
   {
     label: "Servers",
-    actions: ["service", "reboot", "software-update"],
+    actions: ["service", "reboot", "package-upgrade", "software-update"],
   },
   { label: "Databases", actions: ["verify-backup"] },
 ]
@@ -386,6 +399,12 @@ export function jobSummary(s: Summarised): string {
         : "Update applications"
       return `${what}${t.software?.system ? " + system" : ""} on ${serversText(s.refs, t.software?.server_ids)}`
     }
+    case "package-upgrade": {
+      const p = t.packages
+      const what = p?.mode === "security" ? "Security updates" : "Upgrade"
+      const restart = p?.reboot === "if-required" ? ", restart if needed" : ""
+      return `${what} on ${serversText(s.refs, p?.server_ids)}${restart}`
+    }
     default:
       return flowText(s)
   }
@@ -478,6 +497,22 @@ export const runParam = { run: parseAsString }
 const runSerializer = createSerializer(runParam)
 export const runHref = (scheduleId: string, runId: string) =>
   runSerializer(`/cronjobs/${scheduleId}`, { run: runId })
+
+// /cronjobs/new?action=…&server=…&serverName=… starts a job with that action
+// and server picked (e.g. Schedule upgrades on a server's Packages page).
+export const newCronjobParams = {
+  action: parseAsStringLiteral(
+    Object.keys(actionMeta) as (keyof typeof actionMeta)[],
+  ),
+  server: parseAsString,
+  serverName: parseAsString,
+}
+const newSerializer = createSerializer(newCronjobParams)
+export const newCronjobHref = (p: {
+  action: Action
+  server?: string
+  serverName?: string
+}) => newSerializer("/cronjobs/new", p)
 
 const yesNo = (b: boolean | undefined) => (b ? "Yes" : "No")
 
@@ -643,6 +678,37 @@ export function taskFacts(
         },
         { label: "Servers at a time", value: String(sw?.parallel || 1) },
         { label: "Carry on after a failure", value: yesNo(sw?.keep_going) },
+      ]
+    }
+    case "package-upgrade": {
+      const p = t.packages
+      const restart = p?.reboot === "if-required"
+      return [
+        { label: "Servers", value: names(s.refs, p?.server_ids) },
+        { label: "Updates", value: packageModes[p?.mode ?? "all"] },
+        {
+          label: "Afterwards",
+          value:
+            [
+              p?.autoremove ? "Remove unneeded packages" : "",
+              p?.clean ? "Empty the package cache" : "",
+            ]
+              .filter(Boolean)
+              .join("\n") || "Nothing",
+        },
+        {
+          label: "Restart",
+          value: restart
+            ? p?.skip_if_logged_in
+              ? "When needed, not while someone is logged in"
+              : "When needed"
+            : "Never",
+        },
+        ...(restart && p?.message
+          ? [{ label: "Message", value: p.message }]
+          : []),
+        { label: "Servers at a time", value: String(p?.parallel || 1) },
+        { label: "Carry on after a failure", value: yesNo(p?.keep_going) },
       ]
     }
   }

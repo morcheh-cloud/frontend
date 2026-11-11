@@ -102,7 +102,17 @@ export type TaskDraft = {
   softSecurity: boolean
   softParallel: string
   softKeepGoing: boolean
+  // package-upgrade (servers, skipIfLoggedIn and message are shared).
+  pkgMode: PackageMode
+  pkgAutoremove: boolean
+  pkgClean: boolean
+  pkgReboot: PackageReboot
+  pkgParallel: string
+  pkgKeepGoing: boolean
 }
+
+export type PackageMode = "all" | "security" | "full"
+export type PackageReboot = "never" | "if-required"
 
 export const freshTask = (): TaskDraft => ({
   servers: new Map(),
@@ -135,6 +145,12 @@ export const freshTask = (): TaskDraft => ({
   softSecurity: false,
   softParallel: "1",
   softKeepGoing: true,
+  pkgMode: "all",
+  pkgAutoremove: true,
+  pkgClean: false,
+  pkgReboot: "never",
+  pkgParallel: "1",
+  pkgKeepGoing: true,
 })
 
 export function taskFromSaved(s: Schedule): TaskDraft {
@@ -197,6 +213,20 @@ export function taskFromSaved(s: Schedule): TaskDraft {
     d.softSecurity = !!sw.security_only
     d.softParallel = String(sw.parallel || 1)
     d.softKeepGoing = !!sw.keep_going
+  }
+  const pk = t.packages
+  if (pk) {
+    d.servers = named(pk.server_ids)
+    d.pkgMode = pk.mode ?? "all"
+    d.pkgAutoremove = !!pk.autoremove
+    d.pkgClean = !!pk.clean
+    d.pkgReboot = pk.reboot ?? "never"
+    d.pkgParallel = String(pk.parallel || 1)
+    d.pkgKeepGoing = !!pk.keep_going
+    if (d.pkgReboot === "if-required") {
+      d.skipIfLoggedIn = !!pk.skip_if_logged_in
+      d.message = pk.message ?? ""
+    }
   }
   const f = t.fetch
   if (f) {
@@ -300,6 +330,22 @@ export function toTask(action: Action, t: TaskDraft): ScheduleTask | undefined {
           keep_going: t.softKeepGoing,
         },
       }
+    case "package-upgrade": {
+      const restart = t.pkgReboot === "if-required"
+      return {
+        packages: {
+          server_ids: ids,
+          mode: t.pkgMode,
+          autoremove: t.pkgAutoremove,
+          clean: t.pkgClean,
+          reboot: t.pkgReboot,
+          skip_if_logged_in: restart && t.skipIfLoggedIn,
+          message: restart ? t.message.trim() : "",
+          parallel: Number(t.pkgParallel) || 1,
+          keep_going: t.pkgKeepGoing,
+        },
+      }
+    }
     case "fetch":
       return {
         fetch: {
@@ -350,7 +396,10 @@ export function checkTask(
   const e: TaskErrors = {}
   const needServers = action === "script" || action === "service"
   if (
-    (needServers || action === "reboot" || action === "software-update") &&
+    (needServers ||
+      action === "reboot" ||
+      action === "software-update" ||
+      action === "package-upgrade") &&
     t.servers.size === 0
   ) {
     e.servers = "Choose at least one server"
@@ -391,6 +440,14 @@ export function checkTask(
       const n = Number(t.softParallel)
       if (!Number.isInteger(n) || n < 1 || n > 20) {
         e.parallel = "From 1 to 20"
+      }
+      break
+    }
+    case "package-upgrade": {
+      if (t.servers.size > 200) e.servers = "Up to 200 servers"
+      const n = Number(t.pkgParallel)
+      if (!Number.isInteger(n) || n < 1 || n > 10) {
+        e.parallel = "From 1 to 10"
       }
       break
     }
@@ -440,6 +497,7 @@ export function taskErrorKey(action: Action, field: string): TaskKey | null {
     fetch: "url",
     "verify-backup": "database",
     "software-update": "servers",
+    "package-upgrade": "servers",
   }
   return whole[action] ?? null
 }
@@ -455,6 +513,7 @@ export const accessText: Record<Action, string> = {
   reboot: "Operator on every server",
   "verify-backup": "Operator on the database",
   "software-update": "Engineer on every server",
+  "package-upgrade": "Engineer on every server",
 }
 
 // ---- What it does ----
@@ -573,6 +632,8 @@ export function TaskSections(props: Props) {
       return <VerifySection {...props} />
     case "software-update":
       return <SoftwareSections {...props} />
+    case "package-upgrade":
+      return <PackageSections {...props} />
   }
   return null
 }
@@ -1194,6 +1255,149 @@ function SoftwareSections(props: Props) {
           checked={t.softKeepGoing}
           onChange={(softKeepGoing) => set({ softKeepGoing })}
         />
+      </Section>
+    </>
+  )
+}
+
+// ---- Package upgrade ----
+
+const modeHints: Record<PackageMode, string> = {
+  all: "Every update the package manager has, like Upgrade all on the Packages page.",
+  security:
+    "Only updates marked as security fixes. Servers whose package manager doesn't mark them are skipped.",
+  full: "apt's full-upgrade: may also install new packages or remove old ones to finish an upgrade. Other managers get every update.",
+}
+
+function PackageSections(props: Props) {
+  const { t, set, errors, phone } = props
+  const restart = t.pkgReboot === "if-required"
+  return (
+    <>
+      <ServersSection
+        {...props}
+        min="engineer"
+        hint="Each server's own package manager: apt, dnf, yum, zypper, apk or pacman. Up to 200."
+      />
+      <Section
+        title="Updates"
+        hint="Read again on each server at every run."
+        phone={phone}
+      >
+        <div className="[scrollbar-width:none] overflow-x-auto">
+          <Segmented
+            label="Which updates"
+            value={t.pkgMode}
+            onChange={(pkgMode) => set({ pkgMode })}
+            items={[
+              { value: "all", label: "Every update" },
+              { value: "security", label: "Security only" },
+              { value: "full", label: "Full upgrade" },
+            ]}
+          />
+        </div>
+        <p className="text-caption text-muted-foreground">
+          {modeHints[t.pkgMode]}
+        </p>
+        <ToggleRow
+          id="cronjob-packages-autoremove"
+          label="Remove packages nobody needs any more"
+          hint="Old kernels and dependencies left behind by the upgrade."
+          checked={t.pkgAutoremove}
+          onChange={(pkgAutoremove) => set({ pkgAutoremove })}
+        />
+        <ToggleRow
+          id="cronjob-packages-clean"
+          label="Empty the package cache afterwards"
+          hint="Frees the disk space taken by downloaded packages."
+          checked={t.pkgClean}
+          onChange={(pkgClean) => set({ pkgClean })}
+        />
+      </Section>
+      <Section
+        title="Restart"
+        hint="After a kernel or library update a server needs a restart to use it."
+        phone={phone}
+      >
+        <div className="[scrollbar-width:none] overflow-x-auto">
+          <Segmented
+            label="Restart"
+            value={t.pkgReboot}
+            onChange={(pkgReboot) => set({ pkgReboot })}
+            items={[
+              { value: "never", label: "Never" },
+              { value: "if-required", label: "When one is needed" },
+            ]}
+          />
+        </div>
+        {restart ? (
+          <>
+            <ToggleRow
+              id="cronjob-packages-logged-in"
+              label="Not while someone is logged in"
+              hint="That server is upgraded but not restarted, and the run says so."
+              checked={t.skipIfLoggedIn}
+              onChange={(skipIfLoggedIn) => set({ skipIfLoggedIn })}
+            />
+            <Field
+              label="Message (optional)"
+              hint="Shown to anyone logged in, just before."
+              error={errors.message}
+            >
+              {(p) => (
+                <Input
+                  {...p}
+                  value={t.message}
+                  onChange={(e) => set({ message: e.target.value })}
+                  maxLength={200}
+                  placeholder="Restarting after updates"
+                  className="placeholder:text-ash"
+                />
+              )}
+            </Field>
+            <Callout icon={<TriangleAlert />} tone="warning">
+              Restarts go one server at a time, each waiting for the last to
+              come back. A server that isn't back within 15 minutes fails the
+              run, and no other server is restarted.
+            </Callout>
+          </>
+        ) : (
+          <p className="text-caption text-muted-foreground">
+            The run says which servers need one; restart them from their page
+            when it suits you.
+          </p>
+        )}
+      </Section>
+      <Section title="How it goes" phone={phone}>
+        <Field
+          label="Servers at a time"
+          hint="1 = one after the other, the safest."
+          error={errors.parallel}
+        >
+          {(p) => (
+            <Input
+              {...p}
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={10}
+              value={t.pkgParallel}
+              onChange={(e) => set({ pkgParallel: e.target.value })}
+              className="w-28"
+            />
+          )}
+        </Field>
+        <ToggleRow
+          id="cronjob-packages-keep-going"
+          label="Carry on after a server fails"
+          hint="Off = the servers not started yet are left alone."
+          checked={t.pkgKeepGoing}
+          onChange={(pkgKeepGoing) => set({ pkgKeepGoing })}
+        />
+        <Callout icon={<Info />}>
+          While the package manager works the run can't be stopped: stopping it
+          half way can leave a server's packages broken.
+        </Callout>
       </Section>
     </>
   )

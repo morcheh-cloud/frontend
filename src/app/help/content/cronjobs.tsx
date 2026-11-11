@@ -26,7 +26,7 @@ export const cronjobs: GuideSection[] = [
           schedule: every night, every hour, every 15 minutes, whatever you set.
           Each job does one thing, chosen when it's made: copy files, archive a
           folder, download a file, run a script or a playbook, act on a service,
-          reboot servers or verify database backups (see{" "}
+          reboot servers, upgrade their packages or verify database backups (see{" "}
           <See guide="cronjobs" section="actions" />
           ).
         </P>
@@ -90,6 +90,10 @@ export const cronjobs: GuideSection[] = [
               "Reboots servers one at a time, waiting for each to come back. Can skip those that don't need it or have someone logged in.",
             ],
             [
+              <UI key="packages">Upgrade packages</UI>,
+              "Upgrades the system packages with each server's own package manager (every update, security only, or apt's full upgrade), optionally cleans up, and restarts the servers that need it. See Upgrading packages.",
+            ],
+            [
               <UI key="software">Update applications</UI>,
               "Updates the applications installed on chosen servers (all with an update, or only some) and, if asked, upgrades system packages (optionally security only), a few servers at a time.",
             ],
@@ -111,6 +115,103 @@ export const cronjobs: GuideSection[] = [
         <Tip>
           Only <UI>Copy files</UI> has a <UI>Test run</UI>. To try any other
           job, press <UI>Run now</UI> on a server you can afford to touch.
+        </Tip>
+      </>
+    ),
+  },
+  {
+    id: "package-upgrade",
+    title: "Upgrading packages",
+    body: (
+      <>
+        <P>
+          <UI>Upgrade packages</UI> does on a schedule what <UI>Upgrade all</UI>{" "}
+          does on a server's <See guide="packages">Packages</See> page, on up to
+          200 servers. Each server uses its own manager (apt, dnf, yum, zypper,
+          apk, pacman), and the update lists are read again at every run.
+        </P>
+        <Steps>
+          {[
+            <>
+              Press <UI>New cron job</UI> and pick <UI>Upgrade packages</UI>, or
+              open a server's Packages page, press <UI>⋯</UI> and{" "}
+              <UI>Schedule upgrades…</UI> (the server is then already picked).
+            </>,
+            <>
+              Tick the servers, and choose <UI>Every update</UI>,{" "}
+              <UI>Security only</UI> or <UI>Full upgrade</UI>.
+            </>,
+            <>
+              Leave <UI>Remove packages nobody needs any more</UI> on to drop
+              old kernels; turn on <UI>Empty the package cache</UI> on small
+              disks.
+            </>,
+            <>
+              Under <UI>Restart</UI>, keep <UI>Never</UI> or pick{" "}
+              <UI>When one is needed</UI>.
+            </>,
+            <>Set the schedule (a quiet hour, once a week) and save.</>,
+          ]}
+        </Steps>
+        <Table
+          head={["Choice", "What happens"]}
+          rows={[
+            [
+              "Every update",
+              "Everything the package manager has an update for. Held packages stay where they are.",
+            ],
+            [
+              "Security only",
+              "Only updates marked as security fixes (apt, dnf, yum, zypper). A server whose manager doesn't mark them is skipped, with a note.",
+            ],
+            [
+              "Full upgrade",
+              "apt's full-upgrade: may install or remove packages to finish an upgrade. Other managers get every update.",
+            ],
+            [
+              "Restart: When one is needed",
+              "After the upgrade, only servers that say they need a restart are restarted, one at a time, each waiting for the last to come back (15 minutes at most). If one doesn't come back, no other server is restarted.",
+            ],
+            [
+              "Not while someone is logged in",
+              "A server with an open SSH session is upgraded but not restarted, and the run says so.",
+            ],
+          ]}
+        />
+        <P>
+          Each server's row in the run says what changed, e.g.{" "}
+          <C>3 packages upgraded, 1 removed.</C> or <C>Already up to date.</C>,
+          and whether it still needs a restart. The full package manager output
+          is in the run's task log.
+        </P>
+        <List>
+          <li>
+            <UI>Servers at a time</UI> (1–10) upgrades several at once; restarts
+            still go one by one.
+          </li>
+          <li>
+            With <UI>Carry on after a server fails</UI> off, the first failure
+            leaves the servers not started yet alone, marked <C>Not upgraded</C>
+            .
+          </li>
+          <li>
+            While a package manager works, the run can't be stopped: stopping it
+            half way can break a server's packages. The Packages page also
+            refuses other changes on that server until it ends.
+          </li>
+        </List>
+        <Example title="Weekly upgrade with restarts">
+          <List>
+            <li>Schedule: Sunday 04:00, your time zone</li>
+            <li>Every update, remove unneeded on, restart when needed</li>
+            <li>Not while someone is logged in on, 1 server at a time</li>
+          </List>
+        </Example>
+        <Tip>
+          On apt and dnf servers, automatic updates (see{" "}
+          <See guide="packages" section="auto-updates" />) already install
+          security fixes daily. A weekly job here then picks up the rest and
+          handles restarts.
         </Tip>
       </>
     ),
@@ -424,6 +525,7 @@ cache/tmp`}</Code>
               "Operator; Engineer to stop a protected service",
             ],
             ["Reboot servers", "Operator on every server"],
+            ["Upgrade packages", "Engineer on every server"],
             ["Update applications", "Engineer on every server"],
             ["Verify backups", "Operator on the database"],
           ]}
