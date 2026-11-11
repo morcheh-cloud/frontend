@@ -1,8 +1,8 @@
 "use client"
 
+import { Segmented } from "@/app/(panel)/servers/[id]/components/parts"
 import { useServerInsights } from "@/app/(panel)/servers/api"
 import { buildModel } from "@/app/(panel)/servers/components/insights/model"
-import { Segmented } from "@/app/(panel)/servers/[id]/components/parts"
 import {
   bucketLabel,
   LineChart,
@@ -81,17 +81,18 @@ export function PerformanceCard({ className }: { className?: string }) {
           <Skeleton className="h-48" />
         </div>
       ) : (
-        <div className={cn("flex flex-col gap-5 p-5", q.isPlaceholderData && "opacity-60")}>
+        <div
+          className={cn(
+            "flex flex-col gap-5 p-5",
+            q.isPlaceholderData && "opacity-60",
+          )}
+        >
           <dl className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <Stat
               label="Availability"
-              value={
-                t?.checks ? formatPercent(1 - t.failures / t.checks) : "—"
-              }
+              value={t?.checks ? formatPercent(1 - t.failures / t.checks) : "—"}
               sub={
-                t?.failures
-                  ? `${t.failures} failed checks`
-                  : "No failed checks"
+                t?.failures ? `${t.failures} failed checks` : "No failed checks"
               }
             />
             <Stat
@@ -102,12 +103,20 @@ export function PerformanceCard({ className }: { className?: string }) {
             <Stat
               label="CPU"
               value={t?.cpu != null ? formatPct(t.cpu) : "—"}
-              sub={t?.cpuMax != null ? `Peak ${formatPct(t.cpuMax)}` : "Not sampled"}
+              sub={
+                t?.cpuMax != null
+                  ? `Peak ${formatPct(t.cpuMax)}`
+                  : "Not sampled"
+              }
             />
             <Stat
               label="Memory"
               value={t?.mem != null ? formatPct(t.mem) : "—"}
-              sub={t?.memMax != null ? `Peak ${formatPct(t.memMax)}` : "Not sampled"}
+              sub={
+                t?.memMax != null
+                  ? `Peak ${formatPct(t.memMax)}`
+                  : "Not sampled"
+              }
             />
           </dl>
           <div className="flex flex-col gap-2">
@@ -132,7 +141,7 @@ export function PerformanceCard({ className }: { className?: string }) {
                 onChange={(v: Measure) => setMeasure(v)}
               />
             </div>
-            {values && values.some((v) => v !== null) ? (
+            {values?.some((v) => v !== null) ? (
               <LineChart
                 buckets={m.buckets}
                 values={values}

@@ -40,36 +40,73 @@ export const gettingStarted: GuideSection[] = [
     body: (
       <>
         <P>
-          <A href="/home">Home</A> answers one question first: is anything wrong
-          in this workspace? Everything on it updates by itself every few
-          seconds, from the same checks the rest of the panel uses.
+          <A href="/home">Home</A> is the workspace's dashboard. It answers
+          &quot;is anything wrong?&quot; first, then shows how things are
+          running. Everything on it updates by itself every few seconds, from
+          the same checks the rest of the panel uses, so its numbers always
+          match the red counts in the menu.
         </P>
         <List>
           <li>
+            <UI>Health</UI>: the ring at the top is one score out of 100 for the
+            whole workspace. Every server, database, storage, DNS server, proxy,
+            cron job, application and uptime monitor that was checked counts;
+            down counts as 0, needs a look as half. Firing alerts and failed
+            backup plans lower it too. 98 and up is <UI>Excellent</UI>, 90{" "}
+            <UI>Good</UI>, 75 <UI>Fair</UI>, below that <UI>At risk</UI>. The
+            chips beside it count what is down and what needs a look.
+          </li>
+          <li>
+            <UI>Key numbers</UI> under it: availability of every server in the
+            last 24 hours (with a strip per hour), average response time, CPU
+            and memory across the fleet, uptime monitors, firing alerts, and
+            requests per minute through your reverse proxies (or running tasks
+            when you have none). Click a tile to open the page behind it.
+          </li>
+          <li>
             <UI>Needs attention</UI> lists every server, storage or DNS server
             Morcheh can't reach or log in to, every database that is down or
-            critical, and every cron job that can't run or whose last run
-            failed. Red is down, orange needs a look (for example a refused
-            password). Click a row to open it. When the list is empty you see{" "}
-            <UI>All systems normal</UI>.
+            critical, every firing alert and every cron job that can't run or
+            whose last run failed. Red is down, orange needs a look. It only
+            shows when something is wrong and can't be hidden.
           </li>
           <li>
-            <UI>Overview tiles</UI> count each section's things. The thin bar
-            shows them by status: green online, orange needs a look, red down,
-            grey not checked yet or paused. A red number is the same count the
-            menu shows.
+            <UI>Sections</UI> count each section's things. The thin bar shows
+            them by status: green online, orange needs a look, red down, grey
+            not checked yet or paused.
           </li>
           <li>
-            <UI>Favorite servers</UI>: star a server on the Servers page to keep
-            it here. With no favorites, the first servers are shown.
+            <UI>Availability and performance</UI>: every server's checks over 24
+            hours, 7 or 30 days, and a chart of response time, CPU or memory.{" "}
+            <UI>Insights</UI> opens the full report.
           </li>
           <li>
-            <UI>Services</UI> opens your team's web tools straight away in a new
-            tab, critical ones first.
+            <UI>Server resources</UI>: every server as one square, coloured by
+            how busy its CPU, memory or disk is right now (orange from 80%, red
+            from 90%, a red outline when it is offline), and the five busiest
+            beside it. Point at a square for details, click it for the server's
+            Metrics.
           </li>
           <li>
-            <UI>Tasks</UI> (running first, then the newest) and{" "}
-            <UI>Coming up</UI> (the next scheduled cron jobs).
+            <UI>Favorite servers</UI> with their status, CPU, memory, disk and
+            ping. Star a server on the Servers page to keep it here; with no
+            favorites, the first servers are shown.
+          </li>
+          <li>
+            <UI>Activity</UI>: one timeline of what happened lately: servers
+            going down and coming back, alerts firing and clearing, uptime
+            incidents and finished tasks. <UI>Problems</UI> keeps only the bad
+            news.
+          </li>
+          <li>
+            <UI>Uptime</UI> (monitors, worst first, with their last checks) and{" "}
+            <UI>Web traffic</UI> (requests in the last 30 minutes, server
+            errors, busiest sites; only when the workspace has a reverse proxy).
+          </li>
+          <li>
+            <UI>Services</UI> opens your team's web tools in a new tab;{" "}
+            <UI>Tasks</UI> and <UI>Coming up</UI> show background tasks and the
+            next scheduled cron jobs.
           </li>
           <li>
             <UI>Add</UI> (the <UI>+</UI> on phones) opens the form for a new
@@ -77,9 +114,22 @@ export const gettingStarted: GuideSection[] = [
             only when you may add things to the selected workspace.
           </li>
         </List>
+        <Steps>
+          <>
+            Press <UI>Customize</UI> (the grid icon at the top; on phones{" "}
+            <UI>Customize Home</UI> at the bottom of the page).
+          </>
+          <>Turn off the cards you don't need. Problems always show.</>
+          <>
+            <UI>Reset</UI> brings every card back. Your choice is kept on this
+            browser only.
+          </>
+        </Steps>
         <Tip>
-          Home shows the selected workspace only. Switch workspace in the
-          sidebar header (or under <UI>More</UI> on phones) to see another.
+          The refresh button reloads every number at once; you rarely need it,
+          since Home keeps itself up to date. Home shows the selected workspace
+          only: switch workspace in the sidebar header (or under <UI>More</UI>{" "}
+          on phones) to see another.
         </Tip>
       </>
     ),

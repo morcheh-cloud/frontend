@@ -40,7 +40,8 @@ export function usageOf(s: ServerModel, metric: Metric): number | null {
 
 function cellClass(v: number | null, status: string) {
   if (status === "unknown") return "bg-muted"
-  if (status !== "online") return "bg-destructive/15 ring-1 ring-destructive/40 ring-inset"
+  if (status !== "online")
+    return "bg-destructive/15 ring-1 ring-destructive/40 ring-inset"
   if (v === null) return "bg-muted"
   if (v >= 90) return "bg-destructive"
   if (v >= 80) return "bg-warning"
@@ -52,7 +53,8 @@ function cellClass(v: number | null, status: string) {
 
 function detailOf(s: ServerModel, metric: Metric) {
   const r = s.latest
-  if (s.status !== "online") return statusMeta[s.status as keyof typeof statusMeta]?.label ?? s.status
+  if (s.status !== "online")
+    return statusMeta[s.status as keyof typeof statusMeta]?.label ?? s.status
   if (!r) return "Not sampled yet"
   if (metric === "cpu")
     return `CPU ${formatPct(r.cpu_percent)} · load ${r.load1.toFixed(2)} on ${r.cores} ${r.cores === 1 ? "core" : "cores"}`
@@ -118,7 +120,7 @@ export function FleetCard({
           <div className="flex min-w-0 flex-col gap-3">
             <ul
               aria-label={`${label} per server`}
-              className="grid grid-cols-[repeat(auto-fill,minmax(1.75rem,1fr))] gap-1.5"
+              className="grid grid-cols-[repeat(auto-fill,minmax(2.25rem,1fr))] gap-1.5"
               onMouseLeave={() => setFocus(null)}
             >
               {servers.map((s) => {
@@ -132,7 +134,7 @@ export function FleetCard({
                       onFocus={() => setFocus(s.id)}
                       onBlur={() => setFocus(null)}
                       className={cn(
-                        "block aspect-square rounded-md outline-none transition-transform hover:scale-110 focus-visible:ring-3 focus-visible:ring-ring/50",
+                        "block aspect-square rounded-md transition-transform outline-none hover:scale-110 focus-visible:ring-3 focus-visible:ring-ring/50",
                         cellClass(v, s.status),
                       )}
                     />

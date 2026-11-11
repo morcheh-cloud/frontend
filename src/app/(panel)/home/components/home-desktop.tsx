@@ -210,7 +210,7 @@ function SectionsCard({ home }: { home: Home }) {
         {summaries(home).map((s) => (
           <li
             key={s.key}
-            className="min-w-0 border-border not-last:border-b md:[&:nth-child(3n+1)]:border-e md:[&:nth-child(3n+2)]:border-e max-md:odd:border-e"
+            className="min-w-0 border-border not-last:border-b max-md:odd:border-e md:[&:nth-child(3n+1)]:border-e md:[&:nth-child(3n+2)]:border-e"
           >
             <SectionTile summary={s} ready={home.ready} />
           </li>
@@ -316,10 +316,9 @@ function ServersCard({ home, live }: { home: Home; live: HomeLive }) {
             {servers.items.map((s) => {
               const r = byId.get(s.id)?.latest
               const online = s.status === "online"
-              const mem =
-                r && r.mem_total_bytes
-                  ? (100 * r.mem_used_bytes) / r.mem_total_bytes
-                  : null
+              const mem = r?.mem_total_bytes
+                ? (100 * r.mem_used_bytes) / r.mem_total_bytes
+                : null
               return (
                 <li key={s.id}>
                   <Link

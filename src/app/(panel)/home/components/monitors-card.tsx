@@ -2,8 +2,6 @@
 
 import { HeartPulse } from "lucide-react"
 import Link from "next/link"
-
-import { monitorHref } from "@/app/(panel)/uptime/components/monitor-menu"
 import {
   BeatBar,
   byState,
@@ -11,6 +9,7 @@ import {
   stateOf,
   uptimeText,
 } from "@/app/(panel)/uptime/components/meta"
+import { monitorHref } from "@/app/(panel)/uptime/components/monitor-menu"
 import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"

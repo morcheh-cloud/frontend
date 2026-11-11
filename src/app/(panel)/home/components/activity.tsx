@@ -13,9 +13,8 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
-
-import { statusMeta, timeAgo } from "@/app/(panel)/servers/components/meta"
 import { Segmented } from "@/app/(panel)/servers/[id]/components/parts"
+import { statusMeta, timeAgo } from "@/app/(panel)/servers/components/meta"
 import { monitorHref } from "@/app/(panel)/uptime/components/monitor-menu"
 import { isActive, useJobList } from "@/components/jobs/api"
 import { doneTitle, placeHref } from "@/components/jobs/meta"
@@ -136,7 +135,11 @@ export function useActivity(live: HomeLive): ActivityItem[] {
     items.push({
       key: `job:${j.id}`,
       at: j.finished_at,
-      icon: failed ? CircleX : j.state === "canceled" ? ListChecks : CircleCheck,
+      icon: failed
+        ? CircleX
+        : j.state === "canceled"
+          ? ListChecks
+          : CircleCheck,
       tone: failed ? "destructive" : "muted",
       title: failed
         ? `Failed: ${j.title}`
