@@ -97,6 +97,7 @@ import { LogsTab } from "./logs-tab"
 import { NginxCode } from "./nginx-code"
 import { PagesTab } from "./pages-tab"
 import { RateLimitEditor } from "./rate-limit"
+import { RedirectsTab } from "./redirects-tab"
 import { ReportTab } from "./report-tab"
 import { HeaderRows, PathRows } from "./rows"
 import { SiteTraffic } from "./site-traffic"
@@ -738,6 +739,18 @@ function Editor({
         errors={errors}
         phone={phone}
         inspection={inspection.data}
+      />
+    ),
+    redirects: (
+      <RedirectsTab
+        proxy={p}
+        host={host}
+        geo={inspection.data?.geo}
+        draft={draft}
+        set={set}
+        errors={errors}
+        phone={phone}
+        readOnly={readOnly}
       />
     ),
     pages: (

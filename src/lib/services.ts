@@ -1282,6 +1282,8 @@ export interface Capabilities {
   paths: boolean;
   /** Can limit requests, connections and speed */
   rate_limit: boolean;
+  /** Takes redirects: lists of old addresses sent to new ones (every type but stream) */
+  redirects: boolean;
   /** Can forward TCP/UDP ports (type stream) */
   streams: boolean;
   /** Takes HostTLS's extra settings (profile, HTTP/3, OCSP, session cache, client certificates) */
@@ -1536,6 +1538,28 @@ export interface CheckOutBody {
   $schema?: string;
   monitor: UptimeMonitor;
   result: CheckResult;
+}
+
+export interface CheckProxyRedirectTargetsRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * @maxItems 100
+   * @minItems 1
+   */
+  urls: string[];
+}
+
+export interface CheckProxyRedirectTargetsResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  results: RedirectTargetCheck[];
 }
 
 export interface CheckResult {
@@ -3990,6 +4014,16 @@ export interface FetchBody {
   url: string;
 }
 
+export interface FetchProxyRedirectSourceRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 2048 */
+  url: string;
+}
+
 export interface FileContent {
   /**
    * A URL to the JSON Schema for this object.
@@ -4833,6 +4867,8 @@ export interface HostConfig {
   redirect_code?: 0 | 301 | 302 | 307 | 308;
   /** Where visitors are sent, like https://example.com */
   redirect_to?: string;
+  /** Old addresses sent to new ones (every type but stream; redirects.go) */
+  redirects?: Redirects;
   /** Give every request an X-Request-ID, sent to the upstream and back to the visitor (sites) */
   request_id?: boolean;
   /** Folder the files are served from */
@@ -7277,6 +7313,27 @@ export interface ProxyPurgeResult {
   output: string;
 }
 
+export interface ProxyRedirectStats {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Requests answered with 301/302/307/308/410, by address */
+  answered: RedirectHit[];
+  /** The site has no access log yet */
+  missing: boolean;
+  /** The most asked addresses that answered 404 */
+  not_found: RedirectMissing[];
+  /** The most visited pages (2xx, no files like .css or .png) */
+  pages: RedirectPage[];
+  /** The log was too big to read whole; counts are from the newest part */
+  partial: boolean;
+  range: string;
+  /** @format date-time */
+  since: string;
+}
+
 export interface ProxyReportBin {
   /** @format int64 */
   count: number;
@@ -7846,6 +7903,122 @@ export interface RecordingSettingsBody {
    * @max 3650
    */
   keep_days: number;
+}
+
+export interface RedirectHit {
+  /** @format int64 */
+  count: number;
+  /** @format date-time */
+  last: string;
+  /** The address as asked, query included */
+  path: string;
+  /** @format int64 */
+  status: number;
+}
+
+export interface RedirectMissing {
+  /** @format int64 */
+  count: number;
+  /** @format date-time */
+  last: string;
+  /** An address that answered 404 (no query) */
+  path: string;
+  /** The page that linked to it most often */
+  referer?: string;
+}
+
+export interface RedirectPage {
+  /** @format int64 */
+  count: number;
+  /** A page that answered 2xx (no query) */
+  path: string;
+}
+
+export interface RedirectRule {
+  /**
+   * 0 = 301; 410 answers Gone instead of redirecting
+   * @format int64
+   */
+  code?: 0 | 301 | 302 | 307 | 308 | 410;
+  /**
+   * The old address: a path like /old-page (with ?query for an exact rule), or a pattern
+   * @maxLength 2048
+   */
+  from: string;
+  /** Add the visitor's query string to the target */
+  keep_query?: boolean;
+  /** exact (default), prefix (the path and everything under it) or regex */
+  match?: "" | "exact" | "prefix" | "regex";
+  /** @maxLength 200 */
+  note?: string;
+  /** Kept in the list but not used */
+  off?: boolean;
+  /**
+   * Where it goes: a path on this site or a full http(s) address; empty for 410
+   * @maxLength 2048
+   */
+  to?: string;
+  /** Only redirect when all of these hold; rules with conditions are checked first, in list order */
+  when?: RedirectWhen;
+}
+
+export interface RedirectSource {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format int64 */
+  status: number;
+  text: string;
+  /** Longer than 10 MB; only the start is here */
+  truncated: boolean;
+}
+
+export interface RedirectTargetCheck {
+  error?: string;
+  /** Where a redirect answer points */
+  location?: string;
+  /** @format int64 */
+  millis: number;
+  /**
+   * HTTP status, 0 when it didn't answer
+   * @format int64
+   */
+  status: number;
+  url: string;
+}
+
+export interface RedirectWhen {
+  /**
+   * The visitor's country (two-letter codes, like DE); needs country lookup
+   * @maxItems 250
+   */
+  countries?: string[];
+  /**
+   * phone, tablet or desktop, by User-Agent
+   * @maxItems 3
+   */
+  devices?: string[];
+  /** From this time on, 2006-01-02T15:04 in the proxy server's time */
+  from?: string;
+  /**
+   * The browser's first language (Accept-Language), like fa or en
+   * @maxItems 30
+   */
+  languages?: string[];
+  /** Before this time, 2006-01-02T15:04 in the proxy server's time */
+  until?: string;
+}
+
+export interface Redirects {
+  /**
+   * Exact addresses win; then the first matching starts-with or pattern rule in list order
+   * @maxItems 5000
+   */
+  rules?: RedirectRule[];
+  /** Treat /old and /old/ as different addresses (exact rules) */
+  strict_slash?: boolean;
 }
 
 export interface RenameFileRequest {
@@ -15697,6 +15870,28 @@ export class Api<
   };
   reverseProxy = {
     /**
+     * @description One GET per address from the proxy's server (curl, 8 s each, 10 at a time, redirects not followed). Nothing is saved.
+     *
+     * @tags Reverse proxy
+     * @name CheckProxyRedirectTargets
+     * @summary Check that redirect targets answer
+     * @request POST:/proxies/{id}/redirects/check
+     */
+    checkProxyRedirectTargets: (
+      id: string,
+      data: CheckProxyRedirectTargetsRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<CheckProxyRedirectTargetsResponse, ErrorModel>({
+        path: `/proxies/${id}/redirects/check`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description Adds the proxy to the panel and checks the server. Nothing is installed or written yet: call setup for that. Needs Engineer on the server.
      *
      * @tags Reverse proxy
@@ -15821,6 +16016,28 @@ export class Api<
       }),
 
     /**
+     * @description The proxy's server downloads the address (curl, 25 s, redirects followed, .gz unpacked) and returns up to 10 MB of text.
+     *
+     * @tags Reverse proxy
+     * @name FetchProxyRedirectSource
+     * @summary Download a sitemap or list for a redirect migration
+     * @request POST:/proxies/{id}/redirects/fetch
+     */
+    fetchProxyRedirectSource: (
+      id: string,
+      data: FetchProxyRedirectSourceRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<RedirectSource, ErrorModel>({
+        path: `/proxies/${id}/redirects/fetch`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * No description
      *
      * @tags Reverse proxy
@@ -15848,6 +16065,31 @@ export class Api<
       this.request<ProxyChangeDetail, ErrorModel>({
         path: `/proxies/${id}/history/${change}`,
         method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Redirect answers by address (to count each rule's use), the most asked addresses that answered 404 (redirect ideas) and the most visited pages.
+     *
+     * @tags Reverse proxy
+     * @name GetProxyHostRedirectStats
+     * @summary What the access log says about a site's redirects
+     * @request GET:/proxies/{id}/hosts/{host}/redirect-stats
+     */
+    getProxyHostRedirectStats: (
+      id: string,
+      host: string,
+      query?: {
+        /** @default "7d" */
+        range?: "24h" | "7d" | "30d";
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ProxyRedirectStats, ErrorModel>({
+        path: `/proxies/${id}/hosts/${host}/redirect-stats`,
+        method: "GET",
+        query: query,
         format: "json",
         ...params,
       }),

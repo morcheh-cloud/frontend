@@ -14,6 +14,7 @@ import {
   ScrollText,
   Settings2,
   ShieldCheck,
+  Signpost,
   SlidersHorizontal,
 } from "lucide-react"
 import { parseAsStringLiteral, useQueryState } from "nuqs"
@@ -52,6 +53,7 @@ export const editorTabs = [
   "ratelimit",
   "cache",
   "routing",
+  "redirects",
   "pages",
   "advanced",
   "logs",
@@ -72,6 +74,7 @@ export const editorTabMeta: Record<
   ratelimit: { label: "Rate limit", icon: Gauge },
   cache: { label: "Cache", icon: DatabaseZap },
   routing: { label: "Routing", icon: Route },
+  redirects: { label: "Redirects", icon: Signpost },
   pages: { label: "Pages", icon: FileWarning },
   advanced: { label: "Advanced", icon: SlidersHorizontal },
   config: { label: "Config", icon: FileCode },
@@ -100,6 +103,7 @@ export function tabsFor(
     ratelimit: caps.rate_limit && uses.rateLimit,
     cache: caps.cache && uses.browserCache,
     routing: (caps.paths && uses.paths) || (caps.headers && uses.headers),
+    redirects: caps.redirects && uses.redirects,
     pages: caps.pages && (uses.maintenance || uses.errorPages),
     advanced: uses.maxBody || uses.timeout || caps.advanced || caps.tuning,
     config: true,
@@ -111,6 +115,7 @@ export function tabsFor(
 export function tabOfError(key: string): EditorTab {
   if (key.startsWith("tls")) return "https"
   if (key.startsWith("headers") || key.startsWith("paths")) return "routing"
+  if (key.startsWith("redirects")) return "redirects"
   if (key.startsWith("auth")) return "login"
   if (
     key.startsWith("maintenance") ||
@@ -196,6 +201,7 @@ export function tabInfo(
         ? "Firewall"
         : undefined,
     login: loginBadge(d),
+    redirects: d.redirects.length ? `${d.redirects.length}` : undefined,
     pages: pagesBadge(d),
     ratelimit: rateBadge(d),
     cache: cacheBadge(d),

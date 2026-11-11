@@ -306,6 +306,46 @@ export function useWafEvents(id: string, host: string, enabled: boolean) {
   })
 }
 
+// Redirect answers and 404s in a site's access log (Redirects tab).
+export type RedirectRange = "24h" | "7d" | "30d"
+
+export function useRedirectStats(
+  id: string,
+  host: string,
+  range: RedirectRange,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: ["proxies", id, "redirect-stats", host, range] as const,
+    queryFn: ({ signal }) =>
+      api.reverseProxy.getProxyHostRedirectStats(
+        id,
+        host,
+        { range },
+        { signal },
+      ),
+    enabled,
+    retry: false,
+    staleTime: 60_000,
+  })
+}
+
+// Asks each address once from the proxy server (no redirects followed).
+export function useCheckTargets() {
+  return useMutation({
+    mutationFn: ({ id, urls }: { id: string; urls: string[] }) =>
+      api.reverseProxy.checkProxyRedirectTargets(id, { urls }),
+  })
+}
+
+// Fetches a sitemap/list from the proxy server (it can reach the old site).
+export function useFetchRedirectSource() {
+  return useMutation({
+    mutationFn: ({ id, url }: { id: string; url: string }) =>
+      api.reverseProxy.fetchProxyRedirectSource(id, { url }),
+  })
+}
+
 export function useDeleteProxy() {
   const queryClient = useQueryClient()
   return useMutation({

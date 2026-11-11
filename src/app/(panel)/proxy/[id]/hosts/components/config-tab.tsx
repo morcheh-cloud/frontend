@@ -249,7 +249,9 @@ export function ConfigTab({
     <section
       aria-label={label}
       className={cn(
-        "flex min-w-0 flex-col gap-4",
+        // contain: the preview's long lines scroll inside it instead of
+        // widening the page (its min-content would reach the flex parents).
+        "flex min-w-0 flex-col gap-4 [contain:inline-size]",
         phone ? "px-4 py-5" : "rounded-2xl border border-border p-6",
       )}
     >

@@ -1,4 +1,10 @@
 import { splitList } from "@/app/(panel)/dns/components/fields"
+import {
+  keptRedirects,
+  type RedirectDraft,
+  redirectFromRule,
+  redirectToRule,
+} from "./redirects"
 
 export { splitList }
 
@@ -290,6 +296,9 @@ export type Draft = {
   maintRetry: string
   errorPages: ErrorPageDraft[]
   interceptErrors: boolean
+  // Redirects: old addresses of the site sent to new ones.
+  redirects: RedirectDraft[]
+  redirectStrictSlash: boolean
   // Hardening: requests no real visitor makes.
   hDotfiles: boolean
   hBackups: boolean
@@ -519,6 +528,8 @@ export const freshDraft = (type: HostType = "proxy"): Draft => ({
   maintRetry: "",
   errorPages: [],
   interceptErrors: false,
+  redirects: [],
+  redirectStrictSlash: false,
   hDotfiles: false,
   hBackups: false,
   hScanners: false,
@@ -695,6 +706,8 @@ function featuresFromConfig(c: HostConfig) {
       }),
     ),
     interceptErrors: !!c.intercept_errors,
+    redirects: (c.redirects?.rules ?? []).map(redirectFromRule),
+    redirectStrictSlash: !!c.redirects?.strict_slash,
     hDotfiles: !!hd?.dotfiles,
     hBackups: !!hd?.backups,
     hScanners: !!hd?.scanners,
@@ -915,6 +928,7 @@ export const typeUses = (t: Draft["type"]) => ({
   upstreamTls: t === "proxy",
   maintenance: t !== "stream" && t !== "notfound",
   errorPages: t !== "stream",
+  redirects: t !== "stream",
   interceptErrors: t === "proxy",
   hardening: t !== "stream",
   requestId: t !== "stream",
@@ -1387,6 +1401,17 @@ function addFeatures(c: HostConfig, d: Draft) {
       if (uses.interceptErrors && d.interceptErrors) c.intercept_errors = true
     }
   }
+  if (uses.redirects) {
+    const domains = domainList(d.domains)
+    const rules = keptRedirects(d.redirects).map((r) =>
+      redirectToRule(r, domains),
+    )
+    if (rules.length || d.redirectStrictSlash)
+      c.redirects = {
+        rules: rules.length ? rules : undefined,
+        strict_slash: d.redirectStrictSlash || undefined,
+      }
+  }
   if (uses.hardening && hardeningOn(d)) {
     c.hardening = {
       dotfiles: d.hDotfiles || undefined,
@@ -1498,6 +1523,14 @@ export function problemsToErrors(
       out[`cache.groups.${g?.key ?? group[1]}.${group[2]}`] ??= entry
         ? `${entry}: ${p.message}`
         : p.message
+      continue
+    }
+    const redirect = /^redirects\.rules\[(\d+)\](?:\.(\w+))?/.exec(f)
+    if (redirect) {
+      const k = keptRedirects(d.redirects)[Number(redirect[1])]?.key
+      const field =
+        redirect[2] === "to" ? "to" : redirect[2] === "when" ? "when" : "from"
+      out[k ? `redirects.${k}.${field}` : "redirects"] ??= p.message
       continue
     }
     const server = /^balance\.servers\[(\d+)\](?:\.(\w+))?/.exec(f)
@@ -1666,6 +1699,8 @@ export function clearErrors(e: Errors, patch: Partial<Draft>): Errors {
     ["rateRules", "rate."],
     ["authUsers", "auth.users"],
     ["errorPages", "error_pages"],
+    ["redirects", "redirects"],
+    ["redirectStrictSlash", "redirects"],
     ["paths", "paths."],
     ["paths", "auth.only_paths"],
     ["headers", "headers."],

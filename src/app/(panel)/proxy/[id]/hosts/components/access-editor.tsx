@@ -368,7 +368,7 @@ function CountriesCard({
   )
 }
 
-function CountryPicker({
+export function CountryPicker({
   open,
   onOpenChange,
   value,

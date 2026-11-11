@@ -4,6 +4,7 @@ import {
   Example,
   type GuideSection,
   H3,
+  Keys,
   List,
   P,
   Recommended,
@@ -760,6 +761,10 @@ networks:
                 <UI>Headers</UI>: add a header to the answer or the request, or
                 remove one the app sends (see Paths and headers)
               </>,
+            ],
+            [
+              <UI key="rd">Redirects</UI>,
+              "Old addresses to new ones, written by hand or imported from a list (see Redirects)",
             ],
             [
               <UI key="g">Pages</UI>,
@@ -2631,6 +2636,329 @@ networks:
           <UI>Behind a CDN or load balancer</UI> (Advanced) so nginx sees their
           own address.
         </Tip>
+      </>
+    ),
+  },
+  {
+    id: "redirects",
+    title: "Redirects",
+    body: (
+      <>
+        <P>
+          The <UI>Redirects</UI> tab sends old addresses of a site to new ones:
+          after a redesign, a move to another domain, or to retire pages for
+          good. It holds up to 5,000 rules, answered by nginx before anything
+          else on the site (the app, the cache, paths and logins never see
+          them). Every site type has it except streams.
+        </P>
+        <H3>Kinds of rule</H3>
+        <Table
+          head={["Match", "Covers"]}
+          rows={[
+            [
+              <UI key="e">Exact</UI>,
+              <>
+                Only that address: <C>/old-page</C>. Upper and lower case are
+                the same, and <C>/old-page/</C> is taken too unless{" "}
+                <UI>Tell /page and /page/ apart</UI> is on. Add a query to match
+                only that one: <C>/shop?id=5</C>
+              </>,
+            ],
+            [
+              <UI key="s">Starts with</UI>,
+              <>
+                The path and everything under it; the rest is added to the new
+                address: <C>/blog</C> → <C>/news</C> sends{" "}
+                <C>/blog/2024/hello</C> to <C>/news/2024/hello</C>
+              </>,
+            ],
+            [
+              <UI key="p">Pattern</UI>,
+              <>
+                A regular expression on the path; <C>$1</C>…<C>$9</C> in the new
+                address are the parts in brackets:{" "}
+                <C>{"^/item/(\\d+)\\.html$"}</C> → <C>/items/$1</C>
+              </>,
+            ],
+          ]}
+        />
+        <P>
+          Order: exact rules always win; then the first starts-with or pattern
+          rule from the top of the list. Move a rule with its menu (
+          <UI>Move to top</UI>, <UI>Move up</UI>…) when two patterns overlap.
+          The new address is a path on this site (<C>/new</C>) or a full address
+          (<C>https://shop.example.com/</C>). An old address written as a full
+          address of this site is turned into its path for you.
+        </P>
+        <Table
+          head={["Answer", "Use it for"]}
+          rows={[
+            [
+              <UI key="1">301 Moved</UI>,
+              "Moved for good; search engines move the old page's ranking over. The usual choice",
+            ],
+            [
+              <UI key="2">302 Found</UI>,
+              "For now only (a campaign, a page being rebuilt); browsers don't remember it",
+            ],
+            [
+              <UI key="7">307 / 308</UI>,
+              "Like 302 / 301, but a form sent with POST stays a POST (APIs, form handlers)",
+            ],
+            [
+              <UI key="g">410 Gone</UI>,
+              "The page is gone and isn't coming back; search engines drop it faster than a 404",
+            ],
+          ]}
+        />
+        <P>
+          <UI>Keep the query string</UI> adds whatever came after <C>?</C> to
+          the new address (<C>/old?utm_source=x</C> → <C>/new?utm_source=x</C>),
+          joined with <C>&amp;</C> when the new address has a query of its own.
+        </P>
+        <H3>Adding rules</H3>
+        <Steps>
+          <P>
+            Type the old and the new address in the row at the top and press{" "}
+            <Keys>Enter</Keys>. Ending the old one with <C>/*</C> makes a
+            starts-with rule; starting it with <C>^</C> makes a pattern.
+          </P>
+          <P>
+            For anything more, press <UI>Add</UI>: pick the match, the answer, a
+            note, and use <UI>Try it</UI> to see what an address turns into.{" "}
+            <UI>Add and next</UI> keeps the form open for the next one.
+          </P>
+          <P>
+            Press <UI>Save</UI>. Nothing changes on the server until then.
+          </P>
+        </Steps>
+        <H3>Importing a list</H3>
+        <P>
+          <UI>Import a list…</UI> takes a pasted list, a dropped file or{" "}
+          <UI>Choose a file</UI>, and shows what it read before anything is
+          added: new rules, rules it updates, problems and skipped lines (with
+          the reason). It understands:
+        </P>
+        <List>
+          <li>
+            Spreadsheets: CSV, TSV, <C>;</C> or <C>|</C> columns, with or
+            without a header row (<C>from,to,code</C>)
+          </li>
+          <li>
+            Two addresses per line, separated by spaces, <C>-&gt;</C> or{" "}
+            <C>=&gt;</C>, with an optional code
+          </li>
+          <li>
+            Apache / .htaccess: <C>Redirect</C>, <C>RedirectPermanent</C>,{" "}
+            <C>RedirectTemp</C>, <C>RedirectMatch</C>,{" "}
+            <C>RewriteRule … [R=301]</C> (a rewrite without <C>R</C> is skipped:
+            it isn't a redirect)
+          </li>
+          <li>
+            nginx: <C>{"rewrite … permanent;"}</C> and one-line{" "}
+            <C>{"location = /x { return 301 /y; }"}</C>
+          </li>
+          <li>
+            Netlify <C>_redirects</C> (<C>/blog/*</C>, <C>:splat</C>, <C>:id</C>
+            ) and Vercel / JSON lists (<C>source</C>, <C>destination</C>,{" "}
+            <C>permanent</C>)
+          </li>
+          <li>
+            A plain list of old addresses: each gets the address in{" "}
+            <UI>Lines with only an old address</UI>, or 410 Gone when it's empty
+          </li>
+        </List>
+        <Example title="Moving a WordPress blog">
+          <Code>{`from,to,code
+/?p=123,/posts/hello-world,301
+/category/news/*,/news/:splat,301
+https://example.com/old-shop,https://shop.example.com/,301
+/2019/sale,,410`}</Code>
+          <P>
+            Pick <UI>Keep …, add these</UI> to add to the list (a rule for an
+            address that's already there is updated, not doubled) or{" "}
+            <UI>Put these in their place</UI> to replace it.{" "}
+            <UI>Leave out the rules with problems</UI> (on by default) imports
+            the rest. Addresses of other sites in the list are named in the
+            preview and skipped.
+          </P>
+        </Example>
+        <P>
+          <UI>Export as CSV</UI> downloads the list in the same columns, to keep
+          a copy, edit it in a spreadsheet and import it back, or move it to
+          another site.
+        </P>
+        <H3>Checking the list</H3>
+        <P>
+          <UI>Try an address</UI> under the list follows an address through your
+          rules, hop by hop, the way nginx will. Rows are tagged <UI>Chain</UI>{" "}
+          when the new address is redirected again (visitors take two hops:
+          point the first rule at the final address) and <UI>Loop</UI> when it
+          comes back to where it started (visitors never arrive). The{" "}
+          <UI>Problems</UI> filter shows rules with a mistake; search finds
+          addresses and notes.
+        </P>
+        <Recommended
+          rows={[
+            {
+              setting: "Answer",
+              value: <UI>301 Moved</UI>,
+              why: "Permanent moves keep search ranking; use 302 only for something temporary",
+            },
+            {
+              setting: "Match",
+              value: <UI>Exact</UI>,
+              why: "Fast at any count (a lookup table); keep patterns for real families of addresses",
+            },
+            {
+              setting: "Tell /page and /page/ apart",
+              value: "Off",
+              why: "One rule then takes both, which is what visitors expect",
+            },
+            {
+              setting: "Keep the query string",
+              value: "On for marketing links",
+              why: "Campaign tags (utm_…) survive the redirect",
+            },
+          ]}
+        />
+        <Tip>
+          Thousands of exact rules cost nothing per request; hundreds of
+          patterns are checked one by one. Turn a rule off instead of removing
+          it while you're unsure: it stays in the list, shown as <UI>Off</UI>.
+        </Tip>
+        <H3>Only for some visitors</H3>
+        <P>
+          Open <UI>Only for some visitors</UI> in a rule to make it redirect
+          only some people: by <UI>Countries</UI>, <UI>Languages</UI> (the
+          browser's first language: <C>fa</C>, <C>en</C>), <UI>Devices</UI>{" "}
+          (phones, tablets, computers) and a <UI>From</UI> / <UI>Until</UI>{" "}
+          window on the proxy server's clock. A visitor must fit all of them;
+          everyone else falls through to the plain rules. Rows with conditions
+          are tagged <UI>Some visitors</UI>.
+        </P>
+        <Example title="A campaign that ends by itself">
+          <P>
+            <C>/sale</C> → <C>/black-friday</C>, 302, From{" "}
+            <C>2026-11-27 00:00</C> Until <C>2026-12-01 00:00</C>. Before and
+            after, <C>/sale</C> answers as usual.
+          </P>
+        </Example>
+        <P>
+          Countries need the visitor-country lookup (Security ›{" "}
+          <UI>Countries</UI>); the rule form warns until it's on. Netlify lines
+          with <C>Country=de</C> or <C>Language=fa</C> are imported with those
+          conditions. With such rules in the list, <UI>Try an address</UI> asks
+          who's visiting (country, language, device, time).
+        </P>
+        <H3>From the access log</H3>
+        <P>
+          On a saved site, Operators see the <UI>From the access log</UI> card
+          under the list, for the last 24 hours, 7 or 30 days:
+        </P>
+        <List>
+          <li>
+            Each row shows how many times visitors met it (<C>42×</C>, the last
+            time on hover) or <UI>Unused</UI>. The <UI>Unused</UI> filter lists
+            the rules nobody met, candidates to retire.
+          </li>
+          <li>
+            <UI>Not found</UI> lists addresses that answered 404, most asked
+            first, each with the closest real page of the site already filled in
+            (<UI>Close match</UI> or <UI>Guess</UI>). Change the target if
+            needed and press <UI>Add</UI>, or <UI>Add all with a target</UI>.
+            Scanner probes (<C>/wp-login.php</C>, <C>.env</C>…) are hidden; the
+            eye sets an address aside on this browser.
+          </li>
+        </List>
+        <P>
+          Counts come from the site's own access log, so rules added before the
+          log began, or since the last rotation, can read as unused. A very big
+          log is read from its newest part (the card says so).
+        </P>
+        <H3>Checking the targets</H3>
+        <P>
+          <UI>Check the targets</UI> (menu, Engineer) asks every new address
+          from the proxy's server (with <C>curl</C>), without following it, and
+          tags rows whose target is <UI>Broken</UI> (4xx, 5xx or no answer) or{" "}
+          <UI>Redirects again</UI>. Paths are asked at the site's first name;
+          patterns with <C>$1</C>, starts-with rules and 410s are skipped. Up to
+          500 addresses per check; the <UI>Broken</UI> filter shows what to fix.
+        </P>
+        <P>
+          <UI>Shorten chains</UI> (the notice above the list, or the menu)
+          points every rule that leads into another redirect straight at the
+          final address, and leaves loops for you to fix.
+        </P>
+        <H3>Moving to a new site</H3>
+        <P>
+          <UI>Moving to a new site…</UI> builds the rules from two lists of
+          addresses: the old site's and the new one's. Each side can be pasted,
+          fetched from a <C>sitemap.xml</C> (indexes followed) or, for the new
+          side, taken from the pages this site's log has served.
+        </P>
+        <Steps>
+          <P>
+            Give the old addresses (paste, or <UI>Fetch</UI> the old sitemap
+            before it goes away).
+          </P>
+          <P>Give the new addresses the same way.</P>
+          <P>
+            Review: addresses that didn't move are left out, each other one gets
+            its closest new page (<UI>Close</UI> / <UI>Guess</UI>, edit any
+            target, untick to skip). Those with no match go to <UI>Send to</UI>{" "}
+            (the home page by default) or <UI>Gone (410)</UI>.
+          </P>
+          <P>
+            <UI>Add</UI>, then check the list and <UI>Save</UI>.
+          </P>
+        </Steps>
+        <H3>Changing many rules at once</H3>
+        <P>
+          On a computer, tick rows (the box in the header ticks everything
+          shown, so filter or search first). On a phone, pick{" "}
+          <UI>Select rules</UI> in the ⋯ menu and tap rows. Then turn them on or
+          off, change their answer (rules without a target are left alone unless
+          you pick 410), keep or drop the query string, export just those as
+          CSV, or remove them (<UI>Undo</UI> in the message brings them back).
+        </P>
+        <H3>Troubleshooting</H3>
+        <List>
+          <li>
+            <UI>A redirect doesn't happen</UI>: browsers remember 301s; try a
+            private window or <C>curl -I https://example.com/old</C>. Check the
+            rule isn't <UI>Off</UI> and that an exact rule with a query isn't
+            what you meant.
+          </li>
+          <li>
+            <UI>The wrong rule wins</UI>: an exact rule always beats a pattern;
+            between patterns the higher one wins, so move the narrower one up.
+          </li>
+          <li>
+            <UI>This sends the address to itself</UI>: the old and new address
+            are the same (case and a trailing slash don't count). Use{" "}
+            <UI>Tell /page and /page/ apart</UI> to redirect <C>/page</C> to{" "}
+            <C>/page/</C>.
+          </li>
+          <li>
+            <UI>A rule with countries never fires</UI>: the visitor-country
+            lookup is off, or the visitor's address isn't the real one behind a
+            CDN (set the real IP in Advanced).
+          </li>
+          <li>
+            <UI>Broken</UI> on a target that works in your browser: the site may
+            refuse the proxy server's address, or answer only after a login. Try{" "}
+            <C>curl -I</C> on the proxy server.
+          </li>
+          <li>
+            Certificate checks (<C>/.well-known/acme-challenge/</C>) are never
+            redirected, so renewing https keeps working.
+          </li>
+          <li>
+            Redirecting a whole domain? A <UI>Redirect</UI> site type does that
+            in one line (see Sites); use this tab for single addresses.
+          </li>
+        </List>
       </>
     ),
   },
