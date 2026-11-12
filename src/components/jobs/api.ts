@@ -101,6 +101,10 @@ export function refreshAfterJob(qc: QueryClient, job: Job) {
     qc.invalidateQueries({ queryKey: ["software"] })
     return
   }
+  if (job.kind.startsWith("docker-")) {
+    qc.invalidateQueries({ queryKey: ["docker"] })
+    return
+  }
   if (job.kind === "script-run") {
     qc.invalidateQueries({ queryKey: ["scripts"] })
     return

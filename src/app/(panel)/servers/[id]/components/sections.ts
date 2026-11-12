@@ -1,6 +1,7 @@
 import {
   CalendarClock,
   ChartLine,
+  Container,
   Cpu,
   Database,
   EthernetPort,
@@ -95,6 +96,13 @@ export const sectionGroups: SectionGroup[] = [
         label: "Processes",
         icon: Cpu,
         summary: "What is using CPU and memory right now.",
+        ready: true,
+      },
+      {
+        slug: "containers",
+        label: "Containers",
+        icon: Container,
+        summary: "Docker or Podman: containers, images, volumes and networks.",
         ready: true,
       },
       {

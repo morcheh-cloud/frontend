@@ -126,7 +126,9 @@ export const appLogos = [
   "k3s",
   "mariadb",
   "minio",
+  "mysql",
   "n8n",
+  "nginx",
   "nodedotjs",
   "podman",
   "portainer",
@@ -140,6 +142,7 @@ export const appLogos = [
   "uptimekuma",
   "vaultwarden",
   "wireguard",
+  "wordpress",
 ]
 // Near-black logos: turned light in the dark theme.
 export const inkLogos = new Set(["mariadb", "tailscale", "vaultwarden"])

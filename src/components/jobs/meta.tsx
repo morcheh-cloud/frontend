@@ -2,8 +2,11 @@ import {
   ArchiveRestore,
   ArrowLeftRight,
   BrickWallShield,
+  BrushCleaning,
   CalendarClock,
   ChartPie,
+  CircleArrowUp,
+  CloudDownload,
   Copy,
   DatabaseBackup,
   Download,
@@ -15,6 +18,7 @@ import {
   FolderSearch,
   Gauge,
   Image as ImageIcon,
+  Layers,
   LayoutGrid,
   ListChecks,
   ListRestart,
@@ -22,12 +26,13 @@ import {
   Package,
   PackageOpen,
   Play,
+  SearchCheck,
   Shield,
   ShieldBan,
   ShieldCheck,
   Split,
 } from "lucide-react"
-
+import { envHref } from "@/app/(panel)/containers/components/meta"
 import { backupsHref } from "@/app/(panel)/databases/[id]/components/backups/meta"
 import { filesHref } from "@/components/files/file-manager"
 import { formatSize } from "@/lib/format"
@@ -67,6 +72,29 @@ const icons: Record<string, LucideIcon> = {
   "software-scan": FolderSearch,
   "package-action": Package,
   "package-refresh": ListRestart,
+  "docker-pull": CloudDownload,
+  "docker-prune": BrushCleaning,
+  "docker-compose": Layers,
+  "docker-update-check": SearchCheck,
+  "docker-update": CircleArrowUp,
+  "docker-scan": ShieldCheck,
+}
+
+// Which Containers page a Docker job's results are on.
+function dockerJobPage(kind: string) {
+  switch (kind) {
+    case "docker-pull":
+      return "/containers/images"
+    case "docker-compose":
+      return "/containers/projects"
+    case "docker-update-check":
+    case "docker-update":
+      return "/containers/updates"
+    case "docker-scan":
+      return "/containers/security"
+    default:
+      return "/containers"
+  }
 }
 
 export function JobIcon({
@@ -206,6 +234,8 @@ export function placeHref(job: Job) {
     return `/servers/${job.refs[0]}/packages`
   if (job.kind.startsWith("proxy-") && job.refs[0])
     return `/proxy/${job.refs[0]}`
+  if (job.kind.startsWith("docker-") && t?.server_id)
+    return envHref(t.server_id, dockerJobPage(job.kind))
   if (!t?.path) return null
   const query = filesHref({ path: t.path })
   if (t.server_id) return `/servers/${t.server_id}/files${query}`
@@ -218,6 +248,12 @@ export function placeLabel(job: Job) {
   if (job.kind === "software-scan") return "Open applications"
   if (job.kind.startsWith("proxy-")) return "Open proxy"
   if (job.kind.startsWith("package-")) return "Open packages"
+  if (job.kind === "docker-pull") return "Open images"
+  if (job.kind === "docker-compose") return "Open projects"
+  if (job.kind === "docker-update-check" || job.kind === "docker-update")
+    return "Open updates"
+  if (job.kind === "docker-scan") return "Open security"
+  if (job.kind === "docker-prune") return "Open Docker"
   if (job.target?.database_id) return "Open backups"
   return job.target?.run_id ? "Open run" : "Open folder"
 }

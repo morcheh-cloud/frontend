@@ -1,23 +1,12 @@
 "use client"
 
-import {
-  ChevronRight,
-  ChevronsUpDown,
-  CircleUser,
-  LogOut,
-  Settings2,
-} from "lucide-react"
+import { ChevronsUpDown, CircleUser, LogOut, Settings2 } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 
 import { useAuth } from "@/components/auth/auth"
 import { atLeast } from "@/components/auth/level"
 import { ThemeMenuItems } from "@/components/theme-picker"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,30 +28,25 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
+import { DockerSidebarContent } from "./docker-sidebar"
 import {
-  currentChild,
+  containersItem,
   helpItem,
   isActive,
-  type NavItem,
   navGroups,
   settingsFor,
 } from "./nav"
-import { type NavAlert, useNavAlerts } from "./problems"
+import { NavEntry } from "./nav-entry"
+import { useNavAlerts } from "./problems"
 import { WithPathname } from "./with-pathname"
 import { useWorkspace, WorkspaceAvatar } from "./workspace"
 
 // Desktop navigation (md and up), after shadcn's sidebar-07 block: collapses
 // to an icon rail. Phones get the bottom tab bar instead.
 export function AppSidebar() {
-  const settings = useSettingsItem()
-  const alerts = useNavAlerts()
-
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
@@ -70,32 +54,7 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <WithPathname>
-        {(pathname) => (
-          <SidebarContent>
-            {navGroups.map((group) => (
-              <SidebarGroup key={group.label}>
-                <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
-                <SidebarMenu>
-                  {group.items.map((item) => (
-                    <NavEntry
-                      key={item.href}
-                      item={item}
-                      pathname={pathname}
-                      alert={alerts.get(item.href)}
-                    />
-                  ))}
-                </SidebarMenu>
-              </SidebarGroup>
-            ))}
-
-            <SidebarGroup className="mt-auto">
-              <SidebarMenu>
-                <NavEntry item={helpItem} pathname={pathname} />
-                {settings && <NavEntry item={settings} pathname={pathname} />}
-              </SidebarMenu>
-            </SidebarGroup>
-          </SidebarContent>
-        )}
+        {(pathname) => <SidebarBody pathname={pathname} />}
       </WithPathname>
 
       <SidebarFooter>
@@ -104,6 +63,59 @@ export function AppSidebar() {
 
       <SidebarRail />
     </Sidebar>
+  )
+}
+
+// Under /containers the sidebar shows the Containers menu instead (like
+// Arcane). "Main menu" goes back without leaving the page; the main menu's
+// Containers entry drills in again.
+function SidebarBody({ pathname }: { pathname: string }) {
+  const settings = useSettingsItem()
+  const alerts = useNavAlerts()
+  // The page where "Main menu" was pressed: the main menu stays until the
+  // page changes.
+  const [mainAt, setMainAt] = useState<string | null>(null)
+  const drill = () => setMainAt(null)
+
+  if (isActive(pathname, containersItem.href) && mainAt !== pathname) {
+    return (
+      <DockerSidebarContent
+        pathname={pathname}
+        onBack={() => setMainAt(pathname)}
+      />
+    )
+  }
+
+  return (
+    <SidebarContent
+      className={cn(
+        mainAt && "animate-in duration-200 slide-in-from-start-4 fade-in",
+      )}
+    >
+      {navGroups.map((group) => (
+        <SidebarGroup key={group.label}>
+          <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+          <SidebarMenu>
+            {group.items.map((item) => (
+              <NavEntry
+                key={item.href}
+                item={item}
+                pathname={pathname}
+                alert={alerts.get(item.href)}
+                onClick={item === containersItem ? drill : undefined}
+              />
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
+      ))}
+
+      <SidebarGroup className="mt-auto">
+        <SidebarMenu>
+          <NavEntry item={helpItem} pathname={pathname} />
+          {settings && <NavEntry item={settings} pathname={pathname} />}
+        </SidebarMenu>
+      </SidebarGroup>
+    </SidebarContent>
   )
 }
 
@@ -174,127 +186,6 @@ function WorkspaceSwitcher() {
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
-  )
-}
-
-function NavEntry({
-  item,
-  pathname,
-  alert,
-}: {
-  item: NavItem
-  pathname: string
-  alert?: NavAlert
-}) {
-  const Icon = item.icon
-  const active = isActive(pathname, item.href)
-
-  if (item.children) {
-    return (
-      <NavSection
-        item={item}
-        pathname={pathname}
-        active={active}
-        alert={alert}
-      />
-    )
-  }
-
-  return (
-    <SidebarMenuItem>
-      <SidebarMenuButton
-        render={<Link href={item.href} />}
-        isActive={active}
-        tooltip={tooltipFor(item, alert)}
-      >
-        <Icon />
-        <span>{item.label}</span>
-        {alert && <AlertCount alert={alert} />}
-      </SidebarMenuButton>
-    </SidebarMenuItem>
-  )
-}
-
-// A section that expands to its sub-pages. It opens by itself whenever
-// navigation lands inside it, and otherwise stays as the user left it.
-function NavSection({
-  item,
-  pathname,
-  active,
-  alert,
-}: {
-  item: NavItem
-  pathname: string
-  active: boolean
-  alert?: NavAlert
-}) {
-  const Icon = item.icon
-  const [open, setOpen] = useState(active)
-  const [wasActive, setWasActive] = useState(active)
-  if (active !== wasActive) {
-    setWasActive(active)
-    if (active) setOpen(true)
-  }
-  const current = currentChild(pathname, item.children ?? [])
-
-  return (
-    <Collapsible
-      open={open}
-      onOpenChange={setOpen}
-      className="group/collapsible"
-      render={<SidebarMenuItem />}
-    >
-      <CollapsibleTrigger
-        render={<SidebarMenuButton tooltip={tooltipFor(item, alert)} />}
-      >
-        <Icon />
-        <span>{item.label}</span>
-        {alert && <AlertCount alert={alert} />}
-        <ChevronRight
-          className={cn(
-            "transition-transform duration-200 group-data-open/collapsible:rotate-90",
-            !alert && "ms-auto",
-          )}
-        />
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <SidebarMenuSub>
-          {item.children?.map((child) => (
-            <SidebarMenuSubItem key={child.href}>
-              <SidebarMenuSubButton
-                render={<Link href={child.href} />}
-                isActive={child.href === current}
-              >
-                <span>{child.label}</span>
-              </SidebarMenuSubButton>
-            </SidebarMenuSubItem>
-          ))}
-        </SidebarMenuSub>
-      </CollapsibleContent>
-    </Collapsible>
-  )
-}
-
-const tooltipFor = (item: NavItem, alert?: NavAlert) =>
-  alert ? `${item.label} · ${alert.label}` : item.label
-
-// What's broken in the section (servers or storages that can't be reached…),
-// in red next to it; a dot on the icon when the sidebar is collapsed.
-function AlertCount({ alert: { count, label } }: { alert: NavAlert }) {
-  return (
-    <>
-      <span className="sr-only">, {label}</span>
-      <span
-        aria-hidden
-        className="ms-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive/10 px-1.5 text-caption font-medium text-destructive tabular-nums group-data-[collapsible=icon]:hidden"
-      >
-        {count > 99 ? "99+" : count}
-      </span>
-      <span
-        aria-hidden
-        className="absolute end-1 top-1 hidden size-2 rounded-full bg-destructive ring-2 ring-sidebar group-data-[collapsible=icon]:block"
-      />
-    </>
   )
 }
 

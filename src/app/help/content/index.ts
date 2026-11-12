@@ -4,6 +4,7 @@ import { alerts } from "./alerts"
 import { ansible } from "./ansible"
 import { applications } from "./applications"
 import { commandLog } from "./command-log"
+import { containers } from "./containers"
 import { cron } from "./cron"
 import { cronjobs } from "./cronjobs"
 import { databases } from "./databases"
@@ -53,6 +54,7 @@ export const content: Record<string, GuideSection[]> = {
   users,
   services,
   processes,
+  containers,
   packages,
   power,
   databases,

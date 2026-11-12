@@ -15,6 +15,7 @@ import {
   alertsItem,
   ansibleItem,
   applicationsItem,
+  containersItem,
   cronjobsItem,
   databasesItem,
   dnsItem,
@@ -43,6 +44,7 @@ const tabItems = [homeItem, serversItem, servicesItem, uptimeItem]
 const moreItems = [
   tasksItem,
   networkMapItem,
+  containersItem,
   databasesItem,
   storageItem,
   dnsItem,

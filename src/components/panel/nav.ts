@@ -3,22 +3,34 @@ import {
   Bell,
   Boxes,
   CalendarClock,
+  CircleArrowUp,
   CircleHelp,
   CircleUser,
+  Container,
   Database,
+  Disc3,
   FileCode,
   Globe,
   HardDrive,
   HeartPulse,
   House,
   KeyRound,
+  Layers,
+  LayoutDashboard,
   LayoutGrid,
+  LayoutTemplate,
   ListChecks,
+  Logs,
   type LucideIcon,
+  Network,
+  Palette,
   ScrollText,
   Server,
+  ServerCog,
   Settings,
+  ShieldCheck,
   Split,
+  Warehouse,
   Waypoints,
   Workflow,
 } from "lucide-react"
@@ -40,6 +52,76 @@ export const networkMapItem: NavItem = {
   label: "Network map",
   icon: Waypoints,
 }
+// Docker / Podman on every server: containers, images, volumes, networks.
+export const containersItem: NavItem = {
+  href: "/containers",
+  label: "Containers",
+  icon: Container,
+}
+
+// The Containers section has its own sidebar (like Arcane's): clicking
+// Containers swaps the main menu for these groups, with a way back.
+export const dockerGroups: NavGroup[] = [
+  {
+    label: "Management",
+    items: [
+      { href: "/containers", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/containers/updates", label: "Updates", icon: CircleArrowUp },
+      { href: "/containers/security", label: "Security", icon: ShieldCheck },
+      { href: "/containers/projects", label: "Projects", icon: Layers },
+      {
+        href: "/containers/environments",
+        label: "Environments",
+        icon: ServerCog,
+      },
+    ],
+  },
+  {
+    label: "Resources",
+    items: [
+      { href: "/containers/list", label: "Containers", icon: Container },
+      { href: "/containers/images", label: "Images", icon: Disc3 },
+      { href: "/containers/networks", label: "Networks", icon: Network },
+      { href: "/containers/volumes", label: "Volumes", icon: HardDrive },
+    ],
+  },
+  {
+    label: "Administration",
+    items: [
+      { href: "/containers/events", label: "Event log", icon: Logs },
+      {
+        href: "/containers/templates",
+        label: "Customization",
+        icon: Palette,
+        children: [
+          { href: "/containers/templates", label: "Templates" },
+          { href: "/containers/registries", label: "Registries" },
+        ],
+      },
+      { href: "/containers/settings", label: "Settings", icon: Settings },
+    ],
+  },
+]
+
+// Every Containers page, children included, for breadcrumbs and phone rows.
+export const dockerPages: NavItem[] = dockerGroups.flatMap((g) =>
+  g.items.flatMap((item) =>
+    item.children
+      ? item.children.map((c) => ({
+          ...c,
+          icon: c.href.endsWith("registries") ? Warehouse : LayoutTemplate,
+        }))
+      : [item],
+  ),
+)
+
+// The Containers page that owns a path: the longest match, so
+// /containers/projects/x is Projects and not the Dashboard.
+export function dockerPageFor(pathname: string) {
+  const href = currentChild(pathname, dockerPages)
+  return dockerPages.find((p) => p.href === href)
+}
+
 export const storageItem: NavItem = {
   href: "/storage",
   label: "Storage",
@@ -157,6 +239,7 @@ export const navGroups: NavGroup[] = [
     items: [
       serversItem,
       networkMapItem,
+      containersItem,
       databasesItem,
       storageItem,
       dnsItem,
@@ -214,6 +297,11 @@ export function currentChild(pathname: string, children: NavLink[]) {
 export function breadcrumbFor(pathname: string): NavLink[] {
   const section = allItems.find((item) => isActive(pathname, item.href))
   if (!section) return []
+  if (section === containersItem) {
+    const page = dockerPageFor(pathname)
+    if (!page || page.href === section.href) return [section]
+    return [section, page]
+  }
 
   const child = section.children?.find(
     (c) => c.href === currentChild(pathname, section.children ?? []),
