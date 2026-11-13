@@ -4,13 +4,10 @@ import {
   CircleStop,
   Container,
   FolderGit2,
-  HardDrive,
-  Layers,
   List,
   Play,
   Plus,
   RotateCw,
-  Ruler,
   Sparkles,
   Trash2,
   TriangleAlert,
@@ -21,13 +18,7 @@ import { type ReactNode, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatSize } from "@/lib/format"
-import type {
-  DockerEngine,
-  DockerImage,
-  DockerNetwork,
-  DockerVolume,
-  Server,
-} from "@/lib/services"
+import type { DockerEngine, DockerNetwork, Server } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import {
   Empty,
@@ -49,12 +40,8 @@ import {
   ContainersTable,
   type ServerInfo,
 } from "./container-list"
-import {
-  useDockerActions,
-  useImageMenu,
-  useNetworkMenu,
-  useVolumeMenu,
-} from "./docker-actions"
+import { useDockerActions, useNetworkMenu } from "./docker-actions"
+import { ImagesTab } from "./images-tab"
 import {
   BulkBar,
   NoMatch,
@@ -72,16 +59,15 @@ import {
   engineName,
   engineStateMeta,
   groupByProject,
-  imageName,
   matches,
   type Show,
-  shortId,
   showLabels,
   useDockerFilters,
   viaLabel,
 } from "./meta"
 import { Block, Pairs, StackBar } from "./parts"
 import { type DockerCan, useDockerCan } from "./permissions"
+import { VolumesTab } from "./volumes-tab"
 
 type Ctx = {
   server: Server
@@ -166,8 +152,8 @@ export function DockerView({
   return (
     <>
       {tab === "containers" && <ContainersTab ctx={ctx} aside={aside} />}
-      {tab === "images" && <ImagesTab ctx={ctx} aside={aside} />}
-      {tab === "volumes" && <VolumesTab ctx={ctx} aside={aside} />}
+      {tab === "images" && <ImagesTab {...ctx} aside={aside} />}
+      {tab === "volumes" && <VolumesTab {...ctx} aside={aside} />}
       {tab === "networks" && <NetworksTab ctx={ctx} aside={aside} />}
       {tab === "system" && (
         <SystemTab ctx={ctx} engine={engine.data} aside={aside} />
@@ -363,495 +349,6 @@ function ContainersTab({ ctx, aside }: { ctx: Ctx; aside?: ReactNode }) {
         />
       )}
     </div>
-  )
-}
-
-// --- Images ----------------------------------------------------------------
-
-const imageShows = ["all", "used", "unused", "dangling"] as const
-type ImageShow = (typeof imageShows)[number]
-
-function ImagesTab({ ctx, aside }: { ctx: Ctx; aside?: ReactNode }) {
-  const { server, phone, can } = ctx
-  const a = useDockerActions()
-  const list = useDockerImages(server.id)
-  const [filters, setFilters] = useDockerFilters()
-  const [show, setShow] = useState<ImageShow>("all")
-  const all = [...(list.data ?? [])].sort(
-    (x, y) => Number(x.dangling) - Number(y.dangling) || y.size - x.size,
-  )
-  const q = filters.q.trim().toLowerCase()
-  const shown = all.filter(
-    (i) =>
-      (show === "all" ||
-        (show === "used" && i.containers > 0) ||
-        (show === "unused" && i.containers === 0) ||
-        (show === "dangling" && i.dangling)) &&
-      (!q ||
-        i.tags.some((t) => t.toLowerCase().includes(q)) ||
-        shortId(i.id).startsWith(q)),
-  )
-  const n = {
-    all: all.length,
-    used: all.filter((i) => i.containers > 0).length,
-    unused: all.filter((i) => i.containers === 0).length,
-    dangling: all.filter((i) => i.dangling).length,
-  }
-  const total = all.reduce((s, i) => s + i.size, 0)
-  const labels: Record<ImageShow, string> = {
-    all: "All",
-    used: "In use",
-    unused: "Unused",
-    dangling: "Dangling",
-  }
-
-  let body: ReactNode
-  if (list.isPending) body = <ListSkeleton phone={phone} />
-  else if (all.length === 0)
-    body = (
-      <Empty
-        icon={Layers}
-        title="No images"
-        body="Pull one to run it, or let docker compose pull what it needs."
-        className="max-md:mt-4"
-        action={
-          can.manage && (
-            <Button onClick={() => a.pull(server.id)}>Pull an image</Button>
-          )
-        }
-      />
-    )
-  else if (shown.length === 0)
-    body = (
-      <NoMatch
-        onReset={() => {
-          setShow("all")
-          setFilters({ q: null })
-        }}
-      />
-    )
-  else if (phone)
-    body = (
-      <Rows>
-        {shown.map((i) => (
-          <ImagePhoneRow key={i.id} image={i} ctx={ctx} />
-        ))}
-      </Rows>
-    )
-  else
-    body = (
-      <Table
-        head={[
-          { label: "Image" },
-          { label: "ID", className: "hidden @2xl:table-cell" },
-          { label: "Used by" },
-          { label: "Size", className: "text-end" },
-          { label: "Created", className: "hidden @3xl:table-cell" },
-        ]}
-      >
-        {shown.map((i) => (
-          <ImageRow key={i.id} image={i} ctx={ctx} />
-        ))}
-      </Table>
-    )
-
-  return (
-    <div className="flex flex-col gap-4 max-md:gap-0">
-      <Bar
-        ctx={ctx}
-        aside={aside}
-        search={
-          <SearchBox
-            value={filters.q}
-            onChange={(v) => setFilters({ q: v || null })}
-            placeholder="Search name, tag or ID"
-            label="Search images"
-            className="min-w-0 flex-1 md:max-w-64 md:min-w-36"
-          />
-        }
-        filters={
-          <Segmented<ImageShow>
-            label="Show"
-            items={imageShows.map((v) => ({
-              value: v,
-              label: `${labels[v]} · ${n[v]}`,
-            }))}
-            value={show}
-            onChange={setShow}
-          />
-        }
-        caption={list.data && `${formatSize(total)} in all`}
-        refresh={{ busy: list.isFetching, run: () => list.refetch() }}
-        primary={
-          can.manage
-            ? {
-                label: "Pull image",
-                icon: <Plus />,
-                run: () => a.pull(server.id),
-              }
-            : undefined
-        }
-      />
-      {can.manage && n.unused > 0 && show !== "used" && (
-        <Notices
-          className="max-md:mt-0"
-          notes={[
-            {
-              key: "unused",
-              title: `${n.unused} image${n.unused === 1 ? "" : "s"} no container uses`,
-              body: "Removing what nothing runs frees disk space; they can be pulled again any time.",
-              action: (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    a.prune(server.id, {
-                      images: n.dangling === n.unused ? "dangling" : "all",
-                    })
-                  }
-                >
-                  <Sparkles />
-                  Clean up
-                </Button>
-              ),
-            },
-          ]}
-        />
-      )}
-      <Body ctx={ctx}>{body}</Body>
-    </div>
-  )
-}
-
-function imageTitle(i: DockerImage) {
-  return i.tags[0] ? imageName(i.tags[0]) : `<none> ${shortId(i.id)}`
-}
-
-function ImageRow({ image: i, ctx }: { image: DockerImage; ctx: Ctx }) {
-  const a = useDockerActions()
-  const menu = useImageMenu(ctx.server.id, i, ctx.can)
-  return (
-    <Tr
-      label={imageTitle(i)}
-      menu={menu}
-      onOpen={() => a.image(ctx.server.id, i, ctx.can)}
-      cells={[
-        {
-          node: (
-            <span className="flex min-w-0 flex-col">
-              <span className="truncate font-medium">
-                {imageTitle(i)}
-                {i.dangling && <Tag tone="warning">Dangling</Tag>}
-              </span>
-              {i.tags.length > 1 && (
-                <span className="truncate text-caption text-ash">
-                  also {i.tags.slice(1).map(imageName).join(", ")}
-                </span>
-              )}
-            </span>
-          ),
-        },
-        {
-          node: (
-            <span className="font-mono text-caption text-muted-foreground">
-              {shortId(i.id)}
-            </span>
-          ),
-          className: "hidden @2xl:table-cell",
-        },
-        {
-          node:
-            i.containers > 0 ? (
-              `${i.containers} container${i.containers === 1 ? "" : "s"}`
-            ) : (
-              <span className="text-ash">Unused</span>
-            ),
-        },
-        { node: formatSize(i.size), className: "text-end tabular-nums" },
-        {
-          node: (
-            <span className="text-muted-foreground">{timeAgo(i.created)}</span>
-          ),
-          className: "hidden @3xl:table-cell",
-        },
-      ]}
-    />
-  )
-}
-
-function ImagePhoneRow({ image: i, ctx }: { image: DockerImage; ctx: Ctx }) {
-  const a = useDockerActions()
-  const menu = useImageMenu(ctx.server.id, i, ctx.can)
-  return (
-    <PhoneRow
-      id={i.id}
-      title={imageTitle(i)}
-      sub={`${formatSize(i.size)} · ${i.containers > 0 ? `${i.containers} using it` : "unused"} · ${timeAgo(i.created)}`}
-      menu={menu}
-      onOpen={() => a.image(ctx.server.id, i, ctx.can)}
-    />
-  )
-}
-
-// --- Volumes ---------------------------------------------------------------
-
-const volumeShows = ["all", "used", "unused"] as const
-type VolumeShow = (typeof volumeShows)[number]
-
-function VolumesTab({ ctx, aside }: { ctx: Ctx; aside?: ReactNode }) {
-  const { server, phone, can } = ctx
-  const a = useDockerActions()
-  // Sizes cost a du over every volume: only when asked.
-  const [sizes, setSizes] = useState(false)
-  const list = useDockerVolumes(server.id, sizes)
-  const [filters, setFilters] = useDockerFilters()
-  const [show, setShow] = useState<VolumeShow>("all")
-  const all = [...(list.data ?? [])].sort(
-    (x, y) =>
-      Number(x.anonymous) - Number(y.anonymous) ||
-      (x.project ?? "").localeCompare(y.project ?? "") ||
-      x.name.localeCompare(y.name),
-  )
-  const q = filters.q.trim().toLowerCase()
-  const shown = all.filter(
-    (v) =>
-      (show === "all" ||
-        (show === "used" && v.used_by.length > 0) ||
-        (show === "unused" && v.used_by.length === 0)) &&
-      (!q ||
-        v.name.toLowerCase().includes(q) ||
-        (v.project ?? "").toLowerCase().includes(q)),
-  )
-  const n = {
-    all: all.length,
-    used: all.filter((v) => v.used_by.length > 0).length,
-    unused: all.filter((v) => v.used_by.length === 0).length,
-  }
-  const measured = sizes && !list.isPlaceholderData && list.data
-  const labels: Record<VolumeShow, string> = {
-    all: "All",
-    used: "In use",
-    unused: "Unused",
-  }
-
-  let body: ReactNode
-  if (list.isPending) body = <ListSkeleton phone={phone} />
-  else if (all.length === 0)
-    body = (
-      <Empty
-        icon={HardDrive}
-        title="No volumes"
-        body="Volumes keep a container's data when it's removed or recreated. Compose projects make theirs on the way up."
-        className="max-md:mt-4"
-        action={
-          can.manage && (
-            <Button onClick={() => a.newVolume(server.id)}>New volume</Button>
-          )
-        }
-      />
-    )
-  else if (shown.length === 0)
-    body = (
-      <NoMatch
-        onReset={() => {
-          setShow("all")
-          setFilters({ q: null })
-        }}
-      />
-    )
-  else if (phone)
-    body = (
-      <Rows>
-        {shown.map((v) => (
-          <VolumePhoneRow key={v.name} v={v} ctx={ctx} measured={!!measured} />
-        ))}
-      </Rows>
-    )
-  else
-    body = (
-      <Table
-        head={[
-          { label: "Name" },
-          { label: "Used by" },
-          { label: "Driver", className: "hidden @2xl:table-cell" },
-          { label: "Size", className: "text-end" },
-          { label: "Created", className: "hidden @3xl:table-cell" },
-        ]}
-      >
-        {shown.map((v) => (
-          <VolumeRow key={v.name} v={v} ctx={ctx} measured={!!measured} />
-        ))}
-      </Table>
-    )
-
-  const measure = (
-    <Button
-      variant="outline"
-      size={phone ? "icon-lg" : "sm"}
-      className="md:h-9"
-      aria-label="Measure sizes"
-      title="Measure every volume's size (du on the server)"
-      disabled={sizes && list.isFetching}
-      onClick={() => (sizes ? list.refetch() : setSizes(true))}
-    >
-      <Ruler className={cn(sizes && list.isFetching && "animate-pulse")} />
-      {!phone && (sizes && list.isFetching ? "Measuring…" : "Measure sizes")}
-    </Button>
-  )
-
-  return (
-    <div className="flex flex-col gap-4 max-md:gap-0">
-      <Bar
-        ctx={ctx}
-        aside={
-          <>
-            {measure}
-            {aside}
-          </>
-        }
-        search={
-          <SearchBox
-            value={filters.q}
-            onChange={(v) => setFilters({ q: v || null })}
-            placeholder="Search name or project"
-            label="Search volumes"
-            className="min-w-0 flex-1 md:max-w-64 md:min-w-36"
-          />
-        }
-        filters={
-          <>
-            <Segmented<VolumeShow>
-              label="Show"
-              items={volumeShows.map((v) => ({
-                value: v,
-                label: `${labels[v]} · ${n[v]}`,
-              }))}
-              value={show}
-              onChange={setShow}
-            />
-            {phone && measure}
-          </>
-        }
-        caption={
-          measured
-            ? `${formatSize(all.reduce((s, v) => s + Math.max(0, v.size), 0))} in all`
-            : undefined
-        }
-        refresh={{ busy: list.isFetching, run: () => list.refetch() }}
-        primary={
-          can.manage
-            ? {
-                label: "New volume",
-                icon: <Plus />,
-                run: () => a.newVolume(server.id),
-              }
-            : undefined
-        }
-      />
-      <Body ctx={ctx}>{body}</Body>
-    </div>
-  )
-}
-
-function volumeTitle(v: DockerVolume) {
-  return v.anonymous ? shortId(v.name) : v.name
-}
-
-function sizeText(v: DockerVolume, measured: boolean) {
-  if (!measured) return null
-  return v.size >= 0 ? formatSize(v.size) : "—"
-}
-
-function usedText(v: DockerVolume) {
-  if (v.used_by.length === 0) return null
-  if (v.used_by.length === 1) return v.used_by[0].name
-  return `${v.used_by[0].name} +${v.used_by.length - 1}`
-}
-
-function VolumeRow({
-  v,
-  ctx,
-  measured,
-}: {
-  v: DockerVolume
-  ctx: Ctx
-  measured: boolean
-}) {
-  const a = useDockerActions()
-  const menu = useVolumeMenu(ctx.server.id, v, ctx.can)
-  return (
-    <Tr
-      label={volumeTitle(v)}
-      menu={menu}
-      onOpen={() => a.volume(ctx.server.id, v.name, ctx.can)}
-      cells={[
-        {
-          node: (
-            <span className="flex min-w-0 flex-col">
-              <span className="truncate font-medium">
-                {volumeTitle(v)}
-                {v.anonymous && <Tag>Anonymous</Tag>}
-              </span>
-              {v.project && (
-                <span className="truncate text-caption text-ash">
-                  {v.project}
-                </span>
-              )}
-            </span>
-          ),
-        },
-        {
-          node: usedText(v) ?? <span className="text-ash">Unused</span>,
-          className: "max-w-56 truncate",
-        },
-        {
-          node: <span className="text-muted-foreground">{v.driver}</span>,
-          className: "hidden @2xl:table-cell",
-        },
-        {
-          node: sizeText(v, measured) ?? <span className="text-ash">—</span>,
-          className: "text-end tabular-nums",
-        },
-        {
-          node: (
-            <span className="text-muted-foreground">
-              {v.created ? timeAgo(v.created) : "—"}
-            </span>
-          ),
-          className: "hidden @3xl:table-cell",
-        },
-      ]}
-    />
-  )
-}
-
-function VolumePhoneRow({
-  v,
-  ctx,
-  measured,
-}: {
-  v: DockerVolume
-  ctx: Ctx
-  measured: boolean
-}) {
-  const a = useDockerActions()
-  const menu = useVolumeMenu(ctx.server.id, v, ctx.can)
-  const size = sizeText(v, measured)
-  return (
-    <PhoneRow
-      id={v.name}
-      title={volumeTitle(v)}
-      sub={[
-        usedText(v) ?? "Unused",
-        v.project,
-        size,
-        v.anonymous ? "anonymous" : null,
-      ]
-        .filter(Boolean)
-        .join(" · ")}
-      menu={menu}
-      onOpen={() => a.volume(ctx.server.id, v.name, ctx.can)}
-    />
   )
 }
 

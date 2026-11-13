@@ -1,6 +1,7 @@
 import {
   Activity,
   Bell,
+  BellRing,
   Boxes,
   CalendarClock,
   CircleArrowUp,
@@ -88,6 +89,7 @@ export const dockerGroups: NavGroup[] = [
   {
     label: "Administration",
     items: [
+      { href: "/containers/alerts", label: "Alerts", icon: BellRing },
       { href: "/containers/events", label: "Event log", icon: Logs },
       {
         href: "/containers/templates",

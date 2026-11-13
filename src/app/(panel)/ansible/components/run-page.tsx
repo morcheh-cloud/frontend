@@ -32,6 +32,7 @@ import {
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
 import { AnsiText, stripAnsi } from "@/components/ansi"
 import { BottomSheet } from "@/components/bottom-sheet"
+import { type DiffLine as Line, lineDiff } from "@/components/diff"
 import { usePageCrumbs } from "@/components/panel/breadcrumbs"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -655,8 +656,6 @@ type DiffEntry = {
   prepared?: string
 }
 
-type Line = { kind: " " | "+" | "-" | "@"; text: string }
-
 function DiffView({ diff }: { diff: unknown }) {
   const entries = (Array.isArray(diff) ? diff : [diff]).filter(
     (d): d is DiffEntry => !!d && typeof d === "object",
@@ -721,71 +720,6 @@ function diffLines(d: DiffEntry): { header: string; lines: Line[] } {
       ? `${d.before_header} → ${d.after_header}`
       : (d.after_header ?? d.before_header ?? "")
   return { header, lines: lineDiff(before, after) }
-}
-
-// Lines added and removed, with 2 lines of context around each change.
-function lineDiff(before: string, after: string): Line[] {
-  const a = before.split("\n")
-  const b = after.split("\n")
-  if (a.at(-1) === "") a.pop()
-  if (b.at(-1) === "") b.pop()
-  let all: Line[]
-  if (a.length * b.length > 4_000_000) {
-    all = [
-      ...a.map((text) => ({ kind: "-" as const, text })),
-      ...b.map((text) => ({ kind: "+" as const, text })),
-    ]
-  } else {
-    // Longest common subsequence, walked from the end.
-    const n = a.length
-    const m = b.length
-    const dp = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1))
-    for (let i = n - 1; i >= 0; i--) {
-      for (let j = m - 1; j >= 0; j--) {
-        dp[i][j] =
-          a[i] === b[j]
-            ? dp[i + 1][j + 1] + 1
-            : Math.max(dp[i + 1][j], dp[i][j + 1])
-      }
-    }
-    all = []
-    let i = 0
-    let j = 0
-    while (i < n && j < m) {
-      if (a[i] === b[j]) {
-        all.push({ kind: " ", text: a[i] })
-        i++
-        j++
-      } else if (dp[i + 1][j] >= dp[i][j + 1]) {
-        all.push({ kind: "-", text: a[i++] })
-      } else {
-        all.push({ kind: "+", text: b[j++] })
-      }
-    }
-    while (i < n) all.push({ kind: "-", text: a[i++] })
-    while (j < m) all.push({ kind: "+", text: b[j++] })
-  }
-  const keep = all.map(() => false)
-  all.forEach((l, i) => {
-    if (l.kind === " ") return
-    for (
-      let k = Math.max(0, i - 2);
-      k <= Math.min(all.length - 1, i + 2);
-      k++
-    ) {
-      keep[k] = true
-    }
-  })
-  const out: Line[] = []
-  let skipped = false
-  all.forEach((l, i) => {
-    if (keep[i]) {
-      if (skipped && out.length > 0) out.push({ kind: "@", text: "⋯" })
-      skipped = false
-      out.push(l)
-    } else skipped = true
-  })
-  return out
 }
 
 // ---- Servers ----

@@ -1,6 +1,17 @@
 "use client"
 
-import { Link2, Tag, Trash2, Unlink } from "lucide-react"
+import {
+  ArrowRight,
+  Download,
+  HardDriveUpload,
+  Layers,
+  Link2,
+  PlayCircle,
+  ShieldCheck,
+  Tag,
+  Trash2,
+  Unlink,
+} from "lucide-react"
 import Link from "next/link"
 import type { ReactNode } from "react"
 
@@ -16,8 +27,17 @@ import type {
 import { cn } from "@/lib/utils"
 import { timeAgo } from "../../servers/components/meta"
 import { useDockerImage, useDockerNetworks, useDockerVolumes } from "../api"
+import {
+  securityHref,
+  updatesHref,
+  useImageFacts,
+  VulnSummary,
+} from "./image-meta"
 import { containerHref, Dot, imageName, shortId, stateOf } from "./meta"
 import { Block, CopyButton, Layer, Pairs, Quiet } from "./parts"
+import type { DockerCan } from "./permissions"
+import { updateMeta } from "./updates-view"
+import { VolumeBackups } from "./volume-backups"
 
 type Base = {
   server: string
@@ -90,6 +110,36 @@ function Act({
 
 // --- Image -----------------------------------------------------------------
 
+function StatusRow({
+  label,
+  href,
+  children,
+}: {
+  label: string
+  href?: string
+  children: ReactNode
+}) {
+  const body = (
+    <>
+      <span className="w-32 shrink-0 text-muted-foreground">{label}</span>
+      <span className="min-w-0 flex-1">{children}</span>
+      {href && <ArrowRight className="size-4 shrink-0 text-ash" />}
+    </>
+  )
+  return href ? (
+    <Link
+      href={href}
+      className="flex min-h-11 items-center gap-3 px-3 py-2 hover:bg-muted md:min-h-10"
+    >
+      {body}
+    </Link>
+  ) : (
+    <div className="flex min-h-11 items-center gap-3 px-3 py-2 md:min-h-10">
+      {body}
+    </div>
+  )
+}
+
 export function ImageDetails({
   server,
   image,
@@ -98,15 +148,27 @@ export function ImageDetails({
   manage,
   onTag,
   onRemove,
+  onPull,
+  onScan,
+  onLayers,
+  onRun,
 }: Base & {
   image: DockerImage
   manage: boolean
   onTag: () => void
   onRemove: () => void
+  onPull: (ref: string) => void
+  onScan: () => void
+  onLayers: () => void
+  onRun: () => void
 }) {
   const q = useDockerImage(server, open ? image.id : null)
   const d = q.data
-  const title = image.tags[0] ? imageName(image.tags[0]) : shortId(image.id)
+  const facts = useImageFacts(server, open)
+  const f = facts.of(image)
+  const ref = image.tags[0] ? imageName(image.tags[0]) : ""
+  const title = ref || shortId(image.id)
+  const biggest = Math.max(1, ...(d?.history.map((h) => h.size) ?? []))
   return (
     <Layer
       open={open}
@@ -120,6 +182,16 @@ export function ImageDetails({
       actions={
         manage ? (
           <>
+            <Act icon={<PlayCircle />} label="Run" onClick={onRun} />
+            <Act icon={<Layers />} label="Layers" onClick={onLayers} />
+            {ref && (
+              <Act
+                icon={<Download />}
+                label="Pull again"
+                onClick={() => onPull(ref)}
+              />
+            )}
+            <Act icon={<ShieldCheck />} label="Scan" onClick={onScan} />
             <Act icon={<Tag />} label="Add tag" onClick={onTag} />
             <Act
               icon={<Trash2 />}
@@ -131,6 +203,58 @@ export function ImageDetails({
         ) : null
       }
     >
+      <Block title="Status">
+        <div className="divide-y divide-border overflow-hidden rounded-xl border border-border text-body-sm">
+          <StatusRow
+            label="Updates"
+            href={ref ? updatesHref(server, ref) : undefined}
+          >
+            {f.update ? (
+              <span className="flex items-center gap-2">
+                <Dot tone={updateMeta[f.update.state].tone} />
+                <span>{updateMeta[f.update.state].label}</span>
+              </span>
+            ) : (
+              <span className="text-ash">
+                {f.users.length === 0
+                  ? "Checked only for images in use"
+                  : "Not checked yet"}
+              </span>
+            )}
+          </StatusRow>
+          <StatusRow
+            label="Vulnerabilities"
+            href={securityHref(server, ref || shortId(image.id))}
+          >
+            {f.scan?.scanned && f.scan.counts ? (
+              <span className="flex flex-col">
+                <VulnSummary counts={f.scan.counts} />
+                {f.scan.scanned_at && (
+                  <span className="text-caption text-ash">
+                    Scanned {timeAgo(f.scan.scanned_at)}
+                    {f.scan.counts.fixable > 0 &&
+                      ` · ${f.scan.counts.fixable} fixable`}
+                  </span>
+                )}
+              </span>
+            ) : f.scan?.error ? (
+              <span className="text-destructive">Scan failed</span>
+            ) : (
+              <span className="text-ash">Not scanned</span>
+            )}
+          </StatusRow>
+        </div>
+      </Block>
+      {ref && (
+        <Block title="Get it elsewhere">
+          <div className="flex items-center gap-2 rounded-xl border border-border bg-subtle px-3 py-2">
+            <code className="min-w-0 flex-1 truncate font-mono text-caption">
+              docker pull {ref}
+            </code>
+            <CopyButton value={`docker pull ${ref}`} label="Copy command" />
+          </div>
+        </Block>
+      )}
       {q.isPending ? (
         <div className="flex flex-col gap-3">
           <Skeleton className="h-32 rounded-xl" />
@@ -221,8 +345,26 @@ export function ImageDetails({
                   key={i}
                   className="flex gap-3 px-3 py-2 text-caption"
                 >
-                  <span className="w-16 shrink-0 text-end text-muted-foreground tabular-nums">
-                    {h.size ? formatSize(h.size) : "0 B"}
+                  <span className="flex w-16 shrink-0 flex-col items-end gap-1 pt-0.5">
+                    <span
+                      className={cn(
+                        "tabular-nums",
+                        h.size / biggest >= 0.5 && h.size > 1 << 20
+                          ? "font-medium text-foreground"
+                          : "text-muted-foreground",
+                      )}
+                    >
+                      {h.size ? formatSize(h.size) : "0 B"}
+                    </span>
+                    {h.size > 0 && (
+                      <span
+                        aria-hidden
+                        className="h-1 rounded-full bg-brand/60"
+                        style={{
+                          width: `${Math.max(4, (h.size / biggest) * 100)}%`,
+                        }}
+                      />
+                    )}
                   </span>
                   <code className="min-w-0 flex-1 font-mono break-all whitespace-pre-wrap">
                     {h.created_by
@@ -246,13 +388,16 @@ export function VolumeDetails({
   name,
   open,
   onOpenChange,
-  manage,
+  can,
+  onBackup,
   onRemove,
 }: Base & {
   name: string
-  manage: boolean
+  can: DockerCan
+  onBackup: (v: DockerVolume) => void
   onRemove: (v: DockerVolume) => void
 }) {
+  const manage = can.manage
   const list = useDockerVolumes(server, false, open)
   const v = list.data?.find((x) => x.name === name)
   return (
@@ -263,12 +408,19 @@ export function VolumeDetails({
       subtitle={v ? `${v.driver} volume` : undefined}
       actions={
         manage && v ? (
-          <Act
-            icon={<Trash2 />}
-            label="Remove"
-            destructive
-            onClick={() => onRemove(v)}
-          />
+          <>
+            <Act
+              icon={<HardDriveUpload />}
+              label="Back up"
+              onClick={() => onBackup(v)}
+            />
+            <Act
+              icon={<Trash2 />}
+              label="Remove"
+              destructive
+              onClick={() => onRemove(v)}
+            />
+          </>
         ) : null
       }
     >
@@ -307,6 +459,15 @@ export function VolumeDetails({
           </Block>
           <Block title={`Used by · ${v.used_by.length}`}>
             <UsedBy server={server} refs={v.used_by} />
+          </Block>
+          <Block title="Copies on storages">
+            <VolumeBackups
+              server={server}
+              volume={v.name}
+              can={can}
+              enabled={open}
+              onBackup={() => onBackup(v)}
+            />
           </Block>
           {Object.keys(v.options).length > 0 && (
             <Block title="Driver options">

@@ -44,7 +44,7 @@ function readStored(key: string, fallback: boolean) {
   }
 }
 
-function useStoredFlag(key: string, fallback: boolean) {
+export function useStoredFlag(key: string, fallback: boolean) {
   const [on, setOn] = useState(fallback)
   useEffect(() => setOn(readStored(key, fallback)), [key, fallback])
   return [
@@ -58,7 +58,7 @@ function useStoredFlag(key: string, fallback: boolean) {
   ] as const
 }
 
-function clock(t?: string) {
+export function clock(t?: string) {
   if (!t) return ""
   const d = new Date(t)
   if (Number.isNaN(d.getTime())) return ""

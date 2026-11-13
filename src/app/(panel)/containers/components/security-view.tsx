@@ -39,6 +39,7 @@ import {
   useDockerScans,
   useScanImages,
 } from "../api"
+import { VulnAlertButton } from "./container-alerts"
 import { EnvPage } from "./env-page"
 import { BulkBar, NoMatch, PageBar, PhoneRow, Rows } from "./kit"
 import { shortId } from "./meta"
@@ -411,20 +412,24 @@ export function SecurityView({
         caption={caption}
         refresh={{ busy: query.isFetching, run: () => query.refetch() }}
         aside={
-          !phone &&
-          can.manage &&
-          unscanned.length > 0 &&
-          unscanned.length < items.length && (
-            <Button
-              variant="outline"
-              disabled={busy}
-              onClick={() =>
-                runScan({ images: unscanned.map((s) => s.image_id) })
-              }
-            >
-              <ScanSearch />
-              Scan {unscanned.length} new
-            </Button>
+          !phone && (
+            <>
+              <VulnAlertButton server={{ id, name: env.name }} phone={phone} />
+              {can.manage &&
+                unscanned.length > 0 &&
+                unscanned.length < items.length && (
+                  <Button
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() =>
+                      runScan({ images: unscanned.map((s) => s.image_id) })
+                    }
+                  >
+                    <ScanSearch />
+                    Scan {unscanned.length} new
+                  </Button>
+                )}
+            </>
           )
         }
         primary={

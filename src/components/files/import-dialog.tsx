@@ -56,13 +56,15 @@ function ImportForm({ dir, onClose }: { dir: string; onClose: () => void }) {
   const moving = move && canMove
 
   const send = useMutation<Job, ApiError, { from: Target; paths: string[] }>({
-    mutationFn: ({ from, paths }) =>
-      api.storageFiles.transferFiles({
+    mutationFn: ({ from, paths }) => {
+      if (!source.endpoint) throw new Error("This place can't take transfers")
+      return api.storageFiles.transferFiles({
         source: { ...from.endpoint, paths },
         destination: { ...source.endpoint, path: dir },
         move: moving,
         overwrite,
-      }),
+      })
+    },
     onSuccess: (job) => {
       onClose()
       jobs.track(job)

@@ -1,84 +1,95 @@
 "use client"
 
-import { Loader2, Lock, Settings2 } from "lucide-react"
-import Link from "next/link"
-import { type ReactNode, useEffect, useId, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
+import {
+  Layers,
+  Loader2,
+  Lock,
+  RotateCcw,
+  Server,
+  Settings2,
+} from "lucide-react"
+import { parseAsString, useQueryState } from "nuqs"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
+import { storagesQuery } from "@/components/panel/problems"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Switch } from "@/components/ui/switch"
+import { useOpen } from "@/hooks/useOpen"
 import { fieldErrors } from "@/lib/api"
-import type { DockerSettings } from "@/lib/services"
-import { cn } from "@/lib/utils"
+import type { DockerServerSettings, DockerSettings } from "@/lib/services"
+import { useChannels } from "../../alerts/api"
 import { Empty, Notices } from "../../servers/[id]/components/parts"
 import { timeAgo } from "../../servers/components/meta"
-import { useDockerSettings, useSaveDockerSettings } from "../api"
+import {
+  useDockerServerSettings,
+  useDockerSettings,
+  useSaveDockerServerSettings,
+  useSaveDockerSettings,
+} from "../api"
+import { useDockerEnv } from "../env"
 import { type WsCtx, WsPage } from "./env-page"
-import { ChoiceChip } from "./kit"
 import { useDockerWorkspaceCan } from "./permissions"
-
-// The periods the event log offers; the setting picks its starting one.
-export const eventPeriods = ["1", "6", "24", "72", "168"] as const
-export const eventPeriodLabels: Record<(typeof eventPeriods)[number], string> =
-  {
-    "1": "Last hour",
-    "6": "6 hours",
-    "24": "24 hours",
-    "72": "3 days",
-    "168": "7 days",
-  }
-
-type Draft = {
-  projects_dir: string
-  update_check: boolean
-  scanner_image: string
-  events_hours: number
-}
-
-function draftOf(s: DockerSettings): Draft {
-  return {
-    projects_dir: s.projects_dir,
-    update_check: s.update_check,
-    scanner_image: s.scanner_image,
-    events_hours: s.events_hours,
-  }
-}
-
-function dirProblem(v: string) {
-  const t = v.trim()
-  if (!t.startsWith("/") || t === "/") {
-    return "Use a full folder path like /opt/projects."
-  }
-  return undefined
-}
+import {
+  defaults,
+  type Overrides,
+  overridesOf,
+  problemsOf,
+  type SettingKey,
+  type Settings,
+  same,
+  settingKeys,
+  settingsOf,
+  tidy,
+} from "./settings-model"
+import { type FieldState, SideNav, sections } from "./settings-parts"
+import { ScopeBar, type ScopeEnv } from "./settings-scope"
+import { type Ctl, SettingsSections } from "./settings-sections"
+import {
+  downloadSettings,
+  ImportDialog,
+  type ImportPick,
+} from "./settings-transfer"
 
 export function SettingsPage() {
   return <WsPage title="Settings">{(ctx) => <SettingsView {...ctx} />}</WsPage>
 }
 
-// /containers/settings: the workspace's container settings. Owners change
-// them; everyone else reads.
+// /containers/settings: the workspace's container settings, and what each
+// environment sets for itself on top. Owners change them; everyone else
+// reads.
 function SettingsView({ ws, phone }: WsCtx) {
   const query = useDockerSettings(ws.id)
-  if (query.isPending) {
+  const envQuery = useDockerServerSettings(ws.id)
+  if (query.isPending || envQuery.isPending) {
     return (
-      <div className="flex max-w-3xl flex-col gap-3">
+      <div className="flex max-w-3xl flex-col gap-6">
+        <Skeleton className="h-9 w-64" />
         {[0, 1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-20 rounded-2xl" />
+          <div key={i} className="flex flex-col gap-2">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-24 rounded-2xl" />
+          </div>
         ))}
       </div>
     )
   }
-  if (query.isError) {
+  const failed = query.error ?? envQuery.error
+  if (failed || !query.data || !envQuery.data) {
     return (
       <Empty
         icon={Settings2}
         title="Couldn't read the settings"
-        body={query.error.message}
+        body={failed?.message ?? "Try again in a moment."}
         action={
-          <Button variant="outline" onClick={() => query.refetch()}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              query.refetch()
+              envQuery.refetch()
+            }}
+          >
             Try again
           </Button>
         }
@@ -87,34 +98,75 @@ function SettingsView({ ws, phone }: WsCtx) {
   }
   return (
     <SettingsForm
-      // A save elsewhere starts the form again from what's stored.
-      key={query.data.updated_at ?? "default"}
       ws={ws}
       phone={phone}
       saved={query.data}
+      envSaved={envQuery.data}
     />
   )
 }
 
-function SettingsForm({ ws, phone, saved }: WsCtx & { saved: DockerSettings }) {
+type Errors = Record<string, Record<string, string>>
+
+const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`
+
+function SettingsForm({
+  ws,
+  phone,
+  saved,
+  envSaved,
+}: WsCtx & { saved: DockerSettings; envSaved: DockerServerSettings[] }) {
   const can = useDockerWorkspaceCan(ws.id)
-  const save = useSaveDockerSettings()
-  const [draft, setDraft] = useState(() => draftOf(saved))
-  const set = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }))
-  const start = draftOf(saved)
-  const dirty = (Object.keys(start) as (keyof Draft)[]).some(
-    (k) => start[k] !== draft[k],
+  const edit = can.own
+  const saveWs = useSaveDockerSettings()
+  const saveEnv = useSaveDockerServerSettings()
+  const [saving, setSaving] = useState(false)
+  const [errors, setErrors] = useState<Errors>({})
+  const [general, setGeneral] = useState<string>()
+  const [importing, setImporting] = useOpen("docker-settings-import")
+  const [scopeParam, setScopeParam] = useQueryState(
+    "scope",
+    parseAsString.withDefault(""),
   )
-  const errors = fieldErrors(save.error)
-  const dirError = dirProblem(draft.projects_dir) ?? errors.projects_dir
-  const imageError =
-    (/\s/.test(draft.scanner_image.trim())
-      ? "An image name has no spaces."
-      : undefined) ?? errors.scanner_image
-  const general =
-    save.error && Object.keys(errors).length === 0
-      ? save.error.message
-      : undefined
+
+  // Environments: every server with an engine, plus any that still has
+  // settings of its own saved.
+  const { servers } = useDockerEnv()
+  const savedById = new Map(envSaved.map((e) => [e.server_id, e]))
+  const envs = [
+    ...servers.map((s) => ({ id: s.server_id, name: s.name })),
+    ...envSaved
+      .filter((e) => !servers.some((s) => s.server_id === e.server_id))
+      .map((e) => ({ id: e.server_id, name: e.server_name })),
+  ].sort((a, b) => a.name.localeCompare(b.name))
+
+  const savedWs = settingsOf(saved)
+  const savedEnv = (id: string) => overridesOf(savedById.get(id)?.overrides)
+
+  // Drafts: the workspace's whole set (null = what's saved), and the
+  // overrides of each environment that was touched.
+  const [wsDraft, setWsDraft] = useState<Settings | null>(null)
+  const [envDrafts, setEnvDrafts] = useState<Record<string, Overrides>>({})
+  const wsValue = wsDraft ?? savedWs
+  const envValue = (id: string) => envDrafts[id] ?? savedEnv(id)
+
+  const wsChanged = settingKeys.filter((k) => !same(wsValue[k], savedWs[k]))
+  const envChanged = (id: string) => {
+    const now = envValue(id)
+    const was = savedEnv(id)
+    return settingKeys.filter((k) => !same(now[k], was[k]))
+  }
+  const dirtyEnvs = envs.filter((e) => envChanged(e.id).length > 0)
+  const changeCount =
+    wsChanged.length +
+    dirtyEnvs.reduce((n, e) => n + envChanged(e.id).length, 0)
+  const dirty = changeCount > 0
+
+  const env = envs.find((e) => e.id === scopeParam)
+  const scope = env?.id ?? ""
+  const own = env ? envValue(env.id) : {}
+  const value: Settings = env ? { ...wsValue, ...own } : wsValue
+  const scopeChanged = env ? envChanged(env.id) : wsChanged
 
   useEffect(() => {
     if (!dirty) return
@@ -123,280 +175,387 @@ function SettingsForm({ ws, phone, saved }: WsCtx & { saved: DockerSettings }) {
     return () => window.removeEventListener("beforeunload", warn)
   }, [dirty])
 
-  const submit = () => {
-    if (dirProblem(draft.projects_dir) || imageError) return
-    save.mutate(
-      {
-        ws: ws.id,
-        projects_dir: draft.projects_dir.trim(),
-        update_check: draft.update_check,
-        scanner_image: draft.scanner_image.trim(),
-        events_hours: draft.events_hours,
-      },
-      { onSuccess: () => toast.success("Settings saved") },
-    )
+  const clearErrors = (id: string) =>
+    setErrors((e) => {
+      if (!e[id]) return e
+      const { [id]: _, ...rest } = e
+      return rest
+    })
+
+  const setWs = (patch: Overrides) =>
+    setWsDraft((d) => ({ ...(d ?? savedWs), ...patch }))
+  const setEnv = (id: string, next: (o: Overrides) => Overrides) =>
+    setEnvDrafts((d) => ({ ...d, [id]: next(d[id] ?? savedEnv(id)) }))
+
+  // A change in an environment becomes its own setting, unless it puts
+  // every key back to the workspace's value: then it follows again. Keys
+  // changed together (a log size and its file count) stay together.
+  const set = (patch: Overrides) => {
+    setGeneral(undefined)
+    clearErrors(scope)
+    if (!env) return setWs(patch)
+    const keys = Object.keys(patch) as SettingKey[]
+    const asWs = keys.every((k) => same(patch[k], wsValue[k]))
+    setEnv(env.id, (o) => {
+      const next: Overrides = { ...o, ...patch }
+      if (asWs) for (const k of keys) delete next[k]
+      return next
+    })
+  }
+  const drop = (keys: SettingKey[]) => {
+    if (!env) return
+    clearErrors(scope)
+    setEnv(env.id, (o) => {
+      const next = { ...o }
+      for (const k of keys) delete next[k]
+      return next
+    })
   }
 
-  const period = eventPeriods.includes(String(draft.events_hours) as never)
-    ? (String(draft.events_hours) as (typeof eventPeriods)[number])
-    : undefined
+  const field = (...keys: SettingKey[]): FieldState => {
+    const changed = keys.some((k) => scopeChanged.includes(k))
+    if (!env) {
+      const off = keys.some((k) => !same(wsValue[k], defaults[k]))
+      return {
+        changed,
+        reset:
+          edit && off
+            ? {
+                label: "Use the default",
+                run: () =>
+                  set(
+                    Object.fromEntries(
+                      keys.map((k) => [k, defaults[k]]),
+                    ) as Overrides,
+                  ),
+              }
+            : undefined,
+      }
+    }
+    const mine = keys.some((k) => k in own)
+    return {
+      changed,
+      own: mine ? "This environment" : undefined,
+      reset:
+        edit && mine
+          ? { label: "Use the workspace's", run: () => drop(keys) }
+          : undefined,
+    }
+  }
+  const problems = problemsOf(value)
+  const error = (k: SettingKey) => problems[k] ?? errors[scope]?.[k]
 
-  return (
-    <div className="flex max-w-3xl flex-col gap-4 max-md:gap-0">
-      {!can.own && (
+  const submit = async () => {
+    // Every scope is checked before anything is sent.
+    const bad: string[] = []
+    if (wsChanged.length && Object.keys(problemsOf(wsValue)).length)
+      bad.push("")
+    for (const e of dirtyEnvs) {
+      if (Object.keys(problemsOf({ ...wsValue, ...envValue(e.id) })).length)
+        bad.push(e.id)
+    }
+    if (bad.length) {
+      setScopeParam(bad[0] || null)
+      toast.error("Fix the marked settings first")
+      return
+    }
+    setSaving(true)
+    setGeneral(undefined)
+    const failed: Errors = {}
+    const failedNames: string[] = []
+    let message: string | undefined
+    const note = (id: string, name: string, err: unknown) => {
+      failed[id] = fieldErrors(err)
+      failedNames.push(name)
+      if (!Object.keys(failed[id]).length)
+        message ??= err instanceof Error ? err.message : String(err)
+    }
+    if (wsChanged.length) {
+      try {
+        await saveWs.mutateAsync({ ws: ws.id, ...tidy(wsValue) })
+        setWsDraft(null)
+      } catch (err) {
+        note("", "the workspace", err)
+      }
+    }
+    for (const e of dirtyEnvs) {
+      try {
+        await saveEnv.mutateAsync({
+          ws: ws.id,
+          server: e.id,
+          overrides: tidy(envValue(e.id)),
+        })
+        setEnvDrafts(({ [e.id]: _, ...rest }) => rest)
+      } catch (err) {
+        note(e.id, e.name, err)
+      }
+    }
+    setSaving(false)
+    setErrors(failed)
+    setGeneral(message)
+    const first = Object.keys(failed)[0]
+    if (first === undefined) {
+      toast.success("Settings saved")
+      return
+    }
+    setScopeParam(first || null)
+    toast.error(`Couldn't save ${failedNames.join(", ")}`)
+  }
+
+  const discard = () => {
+    setWsDraft(null)
+    setEnvDrafts({})
+    setErrors({})
+    setGeneral(undefined)
+  }
+
+  const channels = useChannels(ws.id)
+  const storages = useQuery(storagesQuery)
+  const exportFile = () => {
+    downloadSettings(
+      ws,
+      savedWs,
+      envs.map((e) => ({
+        server_id: e.id,
+        server_name: e.name,
+        overrides: savedEnv(e.id),
+      })),
+    )
+    if (dirty)
+      toast.info("The file has what's saved; unsaved changes aren't in it")
+  }
+  const load = (p: ImportPick) => {
+    if (p.workspace) setWs(p.workspace)
+    if (p.environments.length) {
+      setEnvDrafts((d) => {
+        const next = { ...d }
+        for (const e of p.environments) next[e.server_id] = e.overrides
+        return next
+      })
+    }
+    toast.success("Loaded into the form", {
+      description: "Look it over, then Save to apply it.",
+    })
+  }
+
+  const scopeEnvs: ScopeEnv[] = envs.map((e) => ({
+    id: e.id,
+    name: e.name,
+    own: Object.keys(envValue(e.id)).length,
+    dirty: envChanged(e.id).length > 0,
+  }))
+  const ownCount = Object.keys(own).length
+  const notDefault = settingKeys.some((k) => !same(wsValue[k], defaults[k]))
+  const updatedAt = env ? savedById.get(env.id)?.updated_at : saved.updated_at
+
+  const ctl: Ctl = {
+    ws,
+    phone,
+    edit,
+    env: env && {
+      id: env.id,
+      name: env.name,
+      prune: savedById.get(env.id)?.prune,
+    },
+    value,
+    set,
+    field,
+    error,
+  }
+
+  const body = (
+    <div className="flex min-w-0 flex-col gap-8 max-md:gap-6">
+      <div className="flex flex-col gap-3">
+        <ScopeBar
+          phone={phone}
+          workspace={ws.name}
+          envs={scopeEnvs}
+          scope={scope}
+          wsDirty={wsChanged.length > 0}
+          onScope={(id) => setScopeParam(id || null)}
+          onExport={exportFile}
+          onImport={edit ? () => setImporting(true) : undefined}
+        />
+        <ScopeNote
+          env={env}
+          workspace={ws.name}
+          own={ownCount}
+          edit={edit}
+          onFollow={() => env && setEnv(env.id, () => ({}))}
+        />
+      </div>
+      {!edit && (
         <Notices
-          className="max-md:-mx-4 max-md:mt-0 max-md:mb-4"
+          className="max-md:-mx-4 max-md:mt-0"
           notes={[
             {
               key: "read-only",
               title: "Only a workspace Owner can change these",
-              body: `You can read the settings of ${ws.name}.`,
+              body: `You can read the container settings of ${ws.name}.`,
             },
           ]}
         />
       )}
       <fieldset
-        disabled={!can.own || save.isPending}
-        className="flex flex-col gap-4"
+        disabled={!edit || saving}
+        className="flex min-w-0 flex-col gap-8 max-md:gap-6"
       >
-        <Group title="Projects">
-          <Row
-            label="Projects folder"
-            hint={
-              <>
-                Where a new compose project is saved on each server, one folder
-                per project. Projects already made stay where they are.
-              </>
-            }
-            error={dirError}
-            phone={phone}
-          >
-            {(p) => (
-              <Input
-                {...p}
-                value={draft.projects_dir}
-                onChange={(e) => set({ projects_dir: e.target.value })}
-                placeholder="/opt/projects"
-                className="font-mono"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-              />
-            )}
-          </Row>
-        </Group>
-
-        <Group title="Updates and security">
-          <Row
-            label="Check for image updates"
-            hint={
-              <>
-                Once a day, ask each registry whether a running image has a
-                newer version. Results show in{" "}
-                <Link
-                  href="/containers/updates"
-                  className="text-brand hover:underline"
-                >
-                  Updates
-                </Link>
-                ; nothing is pulled on its own.
-              </>
-            }
-            phone={phone}
-            inline
-          >
-            {(p) => (
-              <Switch
-                id={p.id}
-                aria-describedby={p["aria-describedby"]}
-                checked={draft.update_check}
-                onCheckedChange={(v) => set({ update_check: v })}
-              />
-            )}
-          </Row>
-          <Row
-            label="Scanner image"
-            hint={
-              <>
-                Scans for{" "}
-                <Link
-                  href="/containers/security"
-                  className="text-brand hover:underline"
-                >
-                  vulnerabilities
-                </Link>{" "}
-                run Trivy installed on the server, or else this image in a
-                throwaway container.
-              </>
-            }
-            error={imageError}
-            phone={phone}
-          >
-            {(p) => (
-              <Input
-                {...p}
-                value={draft.scanner_image}
-                onChange={(e) => set({ scanner_image: e.target.value })}
-                placeholder="aquasec/trivy:latest"
-                className="font-mono"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-              />
-            )}
-          </Row>
-        </Group>
-
-        <Group title="Event log">
-          <Row
-            label="Starting period"
-            hint="How far back the event log reads when it opens. Longer periods take a little longer on busy servers."
-            phone={phone}
-            inline
-          >
-            {() => (
-              <ChoiceChip
-                phone={phone}
-                label="Period"
-                value={period ?? "24"}
-                options={eventPeriods.map((v) => ({
-                  value: v,
-                  label: eventPeriodLabels[v],
-                }))}
-                onChange={(v) => set({ events_hours: Number(v) })}
-              />
-            )}
-          </Row>
-        </Group>
+        <SettingsSections key={scope} ctl={ctl} />
       </fieldset>
 
       {general && (
         <p
           role="alert"
-          className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-body-sm text-destructive max-md:mt-4"
+          className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-body-sm text-destructive"
         >
           {general}
         </p>
       )}
 
-      {saved.updated_at && !dirty && (
-        <p className="text-caption text-ash max-md:mt-4">
-          Last changed {timeAgo(saved.updated_at)}
-        </p>
-      )}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-caption text-ash">
+        {!edit && (
+          <span className="flex items-center gap-1.5">
+            <Lock className="size-3.5" />
+            Read only
+          </span>
+        )}
+        {updatedAt ? (
+          <span>Last changed {timeAgo(updatedAt)}</span>
+        ) : env ? (
+          <span>Never set for this environment</span>
+        ) : (
+          <span>Never changed: these are the defaults</span>
+        )}
+        {edit && !env && notDefault && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ms-auto text-muted-foreground max-md:h-11"
+            disabled={saving}
+            onClick={() => setWsDraft(defaults)}
+          >
+            <RotateCcw />
+            Use all defaults
+          </Button>
+        )}
+      </div>
 
-      {can.own && dirty && (
-        <div className="sticky bottom-[calc(--spacing(16)+env(safe-area-inset-bottom))] z-30 -mx-4 flex items-center gap-2 border-t border-border bg-background px-4 py-2 max-md:mt-4 md:bottom-6 md:mx-0 md:w-fit md:rounded-2xl md:border md:bg-card md:p-1.5 md:ps-4 md:shadow-md">
+      {edit && dirty && (
+        <div className="sticky bottom-[calc(--spacing(16)+env(safe-area-inset-bottom))] z-30 -mx-4 flex items-center gap-2 border-t border-border bg-background px-4 py-2 md:bottom-6 md:mx-0 md:w-fit md:rounded-2xl md:border md:bg-card md:p-1.5 md:ps-4 md:shadow-md">
           <p
             role="status"
             className="min-w-0 flex-1 truncate text-body-sm text-muted-foreground"
           >
-            Unsaved changes
+            {plural(changeCount, "unsaved change")}
+            {dirtyEnvs.length + (wsChanged.length ? 1 : 0) > 1 && (
+              <span className="text-ash max-md:hidden">
+                {" "}
+                in {dirtyEnvs.length + (wsChanged.length ? 1 : 0)} places
+              </span>
+            )}
           </p>
           <Button
             variant="ghost"
             className="max-md:h-11"
-            disabled={save.isPending}
-            onClick={() => {
-              save.reset()
-              setDraft(draftOf(saved))
-            }}
+            disabled={saving}
+            onClick={discard}
           >
             Discard
           </Button>
-          <Button
-            className="max-md:h-11"
-            disabled={save.isPending}
-            onClick={submit}
-          >
-            {save.isPending && <Loader2 className="animate-spin" />}
+          <Button className="max-md:h-11" disabled={saving} onClick={submit}>
+            {saving && <Loader2 className="animate-spin" />}
             Save
           </Button>
         </div>
       )}
-      {!can.own && (
-        <p className="flex items-center gap-1.5 text-caption text-ash max-md:mt-4">
-          <Lock className="size-3.5" />
-          Read only
-        </p>
+
+      {edit && (
+        <ImportDialog
+          open={importing}
+          onOpenChange={setImporting}
+          context={{
+            servers: envs,
+            channels: (channels.data ?? []).map((c) => c.id),
+            storages: (storages.data?.items ?? [])
+              .filter((s) => s.workspace_id === ws.id && !s.read_only)
+              .map((s) => s.id),
+          }}
+          onLoad={load}
+        />
       )}
+    </div>
+  )
+
+  if (phone) return body
+  return (
+    <div className="grid gap-10 lg:grid-cols-[12rem_minmax(0,48rem)]">
+      <SideNav
+        mark={(id) => {
+          const keys = (sections.find((s) => s.id === id)?.keys ??
+            []) as readonly SettingKey[]
+          return {
+            changed: keys.some((k) => scopeChanged.includes(k)),
+            own: env ? keys.filter((k) => k in own).length : 0,
+          }
+        }}
+      />
+      {body}
     </div>
   )
 }
 
-function Group({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="flex flex-col gap-2">
-      <h2 className="font-label text-caption tracking-label text-ash uppercase max-md:px-0">
-        {title}
-      </h2>
-      <div className="divide-y divide-border rounded-2xl border border-border bg-card">
-        {children}
-      </div>
-    </section>
-  )
-}
-
-// One setting: what it is on the start, the control on the end (desktop);
-// stacked on phones, with switches kept beside their label.
-function Row({
-  label,
-  hint,
-  error,
-  phone,
-  inline = false,
-  children,
+// What the scope in view means, under the picker.
+function ScopeNote({
+  env,
+  workspace,
+  own,
+  edit,
+  onFollow,
 }: {
-  label: string
-  hint?: ReactNode
-  error?: string
-  phone: boolean
-  inline?: boolean
-  children: (props: {
-    id: string
-    "aria-invalid"?: true
-    "aria-describedby"?: string
-  }) => ReactNode
+  env?: { id: string; name: string }
+  workspace: string
+  own: number
+  edit: boolean
+  onFollow: () => void
 }) {
-  const id = useId()
-  const noteId = `${id}-note`
-  const control = children({
-    id,
-    "aria-invalid": error ? true : undefined,
-    "aria-describedby": noteId,
-  })
-  const side = !phone || inline
+  if (!env) {
+    return (
+      <p className="flex items-start gap-2 text-caption text-muted-foreground">
+        <Layers className="mt-px size-3.5 shrink-0 text-ash" />
+        Every environment of {workspace} uses these, unless it sets one for
+        itself.
+      </p>
+    )
+  }
   return (
-    <div
-      className={cn(
-        "flex gap-3 p-4 md:gap-6 md:px-5",
-        side ? "items-start justify-between" : "flex-col",
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-subtle px-3 py-2.5 text-caption text-muted-foreground">
+      <Server className="size-3.5 shrink-0 text-ash" />
+      <span className="min-w-0 flex-1">
+        {own === 0 ? (
+          <>
+            <span className="font-medium text-foreground">{env.name}</span>{" "}
+            follows the workspace. Change a setting here to set it for this
+            environment only.
+          </>
+        ) : (
+          <>
+            <span className="font-medium text-foreground">{env.name}</span>{" "}
+            follows the workspace except for {plural(own, "setting")} of its
+            own, marked below.
+          </>
+        )}
+      </span>
+      {edit && own > 0 && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-my-1 text-brand max-md:h-11"
+          onClick={onFollow}
+        >
+          <RotateCcw />
+          Follow the workspace for everything
+        </Button>
       )}
-    >
-      <div className="flex min-w-0 flex-col gap-1">
-        <label htmlFor={id} className="text-body-sm font-medium">
-          {label}
-        </label>
-        {hint && (
-          <p id={noteId} className="text-caption text-muted-foreground">
-            {hint}
-          </p>
-        )}
-      </div>
-      <div
-        className={cn(
-          "flex shrink-0 flex-col gap-1.5",
-          side && !inline && "w-72",
-          !side && "w-full",
-        )}
-      >
-        {control}
-        {error && (
-          <p role="alert" className="text-caption text-destructive">
-            {error}
-          </p>
-        )}
-      </div>
     </div>
   )
 }

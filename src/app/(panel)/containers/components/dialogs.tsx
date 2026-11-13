@@ -24,6 +24,7 @@ import type {
   DockerImage,
   DockerNetwork,
   DockerPruneBody,
+  DockerVolume,
 } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import {
@@ -37,6 +38,7 @@ import {
   usePullImage,
   useRemoveContainer,
   useRemoveImage,
+  useRemoveVolume,
   useRenameContainer,
   useTagImage,
 } from "../api"
@@ -649,6 +651,232 @@ export function RemoveImageDialog({
             : "No container uses it."
         }
       />
+    </ResponsiveDialog>
+  )
+}
+
+// Several images at once, three at a time, one toast for the lot.
+// Several volumes at once (the Volumes page's selection). Docker refuses a
+// volume a container still uses, even stopped, so those are left out.
+export function RemoveVolumesDialog({
+  server,
+  volumes,
+  onDone,
+  open,
+  onOpenChange,
+}: Open & { server: string; volumes: DockerVolume[]; onDone?: () => void }) {
+  const [busy, setBusy] = useState(false)
+  const [typed, setTyped] = useState("")
+  const remove = useRemoveVolume()
+  const free = volumes.filter((v) => v.used_by.length === 0)
+  const used = volumes.filter((v) => v.used_by.length > 0)
+  const nameOf = (v: DockerVolume) =>
+    v.anonymous ? v.name.slice(0, 12) : v.name
+  const named = free.filter((v) => !v.anonymous).length
+  const word = `remove ${free.length}`
+  const ready = named === 0 || typed.trim().toLowerCase() === word
+
+  async function run() {
+    setBusy(true)
+    const queue = [...free]
+    const failed: string[] = []
+    await Promise.all(
+      Array.from({ length: Math.min(3, queue.length) }, async () => {
+        for (let v = queue.shift(); v; v = queue.shift()) {
+          try {
+            await remove.mutateAsync({ server, volume: v.name, force: false })
+          } catch (err) {
+            failed.push(`${nameOf(v)}: ${(err as Error).message}`)
+          }
+        }
+      }),
+    )
+    setBusy(false)
+    const ok = free.length - failed.length
+    if (failed.length === 0)
+      toast.success(`Removed ${ok} volume${ok === 1 ? "" : "s"}`)
+    else
+      toast.warning(`Removed ${ok} of ${free.length}`, {
+        description: failed.slice(0, 3).join("\n"),
+      })
+    onDone?.()
+    onOpenChange(false)
+  }
+
+  return (
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={`Remove ${free.length} volume${free.length === 1 ? "" : "s"}?`}
+      description="Their data is deleted for good. Back up what you may need first."
+      footer={
+        <div className="flex w-full flex-col-reverse gap-2 md:flex-row md:justify-end">
+          <Button
+            variant="ghost"
+            className="max-md:h-11"
+            onClick={() => onOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            className="max-md:h-11"
+            disabled={busy || free.length === 0 || !ready}
+            onClick={run}
+          >
+            {busy ? "Removing…" : `Remove ${free.length}`}
+          </Button>
+        </div>
+      }
+    >
+      <div className="flex flex-col gap-3">
+        {free.length > 0 && (
+          <ul className="max-h-56 divide-y divide-border overflow-y-auto rounded-xl border border-border">
+            {free.map((v) => (
+              <li
+                key={v.name}
+                className="flex items-center gap-3 px-3 py-2 text-body-sm"
+              >
+                <span className="min-w-0 flex-1 truncate font-mono">
+                  {nameOf(v)}
+                </span>
+                {v.project && (
+                  <span className="text-caption text-muted-foreground">
+                    {v.project}
+                  </span>
+                )}
+                {v.size >= 0 && (
+                  <span className="text-caption text-muted-foreground tabular-nums">
+                    {formatSize(v.size)}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        {used.length > 0 && (
+          <p className="rounded-xl bg-warning/10 px-3 py-2 text-body-sm text-foreground">
+            {used.length} in use {used.length === 1 ? "stays" : "stay"}:{" "}
+            {used.map(nameOf).join(", ")}. Remove the containers using{" "}
+            {used.length === 1 ? "it" : "them"} first.
+          </p>
+        )}
+        {named > 0 && (
+          <Field label={`Type "${word}" to confirm`}>
+            {(p) => (
+              <Input
+                {...p}
+                value={typed}
+                onChange={(e) => setTyped(e.target.value)}
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
+              />
+            )}
+          </Field>
+        )}
+      </div>
+    </ResponsiveDialog>
+  )
+}
+
+export function RemoveImagesDialog({
+  server,
+  images,
+  onDone,
+  open,
+  onOpenChange,
+}: Open & { server: string; images: DockerImage[]; onDone?: () => void }) {
+  const [force, setForce] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const remove = useRemoveImage()
+  const used = images.filter((i) => i.containers > 0).length
+  const size = images.reduce((n, i) => n + i.size, 0)
+  const nameOf = (i: DockerImage) =>
+    i.tags[0] ? imageName(i.tags[0]) : i.id.slice(7, 19)
+
+  async function run() {
+    setBusy(true)
+    const queue = [...images]
+    const failed: string[] = []
+    await Promise.all(
+      Array.from({ length: Math.min(3, queue.length) }, async () => {
+        for (let i = queue.shift(); i; i = queue.shift()) {
+          try {
+            await remove.mutateAsync({ server, image: i.id, force })
+          } catch (err) {
+            failed.push(`${nameOf(i)}: ${(err as Error).message}`)
+          }
+        }
+      }),
+    )
+    setBusy(false)
+    const ok = images.length - failed.length
+    if (failed.length === 0) toast.success(`Removed ${ok} images`)
+    else
+      toast.warning(`Removed ${ok} of ${images.length}`, {
+        description: failed.slice(0, 3).join("\n"),
+      })
+    onDone?.()
+    onOpenChange(false)
+  }
+
+  return (
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={`Remove ${images.length} image${images.length === 1 ? "" : "s"}?`}
+      description={`Up to ${formatSize(size)} back (layers shared with other images stay). Pulling them again later downloads them again.`}
+      footer={
+        <div className="flex w-full flex-col-reverse gap-2 md:flex-row md:justify-end">
+          <Button
+            variant="ghost"
+            className="max-md:h-11"
+            onClick={() => onOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            className="max-md:h-11"
+            disabled={busy}
+            onClick={run}
+          >
+            {busy ? "Removing…" : `Remove ${images.length}`}
+          </Button>
+        </div>
+      }
+    >
+      <div className="flex flex-col gap-3">
+        <ul className="max-h-56 divide-y divide-border overflow-y-auto rounded-xl border border-border">
+          {images.map((i) => (
+            <li
+              key={i.id}
+              className="flex items-center gap-3 px-3 py-2 text-body-sm"
+            >
+              <span className="min-w-0 flex-1 truncate font-mono">
+                {nameOf(i)}
+              </span>
+              {i.containers > 0 && (
+                <span className="text-caption text-warning">
+                  {i.containers} using it
+                </span>
+              )}
+              <span className="text-caption text-muted-foreground tabular-nums">
+                {formatSize(i.size)}
+              </span>
+            </li>
+          ))}
+        </ul>
+        {used > 0 && (
+          <Tick
+            checked={force}
+            onChange={setForce}
+            label="Remove even if a stopped container uses it"
+            hint={`${used} of them ${used === 1 ? "is" : "are"} used by a container. A running one always keeps its image; Docker refuses that one and the rest go ahead.`}
+          />
+        )}
+      </div>
     </ResponsiveDialog>
   )
 }

@@ -7,10 +7,12 @@ import {
   CircleX,
   Clock,
   Cog,
+  Container,
   Download,
   FileCode,
   FolderSync,
   HardDrive,
+  HardDriveUpload,
   Loader2,
   type LucideIcon,
   OctagonX,
@@ -20,6 +22,7 @@ import {
   Power,
   Server,
   ShieldCheck,
+  Trash2,
 } from "lucide-react"
 import {
   createSerializer,
@@ -276,6 +279,24 @@ export const actionMeta: Record<
     hint: "Upgrade the system packages on servers, then clean up and restart the ones that need it.",
     short: "System updates, then restart if needed",
   },
+  "docker-update": {
+    label: "Update containers",
+    icon: Container,
+    hint: "Pull newer images and recreate the containers using them, putting the old image back if one breaks.",
+    short: "Newer images, rolled back if they fail",
+  },
+  "docker-prune": {
+    label: "Clean up Docker",
+    icon: Trash2,
+    hint: "Remove unused images, build cache, stopped containers and networks to free disk space.",
+    short: "Free space taken by unused images",
+  },
+  "docker-volume-backup": {
+    label: "Back up volumes",
+    icon: HardDriveUpload,
+    hint: "Copy Docker volumes from a server to a storage as .tar.gz files and keep the newest few.",
+    short: "Docker volumes to a storage",
+  },
 }
 
 export const packageModes: Record<"all" | "security" | "full", string> = {
@@ -291,6 +312,10 @@ export const actionGroups: { label: string; actions: Action[] }[] = [
   {
     label: "Servers",
     actions: ["service", "reboot", "package-upgrade", "software-update"],
+  },
+  {
+    label: "Containers",
+    actions: ["docker-update", "docker-prune", "docker-volume-backup"],
   },
   { label: "Databases", actions: ["verify-backup"] },
 ]
@@ -398,6 +423,21 @@ export function jobSummary(s: Summarised): string {
         ? `Update ${n} ${n === 1 ? "application" : "applications"}`
         : "Update applications"
       return `${what}${t.software?.system ? " + system" : ""} on ${serversText(s.refs, t.software?.server_ids)}`
+    }
+    case "docker-update": {
+      const n = t.docker?.only?.length ?? 0
+      const what = n
+        ? `Update ${n === 1 ? t.docker?.only?.[0] : `${n} projects`}`
+        : "Update containers"
+      return `${what} on ${serversText(s.refs, t.docker?.server_ids)}`
+    }
+    case "docker-prune":
+      return `Clean up Docker on ${serversText(s.refs, t.prune?.server_ids)}`
+    case "docker-volume-backup": {
+      const v = t.volumes
+      const n = v?.volumes?.length ?? 0
+      const what = n === 1 ? v?.volumes?.[0] : n ? `${n} volumes` : "Volumes"
+      return `${what} of ${refName(s.refs, "server", v?.server_id)} → ${refName(s.refs, "storage", v?.storage_id)}`
     }
     case "package-upgrade": {
       const p = t.packages
@@ -678,6 +718,78 @@ export function taskFacts(
         },
         { label: "Servers at a time", value: String(sw?.parallel || 1) },
         { label: "Carry on after a failure", value: yesNo(sw?.keep_going) },
+      ]
+    }
+    case "docker-update": {
+      const d = t.docker
+      return [
+        { label: "Servers", value: names(s.refs, d?.server_ids) },
+        {
+          label: "Containers",
+          value: d?.only?.length
+            ? d.only.join("\n")
+            : "Every running one with an update",
+        },
+        {
+          label: "Ask the registries first",
+          value: yesNo(d?.check),
+        },
+        {
+          label: "Roll back if it fails",
+          value: d?.rollback
+            ? `Yes, watched for ${d.wait_seconds || 60} s`
+            : "No",
+        },
+        { label: "Carry on after a failure", value: yesNo(d?.keep_going) },
+      ]
+    }
+    case "docker-prune": {
+      const p = t.prune
+      const what = [
+        p?.images === "all"
+          ? "Every unused image"
+          : p?.images === "dangling"
+            ? "Untagged images"
+            : "",
+        p?.build_cache ? "Build cache" : "",
+        p?.containers ? "Stopped containers" : "",
+        p?.networks ? "Unused networks" : "",
+        p?.volumes === "all"
+          ? "Every unused volume"
+          : p?.volumes === "anonymous"
+            ? "Unnamed unused volumes"
+            : "",
+      ].filter(Boolean)
+      return [
+        { label: "Servers", value: names(s.refs, p?.server_ids) },
+        { label: "Removes", value: what.join("\n") || "Nothing" },
+        {
+          label: "Only older than",
+          value: p?.older_than_hours
+            ? `${p.older_than_hours} hours`
+            : "No limit",
+        },
+        { label: "Carry on after a failure", value: yesNo(p?.keep_going) },
+      ]
+    }
+    case "docker-volume-backup": {
+      const v = t.volumes
+      return [
+        { label: "Server", value: refName(s.refs, "server", v?.server_id) },
+        {
+          label: "Volumes",
+          value: v?.volumes?.length ? v.volumes.join("\n") : "Every volume",
+        },
+        {
+          label: "Storage",
+          value: `${refName(s.refs, "storage", v?.storage_id)}\n${v?.folder || "/backups/docker-volumes"}`,
+        },
+        {
+          label: "Copies kept",
+          value: v?.keep ? String(v.keep) : "All",
+        },
+        { label: "Stop containers meanwhile", value: yesNo(v?.stop) },
+        { label: "Carry on after a failure", value: yesNo(v?.keep_going) },
       ]
     }
     case "package-upgrade": {

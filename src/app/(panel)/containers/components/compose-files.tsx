@@ -46,6 +46,8 @@ function EnvEditor({
   )
 }
 
+export type ComposeFile = "compose" | "env"
+
 // A project's two files: compose.yaml and the .env beside it, one at a time
 // under a switch so the editor keeps the whole height.
 export function ComposeFiles({
@@ -57,6 +59,8 @@ export function ComposeFiles({
   height = "60vh",
   className,
   aside,
+  file: fileProp,
+  onFile,
 }: {
   compose: string
   env: string
@@ -66,8 +70,16 @@ export function ComposeFiles({
   height?: string
   className?: string
   aside?: React.ReactNode
+  // Optional: the parent picks which file shows (e.g. after adding to .env).
+  file?: ComposeFile
+  onFile?: (f: ComposeFile) => void
 }) {
-  const [file, setFile] = useState<"compose" | "env">("compose")
+  const [own, setOwn] = useState<ComposeFile>("compose")
+  const file = fileProp ?? own
+  const setFile = (f: ComposeFile) => {
+    setOwn(f)
+    onFile?.(f)
+  }
   return (
     <div
       className={cn(

@@ -61,7 +61,9 @@ export type FileSource = {
   key: readonly unknown[]
   // "server" / "storage", for sentences like "changed on the server".
   noun: string
-  endpoint: Endpoint
+  // Absent = not a server or storage of its own (a Docker volume): no
+  // "Send to…" / "From a server or storage…".
+  endpoint?: Endpoint
   // Every write is refused: hide the write actions.
   readOnly?: boolean
   // Folders can be listed, but files can't be opened or downloaded.

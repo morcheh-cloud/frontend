@@ -329,7 +329,13 @@ export function envHref(server: string, path = "/containers") {
   return dockerSerializer(path, { env: server })
 }
 
-export const containerTabs = ["overview", "logs", "stats", "inspect"] as const
+export const containerTabs = [
+  "overview",
+  "logs",
+  "stats",
+  "shell",
+  "inspect",
+] as const
 export type ContainerTab = (typeof containerTabs)[number]
 
 const containerParsers = {
@@ -412,3 +418,31 @@ export const signals = [
   { value: "SIGUSR1", hint: "Program-defined" },
   { value: "SIGUSR2", hint: "Program-defined" },
 ] as const
+
+export const volumeTabs = ["overview", "files", "backups"] as const
+export type VolumeTab = (typeof volumeTabs)[number]
+
+export const volumeParsers = {
+  tab: parseAsStringLiteral(volumeTabs).withDefault("overview"),
+  // The Files tab's folder (the file manager reads and writes it itself).
+  path: parseAsString,
+}
+
+const volumeSerializer = createSerializer({
+  env: parseAsString,
+  ...volumeParsers,
+})
+
+// /containers/volumes/[name]: one volume, opened on a tab (Files at `path`).
+export function volumeHref(
+  server: string,
+  volume: string,
+  tab?: VolumeTab,
+  path?: string,
+) {
+  return volumeSerializer(`/containers/volumes/${encodeURIComponent(volume)}`, {
+    env: server,
+    tab: tab === "overview" ? null : tab,
+    path: tab === "files" && path && path !== "/" ? path : null,
+  })
+}

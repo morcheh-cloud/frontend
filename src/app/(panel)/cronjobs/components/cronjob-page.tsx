@@ -453,6 +453,8 @@ function taskLink(s: Schedule) {
         : null
     case "software-update":
       return { href: "/applications?tab=updates", label: "Open updates" }
+    case "docker-update":
+      return { href: "/containers/updates", label: "Open updates" }
   }
   return null
 }

@@ -22,6 +22,7 @@ export function AlertEventList({
   limit = 100,
   phone,
   emptyText = "Nothing has fired yet. When a rule's condition holds long enough, it shows here.",
+  filter,
 }: {
   serverId?: string
   databaseId?: string
@@ -29,6 +30,8 @@ export function AlertEventList({
   limit?: number
   phone: boolean
   emptyText?: string
+  // Keep only some events (e.g. one project's container alerts).
+  filter?: (e: AlertEvent) => boolean
 }) {
   const events = useAlertEvents({
     server_id: serverId,
@@ -36,7 +39,8 @@ export function AlertEventList({
     rule_id: ruleId,
     limit,
   })
-  const items = events.data ?? []
+  const all = events.data ?? []
+  const items = filter ? all.filter(filter) : all
 
   if (events.isPending) {
     return (
@@ -105,7 +109,7 @@ export function AlertEventList({
           </ul>
         </section>
       ))}
-      {items.length >= limit && (
+      {all.length >= limit && (
         <p className="text-center text-caption text-ash">
           The last {limit} alerts.
         </p>

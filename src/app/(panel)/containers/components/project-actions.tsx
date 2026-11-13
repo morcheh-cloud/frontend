@@ -36,18 +36,26 @@ export const projectStateMeta: Record<
 const projectSerializer = createSerializer({
   env: parseAsString,
   template: parseAsString,
+  tab: parseAsString,
+  source: parseAsString,
 })
 
-export function projectHref(server: string, name: string) {
+export function projectHref(server: string, name: string, tab?: string) {
   return projectSerializer(`/containers/projects/${encodeURIComponent(name)}`, {
     env: server,
+    tab: tab ?? null,
   })
 }
 
-export function newProjectHref(server?: string, template?: string) {
+export function newProjectHref(
+  server?: string,
+  template?: string,
+  source?: "git",
+) {
   return projectSerializer("/containers/projects/new", {
     env: server ?? null,
     template: template ?? null,
+    source: source ?? null,
   })
 }
 

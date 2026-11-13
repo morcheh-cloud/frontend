@@ -76,13 +76,15 @@ function TransferForm({
   const paths = entries.map((e) => e.path)
 
   const send = useMutation<Job, ApiError, { target: Target; path: string }>({
-    mutationFn: ({ target, path }) =>
-      api.storageFiles.transferFiles({
+    mutationFn: ({ target, path }) => {
+      if (!source.endpoint) throw new Error("This place can't send files")
+      return api.storageFiles.transferFiles({
         source: { ...source.endpoint, paths },
         destination: { ...target.endpoint, path },
         move: move && canMove,
         overwrite,
-      }),
+      })
+    },
     onSuccess: (job) => {
       if (move && canMove) onMoved(paths)
       onClose()

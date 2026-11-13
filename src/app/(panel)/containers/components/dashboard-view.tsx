@@ -25,6 +25,7 @@ import {
   useDockerEvents,
   useDockerNetworks,
   useDockerProjects,
+  useDockerReport,
   useDockerScans,
   useDockerUpdates,
   useDockerVolumes,
@@ -51,6 +52,17 @@ import {
   projectHref,
   projectStateMeta,
 } from "./project-actions"
+import {
+  ContainersReport,
+  KpiTiles,
+  PhoneContainerRows,
+  PhoneKpis,
+  PhoneMapRow,
+  ReportLoading,
+  TopConsumers,
+  TopologyCard,
+  UsageCard,
+} from "./report"
 import { severities } from "./security-view"
 
 export function DashboardPage() {
@@ -81,9 +93,20 @@ function useDashboard(env: DockerFleetServer) {
   const events = useDockerEvents(id, RECENT)
   const networks = useDockerNetworks(id)
   const volumes = useDockerVolumes(id, false)
-  const queries = [fleet, updates, scans, projects, events, networks, volumes]
+  const report = useDockerReport(id)
+  const queries = [
+    fleet,
+    report,
+    updates,
+    scans,
+    projects,
+    events,
+    networks,
+    volumes,
+  ]
   return {
     id,
+    report,
     containers,
     problems,
     updates,
@@ -133,20 +156,64 @@ function Dashboard({ env, phone }: EnvCtx) {
       {phone ? (
         <PhoneDashboard env={env} d={d} />
       ) : (
-        <div className="mt-4 grid items-start gap-4 lg:grid-cols-3">
-          <div className="flex min-w-0 flex-col gap-4 lg:col-span-2">
-            <Attention d={d} />
-            <ProjectsCard d={d} />
-            <EventsCard d={d} />
-          </div>
-          <div className="flex min-w-0 flex-col gap-4">
-            <EngineCard env={env} />
-            <UpdatesCard d={d} />
-            <SecurityCard d={d} />
-          </div>
-        </div>
+        <DesktopDashboard env={env} d={d} />
       )}
     </>
+  )
+}
+
+// A report on the environment: totals, usage, the network map and every
+// container, then the cards that lead to the other pages.
+function DesktopDashboard({ env, d }: { env: DockerFleetServer; d: Data }) {
+  const report = d.report.data
+  return (
+    <div className="mt-4 flex flex-col gap-4">
+      {report ? (
+        <KpiTiles report={report} />
+      ) : d.report.isError ? (
+        <ReportError d={d} />
+      ) : (
+        <ReportLoading />
+      )}
+      <Attention d={d} />
+      {report && (
+        <>
+          <div className="grid items-stretch gap-4 lg:grid-cols-3">
+            <div className="min-w-0 lg:col-span-2">
+              <UsageCard report={report} />
+            </div>
+            <TopConsumers report={report} server={d.id} />
+          </div>
+          <TopologyCard report={report} server={d.id} />
+          <ContainersReport report={report} server={d.id} />
+        </>
+      )}
+      <div className="grid items-start gap-4 lg:grid-cols-3">
+        <div className="flex min-w-0 flex-col gap-4 lg:col-span-2">
+          <ProjectsCard d={d} />
+          <EventsCard d={d} />
+        </div>
+        <div className="flex min-w-0 flex-col gap-4">
+          <EngineCard env={env} />
+          <UpdatesCard d={d} />
+          <SecurityCard d={d} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ReportError({ d }: { d: Data }) {
+  return (
+    <section
+      aria-label="Report"
+      className="flex items-center gap-3 rounded-2xl border border-border bg-card px-5 py-4 shadow-sm"
+    >
+      <TriangleAlert className="size-5 shrink-0 text-warning" />
+      <p className="min-w-0 flex-1 text-body-sm">
+        Couldn't read the report: {d.report.error?.message}
+      </p>
+    </section>
   )
 }
 
@@ -599,9 +666,21 @@ function PhoneDashboard({ env, d }: { env: DockerFleetServer; d: Data }) {
 
   return (
     <div className="flex flex-col pt-4 pb-24">
-      <div className="border-y border-border">
-        <Containers s={env} />
-      </div>
+      {d.report.data ? (
+        <>
+          <PhoneKpis report={d.report.data} />
+          <section aria-label="Usage" className="mt-6">
+            <h2 className="px-4 pb-2 font-label text-caption tracking-label text-ash uppercase">
+              Usage
+            </h2>
+            <UsageCard report={d.report.data} phone />
+          </section>
+        </>
+      ) : (
+        <div className="border-y border-border">
+          <Containers s={env} />
+        </div>
+      )}
 
       {d.problems.length > 0 && (
         <PhoneGroup title={`Needs a look · ${d.problems.length}`}>
@@ -626,6 +705,19 @@ function PhoneDashboard({ env, d }: { env: DockerFleetServer; d: Data }) {
             </li>
           ))}
         </PhoneGroup>
+      )}
+
+      {d.report.data && (
+        <>
+          <PhoneGroup title="Network">
+            <li>
+              <PhoneMapRow report={d.report.data} server={d.id} />
+            </li>
+          </PhoneGroup>
+          <PhoneGroup title="State and uptime">
+            <PhoneContainerRows report={d.report.data} server={d.id} />
+          </PhoneGroup>
+        </>
       )}
 
       {dockerGroups.map((g) => (

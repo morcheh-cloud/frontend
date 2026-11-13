@@ -1,15 +1,19 @@
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
+  Box,
   Cog,
+  Container,
   Cpu,
   DatabaseZap,
   Gauge,
   HardDrive,
+  HeartCrack,
   Hourglass,
   type LucideIcon,
   MemoryStick,
   Repeat,
+  RotateCcw,
   ShieldAlert,
   Unplug,
 } from "lucide-react"
@@ -46,6 +50,9 @@ type MetricMeta = {
   target: Target
   // Up or down, no number to compare (the backend keeps threshold 0).
   state?: boolean
+  // Watches Docker/Podman containers on the covered servers (project and
+  // container filters apply, except to docker_engine).
+  docker?: boolean
 }
 
 export const metrics: Record<Metric, MetricMeta> = {
@@ -178,6 +185,98 @@ export const metrics: Record<Metric, MetricMeta> = {
     target: "database",
     state: true,
   },
+  container_down: {
+    label: "Container down",
+    icon: Box,
+    unit: "",
+    hint: "With a project or container named: any of them not running. Without: only crashes (an error exit) and restart loops, so containers stopped on purpose stay quiet.",
+    threshold: 0,
+    forMinutes: 2,
+    step: 1,
+    target: "server",
+    state: true,
+    docker: true,
+  },
+  container_unhealthy: {
+    label: "Container unhealthy",
+    icon: HeartCrack,
+    unit: "",
+    hint: "Its healthcheck fails. Containers without a healthcheck never count.",
+    threshold: 0,
+    forMinutes: 2,
+    step: 1,
+    target: "server",
+    state: true,
+    docker: true,
+  },
+  container_restarts: {
+    label: "Container restarts",
+    icon: RotateCcw,
+    unit: "stops in 10 min",
+    hint: "How often a container stopped or crashed in the last 10 minutes: a restart loop.",
+    threshold: 3,
+    forMinutes: 0,
+    step: 1,
+    target: "server",
+    docker: true,
+  },
+  container_cpu: {
+    label: "Container CPU",
+    icon: Cpu,
+    unit: "% of a core",
+    hint: "Docker counts 100% per core: 200% = two cores fully busy.",
+    threshold: 90,
+    forMinutes: 10,
+    step: 5,
+    target: "server",
+    docker: true,
+  },
+  container_memory: {
+    label: "Container memory",
+    icon: MemoryStick,
+    unit: "% of its limit",
+    hint: "Only containers with a memory limit: near it, the kernel kills the container (out of memory).",
+    threshold: 90,
+    forMinutes: 5,
+    max: 100,
+    step: 1,
+    target: "server",
+    docker: true,
+  },
+  container_vulns_critical: {
+    label: "Critical vulnerabilities",
+    icon: ShieldAlert,
+    unit: "critical",
+    hint: "Known critical vulnerabilities in the image of a running container, from its last security scan. Images never scanned don't count: scan them on the Security page.",
+    threshold: 0,
+    forMinutes: 0,
+    step: 1,
+    target: "server",
+    docker: true,
+  },
+  container_vulns_high: {
+    label: "High vulnerabilities",
+    icon: ShieldAlert,
+    unit: "high or critical",
+    hint: "Known high or critical vulnerabilities in the image of a running container, from its last security scan.",
+    threshold: 5,
+    forMinutes: 0,
+    step: 1,
+    target: "server",
+    docker: true,
+  },
+  docker_engine: {
+    label: "Docker engine",
+    icon: Container,
+    unit: "",
+    hint: "The Docker or Podman engine of a server doesn't answer (stopped, crashed, socket gone). Servers without one are skipped.",
+    threshold: 0,
+    forMinutes: 2,
+    step: 1,
+    target: "server",
+    state: true,
+    docker: true,
+  },
 }
 
 export const metricOrder: Metric[] = [
@@ -196,9 +295,25 @@ export const metricOrder: Metric[] = [
 // Database metrics, listed apart in the editor.
 export const databaseMetricOrder: Metric[] = ["db_down", "db_health"]
 
+// Container metrics, listed apart too.
+export const containerMetricOrder: Metric[] = [
+  "container_down",
+  "container_unhealthy",
+  "container_restarts",
+  "container_cpu",
+  "container_memory",
+  "container_vulns_critical",
+  "container_vulns_high",
+  "docker_engine",
+]
+
 export const isMetric = (m: string): m is Metric => m in metrics
 export const metricOf = (m: string) => metrics[isMetric(m) ? m : "cpu"]
 export const isPercent = (m: string) => metricOf(m).unit === "%"
+export const isContainerMetric = (m: string) => !!metricOf(m).docker
+// Metrics that take the project / container filters.
+export const takesContainerFilter = (m: string) =>
+  isContainerMetric(m) && m !== "docker_engine"
 export const isNet = (m: string) => m === "net_rx" || m === "net_tx"
 export const isStateMetric = (m: string) => !!metricOf(m).state
 export const targetOf = (m: string): Target => metricOf(m).target
@@ -214,6 +329,13 @@ export const fromFieldValue = (m: string, v: number) =>
 export function formatValue(m: string, v: number) {
   if (isPercent(m)) return `${v.toFixed(v < 10 ? 1 : 0)}%`
   if (m === "load") return `${v.toFixed(2)} per core`
+  if (m === "container_cpu") return `${v.toFixed(v < 10 ? 1 : 0)}% of a core`
+  if (m === "container_memory")
+    return `${v.toFixed(v < 10 ? 1 : 0)}% of its limit`
+  if (m === "container_restarts")
+    return `${v} ${v === 1 ? "stop" : "stops"} in 10 min`
+  if (m === "container_vulns_critical") return `${v} critical`
+  if (m === "container_vulns_high") return `${v} high or critical`
   if (isNet(m)) {
     const mbit = (v * 8) / 1e6
     return `${mbit.toFixed(mbit < 10 ? 1 : 0)} Mbit/s`
@@ -227,6 +349,17 @@ export function conditionText(
   if (r.metric === "offline" || r.metric === "db_down") return "unreachable"
   if (r.metric === "db_health") return "critical"
   if (r.metric === "service") return r.unit ? "stopped or failed" : "failed"
+  if (r.metric === "container_down") return "down"
+  if (r.metric === "container_unhealthy") return "unhealthy"
+  if (r.metric === "docker_engine") return "not answering"
+  if (r.metric === "container_vulns_critical")
+    return r.threshold > 0
+      ? `has more than ${r.threshold} critical vulnerabilities`
+      : "has a critical vulnerability"
+  if (r.metric === "container_vulns_high")
+    return `has more than ${r.threshold} high or critical vulnerabilities`
+  if (r.metric === "container_restarts")
+    return `stopped more than ${r.threshold} ${r.threshold === 1 ? "time" : "times"} in 10 min`
   return `${r.op} ${formatValue(r.metric, r.threshold)}`
 }
 
@@ -260,10 +393,13 @@ export function ruleSentence(
     "metric" | "op" | "threshold" | "mount" | "for_minutes"
   > & {
     unit?: string
+    project?: string
+    container?: string
   },
 ) {
-  const label =
-    r.metric === "disk" && r.mount
+  const label = takesContainerFilter(r.metric)
+    ? containerWhich(r)
+    : r.metric === "disk" && r.mount
       ? `Disk ${r.mount}`
       : r.metric === "offline"
         ? "Server"
@@ -276,6 +412,44 @@ export function ruleSentence(
             : metricOf(r.metric).label
   const minutes = r.for_minutes
   return `${label} ${conditionText(r)}${minutes > 0 ? ` ${forText(minutes)}` : ""}`
+}
+
+// What a container rule watches, like the backend's messages: "web in
+// shop", "a container of shop", "web", "a container".
+export function containerWhich(r: { project?: string; container?: string }) {
+  const p = r.project?.trim()
+  const c = r.container?.trim()
+  const which =
+    p && c ? `${c} in ${p}` : p ? `a container of ${p}` : c || "a container"
+  return which.charAt(0).toUpperCase() + which.slice(1)
+}
+
+// A glob like the backend's (case-insensitive, * and ?); empty = any.
+export function globMatch(pattern: string, name: string) {
+  const p = pattern.trim()
+  if (!p) return true
+  const re = p
+    .split("")
+    .map((ch) =>
+      ch === "*"
+        ? ".*"
+        : ch === "?"
+          ? "."
+          : ch.replace(/[.\\^$+()|{}[\]-]/g, "\\$&"),
+    )
+    .join("")
+  return new RegExp(`^${re}$`, "i").test(name)
+}
+
+// Does a container rule watch (some of) this compose project? Engine rules
+// watch every project on the server.
+export function ruleCoversProject(
+  r: Pick<AlertRule, "metric"> & { project?: string },
+  project: string,
+) {
+  if (!isContainerMetric(r.metric)) return false
+  if (r.metric === "docker_engine") return true
+  return globMatch(r.project ?? "", project)
 }
 
 export function scopeText(
@@ -310,9 +484,19 @@ export function stateValue(
 export function targetHref(
   s: Pick<AlertRuleState, "target_id" | "target_kind">,
   metric: string,
+  project?: string,
 ) {
   if (s.target_kind === "database") return `/databases/${s.target_id}`
   if (metric === "service") return `/servers/${s.target_id}/services`
+  if (isContainerMetric(metric)) {
+    const env = `?env=${encodeURIComponent(s.target_id)}`
+    const p = project?.trim()
+    return p && !/[*?]/.test(p) && metric !== "docker_engine"
+      ? `/containers/projects/${encodeURIComponent(p)}${env}`
+      : metric === "docker_engine"
+        ? `/containers${env}`
+        : `/containers/list${env}`
+  }
   return `/servers/${s.target_id}/metrics`
 }
 
@@ -398,6 +582,74 @@ export const presets: Preset[] = [
     threshold: 0,
     forMinutes: 5,
     severity: "warning",
+  },
+]
+
+// Ready-made container rules: the project page and the containers sidebar's
+// Alerts page start from these.
+export const containerPresets: Preset[] = [
+  {
+    key: "container-down",
+    name: "Container crashed",
+    metric: "container_down",
+    op: "above",
+    threshold: 0,
+    forMinutes: 2,
+    severity: "critical",
+  },
+  {
+    key: "container-unhealthy",
+    name: "Container unhealthy",
+    metric: "container_unhealthy",
+    op: "above",
+    threshold: 0,
+    forMinutes: 2,
+    severity: "warning",
+  },
+  {
+    key: "container-restarts",
+    name: "Restart loop",
+    metric: "container_restarts",
+    op: "above",
+    threshold: 3,
+    forMinutes: 0,
+    severity: "critical",
+  },
+  {
+    key: "container-memory",
+    name: "Near its memory limit",
+    metric: "container_memory",
+    op: "above",
+    threshold: 90,
+    forMinutes: 5,
+    severity: "warning",
+  },
+  {
+    key: "container-cpu",
+    name: "Container CPU busy",
+    metric: "container_cpu",
+    op: "above",
+    threshold: 90,
+    forMinutes: 10,
+    severity: "warning",
+  },
+  {
+    key: "container-vulns",
+    name: "Critical vulnerability",
+    metric: "container_vulns_critical",
+    op: "above",
+    threshold: 0,
+    forMinutes: 0,
+    severity: "warning",
+  },
+  {
+    key: "docker-engine",
+    name: "Docker engine down",
+    metric: "docker_engine",
+    op: "above",
+    threshold: 0,
+    forMinutes: 2,
+    severity: "critical",
   },
 ]
 

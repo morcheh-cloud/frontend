@@ -98,6 +98,18 @@ export const cronjobs: GuideSection[] = [
               "Updates the applications installed on chosen servers (all with an update, or only some) and, if asked, upgrades system packages (optionally security only), a few servers at a time.",
             ],
             [
+              <UI key="docker-update">Update containers</UI>,
+              "On servers with Docker or Podman, pulls newer images and recreates the containers using them (all with an update, or only some projects/containers). Each one is watched for a while and put back on its old image if it stops or turns unhealthy. See Containers › Updates.",
+            ],
+            [
+              <UI key="docker-volume-backup">Back up volumes</UI>,
+              "Packs a server's Docker volumes (all, or names with * and ?) into .tar.gz files, sends them to a storage and keeps the newest N copies of each. Can stop the containers using a volume while it's copied. See Containers › Volume copies.",
+            ],
+            [
+              <UI key="docker-prune">Clean up Docker</UI>,
+              "On servers with Docker or Podman, removes what nothing uses any more: unused images, build cache, stopped containers, unused networks and, if you ask, volumes. See Cleaning up Docker.",
+            ],
+            [
               <UI key="verify">Verify backups</UI>,
               "Reads back the latest backup of a database (every plan, or one) on every storage it's kept on and compares its checksum. Nothing is restored.",
             ],
@@ -110,7 +122,11 @@ export const cronjobs: GuideSection[] = [
           check runs link to their own page (<See guide="scripts" />,{" "}
           <See guide="ansible" />,{" "}
           <See guide="applications" section="schedule" />,{" "}
-          <See guide="databases" section="backups" />) from the run's details.
+          <See guide="databases" section="backups" />) from the run's details;
+          container updates and volume copies show per server and per volume (
+          <See guide="containers" section="updates" />,{" "}
+          <See guide="containers" section="volume-backups" />
+          ).
         </P>
         <Tip>
           Only <UI>Copy files</UI> has a <UI>Test run</UI>. To try any other
@@ -212,6 +228,81 @@ export const cronjobs: GuideSection[] = [
           <See guide="packages" section="auto-updates" />) already install
           security fixes daily. A weekly job here then picks up the rest and
           handles restarts.
+        </Tip>
+      </>
+    ),
+  },
+  {
+    id: "docker-prune",
+    title: "Cleaning up Docker",
+    body: (
+      <>
+        <P>
+          <UI>Clean up Docker</UI> frees the disk that old images, build cache
+          and stopped containers take, on up to 50 servers with Docker or
+          Podman. It removes only what no container uses: images of running and
+          stopped containers stay.
+        </P>
+        <Steps>
+          {[
+            <>
+              Press <UI>New cron job</UI> and pick <UI>Clean up Docker</UI>, or
+              on the Containers › Images page press <UI>⋯</UI> and{" "}
+              <UI>Schedule a cleanup…</UI> (the server is then already picked).
+            </>,
+            <>Tick the servers.</>,
+            <>
+              Under <UI>What to remove</UI>, choose for images (<UI>Keep</UI>,{" "}
+              <UI>Untagged</UI>, <UI>Every unused one</UI>), build cache,
+              stopped containers, unused networks and volumes.
+            </>,
+            <>
+              Under <UI>Safety</UI>, set <UI>Only what's older than (hours)</UI>{" "}
+              so something pulled or stopped a moment ago isn't removed.
+            </>,
+            <>Set the schedule (once a week at a quiet hour) and save.</>,
+          ]}
+        </Steps>
+        <Recommended
+          rows={[
+            {
+              setting: "Images",
+              value: "Untagged",
+              why: "Every unused one frees more, but the next deploy pulls them again.",
+            },
+            {
+              setting: "Build cache, stopped containers, networks",
+              value: "On",
+              why: "Rebuilt or made again when needed.",
+            },
+            {
+              setting: "Volumes",
+              value: "Keep",
+              why: "Volumes hold data. Remove them by hand, on purpose.",
+            },
+            {
+              setting: "Only what's older than",
+              value: "24 hours",
+              why: "Leaves what a deploy in progress is about to use.",
+            },
+          ]}
+        />
+        <P>
+          Each server's row in the run says what was removed and how much space
+          it freed. With <UI>Carry on after a server fails</UI> off, the first
+          failure leaves the servers not started yet alone.
+        </P>
+        <Warn>
+          <UI>Every unused one</UI> for volumes deletes the data of any volume
+          no container is attached to, including one whose project is just
+          stopped for now. Docker keeps no age for volumes, so the hours setting
+          doesn't protect them.
+        </Warn>
+        <Tip>
+          Each workspace can also clean every environment by itself (see{" "}
+          <See guide="containers" section="auto-cleanup" />
+          ). Use this cron job when you want to choose the servers, the time or
+          a stricter clean-up.
         </Tip>
       </>
     ),

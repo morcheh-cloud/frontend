@@ -41,7 +41,7 @@ const barButton =
   "flex size-11 shrink-0 items-center justify-center rounded-full text-foreground outline-none active:bg-muted disabled:opacity-40 [&_svg]:size-5"
 
 // Keys a phone keyboard lacks. Ctrl and Alt stick until the next key.
-const keys: { label: ReactNode; aria: string; data: string }[] = [
+export const keys: { label: ReactNode; aria: string; data: string }[] = [
   { label: "Esc", aria: "Escape", data: "\x1b" },
   { label: "Tab", aria: "Tab", data: "\t" },
   { label: <ArrowUp />, aria: "Up", data: "\x1b[A" },
@@ -291,7 +291,7 @@ export function TerminalMobile({
   )
 }
 
-function Key({
+export function Key({
   aria,
   pressed,
   onPress,

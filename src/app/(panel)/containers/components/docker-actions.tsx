@@ -3,13 +3,22 @@
 import {
   Cable,
   CircleStop,
+  Container,
   Copy,
   FileText,
+  Fingerprint,
+  FolderOpen,
+  HardDrive,
+  HardDriveUpload,
   Info,
+  Layers,
   Pause,
   Pencil,
   Play,
+  PlayCircle,
   RotateCw,
+  Send,
+  ShieldCheck,
   SquareTerminal,
   Tag,
   Trash2,
@@ -32,8 +41,10 @@ import {
   type ContainerAction,
   useContainerAction,
   useDisconnectNetwork,
+  usePullImage,
   useRemoveNetwork,
   useRemoveVolume,
+  useScanImages,
 } from "../api"
 import { ImageDetails, NetworkDetails, VolumeDetails } from "./details"
 import {
@@ -46,11 +57,27 @@ import {
   PullDialog,
   RemoveContainersDialog,
   RemoveImageDialog,
+  RemoveImagesDialog,
+  RemoveVolumesDialog,
   RenameDialog,
   TagDialog,
 } from "./dialogs"
-import { containerHref } from "./meta"
+import {
+  CopyImageDialog,
+  ExportImageDialog,
+  ImportImageDialog,
+} from "./image-transfer"
+import { LayerExplorer } from "./layer-explorer"
+import {
+  containerHref,
+  dockerHref,
+  imageName,
+  shortId,
+  volumeHref,
+} from "./meta"
 import type { DockerCan } from "./permissions"
+import { RunContainerDialog } from "./run-wizard"
+import { BackupVolumeDialog } from "./volume-backups"
 
 type Dialog =
   | { kind: "kill"; server: string; c: DockerContainer }
@@ -64,10 +91,27 @@ type Dialog =
   | { kind: "pull"; server: string; image?: string }
   | { kind: "tag"; server: string; image: DockerImage }
   | { kind: "remove-image"; server: string; image: DockerImage }
+  | {
+      kind: "remove-images"
+      server: string
+      images: DockerImage[]
+      onDone?: () => void
+    }
   | { kind: "new-volume"; server: string }
+  | {
+      kind: "remove-volumes"
+      server: string
+      volumes: DockerVolume[]
+      onDone?: () => void
+    }
   | { kind: "new-network"; server: string }
   | { kind: "connect"; server: string; network: DockerNetwork }
   | { kind: "prune"; server: string; preset?: PrunePreset }
+  | { kind: "volume-backup"; server: string; volume: string; users: number }
+  | { kind: "run"; server: string; image: string }
+  | { kind: "export-image"; server: string; image: DockerImage }
+  | { kind: "import-image"; server: string }
+  | { kind: "copy-image"; server: string; image: DockerImage }
   | {
       kind: "confirm"
       title: string
@@ -80,6 +124,7 @@ type Detail =
   | { kind: "image"; server: string; image: DockerImage; can: DockerCan }
   | { kind: "volume"; server: string; name: string; can: DockerCan }
   | { kind: "network"; server: string; id: string; can: DockerCan }
+  | { kind: "layers"; server: string; image: string }
 
 const verbs: Record<ContainerAction, [string, string]> = {
   start: ["Starting", "Started"],
@@ -101,6 +146,8 @@ function useActionsState() {
   const removeVolume = useRemoveVolume()
   const removeNetwork = useRemoveNetwork()
   const disconnect = useDisconnectNetwork()
+  const scan = useScanImages()
+  const pull = usePullImage()
 
   function show(d: Dialog) {
     setDialog({ ...d, n: Date.now() })
@@ -179,12 +226,52 @@ function useActionsState() {
       show({ kind: "tag", server, image }),
     removeImage: (server: string, image: DockerImage) =>
       show({ kind: "remove-image", server, image }),
+    removeImages: (
+      server: string,
+      images: DockerImage[],
+      onDone?: () => void,
+    ) =>
+      images.length === 1
+        ? show({ kind: "remove-image", server, image: images[0] })
+        : show({ kind: "remove-images", server, images, onDone }),
+    // A vulnerability scan as a background task (at most 100 per call).
+    scanImages: (server: string, images: DockerImage[]) =>
+      scan.mutate(
+        { server, images: images.slice(0, 100).map((i) => i.id) },
+        { onError: (err) => toast.error(err.message) },
+      ),
+    // Pull every tagged one again (a newer version under the same tag).
+    pullAgain: (server: string, images: DockerImage[]) => {
+      const refs = images.flatMap((i) => (i.tags[0] ? [i.tags[0]] : []))
+      if (refs.length === 1)
+        return show({ kind: "pull", server, image: refs[0] })
+      for (const ref of refs) pull.mutate({ server, image: ref })
+    },
     image: (server: string, image: DockerImage, can: DockerCan) =>
       showDetail({ kind: "image", server, image, can }),
+    // Engineer: the layer explorer, run wizard and moving images around.
+    layers: (server: string, image: DockerImage) =>
+      showDetail({ kind: "layers", server, image: image.tags[0] ?? image.id }),
+    runImage: (server: string, image: DockerImage | string) =>
+      show({
+        kind: "run",
+        server,
+        image: typeof image === "string" ? image : (image.tags[0] ?? image.id),
+      }),
+    exportImage: (server: string, image: DockerImage) =>
+      show({ kind: "export-image", server, image }),
+    importImage: (server: string) => show({ kind: "import-image", server }),
+    copyImage: (server: string, image: DockerImage) =>
+      show({ kind: "copy-image", server, image }),
     newVolume: (server: string) => show({ kind: "new-volume", server }),
+    removeVolumes: (
+      server: string,
+      volumes: DockerVolume[],
+      onDone?: () => void,
+    ) => show({ kind: "remove-volumes", server, volumes, onDone }),
     volume: (server: string, name: string, can: DockerCan) =>
       showDetail({ kind: "volume", server, name, can }),
-    removeVolume: (server: string, v: DockerVolume) =>
+    removeVolume: (server: string, v: DockerVolume, after?: () => void) =>
       confirm({
         title: `Remove volume ${v.anonymous ? v.name.slice(0, 12) : v.name}?`,
         body:
@@ -193,7 +280,16 @@ function useActionsState() {
             : "Its data is deleted for good.",
         label: "Remove",
         run: () =>
-          removeVolume.mutateAsync({ server, volume: v.name, force: false }),
+          removeVolume
+            .mutateAsync({ server, volume: v.name, force: false })
+            .then(() => after?.()),
+      }),
+    backupVolume: (server: string, v: Pick<DockerVolume, "name" | "used_by">) =>
+      show({
+        kind: "volume-backup",
+        server,
+        volume: v.name,
+        users: v.used_by.length,
       }),
     newNetwork: (server: string) => show({ kind: "new-network", server }),
     network: (server: string, id: string, can: DockerCan) =>
@@ -268,6 +364,19 @@ export function DockerActionsProvider({ children }: { children: ReactNode }) {
           manage={t.can.manage}
           onTag={() => actions.tag(t.server, t.image)}
           onRemove={() => actions.removeImage(t.server, t.image)}
+          onPull={(ref) => actions.pull(t.server, ref)}
+          onScan={() => actions.scanImages(t.server, [t.image])}
+          onLayers={() => actions.layers(t.server, t.image)}
+          onRun={() => actions.runImage(t.server, t.image)}
+        />
+      )}
+      {t?.kind === "layers" && (
+        <LayerExplorer
+          key={t.n}
+          server={t.server}
+          image={t.image}
+          open={l.detailOpen}
+          onOpenChange={l.setDetailOpen}
         />
       )}
       {t?.kind === "volume" && (
@@ -277,7 +386,8 @@ export function DockerActionsProvider({ children }: { children: ReactNode }) {
           name={t.name}
           open={l.detailOpen}
           onOpenChange={l.setDetailOpen}
-          manage={t.can.manage}
+          can={t.can}
+          onBackup={(v) => actions.backupVolume(t.server, v)}
           onRemove={(v) => actions.removeVolume(t.server, v)}
         />
       )}
@@ -351,6 +461,26 @@ export function DockerActionsProvider({ children }: { children: ReactNode }) {
           onOpenChange={l.setDialogOpen}
         />
       )}
+      {d?.kind === "remove-images" && (
+        <RemoveImagesDialog
+          key={d.n}
+          server={d.server}
+          images={d.images}
+          onDone={d.onDone}
+          open={l.dialogOpen}
+          onOpenChange={l.setDialogOpen}
+        />
+      )}
+      {d?.kind === "remove-volumes" && (
+        <RemoveVolumesDialog
+          key={d.n}
+          server={d.server}
+          volumes={d.volumes}
+          onDone={d.onDone}
+          open={l.dialogOpen}
+          onOpenChange={l.setDialogOpen}
+        />
+      )}
       {d?.kind === "new-volume" && (
         <NewVolumeDialog
           key={d.n}
@@ -381,6 +511,51 @@ export function DockerActionsProvider({ children }: { children: ReactNode }) {
           key={d.n}
           server={d.server}
           preset={d.preset}
+          open={l.dialogOpen}
+          onOpenChange={l.setDialogOpen}
+        />
+      )}
+      {d?.kind === "volume-backup" && (
+        <BackupVolumeDialog
+          key={d.n}
+          server={d.server}
+          volume={d.volume}
+          users={d.users}
+          open={l.dialogOpen}
+          onOpenChange={l.setDialogOpen}
+        />
+      )}
+      {d?.kind === "run" && (
+        <RunContainerDialog
+          key={d.n}
+          server={d.server}
+          image={d.image}
+          open={l.dialogOpen}
+          onOpenChange={l.setDialogOpen}
+        />
+      )}
+      {d?.kind === "export-image" && (
+        <ExportImageDialog
+          key={d.n}
+          server={d.server}
+          image={d.image}
+          open={l.dialogOpen}
+          onOpenChange={l.setDialogOpen}
+        />
+      )}
+      {d?.kind === "import-image" && (
+        <ImportImageDialog
+          key={d.n}
+          server={d.server}
+          open={l.dialogOpen}
+          onOpenChange={l.setDialogOpen}
+        />
+      )}
+      {d?.kind === "copy-image" && (
+        <CopyImageDialog
+          key={d.n}
+          server={d.server}
+          image={d.image}
           open={l.dialogOpen}
           onOpenChange={l.setDialogOpen}
         />
@@ -417,7 +592,7 @@ export function useContainerMenu(
   server: string,
   c: DockerContainer,
   can: DockerCan,
-  opts: { details?: boolean; terminal?: string } = {},
+  opts: { details?: boolean } = {},
 ): Item[][] {
   const a = useDockerActions()
   const router = useRouter()
@@ -483,12 +658,12 @@ export function useContainerMenu(
       icon: <FileText />,
       onSelect: () => a.logs(server, c),
     })
-  if (opts.terminal && can.manage && running)
+  if (can.manage && running)
     look.push({
       key: "shell",
       label: "Open a shell",
       icon: <SquareTerminal />,
-      onSelect: () => router.push(opts.terminal as string),
+      onSelect: () => router.push(containerHref(server, c.name, "shell")),
     })
   look.push({
     key: "copy",
@@ -537,7 +712,9 @@ export function useImageMenu(
   can: DockerCan,
 ): Item[][] {
   const a = useDockerActions()
+  const router = useRouter()
   const ref = image.tags[0]
+  const name = ref ? imageName(ref) : shortId(image.id)
   return [
     [
       {
@@ -546,25 +723,92 @@ export function useImageMenu(
         icon: <Info />,
         onSelect: () => a.image(server, image, can),
       },
-      ...(can.manage && ref
+      ...(image.containers > 0
         ? [
             {
-              key: "pull",
-              label: "Pull again",
-              icon: <RotateCw />,
-              onSelect: () => a.pull(server, ref),
+              key: "containers",
+              label: `Its container${image.containers === 1 ? "" : "s"}`,
+              icon: <Container />,
+              onSelect: () =>
+                router.push(dockerHref(server, { tab: "containers", q: name })),
             },
           ]
         : []),
     ],
+    [
+      ...(ref
+        ? [
+            {
+              key: "copy",
+              label: "Copy name",
+              icon: <Copy />,
+              onSelect: () => copy(name),
+            },
+          ]
+        : []),
+      {
+        key: "copy-id",
+        label: "Copy ID",
+        icon: <Fingerprint />,
+        onSelect: () => copy(image.id),
+      },
+    ],
     can.manage
       ? [
+          {
+            key: "run",
+            label: "Run…",
+            icon: <PlayCircle />,
+            onSelect: () => a.runImage(server, image),
+          },
+          {
+            key: "layers",
+            label: "Explore layers",
+            icon: <Layers />,
+            onSelect: () => a.layers(server, image),
+          },
+          {
+            key: "export",
+            label: "Save to a storage…",
+            icon: <HardDriveUpload />,
+            onSelect: () => a.exportImage(server, image),
+          },
+          {
+            key: "copy-to",
+            label: "Copy to another server…",
+            icon: <Send />,
+            onSelect: () => a.copyImage(server, image),
+          },
+        ]
+      : [],
+    can.manage
+      ? [
+          ...(ref
+            ? [
+                {
+                  key: "pull",
+                  label: "Pull again",
+                  icon: <RotateCw />,
+                  onSelect: () => a.pull(server, ref),
+                },
+              ]
+            : []),
+          {
+            key: "scan",
+            label: "Scan for vulnerabilities",
+            icon: <ShieldCheck />,
+            onSelect: () => a.scanImages(server, [image]),
+          },
           {
             key: "tag",
             label: "Add tag…",
             icon: <Tag />,
             onSelect: () => a.tag(server, image),
           },
+        ]
+      : [],
+    can.manage
+      ? [
           {
             key: "remove",
             label: "Remove…",
@@ -577,20 +821,44 @@ export function useImageMenu(
   ]
 }
 
+function copy(value: string) {
+  navigator.clipboard
+    ?.writeText(value)
+    .then(() => toast.success("Copied"))
+    .catch(() => toast.error("Couldn't copy"))
+}
+
 export function useVolumeMenu(
   server: string,
   v: DockerVolume,
   can: DockerCan,
+  opts: { onPage?: boolean } = {},
 ): Item[][] {
   const a = useDockerActions()
+  const router = useRouter()
   return [
     [
-      {
-        key: "details",
-        label: "Details",
-        icon: <Info />,
-        onSelect: () => a.volume(server, v.name, can),
-      },
+      ...(opts.onPage
+        ? []
+        : [
+            {
+              key: "open",
+              label: "Open",
+              icon: <HardDrive />,
+              onSelect: () => router.push(volumeHref(server, v.name)),
+            },
+            ...(can.manage
+              ? [
+                  {
+                    key: "files",
+                    label: "Browse files",
+                    icon: <FolderOpen />,
+                    onSelect: () =>
+                      router.push(volumeHref(server, v.name, "files")),
+                  },
+                ]
+              : []),
+          ]),
       {
         key: "copy",
         label: "Copy path on the server",
@@ -606,11 +874,24 @@ export function useVolumeMenu(
     can.manage
       ? [
           {
+            key: "backup",
+            label: "Back up…",
+            icon: <HardDriveUpload />,
+            onSelect: () => a.backupVolume(server, v),
+          },
+          {
             key: "remove",
             label: "Remove…",
             icon: <Trash2 />,
             destructive: true,
-            onSelect: () => a.removeVolume(server, v),
+            onSelect: () =>
+              a.removeVolume(
+                server,
+                v,
+                opts.onPage
+                  ? () => router.replace(dockerHref(server, { tab: "volumes" }))
+                  : undefined,
+              ),
           },
         ]
       : [],

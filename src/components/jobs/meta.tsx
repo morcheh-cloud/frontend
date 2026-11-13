@@ -17,6 +17,9 @@ import {
   FolderInput,
   FolderSearch,
   Gauge,
+  GitBranch,
+  HardDriveDownload,
+  HardDriveUpload,
   Image as ImageIcon,
   Layers,
   LayoutGrid,
@@ -27,12 +30,13 @@ import {
   PackageOpen,
   Play,
   SearchCheck,
+  Send,
   Shield,
   ShieldBan,
   ShieldCheck,
   Split,
 } from "lucide-react"
-import { envHref } from "@/app/(panel)/containers/components/meta"
+import { envHref, volumeHref } from "@/app/(panel)/containers/components/meta"
 import { backupsHref } from "@/app/(panel)/databases/[id]/components/backups/meta"
 import { filesHref } from "@/components/files/file-manager"
 import { formatSize } from "@/lib/format"
@@ -78,15 +82,29 @@ const icons: Record<string, LucideIcon> = {
   "docker-update-check": SearchCheck,
   "docker-update": CircleArrowUp,
   "docker-scan": ShieldCheck,
+  "docker-git-deploy": GitBranch,
+  "docker-volume-backup": HardDriveUpload,
+  "docker-volume-restore": ArchiveRestore,
+  "docker-volume-move": FolderInput,
+  "docker-volume-copy": Copy,
+  "docker-image-export": HardDriveUpload,
+  "docker-image-import": HardDriveDownload,
+  "docker-image-copy": Send,
 }
 
 // Which Containers page a Docker job's results are on.
 function dockerJobPage(kind: string) {
   switch (kind) {
     case "docker-pull":
+    case "docker-image-import":
+    case "docker-image-copy":
       return "/containers/images"
     case "docker-compose":
+    case "docker-git-deploy":
       return "/containers/projects"
+    case "docker-volume-backup":
+    case "docker-volume-restore":
+      return "/containers/volumes"
     case "docker-update-check":
     case "docker-update":
       return "/containers/updates"
@@ -234,6 +252,9 @@ export function placeHref(job: Job) {
     return `/servers/${job.refs[0]}/packages`
   if (job.kind.startsWith("proxy-") && job.refs[0])
     return `/proxy/${job.refs[0]}`
+  // Copy/move inside a volume: its file manager at the destination folder.
+  if (t?.volume && t.server_id)
+    return volumeHref(t.server_id, t.volume, "files", t.path || undefined)
   if (job.kind.startsWith("docker-") && t?.server_id)
     return envHref(t.server_id, dockerJobPage(job.kind))
   if (!t?.path) return null
@@ -248,8 +269,17 @@ export function placeLabel(job: Job) {
   if (job.kind === "software-scan") return "Open applications"
   if (job.kind.startsWith("proxy-")) return "Open proxy"
   if (job.kind.startsWith("package-")) return "Open packages"
-  if (job.kind === "docker-pull") return "Open images"
-  if (job.kind === "docker-compose") return "Open projects"
+  if (
+    job.kind === "docker-pull" ||
+    job.kind === "docker-image-import" ||
+    job.kind === "docker-image-copy"
+  )
+    return "Open images"
+  if (job.kind === "docker-compose" || job.kind === "docker-git-deploy")
+    return "Open projects"
+  if (job.kind === "docker-volume-move" || job.kind === "docker-volume-copy")
+    return "Open folder"
+  if (job.kind.startsWith("docker-volume-")) return "Open volumes"
   if (job.kind === "docker-update-check" || job.kind === "docker-update")
     return "Open updates"
   if (job.kind === "docker-scan") return "Open security"

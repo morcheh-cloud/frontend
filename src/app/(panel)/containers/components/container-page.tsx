@@ -43,6 +43,7 @@ import { timeAgo } from "../../servers/components/meta"
 import { useDockerContainer, useDockerInspect } from "../api"
 import { setDockerEnv } from "../env"
 import { ContainerLogs } from "./container-logs"
+import { ContainerShell } from "./container-shell"
 import { ContainerStats } from "./container-stats"
 import { useContainerMenu, useDockerActions } from "./docker-actions"
 import {
@@ -64,6 +65,7 @@ const tabLabels: Record<ContainerTab, string> = {
   overview: "Overview",
   logs: "Logs",
   stats: "Live stats",
+  shell: "Shell",
   inspect: "Inspect",
 }
 
@@ -161,12 +163,15 @@ function title(c: DockerContainerDetails) {
   return c.name
 }
 
-function useTabs(can: DockerCan) {
+function useTabs(can: DockerCan, running: boolean) {
   const [{ tab }, set] = useContainerTab()
   // As the backend: logs need Operator, inspect Engineer (it carries the
   // environment values); everyone sees the overview and live numbers.
   const shown = containerTabs.filter(
-    (t) => (t !== "logs" || can.operate) && (t !== "inspect" || can.manage),
+    (t) =>
+      (t !== "logs" || can.operate) &&
+      (t !== "inspect" || can.manage) &&
+      (t !== "shell" || (can.manage && running)),
   )
   const current = shown.includes(tab) ? tab : "overview"
   return {
@@ -214,7 +219,7 @@ function QuickActions({ ctx }: { ctx: Ctx }) {
 function DesktopPage({ ctx }: { ctx: Ctx }) {
   const { server, c, can } = ctx
   const menu = useContainerMenu(server.id, c, can, { details: false })
-  const tabs = useTabs(can)
+  const tabs = useTabs(can, c.state === "running")
   return (
     <div className="flex flex-col pb-24">
       <div className="flex w-full items-center gap-4 px-6 pt-5 pb-3">
@@ -237,8 +242,16 @@ function DesktopPage({ ctx }: { ctx: Ctx }) {
         </div>
         <div className="flex shrink-0 gap-2">
           <QuickActions ctx={ctx} />
-          {can.manage && c.state === "running" && (
-            <ShellButton server={server} c={c} />
+          {can.manage && c.state === "running" && tabs.current !== "shell" && (
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Open a shell"
+              title="Open a shell in this container"
+              onClick={() => tabs.setTab("shell")}
+            >
+              <SquareTerminal />
+            </Button>
           )}
           <ItemMenu groups={menu} label="Container actions" />
         </div>
@@ -266,40 +279,12 @@ function DesktopPage({ ctx }: { ctx: Ctx }) {
   )
 }
 
-// No shell into a container yet: the server's terminal, with the command to
-// copy.
-function ShellButton({
-  server,
-  c,
-}: {
-  server: Server
-  c: DockerContainerDetails
-}) {
-  const cmd = `docker exec -it ${c.name} sh`
-  return (
-    <Button
-      variant="outline"
-      size="icon"
-      aria-label="Open the server's terminal"
-      title={`Open the server's terminal (then: ${cmd})`}
-      render={<Link href={`/servers/${server.id}/terminal`} />}
-      nativeButton={false}
-      onClick={() => navigator.clipboard?.writeText(cmd).catch(() => {})}
-    >
-      <SquareTerminal />
-    </Button>
-  )
-}
-
 function PhonePage({ ctx }: { ctx: Ctx }) {
   const { server, c, can } = ctx
   const back = useBack("/containers/list")
   const [open, setOpen] = useOpen("container-page-sheet")
-  const menu = useContainerMenu(server.id, c, can, {
-    details: false,
-    terminal: `/servers/${server.id}/terminal`,
-  })
-  const tabs = useTabs(can)
+  const menu = useContainerMenu(server.id, c, can, { details: false })
+  const tabs = useTabs(can, c.state === "running")
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-border bg-background/90 pt-[env(safe-area-inset-top)] backdrop-blur-md">
@@ -365,6 +350,8 @@ function TabBody({ ctx, tab }: { ctx: Ctx; tab: ContainerTab }) {
       return <ContainerStats server={ctx.server} c={ctx.c} phone={ctx.phone} />
     case "inspect":
       return <InspectTab ctx={ctx} />
+    case "shell":
+      return <ContainerShell server={ctx.server} c={ctx.c} phone={ctx.phone} />
     default:
       return <OverviewTab ctx={ctx} />
   }

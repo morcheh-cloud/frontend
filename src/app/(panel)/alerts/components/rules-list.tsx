@@ -442,7 +442,7 @@ export function FiringNotice({
               <>
                 {" on "}
                 <Link
-                  href={targetHref(s, r.metric)}
+                  href={targetHref(s, r.metric, r.project)}
                   className="underline-offset-2 hover:underline"
                 >
                   {s.target_name}

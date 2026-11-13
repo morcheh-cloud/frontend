@@ -1,7 +1,6 @@
 "use client"
 
 import {
-  ChevronRight,
   Ellipsis,
   Layers,
   Loader2,
@@ -11,14 +10,15 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { parseAsStringLiteral, useQueryStates } from "nuqs"
-import { useState } from "react"
+import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs"
+import { type ReactNode, useState } from "react"
 import { toast } from "sonner"
 
 import { yamlProblems } from "@/app/(panel)/ansible/components/yaml-editor"
 import { BottomSheet } from "@/components/bottom-sheet"
 import { usePageCrumbs } from "@/components/panel/breadcrumbs"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useOpen } from "@/hooks/useOpen"
 import { ApiError } from "@/lib/api"
@@ -29,25 +29,48 @@ import {
   ItemMenu,
   type Note,
   Notices,
-  Segmented,
   SheetItems,
 } from "../../servers/[id]/components/parts"
-import { timeAgo } from "../../servers/components/meta"
-import { useDockerProject, useSaveProjectFiles } from "../api"
+import { useDockerProject, useProjectStats, useSaveProjectFiles } from "../api"
 import { ComposeFiles } from "./compose-files"
+import { ProjectAlerts, useContainerRules } from "./container-alerts"
+import { DeployPanel } from "./deploy-panel"
 import { EnvPage } from "./env-page"
-import { containerHref, Dot, stateOf } from "./meta"
-import { Block, CopyButton, Pairs, Quiet } from "./parts"
+import { Dot } from "./meta"
+import { useDockerCan } from "./permissions"
 import {
   projectHref,
   projectStateMeta,
   useProjectActions,
 } from "./project-actions"
+import { ProjectContainers } from "./project-containers"
+import {
+  type DeployAction,
+  serviceRows,
+  useProjectDeploy,
+} from "./project-deploy"
+import { ProjectEnv } from "./project-env"
+import { ProjectGit } from "./project-git"
+import { ProjectHistory } from "./project-history"
+import { ProjectLogs } from "./project-logs"
+import { ProjectOverview, type ProjectTab } from "./project-overview"
+import { ProjectProduction } from "./project-production"
 
-const tabs = ["overview", "files"] as const
-type Tab = (typeof tabs)[number]
+const tabs = [
+  "overview",
+  "containers",
+  "logs",
+  "production",
+  "alerts",
+  "files",
+  "environment",
+  "history",
+  "git",
+] as const satisfies readonly ProjectTab[]
 const tabParsers = {
   tab: parseAsStringLiteral(tabs).withDefault("overview"),
+  // Logs tab: only this service ("" = every one).
+  svc: parseAsString.withDefault(""),
 }
 
 // /containers/projects/[name]: one compose project of the environment.
@@ -73,11 +96,21 @@ function Project({
   const id = env.server_id
   const query = useDockerProject(id, name)
   const actions = useProjectActions(id, env.workspace_id)
-  const [{ tab }, setTabs] = useQueryStates(tabParsers, { history: "replace" })
+  const can = useDockerCan(id, env.workspace_id)
+  const deploy = useProjectDeploy(id, query.data)
+  // While a deploy runs, containers appear by the second.
+  const statsQuery = useProjectStats(id, true, !!deploy?.active)
+  const alerts = useContainerRules({
+    server: { id, name: env.name },
+    project: name,
+  })
+  const [{ tab, svc }, setTabs] = useQueryStates(tabParsers, {
+    history: "replace",
+  })
   const [sheet, setSheet] = useOpen("docker-project-sheet")
+  // The nav already gives Containers › Projects; add the project itself.
   usePageCrumbs([
-    { href: "/containers/projects", label: "Projects" },
-    { href: projectHref(id, name), label: name },
+    { href: projectHref(id, name), label: query.data?.title || name },
   ])
 
   const p = query.data
@@ -114,15 +147,33 @@ function Project({
     )
   }
 
+  const stats = statsQuery.data?.projects.find((x) => x.name === p.name)
+  // A project without containers isn't in the stats at all.
+  const containers = stats?.containers ?? (statsQuery.data ? [] : undefined)
+  const rows = containers && serviceRows(p, containers, deploy)
+  const firing = alerts.list.filter((r) =>
+    r.states.some((s) => s.state === "firing"),
+  ).length
   // Files need Engineer, and the backend says whether it could read them.
   const showFiles = actions.can.manage && (p.readable || p.missing)
-  const current: Tab = tab === "files" && showFiles ? "files" : "overview"
-  const setTab = (t: Tab) => setTabs({ tab: t === "overview" ? null : t })
+  const editOnly = new Set<ProjectTab>(["files", "environment"])
+  const shown = tabs.filter(
+    (t) =>
+      (!editOnly.has(t) || showFiles) &&
+      (t !== "history" || actions.can.manage),
+  )
+  const current: ProjectTab = shown.includes(tab) ? tab : "overview"
+  const setTab = (t: ProjectTab, service?: string) =>
+    setTabs({
+      tab: t === "overview" ? null : t,
+      svc: t === "logs" && service ? service : null,
+    })
+  const apply = () => actions.run(p.name, "up")
   const menu = actions.menu(p)
   const deployed = p.state !== "not-deployed"
   const primary = actions.can.manage && !p.missing && (
     <Button
-      disabled={actions.pending}
+      disabled={actions.pending || !!deploy?.active}
       onClick={() => actions.run(p.name, deployed ? "redeploy" : "up")}
       className={cn(phone && "h-11 flex-1")}
     >
@@ -136,29 +187,153 @@ function Project({
       {deployed ? "Redeploy" : "Deploy"}
     </Button>
   )
-  const meta = projectStateMeta[p.state]
-
-  const tabBar = showFiles && (
-    <Segmented
-      label="Project section"
-      value={current}
-      onChange={setTab}
-      items={[
-        { value: "overview", label: "Overview" },
-        { value: "files", label: "Files" },
-      ]}
+  // A running deploy says so in place of "Not deployed" / "Partly running".
+  const meta = deploy?.active
+    ? {
+        label: `${deployLabels[deploy.action] ?? "Working"}…`,
+        tone: "brand" as const,
+      }
+    : projectStateMeta[p.state]
+  const count = (t: ProjectTab) =>
+    t === "containers" ? p.total : t === "alerts" ? firing : 0
+  const tabBar = (
+    <TabBar
+      tabs={shown}
+      current={current}
+      onChange={(t) => setTab(t)}
+      count={count}
+      phone={phone}
     />
   )
+
+  let body: ReactNode
+  switch (current) {
+    case "containers":
+      body = (
+        <ProjectContainers
+          serverId={id}
+          rows={rows}
+          pending={statsQuery.isPending}
+          can={can}
+          phone={phone}
+          onLogs={(s) => setTab("logs", s)}
+        />
+      )
+      break
+    case "logs":
+      body = (
+        <ProjectLogs
+          serverId={id}
+          project={p.name}
+          services={p.services}
+          service={svc}
+          onService={(s) => setTabs({ svc: s || null })}
+          phone={phone}
+        />
+      )
+      break
+    case "production":
+      body = (
+        <ProjectProduction
+          p={p}
+          stats={stats}
+          pending={statsQuery.isPending}
+          serverId={id}
+          canEdit={actions.can.manage && p.readable && !p.missing}
+          phone={phone}
+          onApply={apply}
+          onFiles={showFiles ? () => setTab("files") : undefined}
+        />
+      )
+      break
+    case "alerts":
+      body = (
+        <ProjectAlerts
+          server={{ id, name: env.name }}
+          project={p.name}
+          phone={phone}
+        />
+      )
+      break
+    case "files":
+      body = (
+        <FilesTab
+          key={p.name}
+          p={p}
+          serverId={id}
+          phone={phone}
+          onApply={apply}
+        />
+      )
+      break
+    case "environment":
+      body = (
+        <ProjectEnv
+          key={p.name}
+          p={p}
+          serverId={id}
+          phone={phone}
+          onApply={apply}
+        />
+      )
+      break
+    case "history":
+      body = (
+        <ProjectHistory
+          p={p}
+          serverId={id}
+          phone={phone}
+          onApplied={() =>
+            toast("Files put back", {
+              description: "Containers still run the old ones.",
+              action: { label: "Apply now", onClick: apply },
+            })
+          }
+        />
+      )
+      break
+    case "git":
+      body = (
+        <ProjectGit
+          p={p}
+          serverId={id}
+          canEdit={actions.can.manage}
+          phone={phone}
+        />
+      )
+      break
+    default:
+      body = (
+        <ProjectOverview
+          p={p}
+          stats={stats}
+          statsPending={statsQuery.isPending}
+          serverId={id}
+          canManage={actions.can.manage}
+          canFiles={showFiles}
+          firing={firing}
+          rows={rows}
+          deploying={!!deploy?.active}
+          phone={phone}
+          onTab={(t) => setTab(t)}
+        />
+      )
+  }
 
   return (
     <div className="flex flex-col gap-5">
       {phone ? (
         <div className="flex flex-col gap-3">
-          <p className="flex items-center justify-center gap-1.5 text-body-sm text-muted-foreground">
-            <Dot tone={meta.tone} />
-            {meta.label}
-            {p.total > 0 && ` · ${p.running}/${p.total} running`}
-          </p>
+          <div className="text-center">
+            {p.title && (
+              <p className="truncate text-body font-medium">{p.title}</p>
+            )}
+            <p className="flex items-center justify-center gap-1.5 text-body-sm text-muted-foreground">
+              <Dot tone={meta.tone} />
+              {meta.label}
+              {p.total > 0 && ` · ${p.running} of ${p.total} containers up`}
+            </p>
+          </div>
           <div className="flex gap-2">
             {primary}
             {menu.some((g) => g.length > 0) && (
@@ -172,52 +347,59 @@ function Project({
               </Button>
             )}
           </div>
-          {tabBar && <div className="flex justify-center">{tabBar}</div>}
+          {tabBar}
         </div>
       ) : (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-brand-soft text-brand-strong">
-            <Layers className="size-6" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-subheading font-medium">{p.name}</p>
-            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body-sm text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5 text-foreground">
-                <Dot tone={meta.tone} />
-                {meta.label}
-              </span>
-              {p.total > 0 && (
-                <span>
-                  {p.running}/{p.total} containers running
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-brand-soft text-brand-strong">
+              <Layers className="size-6" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="flex min-w-0 items-baseline gap-2">
+                <span className="truncate text-subheading font-medium">
+                  {p.title || p.name}
                 </span>
-              )}
-              <span>on {env.name}</span>
-              {!p.managed && <span>outside the projects folder</span>}
-            </p>
+                {p.title && (
+                  <span className="shrink-0 font-mono text-caption text-muted-foreground">
+                    {p.name}
+                  </span>
+                )}
+              </p>
+              <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body-sm text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5 text-foreground">
+                  <Dot tone={meta.tone} />
+                  {meta.label}
+                </span>
+                {p.total > 0 && (
+                  <span>
+                    {p.running}/{p.total} containers running
+                  </span>
+                )}
+                <span>on {env.name}</span>
+                {!p.managed && <span>outside the projects folder</span>}
+              </p>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              {primary}
+              <ItemMenu groups={menu} label="Project actions" />
+            </div>
           </div>
           {tabBar}
-          <div className="flex shrink-0 gap-2">
-            {primary}
-            <ItemMenu groups={menu} label="Project actions" />
-          </div>
         </div>
       )}
-      {current === "files" ? (
-        <FilesTab
-          key={p.name}
-          p={p}
-          serverId={id}
+      {deploy && (
+        <DeployPanel
+          key={deploy.job.id}
+          d={deploy}
           phone={phone}
-          onApply={() => actions.run(p.name, "up")}
-        />
-      ) : (
-        <Overview
-          p={p}
-          serverId={id}
-          canEdit={showFiles}
-          onFiles={() => setTab("files")}
+          canRun={actions.can.manage && !p.missing}
+          onRun={(a) => a !== "git" && actions.run(p.name, a)}
+          onTab={(t) => setTab(t)}
+          tabs={shown}
         />
       )}
+      {body}
       {actions.dialog}
       <BottomSheet open={sheet} onOpenChange={setSheet} title={p.name}>
         <SheetItems groups={menu} onOpenChange={setSheet} />
@@ -226,122 +408,119 @@ function Project({
   )
 }
 
-function Overview({
-  p,
-  serverId,
-  canEdit,
-  onFiles,
+const deployLabels: Partial<Record<DeployAction, string>> = {
+  up: "Deploying",
+  redeploy: "Redeploying",
+  git: "Deploying",
+  pull: "Pulling images",
+  down: "Taking down",
+  destroy: "Destroying",
+  start: "Starting",
+  stop: "Stopping",
+  restart: "Restarting",
+}
+
+const tabLabels: Record<ProjectTab, string> = {
+  overview: "Overview",
+  containers: "Containers",
+  logs: "Logs",
+  production: "Production",
+  alerts: "Alerts",
+  files: "Files",
+  environment: "Environment",
+  history: "History",
+  git: "Git",
+}
+
+// Underlined tabs on desktop, a scrolling chip row on phones.
+function TabBar({
+  tabs,
+  current,
+  onChange,
+  count,
+  phone,
 }: {
-  p: DockerProjectDetails
-  serverId: string
-  canEdit: boolean
-  onFiles: () => void
+  tabs: ProjectTab[]
+  current: ProjectTab
+  onChange: (t: ProjectTab) => void
+  count: (t: ProjectTab) => number
+  phone: boolean
 }) {
-  const notes: Note[] = []
-  if (p.missing) {
-    notes.push({
-      key: "missing",
-      title: "Its compose file isn't on the server",
-      body: "The containers are still there, but the file they were made from was moved or deleted. You can stop or take them down; to deploy again, put the file back.",
-      warn: true,
-    })
-  } else if (p.state === "partial") {
-    notes.push({
-      key: "partial",
-      title: "Some of its containers aren't running",
-      body: "Open a stopped one to read its logs, or Redeploy to bring every service up.",
-      warn: true,
-    })
-  }
-  if (!p.managed && !p.missing) {
-    notes.push({
-      key: "external",
-      title: "Started outside Morche",
-      body: "It lives outside the workspace's projects folder. Morche runs the same compose commands on it, and Destroy leaves its folder alone.",
-    })
-  }
-  return (
-    <div className="flex flex-col gap-6">
-      <Notices notes={notes} className="max-md:-mx-4" />
-      <div className="@container">
-        <div className="grid grid-cols-1 gap-6 @4xl:grid-cols-2">
-          <Block title={`Containers ${p.containers.length}`}>
-            {p.containers.length === 0 ? (
-              <Quiet>
-                None yet. Deploy creates one for each service in the compose
-                file.
-              </Quiet>
-            ) : (
-              <ul className="flex flex-col divide-y divide-border">
-                {[...p.containers]
-                  .sort((a, b) => a.name.localeCompare(b.name))
-                  .map((c) => {
-                    const s = stateOf(c)
-                    return (
-                      <li key={c.id}>
-                        <Link
-                          href={containerHref(serverId, c.name)}
-                          className="flex min-h-11 items-center gap-3 py-2 outline-none hover:text-brand focus-visible:text-brand"
-                        >
-                          <Dot tone={s.tone} />
-                          <span className="min-w-0 flex-1 truncate text-body-sm font-medium">
-                            {c.name}
-                          </span>
-                          <span className="text-caption text-muted-foreground">
-                            {s.label}
-                          </span>
-                          <ChevronRight className="size-4 text-ash rtl:rotate-180" />
-                        </Link>
-                      </li>
-                    )
-                  })}
-              </ul>
+  if (phone)
+    return (
+      <div
+        role="tablist"
+        aria-label="Project section"
+        className="-mx-4 flex [scrollbar-width:none] gap-1.5 overflow-x-auto px-4"
+      >
+        {tabs.map((t) => (
+          <button
+            key={t}
+            type="button"
+            role="tab"
+            aria-selected={current === t}
+            ref={current === t ? scrollIntoView : undefined}
+            onClick={() => onChange(t)}
+            className={cn(
+              "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-body-sm whitespace-nowrap outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+              current === t
+                ? "border-brand bg-brand-soft text-brand-strong"
+                : "border-border text-muted-foreground",
             )}
-          </Block>
-          <Block
-            title="About"
-            aside={
-              canEdit && (
-                <Button variant="ghost" size="sm" onClick={onFiles}>
-                  Edit files
-                </Button>
-              )
-            }
           >
-            <Pairs
-              rows={[
-                {
-                  label: "Folder",
-                  value: p.dir ? (
-                    <span className="inline-flex min-w-0 items-center gap-1">
-                      <span className="truncate font-mono text-caption">
-                        {p.dir}
-                      </span>
-                      <CopyButton value={p.dir} label="Copy the folder" />
-                    </span>
-                  ) : (
-                    ""
-                  ),
-                },
-                {
-                  label: p.files.length > 1 ? "Compose files" : "Compose file",
-                  value: p.files.join("\n"),
-                  mono: true,
-                },
-                { label: ".env", value: p.has_env ? "Yes" : "No" },
-                { label: "Services", value: p.services.join(", ") },
-                { label: "Images", value: p.images.join("\n"), mono: true },
-                {
-                  label: "Created",
-                  value: p.created ? timeAgo(p.created) : "",
-                },
-              ]}
-            />
-          </Block>
-        </div>
+            {tabLabels[t]}
+            <TabCount tab={t} n={count(t)} />
+          </button>
+        ))}
       </div>
+    )
+  return (
+    <div
+      role="tablist"
+      aria-label="Project section"
+      className="flex gap-5 overflow-x-auto border-b border-border"
+    >
+      {tabs.map((t) => (
+        <button
+          key={t}
+          type="button"
+          role="tab"
+          aria-selected={current === t}
+          onClick={() => onChange(t)}
+          className={cn(
+            "-mb-px inline-flex h-10 shrink-0 items-center gap-1.5 border-b-2 text-body-sm whitespace-nowrap outline-none focus-visible:text-brand",
+            current === t
+              ? "border-brand font-medium text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {tabLabels[t]}
+          <TabCount tab={t} n={count(t)} />
+        </button>
+      ))}
     </div>
   )
+}
+
+function TabCount({ tab, n }: { tab: ProjectTab; n: number }) {
+  if (!n) return null
+  return (
+    <span
+      className={cn(
+        "rounded-full px-1.5 text-caption tabular-nums",
+        tab === "alerts"
+          ? "bg-destructive text-white"
+          : "bg-muted text-muted-foreground",
+      )}
+    >
+      {n}
+    </span>
+  )
+}
+
+// Links can open a late tab; keep it in view on phones.
+function scrollIntoView(el: HTMLButtonElement | null) {
+  el?.scrollIntoView({ block: "nearest", inline: "center" })
 }
 
 type Draft = { compose: string; env: string }
@@ -360,6 +539,7 @@ function FilesTab({
   const save = useSaveProjectFiles()
   const [draft, setDraft] = useState<Draft | null>(null)
   const [conflict, setConflict] = useState(false)
+  const [note, setNote] = useState("")
   const shown: Draft = draft ?? { compose: p.compose, env: p.env }
   const dirty =
     draft !== null && (draft.compose !== p.compose || draft.env !== p.env)
@@ -377,11 +557,13 @@ function FilesTab({
         compose: shown.compose,
         env: shown.env,
         revision: overwrite ? "" : p.revision,
+        note,
       },
       {
         onSuccess: () => {
           setDraft(null)
           setConflict(false)
+          setNote("")
           toast.success(apply ? "Saved, applying the changes" : "Saved")
           if (apply) onApply()
         },
@@ -503,6 +685,15 @@ function FilesTab({
               </>
             )
           }
+        />
+      )}
+      {dirty && (
+        <Input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          maxLength={300}
+          placeholder="What changed (kept in the history, optional)"
+          aria-label="What changed"
         />
       )}
       {phone && !p.missing && (

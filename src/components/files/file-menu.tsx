@@ -165,12 +165,13 @@ export function useEntryMenu() {
           onSelect: () => actions.moveTo(targets),
         },
       )
-    if (reads)
+    const transfer = actions.transfer
+    if (reads && transfer)
       editGroup.push({
         key: "transfer",
         label: "Send to…",
         icon: Send,
-        onSelect: () => actions.transfer(targets),
+        onSelect: () => transfer(targets),
       })
 
     const moreGroup: MenuItem[] = []

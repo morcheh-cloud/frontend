@@ -28,7 +28,7 @@ import { EnvPage } from "./env-page"
 import { ChoiceChip, NoMatch, PageBar } from "./kit"
 import { containerHref, Dot, type Tone } from "./meta"
 import { projectHref } from "./project-actions"
-import { eventPeriodLabels, eventPeriods } from "./settings-view"
+import { eventPeriodLabels, eventPeriods } from "./settings-model"
 
 type Period = (typeof eventPeriods)[number]
 

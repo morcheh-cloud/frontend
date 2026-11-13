@@ -29,11 +29,14 @@ import type { AlertPreviewItem, AlertRule, AlertRuleBody } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { useAlertPreview, useChannels, useSaveAlertRule } from "../api"
 import {
+  containerMetricOrder,
+  containerPresets,
   databaseMetricOrder,
   forChoices,
   formatValue,
   forText,
   fromFieldValue,
+  isContainerMetric,
   isDatabaseMetric,
   isPercent,
   isStateMetric,
@@ -50,6 +53,7 @@ import {
   type Scope,
   type Severity,
   severityMeta,
+  takesContainerFilter,
   targetOf,
   toFieldValue,
 } from "./rules-meta"
@@ -64,6 +68,9 @@ type Draft = {
   mount: string
   // service: one unit; "" = any failed service.
   unit: string
+  // container_*: compose project and container/service patterns; "" = any.
+  project: string
+  container: string
   forMinutes: string
   severity: Severity
   scope: Scope
@@ -84,6 +91,8 @@ export type RuleStart = {
   threshold?: number
   mount?: string
   unit?: string
+  project?: string
+  container?: string
   server?: { id: string; name: string }
   database?: string
 }
@@ -98,6 +107,8 @@ function draftOf(rule?: AlertRule, start?: RuleStart): Draft {
       threshold: String(toFieldValue(rule.metric, rule.threshold)),
       mount: rule.mount,
       unit: rule.unit,
+      project: rule.project ?? "",
+      container: rule.container ?? "",
       forMinutes: String(rule.for_minutes),
       severity: rule.severity as Severity,
       scope: rule.scope as Scope,
@@ -124,6 +135,8 @@ function draftOf(rule?: AlertRule, start?: RuleStart): Draft {
     ),
     mount: start?.mount ?? "",
     unit: start?.unit ?? "",
+    project: start?.project ?? "",
+    container: start?.container ?? "",
     forMinutes: String(p?.forMinutes ?? m.forMinutes),
     severity: p?.severity ?? "warning",
     scope: start?.database ? "databases" : start?.server ? "servers" : "all",
@@ -148,11 +161,15 @@ function autoName(d: Draft) {
     threshold: fromFieldValue(d.metric, num(d.threshold) || 0),
     mount: d.mount.trim(),
     unit: d.unit.trim(),
+    project: d.project.trim(),
+    container: d.container.trim(),
     for_minutes: 0,
   })
 }
 
 const unitRe = /^[A-Za-z0-9:_.@\\-]+$/
+// A project or container name, * and ? as wildcards (the backend's rule).
+const patternRe = /^[A-Za-z0-9*?][A-Za-z0-9_.*?-]*$/
 
 // Problems the backend would also refuse, keyed like its field errors.
 function check(d: Draft): Record<string, string> {
@@ -161,8 +178,22 @@ function check(d: Draft): Record<string, string> {
     const t = num(d.threshold)
     if (Number.isNaN(t)) e.threshold = "Enter a number"
     else if (t < 0) e.threshold = "Can't be below 0"
-    else if (isPercent(d.metric) && t > 100)
+    else if (
+      (isPercent(d.metric) || d.metric === "container_memory") &&
+      t > 100
+    )
       e.threshold = "Use a percent from 0 to 100"
+    else if (d.metric === "container_cpu" && t > 12800)
+      e.threshold = "Up to 12800 (128 cores)"
+    else if (countsOnly(d.metric) && (t > 1000 || !Number.isInteger(t)))
+      e.threshold = "A whole number up to 1000"
+  }
+  if (takesContainerFilter(d.metric)) {
+    for (const k of ["project", "container"] as const) {
+      const v = d[k].trim()
+      if (v && !patternRe.test(v))
+        e[k] = "Letters, digits, - _ . and the wildcards * ?"
+    }
   }
   const f = num(d.forMinutes)
   if (Number.isNaN(f) || f < 0 || f > 1440 || !Number.isInteger(f))
@@ -180,17 +211,26 @@ function check(d: Draft): Record<string, string> {
   return e
 }
 
+// Counted metrics only fire above a whole number ("more than N").
+const countsOnly = (m: string) =>
+  m === "container_restarts" ||
+  m === "container_vulns_critical" ||
+  m === "container_vulns_high"
+
 function bodyOf(d: Draft, channels: string[]): AlertRuleBody {
   return {
     name: (d.named ? d.name : autoName(d)).trim() || autoName(d),
     enabled: d.enabled,
     metric: d.metric,
-    op: d.op,
+    op: countsOnly(d.metric) ? "above" : d.op,
     threshold: isStateMetric(d.metric)
       ? 0
       : fromFieldValue(d.metric, num(d.threshold)),
     mount: d.metric === "disk" ? d.mount.trim() : "",
     unit: d.metric === "service" ? d.unit.trim() : "",
+    ...(takesContainerFilter(d.metric)
+      ? { project: d.project.trim(), container: d.container.trim() }
+      : {}),
     for_minutes: num(d.forMinutes),
     severity: d.severity,
     scope: d.scope,
@@ -375,7 +415,7 @@ function RuleForm({
       {fromPreset && (
         <Group title="Start from">
           <div className="flex flex-wrap gap-1.5">
-            {presets.map((p) => (
+            {[...presets, ...containerPresets].map((p) => (
               <button
                 key={p.key}
                 type="button"
@@ -393,6 +433,12 @@ function RuleForm({
         <MetricChoices
           legend="Servers"
           items={metricOrder}
+          value={d.metric}
+          onPick={pickMetric}
+        />
+        <MetricChoices
+          legend="Containers"
+          items={containerMetricOrder}
           value={d.metric}
           onPick={pickMetric}
         />
@@ -429,18 +475,28 @@ function RuleForm({
           </Field>
         )}
 
+        {takesContainerFilter(d.metric) && (
+          <ContainerFilter d={d} set={set} shown={shown} />
+        )}
+
         {!stateMetric && (
           <div className="flex flex-wrap items-end gap-3">
-            <Segmented
-              label="Condition"
-              items={[
-                { value: "above" as const, label: "Above" },
-                { value: "below" as const, label: "Below" },
-              ]}
-              value={d.op}
-              onChange={(op) => set({ op })}
-            />
-            <Field label="Threshold" error={shown.threshold} className="w-40">
+            {!countsOnly(d.metric) && (
+              <Segmented
+                label="Condition"
+                items={[
+                  { value: "above" as const, label: "Above" },
+                  { value: "below" as const, label: "Below" },
+                ]}
+                value={d.op}
+                onChange={(op) => set({ op })}
+              />
+            )}
+            <Field
+              label={countsOnly(d.metric) ? "More than" : "Threshold"}
+              error={shown.threshold}
+              className="w-40"
+            >
               {(p) => (
                 <div className="relative">
                   <Input
@@ -483,7 +539,9 @@ function RuleForm({
           label={
             d.metric === "offline" || d.metric === "db_down"
               ? "Unreachable for"
-              : "Lasting"
+              : d.metric === "container_down"
+                ? "Down for"
+                : "Lasting"
           }
           error={shown.for_minutes}
           hint={
@@ -645,6 +703,8 @@ function RuleForm({
             threshold: fromFieldValue(d.metric, num(d.threshold) || 0),
             mount: d.mount.trim(),
             unit: d.unit.trim(),
+            project: d.project.trim(),
+            container: d.container.trim(),
             for_minutes: Number.isNaN(minutes) ? 0 : minutes,
           })}
           {Number.isNaN(minutes) || minutes > 0 ? "" : ` (${forText(0)})`} →{" "}
@@ -777,6 +837,64 @@ function MetricChoices({
         })}
       </div>
     </fieldset>
+  )
+}
+
+// Which containers a container rule watches: a compose project and/or a
+// container (its name or its compose service), both with wildcards.
+function ContainerFilter({
+  d,
+  set,
+  shown,
+}: {
+  d: Draft
+  set: (patch: Partial<Draft>) => void
+  shown: Record<string, string>
+}) {
+  const named = !!(d.project.trim() || d.container.trim())
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Project" error={shown.project}>
+          {(p) => (
+            <Input
+              {...p}
+              value={d.project}
+              onChange={(e) => set({ project: e.target.value })}
+              placeholder="Any project"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              className="font-mono placeholder:font-sans placeholder:text-ash"
+            />
+          )}
+        </Field>
+        <Field label="Container or service" error={shown.container}>
+          {(p) => (
+            <Input
+              {...p}
+              value={d.container}
+              onChange={(e) => set({ container: e.target.value })}
+              placeholder="Any container"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              className="font-mono placeholder:font-sans placeholder:text-ash"
+            />
+          )}
+        </Field>
+      </div>
+      <p className="text-caption text-muted-foreground">
+        {d.metric === "container_down"
+          ? named
+            ? "Alerts when one of these isn't running, whatever the reason."
+            : "Nothing named: only crashes (an error exit) and restart loops alert, containers stopped on purpose stay quiet."
+          : "Empty = every container."}{" "}
+        <span className="text-ash">
+          * and ? are wildcards: <span className="font-mono">web-*</span>.
+        </span>
+      </p>
+    </div>
   )
 }
 
@@ -946,13 +1064,16 @@ function Preview({
   }
   const met = items.filter((i) => i.met).length
   const noun = isDatabaseMetric(metric) ? "database" : "server"
-  if (metric === "service") {
+  if (metric === "service" || isContainerMetric(metric)) {
     return (
       <p className="text-body-sm text-muted-foreground">
         It covers {items.length} {items.length === 1 ? "server" : "servers"}.
         <span className="text-caption text-ash">
           {" "}
-          · services are read with the next sample (every minute)
+          ·{" "}
+          {metric === "service"
+            ? "services are read with the next sample (every minute)"
+            : "containers are read with the next sample (every minute); servers without Docker or Podman are skipped"}
         </span>
       </p>
     )

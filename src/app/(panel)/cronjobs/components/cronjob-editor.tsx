@@ -132,6 +132,7 @@ const fresh = (p?: Prefill): Draft => ({
     ...freshTask(),
     ...(p?.server && {
       servers: new Map([[p.server, p.serverName || "Server"]]),
+      volServer: p.server,
     }),
   },
 })
@@ -187,6 +188,9 @@ const namePlaceholders: Record<Action, string> = {
   "verify-backup": "Check last night's backups",
   "software-update": "Weekly updates",
   "package-upgrade": "Weekly system upgrades",
+  "docker-update": "Nightly container updates",
+  "docker-prune": "Weekly Docker clean-up",
+  "docker-volume-backup": "Nightly volume backups",
 }
 
 function pickerTitle(a: Action, role: Role) {

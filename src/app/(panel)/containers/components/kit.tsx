@@ -13,6 +13,7 @@ import type { ReactNode } from "react"
 import { BottomSheet, SheetAction } from "@/components/bottom-sheet"
 
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,6 +42,7 @@ export function PageBar({
   refresh,
   primary,
   aside,
+  more,
 }: {
   phone: boolean
   tabs?: ReactNode
@@ -50,7 +52,30 @@ export function PageBar({
   refresh: { busy: boolean; run: () => void }
   primary?: { label: string; icon: ReactNode; run: () => void }
   aside?: ReactNode
+  // Less used page actions behind a ⋯ button (desktop menu, phone sheet).
+  more?: Item[][]
 }) {
+  const moreButton = more?.some((g) => g.length > 0) ? (
+    phone ? (
+      <MoreSheet groups={more} />
+    ) : (
+      <ItemMenu
+        groups={more}
+        label="More actions"
+        trigger={
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-9"
+            aria-label="More actions"
+            title="More actions"
+          >
+            <Ellipsis />
+          </Button>
+        }
+      />
+    )
+  ) : null
   const refreshButton = (
     <Button
       variant="outline"
@@ -81,6 +106,7 @@ export function PageBar({
         <div className="flex items-center gap-2">
           {search ?? <span className="flex-1" />}
           {refreshButton}
+          {moreButton}
           {primaryButton}
         </div>
         {(tabs || filters) && (
@@ -108,9 +134,30 @@ export function PageBar({
         )}
         {refreshButton}
         {aside}
+        {moreButton}
         {primaryButton}
       </div>
     </div>
+  )
+}
+
+function MoreSheet({ groups }: { groups: Item[][] }) {
+  const [open, setOpen] = useOpen("docker-page-more")
+  return (
+    <>
+      <Button
+        variant="outline"
+        size="icon"
+        className="size-11"
+        aria-label="More actions"
+        onClick={() => setOpen(true)}
+      >
+        <Ellipsis />
+      </Button>
+      <BottomSheet open={open} onOpenChange={setOpen} title="More actions">
+        <SheetItems groups={groups} onOpenChange={setOpen} />
+      </BottomSheet>
+    </>
   )
 }
 
@@ -139,9 +186,17 @@ export function NoMatch({
 export function Table({
   head,
   children,
+  selectAll,
 }: {
   head: { label: string; className?: string }[]
   children: ReactNode
+  // A tick column in front, with a select-everything box in the head.
+  selectAll?: {
+    checked: boolean
+    indeterminate: boolean
+    onChange: (on: boolean) => void
+    label: string
+  }
 }) {
   return (
     <div className="@container overflow-hidden rounded-2xl border border-border [contain:inline-size]">
@@ -149,13 +204,23 @@ export function Table({
         <table className="w-full text-body-sm">
           <thead className="border-b border-border bg-subtle text-caption text-muted-foreground">
             <tr>
+              {selectAll && (
+                <th scope="col" className="w-10 ps-4">
+                  <Checkbox
+                    aria-label={selectAll.label}
+                    checked={selectAll.checked}
+                    indeterminate={selectAll.indeterminate}
+                    onCheckedChange={(on) => selectAll.onChange(Boolean(on))}
+                  />
+                </th>
+              )}
               {head.map((h, i) => (
                 <th
                   key={h.label}
                   scope="col"
                   className={cn(
                     "h-10 px-3 text-start font-medium",
-                    i === 0 && "ps-4",
+                    i === 0 && !selectAll && "ps-4",
                     h.className,
                   )}
                 >
@@ -180,19 +245,41 @@ export function Tr({
   menu,
   label,
   cells,
+  select,
 }: {
   onOpen: () => void
   menu: Item[][]
   label: string
   cells: { node: ReactNode; className?: string }[]
+  // With a Table's selectAll: this row's tick.
+  select?: { checked: boolean; onChange: (on: boolean) => void }
 }) {
   return (
-    <tr className="hover:bg-subtle/60">
+    <tr
+      className={cn(
+        "hover:bg-subtle/60",
+        select?.checked && "bg-brand-soft/40 hover:bg-brand-soft/50",
+      )}
+    >
+      {select && (
+        <td className="w-10 ps-4">
+          <Checkbox
+            aria-label={`Select ${label}`}
+            checked={select.checked}
+            onCheckedChange={(on) => select.onChange(Boolean(on))}
+          />
+        </td>
+      )}
       {cells.map((c, i) => (
         <td
           // biome-ignore lint/suspicious/noArrayIndexKey: fixed columns
           key={i}
-          className={cn("px-3 py-2.5", i === 0 && "max-w-80 ps-4", c.className)}
+          className={cn(
+            "px-3 py-2.5",
+            i === 0 && "max-w-80",
+            i === 0 && !select && "ps-4",
+            c.className,
+          )}
         >
           {i === 0 ? (
             <button
@@ -220,12 +307,18 @@ export function PhoneRow({
   onOpen,
   menu,
   id,
+  aside,
+  lead,
 }: {
   title: ReactNode
   sub: ReactNode
   onOpen: () => void
   menu: Item[][]
   id: string
+  // Something small at the end of the row (a mini chart).
+  aside?: ReactNode
+  // An icon or logo in front of the title.
+  lead?: ReactNode
 }) {
   const [open, setOpen] = useOpen(`docker-item-${id}`)
   return (
@@ -233,13 +326,17 @@ export function PhoneRow({
       <button
         type="button"
         onClick={onOpen}
-        className="flex min-h-16 min-w-0 flex-1 flex-col justify-center ps-4 text-start active:bg-muted"
+        className="flex min-h-16 min-w-0 flex-1 items-center gap-3 ps-4 text-start active:bg-muted"
       >
-        <span className="truncate text-body font-medium">{title}</span>
-        <span className="truncate text-caption text-muted-foreground">
-          {sub}
+        {lead}
+        <span className="flex min-w-0 flex-1 flex-col justify-center">
+          <span className="truncate text-body font-medium">{title}</span>
+          <span className="truncate text-caption text-muted-foreground">
+            {sub}
+          </span>
         </span>
       </button>
+      {aside && <div className="shrink-0 ps-2">{aside}</div>}
       <Button
         variant="ghost"
         size="icon-lg"
@@ -273,15 +370,15 @@ export function Tag({
   tone = "muted",
 }: {
   children: ReactNode
-  tone?: "muted" | "warning"
+  tone?: "muted" | "warning" | "brand"
 }) {
   return (
     <span
       className={cn(
         "ms-2 inline-block shrink-0 rounded-full px-2 py-0.5 align-middle font-label text-[10px] tracking-label uppercase",
-        tone === "warning"
-          ? "bg-warning/15 text-warning"
-          : "bg-muted text-muted-foreground",
+        tone === "warning" && "bg-warning/15 text-warning",
+        tone === "brand" && "bg-brand-soft text-brand-strong",
+        tone === "muted" && "bg-muted text-muted-foreground",
       )}
     >
       {children}

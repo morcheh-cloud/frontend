@@ -69,6 +69,7 @@ export function TerminalView({
   serverId,
   sessionId,
   cwd,
+  start,
   active,
   fontSize,
   transformInput,
@@ -84,6 +85,8 @@ export function TerminalView({
   // Attach to this running shell; without it a new one starts.
   sessionId?: string
   cwd?: string
+  // Extra parameters for a new session (container, user, shell).
+  start?: Record<string, string | undefined>
   // Only the visible tab measures itself (hidden ones have no size).
   active: boolean
   fontSize: number
@@ -308,6 +311,7 @@ export function TerminalView({
             cols: term.cols,
             rows: term.rows,
             cwd: sessionRef.current ? undefined : cwd,
+            ...(sessionRef.current ? {} : start),
           }),
         )
         ws.binaryType = "arraybuffer"

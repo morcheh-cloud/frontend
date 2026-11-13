@@ -67,10 +67,10 @@ type Actions = {
   info: (entry: FileEntry) => void
   // A time-limited public link (sources with `share`).
   share: (entry: FileEntry) => void
-  // Copy or move to another server or storage.
-  transfer: (entries: FileEntry[], move?: boolean) => void
+  // Copy or move to another server or storage (sources with `endpoint`).
+  transfer?: (entries: FileEntry[], move?: boolean) => void
   // Copy or move from another server or storage into `dir`.
-  importFrom: () => void
+  importFrom?: () => void
   // Set when the source can download a URL by itself.
   fetchUrl?: () => void
   // into: a folder to unpack into instead of the archive's own.
@@ -149,9 +149,11 @@ export function FileActionsProvider({
     copyTo: (entries) => entries.length && show({ kind: "copy", entries }),
     info: (entry) => show({ kind: "info", entry }),
     share: (entry) => show({ kind: "share", entry }),
-    transfer: (entries, move = false) =>
-      entries.length && show({ kind: "transfer", entries, move }),
-    importFrom: () => show({ kind: "import" }),
+    transfer: source.endpoint
+      ? (entries, move = false) =>
+          entries.length && show({ kind: "transfer", entries, move })
+      : undefined,
+    importFrom: source.endpoint ? () => show({ kind: "import" }) : undefined,
     fetchUrl: source.fetchUrl ? () => show({ kind: "fetch" }) : undefined,
     extract: (entry, into) => {
       ops.extract.mutate(

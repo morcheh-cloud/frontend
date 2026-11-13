@@ -175,6 +175,7 @@ export interface AlertRule {
    */
   $schema?: string;
   channel_ids: string[];
+  container: string;
   /** @format date-time */
   created_at: string;
   created_by_name: string;
@@ -189,6 +190,7 @@ export interface AlertRule {
   name: string;
   notify_resolved: boolean;
   op: string;
+  project: string;
   /** @format int32 */
   repeat_minutes: number;
   scope: string;
@@ -215,6 +217,11 @@ export interface AlertRuleBody {
   $schema?: string;
   /** Notification channels of the same workspace */
   channel_ids?: string[];
+  /**
+   * container_* only: a container or compose service name (* = any characters); empty = any
+   * @maxLength 100
+   */
+  container?: string;
   /** scope databases */
   database_ids?: string[];
   /** Default true */
@@ -238,7 +245,15 @@ export interface AlertRuleBody {
     | "offline"
     | "service"
     | "db_down"
-    | "db_health";
+    | "db_health"
+    | "container_down"
+    | "container_unhealthy"
+    | "container_restarts"
+    | "container_cpu"
+    | "container_memory"
+    | "docker_engine"
+    | "container_vulns_critical"
+    | "container_vulns_high";
   /**
    * disk only: one mount point; empty = the fullest
    * @maxLength 255
@@ -253,6 +268,11 @@ export interface AlertRuleBody {
   notify_resolved?: boolean;
   /** @default "above" */
   op?: "above" | "below";
+  /**
+   * container_* only: a compose project (* = any characters); empty = any
+   * @maxLength 100
+   */
+  project?: string;
   /**
    * Remind while it fires; 0 = once
    * @format int32
@@ -272,7 +292,7 @@ export interface AlertRuleBody {
   /** scope tags: servers with any of them */
   tags?: string[];
   /**
-   * Percent for cpu, iowait, memory, swap and disk; load per core; bytes per second for net_rx/net_tx; ignored for offline, service, db_down and db_health
+   * Percent for cpu, iowait, memory, swap, disk and container_memory (of its limit); load per core; bytes per second for net_rx/net_tx; percent of one core for container_cpu; stops in 10 minutes for container_restarts; findings in the image's last scan for container_vulns_critical (critical) and container_vulns_high (high or critical); ignored for offline, service, db_down, db_health, container_down, container_unhealthy and docker_engine
    * @format double
    */
   threshold: number;
@@ -1875,6 +1895,22 @@ export interface ChecksOutBody {
   items: MonitorCheck[];
 }
 
+export interface ChmodDockerVolumeFilesRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @pattern ^[0-7]{3,4}$ */
+  mode: string;
+  /**
+   * @maxItems 1000
+   * @minItems 1
+   */
+  paths: string[];
+  recursive?: boolean;
+}
+
 export interface ChmodFilesRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -1889,6 +1925,24 @@ export interface ChmodFilesRequest {
    */
   paths: string[];
   /** Apply to everything inside folders too */
+  recursive?: boolean;
+}
+
+export interface ChownDockerVolumeFilesRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** gid or group name; empty keeps it */
+  group?: string;
+  /** uid or user name; empty keeps it */
+  owner?: string;
+  /**
+   * @maxItems 1000
+   * @minItems 1
+   */
+  paths: string[];
   recursive?: boolean;
 }
 
@@ -4045,6 +4099,41 @@ export interface DockerActionBody {
   timeout?: number;
 }
 
+export interface DockerAutoPrune {
+  /** @format date-time */
+  at: string;
+  error?: string;
+  /**
+   * Things removed
+   * @format int64
+   */
+  removed: number;
+  /**
+   * Bytes freed
+   * @format int64
+   */
+  space: number;
+}
+
+export interface DockerCheckPort {
+  /** Another service in this file publishes it too */
+  duplicate: boolean;
+  host_ip?: string;
+  /** Something on the server already listens on it */
+  in_use: boolean;
+  protocol: string;
+  /** Host port, or a range like 8000-8010 */
+  published: string;
+  service: string;
+  target: string;
+}
+
+export interface DockerCheckService {
+  build: boolean;
+  image?: string;
+  name: string;
+}
+
 export interface DockerConnectBody {
   /** @maxLength 64 */
   ipv4?: string;
@@ -4230,6 +4319,123 @@ export interface DockerDiskUsage {
   /** @format int64 */
   total: number;
   volumes: DockerUsage;
+}
+
+export interface DockerEffectiveSettings {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Folder on that storage; empty = /backups/docker-volumes */
+  backup_folder: string;
+  /**
+   * Copies of a volume kept from backups made by hand; older ones are removed; 0 = keep all
+   * @format int64
+   * @min 0
+   * @max 1000
+   */
+  backup_keep: number;
+  /** Stop the containers using a volume while it is backed up */
+  backup_stop: boolean;
+  /** Storage volume backups go to unless another is picked; empty = ask */
+  backup_storage_id: string;
+  /**
+   * CPU limit (cores) added to services of a new project that don't set one; 0 = none
+   * @format double
+   * @min 0
+   * @max 512
+   */
+  default_cpus: number;
+  /**
+   * Log files kept by that rotation
+   * @format int64
+   * @min 0
+   * @max 100
+   */
+  default_log_files: number;
+  /**
+   * Log rotation added to services of a new project that don't set logging: size of one file (MiB); 0 = none
+   * @format int64
+   * @min 0
+   * @max 10240
+   */
+  default_log_max_mb: number;
+  /**
+   * Memory limit (MiB) added to services of a new project that don't set one; 0 = none
+   * @format int64
+   * @min 0
+   * @max 1048576
+   */
+  default_memory_mb: number;
+  /** Restart policy added to services of a new project that don't set one; empty = add none */
+  default_restart: "" | "no" | "always" | "unless-stopped" | "on-failure";
+  /**
+   * How far back the event log reads by default
+   * @format int64
+   * @min 1
+   * @max 720
+   */
+  events_hours: number;
+  /** Notification channels those messages go to */
+  notify_channels: string[];
+  /** Send a message when a running image gets a new version */
+  notify_updates: boolean;
+  /** Send a message when a scan finds more vulnerabilities at this severity (high = high and critical) */
+  notify_vulns: "off" | "critical" | "high";
+  /** Keys this server sets for itself */
+  overridden: string[];
+  /** Folder on each server where new compose projects are created, one folder per project */
+  projects_dir: string;
+  /** Clean up unused things on every server by itself */
+  prune_auto: boolean;
+  /** Also remove the build cache */
+  prune_build_cache: boolean;
+  /** Also remove stopped containers */
+  prune_containers: boolean;
+  /**
+   * Hours between automatic clean-ups
+   * @format int64
+   */
+  prune_hours: 24 | 72 | 168 | 720;
+  /** Images it removes: none, untagged only, or every image no container uses */
+  prune_images: "none" | "dangling" | "all";
+  /** Also remove networks no container uses */
+  prune_networks: boolean;
+  /**
+   * Only remove things older than this many hours; 0 = any age
+   * @format int64
+   */
+  prune_older_hours: 0 | 24 | 72 | 168 | 720;
+  /** Deploying a project removes containers of services no longer in its compose file */
+  remove_orphans: boolean;
+  /** Vulnerability scans leave out findings that have no fixed version yet */
+  scan_ignore_unfixed: boolean;
+  /** Image used to scan for vulnerabilities when Trivy isn't installed on the server */
+  scanner_image: string;
+  /**
+   * Days projects' CPU, memory and network are kept (a point every 5 minutes); 0 = not recorded
+   * @format int64
+   * @min 0
+   * @max 90
+   */
+  stats_days: number;
+  /** Check once a day whether running images have a newer version */
+  update_check: boolean;
+  /**
+   * Hours between automatic image update checks
+   * @format int64
+   */
+  update_check_hours: 6 | 12 | 24 | 72 | 168;
+  /** @format date-time */
+  updated_at?: string;
+  /**
+   * Compose file versions kept per project
+   * @format int64
+   * @min 5
+   * @max 200
+   */
+  versions_keep: number;
 }
 
 export interface DockerEndpoint {
@@ -4449,12 +4655,210 @@ export interface DockerFleetServer {
   workspace_id: string;
 }
 
+export interface DockerGitBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  auto_deploy: boolean;
+  /** @maxLength 200 */
+  branch?: string;
+  /** Forget the saved token */
+  clear_token?: boolean;
+  /** @maxLength 200 */
+  compose_path?: string;
+  /** Deploy right after saving (a job) */
+  deploy?: boolean;
+  /**
+   * @format int64
+   * @min 0
+   * @max 1440
+   */
+  poll_minutes: number;
+  /**
+   * An https address of the repository
+   * @maxLength 500
+   */
+  repo_url: string;
+  /**
+   * An access token for a private repository; blank keeps the saved one
+   * @maxLength 4000
+   */
+  token?: string;
+  /** @maxLength 100 */
+  username?: string;
+}
+
+export interface DockerGitCreateBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  auto_deploy: boolean;
+  /** @maxLength 200 */
+  branch?: string;
+  /** Forget the saved token */
+  clear_token?: boolean;
+  /** @maxLength 200 */
+  compose_path?: string;
+  /** Deploy right after saving (a job) */
+  deploy?: boolean;
+  /** @maxLength 63 */
+  name: string;
+  /**
+   * @format int64
+   * @min 0
+   * @max 1440
+   */
+  poll_minutes: number;
+  /**
+   * An https address of the repository
+   * @maxLength 500
+   */
+  repo_url: string;
+  /**
+   * An access token for a private repository; blank keeps the saved one
+   * @maxLength 4000
+   */
+  token?: string;
+  /** @maxLength 100 */
+  username?: string;
+}
+
+export interface DockerGitDeployBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Deploy even when the branch hasn't moved */
+  force?: boolean;
+}
+
+export interface DockerGitHookOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  job_id?: string;
+  message: string;
+  ok: boolean;
+}
+
+export interface DockerGitSaved {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  job?: Job;
+  source: DockerGitSource;
+}
+
+export interface DockerGitSource {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Deploy when the webhook is called or polling sees a new commit */
+  auto_deploy: boolean;
+  branch: string;
+  /** Whose access webhook and polling deploys run with */
+  by: string;
+  /** The compose file inside the repository; empty = compose.yaml (or its other usual names) at the top */
+  compose_path: string;
+  /** @format date-time */
+  created_at: string;
+  deploying: boolean;
+  /** Where the clone lives on the server */
+  dir: string;
+  has_token: boolean;
+  last_author: string;
+  /** @format date-time */
+  last_checked_at?: string;
+  last_commit: string;
+  /** @format date-time */
+  last_deployed_at?: string;
+  last_error: string;
+  last_message: string;
+  /**
+   * Look for new commits every this many minutes; 0 = only the webhook
+   * @format int64
+   */
+  poll_minutes: number;
+  project: string;
+  repo_url: string;
+  /** @format date-time */
+  updated_at: string;
+  username: string;
+  /** The secret in the webhook address (Engineer and up) */
+  webhook_token?: string;
+}
+
+export interface DockerGitState {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** null when the project isn't connected to a repository */
+  source: DockerGitSource;
+}
+
 export interface DockerHealthCheck {
   end: string;
   /** @format int64 */
   exit_code: number;
   output: string;
   start: string;
+}
+
+export interface DockerHistoryPoint {
+  /**
+   * Start of the bucket
+   * @format date-time
+   */
+  at: string;
+  /**
+   * Average, percent of one core
+   * @format double
+   */
+  cpu: number;
+  /**
+   * Highest sample in the bucket
+   * @format double
+   */
+  cpu_max: number;
+  /**
+   * Average bytes
+   * @format int64
+   */
+  memory: number;
+  /** @format int64 */
+  memory_max: number;
+  /**
+   * Average bytes per second
+   * @format double
+   */
+  net_rx: number;
+  /** @format double */
+  net_tx: number;
+  /**
+   * Fewest containers running in the bucket
+   * @format int64
+   */
+  running: number;
+  /** @format int64 */
+  total: number;
+  /**
+   * Most unhealthy containers in the bucket
+   * @format int64
+   */
+  unhealthy: number;
 }
 
 export interface DockerImage {
@@ -4472,6 +4876,20 @@ export interface DockerImage {
   /** @format int64 */
   size: number;
   tags: string[];
+}
+
+export interface DockerImageCopyBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Servers to copy it to
+   * @maxItems 20
+   * @minItems 1
+   */
+  server_ids: string[];
 }
 
 export interface DockerImageDetails {
@@ -4512,6 +4930,37 @@ export interface DockerImageDetails {
   variant?: string;
   volumes: string[];
   working_dir?: string;
+}
+
+export interface DockerImageExportBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Folder on the storage; the file goes in <folder>/<server>/. Default /backups/docker-images
+   * @maxLength 500
+   */
+  folder?: string;
+  /** @format uuid */
+  storage_id: string;
+}
+
+export interface DockerImageImportBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * A file made by docker save (.tar, or .tar.gz)
+   * @minLength 1
+   * @maxLength 4096
+   */
+  path: string;
+  /** @format uuid */
+  storage_id: string;
 }
 
 export interface DockerImageLayer {
@@ -4598,6 +5047,100 @@ export interface DockerKillBody {
    * @pattern ^[A-Z0-9+]{0,16}$
    */
   signal?: string;
+}
+
+export interface DockerLayerEntry {
+  /** What the chosen layer did to it */
+  change?: "added" | "modified" | "removed";
+  /**
+   * A folder: paths under it the chosen layer changed
+   * @format int64
+   */
+  changed: number;
+  /** @format int64 */
+  files: number;
+  kind: "file" | "dir" | "link" | "hardlink";
+  /**
+   * The layer it last changed in
+   * @format int64
+   */
+  layer: number;
+  name: string;
+  /**
+   * A folder: everything under it
+   * @format int64
+   */
+  size: number;
+}
+
+export interface DockerLayerFiles {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: DockerLayerEntry[];
+  /** @format int64 */
+  layer: number;
+  path: string;
+  truncated: boolean;
+}
+
+export interface DockerLayerScan {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * final / total, 0–1
+   * @format double
+   */
+  efficiency: number;
+  error?: string;
+  /**
+   * About how many bytes it will read (the image's size)
+   * @format int64
+   */
+  expected: number;
+  /**
+   * Files a container sees
+   * @format int64
+   */
+  files: number;
+  /**
+   * Bytes a container sees
+   * @format int64
+   */
+  final: number;
+  image_id: string;
+  layers: DockerScanLayer[];
+  /**
+   * Bytes of the saved image read so far
+   * @format int64
+   */
+  read: number;
+  /**
+   * How long reading took (so far)
+   * @format double
+   */
+  seconds: number;
+  state: "reading" | "ready" | "failed";
+  /**
+   * Build steps, the ones that changed no file included
+   * @format int64
+   */
+  steps: number;
+  top: DockerWastedPath[];
+  /**
+   * Bytes of every layer's files
+   * @format int64
+   */
+  total: number;
+  /** The image has more files than are listed */
+  truncated: boolean;
+  /** @format int64 */
+  wasted: number;
 }
 
 export interface DockerLogBatch {
@@ -4713,7 +5256,21 @@ export interface DockerPort {
   public: number;
 }
 
+export interface DockerPortOut {
+  ip?: string;
+  /** @format int64 */
+  private: number;
+  proto: string;
+  /** @format int64 */
+  public: number;
+}
+
 export interface DockerProject {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
   containers: DockerRef[];
   /**
    * When its oldest container was made
@@ -4728,13 +5285,127 @@ export interface DockerProject {
   /** In the workspace's projects folder */
   managed: boolean;
   name: string;
+  /** A description set in Morche */
+  note: string;
   /** @format int64 */
   running: number;
   /** Services that have a container */
   services: string[];
   state: "running" | "partial" | "stopped" | "not-deployed";
+  /** A display name set in Morche; empty = use the name */
+  title: string;
   /** @format int64 */
   total: number;
+}
+
+export interface DockerProjectCheck {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** docker compose, docker-compose or podman-compose */
+  compose_command?: string;
+  /** The files as compose reads them (variables filled in) */
+  config?: string;
+  format?: "json" | "yaml";
+  name_problem?: string;
+  ok: boolean;
+  ports: DockerCheckPort[];
+  /** The server's listening ports could be read (ss) */
+  ports_read: boolean;
+  /** What compose said when it refused the files */
+  problem?: string;
+  services: DockerCheckService[];
+}
+
+export interface DockerProjectCheckBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * @minLength 1
+   * @maxLength 500000
+   */
+  compose: string;
+  /** @maxLength 200000 */
+  env?: string;
+  /**
+   * The project's name, when chosen: checked against the server's projects
+   * @maxLength 63
+   */
+  name?: string;
+}
+
+export interface DockerProjectContainer {
+  /**
+   * Percent of one core
+   * @format double
+   */
+  cpu: number;
+  /**
+   * Cores; 0 = none
+   * @format double
+   */
+  cpu_limit: number;
+  /** What the engine said when it couldn't start it */
+  error?: string;
+  /** @format int64 */
+  exit_code: number;
+  /**
+   * When it last stopped
+   * @format date-time
+   */
+  finished_at?: string;
+  health: "healthy" | "unhealthy" | "starting" | "none";
+  healthcheck: boolean;
+  /**
+   * The memory it could use (the host's when it has no limit)
+   * @format int64
+   */
+  host_memory: number;
+  id: string;
+  image: string;
+  log_driver: string;
+  log_max_file: string;
+  log_max_size: string;
+  /** The numbers below were read (running and within the per-pass limit) */
+  measured: boolean;
+  /**
+   * Its own limit; 0 = none
+   * @format int64
+   */
+  memory_limit: number;
+  /** @format int64 */
+  memory_used: number;
+  name: string;
+  /**
+   * Bytes per second, since the previous pass
+   * @format double
+   */
+  net_rx_rate: number;
+  /** @format double */
+  net_tx_rate: number;
+  oom_killed: boolean;
+  /** @format int64 */
+  pids: number;
+  ports: DockerPortOut[];
+  privileged: boolean;
+  read_only: boolean;
+  restart_policy: string;
+  /**
+   * Times the engine restarted it (its restart policy)
+   * @format int64
+   */
+  restarts: number;
+  service: string;
+  /** @format date-time */
+  started_at?: string;
+  state: string;
+  status: string;
+  user: string;
 }
 
 export interface DockerProjectCreateBody {
@@ -4799,6 +5470,8 @@ export interface DockerProjectDetails {
   /** The compose file isn't on the server (any more) */
   missing: boolean;
   name: string;
+  /** A description set in Morche */
+  note: string;
   /** The files were read: false without Engineer access or when they aren't on the server */
   readable: boolean;
   /** Send back when saving; a change in between answers 409 */
@@ -4808,6 +5481,8 @@ export interface DockerProjectDetails {
   /** Services that have a container */
   services: string[];
   state: "running" | "partial" | "stopped" | "not-deployed";
+  /** A display name set in Morche; empty = use the name */
+  title: string;
   /** @format int64 */
   total: number;
 }
@@ -4825,8 +5500,208 @@ export interface DockerProjectFilesBody {
   compose: string;
   /** @maxLength 200000 */
   env?: string;
+  /**
+   * What changed, kept with this version in the history
+   * @maxLength 300
+   */
+  note?: string;
   /** From the details; empty = overwrite */
   revision?: string;
+}
+
+export interface DockerProjectHistory {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * How long points are kept (0 = history is off for this workspace)
+   * @format int64
+   */
+  keep_days: number;
+  points: DockerHistoryPoint[];
+  range: "24h" | "7d" | "30d";
+  /** Points are being added for this server now */
+  recording: boolean;
+  /**
+   * The oldest point kept for this project
+   * @format date-time
+   */
+  since?: string;
+  /**
+   * Seconds per point
+   * @format int64
+   */
+  step: number;
+}
+
+export interface DockerProjectLogBatch {
+  lines: DockerProjectLogLine[];
+}
+
+export interface DockerProjectLogLine {
+  container: string;
+  service: string;
+  stream: string;
+  text: string;
+  /** @format date-time */
+  time?: string;
+}
+
+export interface DockerProjectLogs {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Whose logs were read */
+  containers: DockerRef[];
+  lines: DockerProjectLogLine[];
+  truncated: boolean;
+}
+
+export interface DockerProjectMetaBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 2000 */
+  note: string;
+  /**
+   * Empty = show the project's name
+   * @maxLength 80
+   */
+  title: string;
+}
+
+export interface DockerProjectRestoreBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Run compose up after writing the files (a job) */
+  deploy?: boolean;
+  /** The project's revision when the person decided; a change in between answers 409 */
+  revision?: string;
+}
+
+export interface DockerProjectStats {
+  containers: DockerProjectContainer[];
+  /**
+   * Percent of one core, all its containers
+   * @format double
+   */
+  cpu: number;
+  /**
+   * Cores the host has
+   * @format int64
+   */
+  cpus: number;
+  /** No earlier pass: network rates aren't known yet */
+  first_sample: boolean;
+  /** @format int64 */
+  healthy: number;
+  history: DockerStatsPoint[];
+  /** @format int64 */
+  host_memory: number;
+  /** @format date-time */
+  measured_at: string;
+  /** @format int64 */
+  memory_used: number;
+  name: string;
+  /** @format double */
+  net_rx_rate: number;
+  /** @format double */
+  net_tx_rate: number;
+  ports: DockerPortOut[];
+  /** @format int64 */
+  restarts: number;
+  /** @format int64 */
+  running: number;
+  /**
+   * When its longest-running container started
+   * @format date-time
+   */
+  since?: string;
+  /** @format int64 */
+  starting: number;
+  /** @format int64 */
+  total: number;
+  /** @format int64 */
+  unhealthy: number;
+  /**
+   * Running containers left out of this pass
+   * @format int64
+   */
+  unmeasured: number;
+}
+
+export interface DockerProjectStatsList {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format date-time */
+  at: string;
+  projects: DockerProjectStats[];
+}
+
+export interface DockerProjectVersion {
+  /** Who made it; empty for Morche itself */
+  by: string;
+  /** @format int64 */
+  compose_size: number;
+  /** @format date-time */
+  created_at: string;
+  /** These are the files on the server now */
+  current: boolean;
+  has_env: boolean;
+  id: string;
+  note: string;
+  /** found = the files as they were before Morche first changed them */
+  reason: "found" | "save" | "create" | "restore" | "git";
+  /** Same as the project's revision when these are the files on the server now */
+  revision: string;
+}
+
+export interface DockerProjectVersionFiles {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Who made it; empty for Morche itself */
+  by: string;
+  compose: string;
+  /** @format int64 */
+  compose_size: number;
+  /** @format date-time */
+  created_at: string;
+  /** These are the files on the server now */
+  current: boolean;
+  env: string;
+  has_env: boolean;
+  id: string;
+  note: string;
+  /** found = the files as they were before Morche first changed them */
+  reason: "found" | "save" | "create" | "restore" | "git";
+  /** Same as the project's revision when these are the files on the server now */
+  revision: string;
+}
+
+export interface DockerProjectVersions {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: DockerProjectVersion[];
+  /** The revision of the files on the server now (empty when they couldn't be read) */
+  revision: string;
 }
 
 export interface DockerPruneBody {
@@ -4963,6 +5838,263 @@ export interface DockerRenameBody {
   name: string;
 }
 
+export interface DockerReport {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format date-time */
+  at: string;
+  containers: DockerReportContainer[];
+  /**
+   * Every measured container, percent of one core
+   * @format double
+   */
+  cpu: number;
+  /** @format int64 */
+  cpus: number;
+  /** Compose projects added up over 24 hours, 15-minute points */
+  day: DockerHistoryPoint[];
+  /** @format int64 */
+  day_step: number;
+  /** No earlier pass: rates aren't known yet */
+  first_sample: boolean;
+  /** Live totals while someone looks */
+  history: DockerStatsPoint[];
+  /** @format int64 */
+  host_memory: number;
+  /** Bytes per connection were read (needs root, nsenter and ss) */
+  link_bytes: boolean;
+  links: DockerReportLink[];
+  links_note?: string;
+  /** read = every running container's connections were read */
+  links_state: "read" | "partial" | "unavailable";
+  /** @format int64 */
+  memory_used: number;
+  /** @format double */
+  net_rx_rate: number;
+  /** @format double */
+  net_tx_rate: number;
+  networks: DockerReportNetwork[];
+  /**
+   * Running containers left out of this pass
+   * @format int64
+   */
+  unmeasured: number;
+}
+
+export interface DockerReportContainer {
+  /** Its connections were read */
+  connections: boolean;
+  /**
+   * Percent of one core
+   * @format double
+   */
+  cpu: number;
+  /** Recent CPU points, oldest first */
+  cpu_history: number[];
+  /** @format date-time */
+  created: string;
+  /** @format int64 */
+  exit_code: number;
+  /**
+   * Stopped: when it last ended
+   * @format date-time
+   */
+  finished_at?: string;
+  health: "healthy" | "unhealthy" | "starting" | "none";
+  id: string;
+  image: string;
+  /** TCP ports it listens on (when its connections were read) */
+  listening: number[];
+  measured: boolean;
+  /**
+   * Its own limit; 0 = none
+   * @format int64
+   */
+  memory_limit: number;
+  /** @format int64 */
+  memory_used: number;
+  name: string;
+  /** @format double */
+  net_rx_rate: number;
+  /** @format double */
+  net_tx_rate: number;
+  network_mode: string;
+  networks: DockerReportEndpoint[];
+  oom_killed: boolean;
+  /** @format int64 */
+  pids: number;
+  ports: DockerPortOut[];
+  project?: string;
+  /** @format int64 */
+  restarts: number;
+  service?: string;
+  /**
+   * Running: when it last started
+   * @format date-time
+   */
+  started_at?: string;
+  state: string;
+  status: string;
+}
+
+export interface DockerReportEndpoint {
+  ipv4?: string;
+  ipv6?: string;
+  network: string;
+}
+
+export interface DockerReportLink {
+  /**
+   * Open TCP connections now
+   * @format int64
+   */
+  connections: number;
+  /**
+   * Bytes per second to → from
+   * @format double
+   */
+  down: number;
+  /** Container id that opened the connections, or host / outside */
+  from: string;
+  /** Outside addresses, a few */
+  peers: string[];
+  /**
+   * The port connected to
+   * @format int64
+   */
+  port: number;
+  /** Container id that accepted them, or host / outside */
+  to: string;
+  /**
+   * Bytes per second from → to (when bytes are read)
+   * @format double
+   */
+  up: number;
+}
+
+export interface DockerReportNetwork {
+  builtin: boolean;
+  driver: string;
+  gateway?: string;
+  id: string;
+  internal: boolean;
+  name: string;
+  project?: string;
+  subnet?: string;
+}
+
+export interface DockerRunBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Replaces the image's command
+   * @maxItems 100
+   */
+  command?: string[];
+  /**
+   * @format double
+   * @min 0
+   * @max 1024
+   */
+  cpus?: number;
+  /** Create it without starting it */
+  create_only?: boolean;
+  /** @maxItems 20 */
+  entrypoint?: string[];
+  /** @maxItems 200 */
+  env?: DockerEnv[];
+  /**
+   * @minLength 1
+   * @maxLength 500
+   */
+  image: string;
+  labels?: Record<string, string>;
+  /**
+   * @format int64
+   * @min 0
+   * @max 1048576
+   */
+  memory_mb?: number;
+  /**
+   * @maxLength 128
+   * @pattern ^[a-zA-Z0-9][a-zA-Z0-9_.-]+$
+   */
+  name?: string;
+  /**
+   * Empty = the default bridge
+   * @maxLength 200
+   */
+  network?: string;
+  /** @maxItems 100 */
+  ports?: DockerRunPort[];
+  privileged?: boolean;
+  restart?: "no" | "always" | "unless-stopped" | "on-failure";
+  /** @maxLength 100 */
+  user?: string;
+  /** @maxItems 100 */
+  volumes?: DockerRunVolume[];
+  /** @maxLength 4096 */
+  workdir?: string;
+}
+
+export interface DockerRunPort {
+  /**
+   * @format int64
+   * @min 1
+   * @max 65535
+   */
+  container_port: number;
+  /**
+   * Empty = every address
+   * @maxLength 64
+   */
+  host_ip?: string;
+  /**
+   * 0 = a free port Docker picks
+   * @format int64
+   * @min 0
+   * @max 65535
+   */
+  host_port?: number;
+  protocol?: "tcp" | "udp";
+}
+
+export interface DockerRunResult {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Created, but it didn't start: why */
+  error?: string;
+  id: string;
+  name: string;
+  started: boolean;
+  warnings: string[];
+}
+
+export interface DockerRunVolume {
+  read_only?: boolean;
+  /**
+   * A volume's name, or a folder on the server (starts with /)
+   * @minLength 1
+   * @maxLength 4096
+   */
+  source: string;
+  /**
+   * Folder inside the container
+   * @minLength 1
+   * @maxLength 4096
+   */
+  target: string;
+}
+
 export interface DockerScanBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -5011,6 +6143,40 @@ export interface DockerScanFinding {
   url?: string;
 }
 
+export interface DockerScanLayer {
+  /** @format int64 */
+  added: number;
+  comment?: string;
+  created?: string;
+  /** The build step that made it */
+  created_by: string;
+  diff_id: string;
+  /** @format int64 */
+  files: number;
+  /** @format int64 */
+  index: number;
+  /**
+   * Files that replace a copy from a lower layer
+   * @format int64
+   */
+  modified: number;
+  /**
+   * Files it deletes
+   * @format int64
+   */
+  removed: number;
+  /**
+   * Bytes of its files
+   * @format int64
+   */
+  size: number;
+  /**
+   * Bytes of lower copies it replaces or deletes
+   * @format int64
+   */
+  wasted: number;
+}
+
 export interface DockerScans {
   /**
    * A URL to the JSON Schema for this object.
@@ -5024,12 +6190,71 @@ export interface DockerScans {
   totals: DockerScanCounts;
 }
 
+export interface DockerServerSettings {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  overrides: DockerSettingsOverrides;
+  /** The last automatic clean-up */
+  prune?: DockerAutoPrune;
+  /** @format uuid */
+  server_id: string;
+  server_name: string;
+  /** @format date-time */
+  updated_at?: string;
+}
+
 export interface DockerSettings {
   /**
    * A URL to the JSON Schema for this object.
    * @format uri
    */
   $schema?: string;
+  /** Folder on that storage; empty = /backups/docker-volumes */
+  backup_folder: string;
+  /**
+   * Copies of a volume kept from backups made by hand; older ones are removed; 0 = keep all
+   * @format int64
+   * @min 0
+   * @max 1000
+   */
+  backup_keep: number;
+  /** Stop the containers using a volume while it is backed up */
+  backup_stop: boolean;
+  /** Storage volume backups go to unless another is picked; empty = ask */
+  backup_storage_id: string;
+  /**
+   * CPU limit (cores) added to services of a new project that don't set one; 0 = none
+   * @format double
+   * @min 0
+   * @max 512
+   */
+  default_cpus: number;
+  /**
+   * Log files kept by that rotation
+   * @format int64
+   * @min 0
+   * @max 100
+   */
+  default_log_files: number;
+  /**
+   * Log rotation added to services of a new project that don't set logging: size of one file (MiB); 0 = none
+   * @format int64
+   * @min 0
+   * @max 10240
+   */
+  default_log_max_mb: number;
+  /**
+   * Memory limit (MiB) added to services of a new project that don't set one; 0 = none
+   * @format int64
+   * @min 0
+   * @max 1048576
+   */
+  default_memory_mb: number;
+  /** Restart policy added to services of a new project that don't set one; empty = add none */
+  default_restart: "" | "no" | "always" | "unless-stopped" | "on-failure";
   /**
    * How far back the event log reads by default
    * @format int64
@@ -5037,14 +6262,63 @@ export interface DockerSettings {
    * @max 720
    */
   events_hours: number;
+  /** Notification channels those messages go to */
+  notify_channels: string[];
+  /** Send a message when a running image gets a new version */
+  notify_updates: boolean;
+  /** Send a message when a scan finds more vulnerabilities at this severity (high = high and critical) */
+  notify_vulns: "off" | "critical" | "high";
   /** Folder on each server where new compose projects are created, one folder per project */
   projects_dir: string;
+  /** Clean up unused things on every server by itself */
+  prune_auto: boolean;
+  /** Also remove the build cache */
+  prune_build_cache: boolean;
+  /** Also remove stopped containers */
+  prune_containers: boolean;
+  /**
+   * Hours between automatic clean-ups
+   * @format int64
+   */
+  prune_hours: 24 | 72 | 168 | 720;
+  /** Images it removes: none, untagged only, or every image no container uses */
+  prune_images: "none" | "dangling" | "all";
+  /** Also remove networks no container uses */
+  prune_networks: boolean;
+  /**
+   * Only remove things older than this many hours; 0 = any age
+   * @format int64
+   */
+  prune_older_hours: 0 | 24 | 72 | 168 | 720;
+  /** Deploying a project removes containers of services no longer in its compose file */
+  remove_orphans: boolean;
+  /** Vulnerability scans leave out findings that have no fixed version yet */
+  scan_ignore_unfixed: boolean;
   /** Image used to scan for vulnerabilities when Trivy isn't installed on the server */
   scanner_image: string;
+  /**
+   * Days projects' CPU, memory and network are kept (a point every 5 minutes); 0 = not recorded
+   * @format int64
+   * @min 0
+   * @max 90
+   */
+  stats_days: number;
   /** Check once a day whether running images have a newer version */
   update_check: boolean;
+  /**
+   * Hours between automatic image update checks
+   * @format int64
+   */
+  update_check_hours: 6 | 12 | 24 | 72 | 168;
   /** @format date-time */
   updated_at?: string;
+  /**
+   * Compose file versions kept per project
+   * @format int64
+   * @min 5
+   * @max 200
+   */
+  versions_keep: number;
 }
 
 export interface DockerSettingsBody {
@@ -5053,23 +6327,176 @@ export interface DockerSettingsBody {
    * @format uri
    */
   $schema?: string;
+  /** @maxLength 500 */
+  backup_folder?: string;
+  /**
+   * @format int64
+   * @min 0
+   * @max 1000
+   */
+  backup_keep?: number;
+  backup_stop?: boolean;
+  backup_storage_id?: string;
+  /**
+   * @format double
+   * @min 0
+   * @max 512
+   */
+  default_cpus?: number;
+  /**
+   * @format int64
+   * @min 0
+   * @max 100
+   */
+  default_log_files?: number;
+  /**
+   * @format int64
+   * @min 0
+   * @max 10240
+   */
+  default_log_max_mb?: number;
+  /**
+   * @format int64
+   * @min 0
+   * @max 1048576
+   */
+  default_memory_mb?: number;
+  default_restart?: "" | "no" | "always" | "unless-stopped" | "on-failure";
   /**
    * @format int64
    * @min 1
    * @max 720
    */
   events_hours: number;
+  /** @maxItems 20 */
+  notify_channels?: string[];
+  notify_updates?: boolean;
+  notify_vulns?: "off" | "critical" | "high";
   /**
    * @minLength 2
    * @maxLength 500
    */
   projects_dir: string;
+  prune_auto?: boolean;
+  prune_build_cache?: boolean;
+  prune_containers?: boolean;
+  /** @format int64 */
+  prune_hours?: 24 | 72 | 168 | 720;
+  prune_images?: "none" | "dangling" | "all";
+  prune_networks?: boolean;
+  /** @format int64 */
+  prune_older_hours?: 0 | 24 | 72 | 168 | 720;
+  remove_orphans: boolean;
+  scan_ignore_unfixed: boolean;
   /**
    * @minLength 1
    * @maxLength 300
    */
   scanner_image: string;
+  /**
+   * @format int64
+   * @min 0
+   * @max 90
+   */
+  stats_days: number;
   update_check: boolean;
+  /** @format int64 */
+  update_check_hours: 6 | 12 | 24 | 72 | 168;
+  /**
+   * @format int64
+   * @min 5
+   * @max 200
+   */
+  versions_keep: number;
+}
+
+export interface DockerSettingsOverrides {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 500 */
+  backup_folder?: string;
+  /**
+   * @format int64
+   * @min 0
+   * @max 1000
+   */
+  backup_keep?: number;
+  backup_stop?: boolean;
+  backup_storage_id?: string;
+  /**
+   * @format double
+   * @min 0
+   * @max 512
+   */
+  default_cpus?: number;
+  /**
+   * @format int64
+   * @min 0
+   * @max 100
+   */
+  default_log_files?: number;
+  /**
+   * @format int64
+   * @min 0
+   * @max 10240
+   */
+  default_log_max_mb?: number;
+  /**
+   * @format int64
+   * @min 0
+   * @max 1048576
+   */
+  default_memory_mb?: number;
+  default_restart?: "" | "no" | "always" | "unless-stopped" | "on-failure";
+  /**
+   * @format int64
+   * @min 1
+   * @max 720
+   */
+  events_hours?: number;
+  /** @maxItems 20 */
+  notify_channels?: string[];
+  notify_updates?: boolean;
+  notify_vulns?: "off" | "critical" | "high";
+  /**
+   * @minLength 2
+   * @maxLength 500
+   */
+  projects_dir?: string;
+  prune_auto?: boolean;
+  prune_build_cache?: boolean;
+  prune_containers?: boolean;
+  /** @format int64 */
+  prune_hours?: 24 | 72 | 168 | 720;
+  prune_images?: "none" | "dangling" | "all";
+  prune_networks?: boolean;
+  /** @format int64 */
+  prune_older_hours?: 0 | 24 | 72 | 168 | 720;
+  remove_orphans?: boolean;
+  scan_ignore_unfixed?: boolean;
+  /**
+   * @minLength 1
+   * @maxLength 300
+   */
+  scanner_image?: string;
+  /**
+   * @format int64
+   * @min 0
+   * @max 90
+   */
+  stats_days?: number;
+  update_check?: boolean;
+  /** @format int64 */
+  update_check_hours?: 6 | 12 | 24 | 72 | 168;
+  /**
+   * @format int64
+   * @min 5
+   * @max 200
+   */
+  versions_keep?: number;
 }
 
 export interface DockerStats {
@@ -5104,6 +6531,19 @@ export interface DockerStats {
   time: string;
   /** @format double */
   write_rate: number;
+}
+
+export interface DockerStatsPoint {
+  /** @format date-time */
+  at: string;
+  /** @format double */
+  cpu: number;
+  /** @format int64 */
+  memory: number;
+  /** @format double */
+  net_rx: number;
+  /** @format double */
+  net_tx: number;
 }
 
 export interface DockerStatus {
@@ -5282,6 +6722,56 @@ export interface DockerVolume {
   used_by: DockerRef[];
 }
 
+export interface DockerVolumeBackup {
+  sha256: string;
+  by: string;
+  /** @format date-time */
+  created_at: string;
+  error?: string;
+  /** @format date-time */
+  finished_at?: string;
+  id: string;
+  job_id?: string;
+  /** Warnings from tar, such as files that changed while it read them */
+  note?: string;
+  /** The file on the storage */
+  path: string;
+  /** The cron job that made it */
+  schedule_id?: string;
+  /**
+   * Bytes, compressed
+   * @format int64
+   */
+  size: number;
+  state: "running" | "stored" | "failed";
+  /**
+   * Containers stopped while it was made
+   * @format int64
+   */
+  stopped: number;
+  /** Missing when the storage was removed */
+  storage_id?: string;
+  storage_name: string;
+  volume: string;
+}
+
+export interface DockerVolumeBackupBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Folder on the storage; the file goes in <folder>/<server>/<volume>/. Default /backups/docker-volumes
+   * @maxLength 500
+   */
+  folder?: string;
+  /** Stop the running containers using the volume while it is packed, then start them again */
+  stop?: boolean;
+  /** @format uuid */
+  storage_id: string;
+}
+
 export interface DockerVolumeBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -5302,6 +6792,36 @@ export interface DockerVolumeBody {
   name?: string;
   /** Driver options (local: type, device, o) */
   options?: Record<string, string>;
+}
+
+export interface DockerVolumeRestoreBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Empty the volume first; else the files are written over what is there */
+  replace?: boolean;
+  /** Stop the running containers using the volume during the restore, then start them again */
+  stop?: boolean;
+  /**
+   * Volume to restore into; default the one it came from. Created when missing
+   * @maxLength 255
+   */
+  volume?: string;
+}
+
+export interface DockerWastedPath {
+  /**
+   * Bytes of the copies later layers hide
+   * @format int64
+   */
+  bytes: number;
+  /** @format int64 */
+  copies: number;
+  /** Layers holding a copy, oldest first */
+  layers: number[];
+  path: string;
 }
 
 export interface EnableCronJobsRequest {
@@ -6852,6 +8372,8 @@ export interface JobPlace {
   server_id?: string;
   /** @format uuid */
   storage_id?: string;
+  /** The Docker volume it works in (path is inside it) */
+  volume?: string;
 }
 
 export interface JobRemoved {
@@ -6948,6 +8470,24 @@ export interface ListDockerRegistriesResponse {
    */
   $schema?: string;
   items: DockerRegistry[];
+}
+
+export interface ListDockerServerSettingsResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: DockerServerSettings[];
+}
+
+export interface ListDockerVolumeBackupsResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: DockerVolumeBackup[];
 }
 
 export interface ListJobsResponse {
@@ -7221,6 +8761,16 @@ export interface Maintenance {
    * @maxLength 200
    */
   title?: string;
+}
+
+export interface MakeDockerVolumeFolderRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @minLength 1 */
+  path: string;
 }
 
 export interface MakeFolderRequest {
@@ -10440,6 +11990,18 @@ export interface Redirects {
   strict_slash?: boolean;
 }
 
+export interface RenameDockerVolumeFileRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @minLength 1 */
+  from: string;
+  /** @minLength 1 */
+  to: string;
+}
+
 export interface RenameFileRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -10808,7 +12370,10 @@ export interface Schedule {
     | "archive"
     | "verify-backup"
     | "software-update"
-    | "package-upgrade";
+    | "package-upgrade"
+    | "docker-update"
+    | "docker-volume-backup"
+    | "docker-prune";
   /** @format date-time */
   created_at: string;
   cron: string;
@@ -10876,7 +12441,10 @@ export interface ScheduleBody {
     | "archive"
     | "verify-backup"
     | "software-update"
-    | "package-upgrade";
+    | "package-upgrade"
+    | "docker-update"
+    | "docker-volume-backup"
+    | "docker-prune";
   /**
    * Five fields (minute hour day month weekday), or @hourly, @daily, @weekly, @monthly, @every 2h
    * @minLength 1
@@ -10902,6 +12470,58 @@ export interface ScheduleBody {
    * @maxLength 64
    */
   timezone?: string;
+}
+
+export interface ScheduleDocker {
+  /** Ask the registries for newer images first; else the last daily check decides */
+  check?: boolean;
+  /** Carry on with the other servers after one fails */
+  keep_going?: boolean;
+  /**
+   * Projects or containers to update (* and ? work); empty = every running container with a newer image
+   * @maxItems 50
+   */
+  only?: string[];
+  /** Watch each updated container and put its old image back when it stops or turns unhealthy */
+  rollback?: boolean;
+  /**
+   * @maxItems 50
+   * @minItems 1
+   */
+  server_ids: string[];
+  /**
+   * How long to watch it (rollback); default 60
+   * @format int64
+   * @min 0
+   * @max 600
+   */
+  wait_seconds?: number;
+}
+
+export interface ScheduleDockerPrune {
+  build_cache?: boolean;
+  /** Stopped containers */
+  containers?: boolean;
+  /** dangling = untagged ones; all = every image no container uses */
+  images?: "none" | "dangling" | "all" | "";
+  /** Carry on with the other servers after one fails */
+  keep_going?: boolean;
+  /** Networks no container uses */
+  networks?: boolean;
+  /**
+   * Only what was made more than this many hours ago (not volumes: Docker keeps no age for them). 0 = all of it
+   * @format int64
+   * @min 0
+   * @max 8760
+   */
+  older_than_hours?: number;
+  /**
+   * @maxItems 50
+   * @minItems 1
+   */
+  server_ids: string[];
+  /** Volumes no container uses; anonymous = only unnamed ones */
+  volumes?: "none" | "anonymous" | "all" | "";
 }
 
 export interface ScheduleEnd {
@@ -11065,7 +12685,10 @@ export interface ScheduleRun {
     | "archive"
     | "verify-backup"
     | "software-update"
-    | "package-upgrade";
+    | "package-upgrade"
+    | "docker-update"
+    | "docker-volume-backup"
+    | "docker-prune";
   /** @format int64 */
   bytes: number;
   /** @format date-time */
@@ -11271,10 +12894,14 @@ export interface ScheduleSoftware {
 export interface ScheduleTask {
   /** action ansible */
   ansible?: ScheduleAnsible;
+  /** action docker-update */
+  docker?: ScheduleDocker;
   /** action fetch: what to download into the destination folders */
   fetch?: ScheduleFetch;
   /** action package-upgrade */
   packages?: SchedulePackages;
+  /** action docker-prune */
+  prune?: ScheduleDockerPrune;
   /** action reboot */
   reboot?: ScheduleReboot;
   /** action script */
@@ -11285,6 +12912,8 @@ export interface ScheduleTask {
   software?: ScheduleSoftware;
   /** action verify-backup */
   verify?: ScheduleVerify;
+  /** action docker-volume-backup */
+  volumes?: ScheduleVolumes;
 }
 
 export interface ScheduleUpdate {
@@ -11307,7 +12936,10 @@ export interface ScheduleUpdate {
     | "archive"
     | "verify-backup"
     | "software-update"
-    | "package-upgrade";
+    | "package-upgrade"
+    | "docker-update"
+    | "docker-volume-backup"
+    | "docker-prune";
   /**
    * Five fields (minute hour day month weekday), or @hourly, @daily, @weekly, @monthly, @every 2h
    * @minLength 1
@@ -11348,6 +12980,34 @@ export interface ScheduleVerify {
    * @format uuid
    */
   plan_id?: string;
+}
+
+export interface ScheduleVolumes {
+  /**
+   * Folder on the storage; default /backups/docker-volumes
+   * @maxLength 500
+   */
+  folder?: string;
+  /**
+   * Copies of each volume this job keeps; older ones are removed. 0 = keep all
+   * @format int64
+   * @min 0
+   * @max 1000
+   */
+  keep?: number;
+  /** Carry on with the other volumes after one fails */
+  keep_going?: boolean;
+  /** @format uuid */
+  server_id: string;
+  /** Stop the running containers using each volume while it's copied */
+  stop?: boolean;
+  /** @format uuid */
+  storage_id: string;
+  /**
+   * Volume names (* and ? work); empty = every volume
+   * @maxItems 100
+   */
+  volumes?: string[];
 }
 
 export interface Script {
@@ -13909,6 +15569,8 @@ export interface TerminalSession {
   clients: number;
   /** @format int64 */
   cols: number;
+  /** Full ID of the container this shell runs in; empty for a shell on the server */
+  container?: string;
   /** @format date-time */
   created_at: string;
   /** @format uuid */
@@ -14594,6 +16256,20 @@ export interface WorkspaceStorage {
   id: string;
   name: string;
   protocol: string;
+}
+
+export interface WriteDockerVolumeFileRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  content: string;
+  create?: boolean;
+  /** @format date-time */
+  expected_modified?: string;
+  /** @minLength 1 */
+  path: string;
 }
 
 export interface WriteFileRequest {
@@ -18076,6 +19752,51 @@ export class Api<
       }),
 
     /**
+     * @description Packs the volume's folder (tar.gz, as root) and streams it to the storage, as a job (kind `docker-volume-backup`). Needs Engineer on the storage too.
+     *
+     * @tags Containers
+     * @name BackupDockerVolume
+     * @summary Copy a volume to a storage
+     * @request POST:/servers/{id}/docker/volumes/{volume}/backup
+     */
+    backupDockerVolume: (
+      id: string,
+      volume: string,
+      data: DockerVolumeBackupBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/servers/${id}/docker/volumes/${volume}/backup`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Runs `docker compose config` on the server over a temporary copy of the files (removed after), and compares the published ports with what already listens there. Nothing is saved or started.
+     *
+     * @tags Containers
+     * @name CheckDockerProject
+     * @summary Check a new project's files
+     * @request POST:/servers/{id}/docker/projects/check
+     */
+    checkDockerProject: (
+      id: string,
+      data: DockerProjectCheckBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerProjectCheck, ErrorModel>({
+        path: `/servers/${id}/docker/projects/check`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description Compares each image in use with what its registry has now (using the workspace's registry logins). Runs as a job (kind `docker-update-check`); after a first check the server is re-checked daily unless turned off in the workspace's container settings.
      *
      * @tags Containers
@@ -18110,6 +19831,29 @@ export class Api<
         method: "POST",
         body: data,
         type: ContentType.Json,
+        ...params,
+      }),
+
+    /**
+     * @description Pipes `docker save` on this server into `docker load` on each server in turn, no registry needed, as a job (kind `docker-image-copy`). Needs Engineer on every server.
+     *
+     * @tags Containers
+     * @name CopyDockerImage
+     * @summary Copy an image to other servers
+     * @request POST:/servers/{id}/docker/images/{image}/copy
+     */
+    copyDockerImage: (
+      id: string,
+      image: string,
+      data: DockerImageCopyBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/servers/${id}/docker/images/${image}/copy`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
         ...params,
       }),
 
@@ -18150,6 +19894,28 @@ export class Api<
     ) =>
       this.request<DockerProjectCreated, ErrorModel>({
         path: `/servers/${id}/docker/projects`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Clones the repository into a new folder under the projects folder and deploys it (a job, kind `docker-git-deploy`).
+     *
+     * @tags Containers
+     * @name CreateDockerProjectGit
+     * @summary Make a compose project from a git repository
+     * @request POST:/servers/{id}/docker/projects/git
+     */
+    createDockerProjectGit: (
+      id: string,
+      data: DockerGitCreateBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerGitSaved, ErrorModel>({
+        path: `/servers/${id}/docker/projects/git`,
         method: "POST",
         body: data,
         type: ContentType.Json,
@@ -18224,6 +19990,25 @@ export class Api<
       }),
 
     /**
+     * @description The files and the clone stay on the server; only Morche stops following the repository.
+     *
+     * @tags Containers
+     * @name DeleteDockerProjectGit
+     * @summary Disconnect a project from its repository
+     * @request DELETE:/servers/{id}/docker/projects/{project}/git
+     */
+    deleteDockerProjectGit: (
+      id: string,
+      project: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, ErrorModel>({
+        path: `/servers/${id}/docker/projects/${project}/git`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
      * No description
      *
      * @tags Containers
@@ -18246,6 +20031,25 @@ export class Api<
      * No description
      *
      * @tags Containers
+     * @name DeleteDockerServerSettings
+     * @summary A server follows the workspace's container settings again
+     * @request DELETE:/workspaces/{id}/docker/settings/servers/{server}
+     */
+    deleteDockerServerSettings: (
+      id: string,
+      server: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, ErrorModel>({
+        path: `/workspaces/${id}/docker/settings/servers/${server}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Containers
      * @name DeleteDockerTemplate
      * @summary Delete a compose template
      * @request DELETE:/workspaces/{id}/docker/templates/{template}
@@ -18258,6 +20062,48 @@ export class Api<
       this.request<void, ErrorModel>({
         path: `/workspaces/${id}/docker/templates/${template}`,
         method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Containers
+     * @name DeleteDockerVolumeBackup
+     * @summary Remove a volume's copy, with its file on the storage
+     * @request DELETE:/servers/{id}/docker/volume-backups/{backup}
+     */
+    deleteDockerVolumeBackup: (
+      id: string,
+      backup: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, ErrorModel>({
+        path: `/servers/${id}/docker/volume-backups/${backup}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * @description Fetches the branch, and when it moved (or with `force`) runs compose up with --build. Runs as a job (kind `docker-git-deploy`).
+     *
+     * @tags Containers
+     * @name DeployDockerProjectGit
+     * @summary Deploy a project from its repository
+     * @request POST:/servers/{id}/docker/projects/{project}/git/deploy
+     */
+    deployDockerProjectGit: (
+      id: string,
+      project: string,
+      data: DockerGitDeployBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/servers/${id}/docker/projects/${project}/git/deploy`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
         ...params,
       }),
 
@@ -18357,6 +20203,23 @@ export class Api<
       }),
 
     /**
+     * @description Point a repository's push webhook here. No sign-in; the token is the secret. A push to another branch is ignored.
+     *
+     * @tags Containers
+     * @name DockerGitWebhook
+     * @summary Deploy a git project (webhook)
+     * @request POST:/hooks/docker/{token}
+     */
+    dockerGitWebhook: (token: string, data: File, params: RequestParams = {}) =>
+      this.request<DockerGitHookOutputBody, ErrorModel>({
+        path: `/hooks/docker/${token}`,
+        method: "POST",
+        body: data,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description up, down, start, stop, restart, pull, redeploy (pull + up) or destroy (down with its volumes; a project in the projects folder also loses its folder). Runs as a job (kind `docker-compose`). Operator may start, stop and restart; the rest needs Engineer.
      *
      * @tags Containers
@@ -18381,6 +20244,130 @@ export class Api<
       this.request<Job, ErrorModel>({
         path: `/servers/${id}/docker/projects/${project}/actions/${action}`,
         method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Points recorded every 5 minutes, averaged per 15 minutes (24h), hour (7d) or 6 hours (30d). Recording starts once the server's projects have been opened or its images checked for updates, and stops when the workspace's `stats_days` is 0.
+     *
+     * @tags Containers
+     * @name DockerProjectHistory
+     * @summary A project's CPU, memory and network over days
+     * @request GET:/servers/{id}/docker/projects/{project}/history
+     */
+    dockerProjectHistory: (
+      id: string,
+      project: string,
+      query?: {
+        /** @default "24h" */
+        range?: "24h" | "7d" | "30d";
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerProjectHistory, ErrorModel>({
+        path: `/servers/${id}/docker/projects/${project}/history`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The logs of its containers (up to 40) merged by time: the last `tail` lines overall (up to 5000). `containers` = comma-separated names, ids or services to read only those.
+     *
+     * @tags Containers
+     * @name DockerProjectLogs
+     * @summary A project's log
+     * @request GET:/servers/{id}/docker/projects/{project}/logs
+     */
+    dockerProjectLogs: (
+      id: string,
+      project: string,
+      query?: {
+        /** @maxLength 2000 */
+        containers?: string;
+        /** @format date-time */
+        since?: string;
+        /**
+         * @format int64
+         * @min 1
+         * @max 5000
+         * @default 500
+         */
+        tail?: number;
+        /** @format date-time */
+        until?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerProjectLogs, ErrorModel>({
+        path: `/servers/${id}/docker/projects/${project}/logs`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description CPU, memory, network, health, restarts and ports per project and per container, plus a short history (kept in memory while someone looks, about one point every 10 to 30 seconds). Measuring takes a couple of seconds; answers are shared for a few seconds. `project` narrows the answer (the measurement still covers the whole server).
+     *
+     * @tags Containers
+     * @name DockerProjectStats
+     * @summary Live numbers for a server's compose projects
+     * @request GET:/servers/{id}/docker/project-stats
+     */
+    dockerProjectStats: (
+      id: string,
+      query?: {
+        /** @maxLength 63 */
+        project?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerProjectStatsList, ErrorModel>({
+        path: `/servers/${id}/docker/project-stats`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Every container's state, uptime, restarts and live CPU, memory and network; the networks; and which containers talk to which, read from each running container's TCP table (with bytes per connection when Morche is root on the server and `nsenter` + `ss` exist). Live totals keep a short history while someone looks; `day` adds up the compose projects' recorded points over 24 hours. Answers are shared for a few seconds.
+     *
+     * @tags Containers
+     * @name DockerReport
+     * @summary A report on a server's containers and their network
+     * @request GET:/servers/{id}/docker/report
+     */
+    dockerReport: (id: string, params: RequestParams = {}) =>
+      this.request<DockerReport, ErrorModel>({
+        path: `/servers/${id}/docker/report`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Streams `docker save` (with every tag of the image), gzip-compressed, into <folder>/<server>/ on the storage, as a job (kind `docker-image-export`). Needs Engineer on the storage too.
+     *
+     * @tags Containers
+     * @name ExportDockerImage
+     * @summary Save an image to a storage
+     * @request POST:/servers/{id}/docker/images/{image}/export
+     */
+    exportDockerImage: (
+      id: string,
+      image: string,
+      data: DockerImageExportBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/servers/${id}/docker/images/${image}/export`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),
@@ -18443,6 +20430,30 @@ export class Api<
       }),
 
     /**
+     * @description The first call starts reading the image (`docker save`, streamed) and answers `reading` with how far it got; ask again until `ready`. Results are kept 15 minutes; `refresh` reads it again.
+     *
+     * @tags Containers
+     * @name GetDockerImageLayers
+     * @summary What each layer of an image holds, and the space it wastes
+     * @request GET:/servers/{id}/docker/images/{image}/layers
+     */
+    getDockerImageLayers: (
+      id: string,
+      image: string,
+      query?: {
+        refresh?: boolean;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerLayerScan, ErrorModel>({
+        path: `/servers/${id}/docker/images/${image}/layers`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description Its containers, and (Engineer) its compose and .env files.
      *
      * @tags Containers
@@ -18457,6 +20468,47 @@ export class Api<
     ) =>
       this.request<DockerProjectDetails, ErrorModel>({
         path: `/servers/${id}/docker/projects/${project}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Where the project's files come from, the last deployed commit and the webhook's secret (Engineer and up). `source` is null when the project isn't connected.
+     *
+     * @tags Containers
+     * @name GetDockerProjectGit
+     * @summary A project's git repository
+     * @request GET:/servers/{id}/docker/projects/{project}/git
+     */
+    getDockerProjectGit: (
+      id: string,
+      project: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerGitState, ErrorModel>({
+        path: `/servers/${id}/docker/projects/${project}/git`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Containers
+     * @name GetDockerProjectVersion
+     * @summary One version of a project's files
+     * @request GET:/servers/{id}/docker/projects/{project}/versions/{version}
+     */
+    getDockerProjectVersion: (
+      id: string,
+      project: string,
+      version: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerProjectVersionFiles, ErrorModel>({
+        path: `/servers/${id}/docker/projects/${project}/versions/${version}`,
         method: "GET",
         format: "json",
         ...params,
@@ -18490,6 +20542,44 @@ export class Api<
       this.request<DockerSettings, ErrorModel>({
         path: `/workspaces/${id}/docker/settings`,
         method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The workspace's settings with the server's own laid over them.
+     *
+     * @tags Containers
+     * @name GetServerDockerSettings
+     * @summary Container settings that apply on a server
+     * @request GET:/servers/{id}/docker/settings
+     */
+    getServerDockerSettings: (id: string, params: RequestParams = {}) =>
+      this.request<DockerEffectiveSettings, ErrorModel>({
+        path: `/servers/${id}/docker/settings`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Streams a file made by `docker save` (.tar or .tar.gz) into `docker load`, as a job (kind `docker-image-import`). Needs Operator on the storage.
+     *
+     * @tags Containers
+     * @name ImportDockerImage
+     * @summary Load an image from a file on a storage
+     * @request POST:/servers/{id}/docker/images/import
+     */
+    importDockerImage: (
+      id: string,
+      data: DockerImageImportBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/servers/${id}/docker/images/import`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),
@@ -18602,6 +20692,40 @@ export class Api<
       }),
 
     /**
+     * @description Marks what that layer added, changed or removed; `changes` lists only those. 409 while the image is still being read.
+     *
+     * @tags Containers
+     * @name ListDockerImageLayerFiles
+     * @summary One folder of an image as it looks after a layer
+     * @request GET:/servers/{id}/docker/images/{image}/layers/files
+     */
+    listDockerImageLayerFiles: (
+      id: string,
+      image: string,
+      query?: {
+        changes?: boolean;
+        /**
+         * @format int64
+         * @min 0
+         */
+        layer?: number;
+        /**
+         * Folder; empty = the root
+         * @maxLength 4096
+         */
+        path?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerLayerFiles, ErrorModel>({
+        path: `/servers/${id}/docker/images/${image}/layers/files`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * No description
      *
      * @tags Containers
@@ -18650,6 +20774,26 @@ export class Api<
       }),
 
     /**
+     * @description Versions of the compose and .env files Morche wrote, newest first (the last 50 are kept), with the one on the server now marked.
+     *
+     * @tags Containers
+     * @name ListDockerProjectVersions
+     * @summary A project's file history
+     * @request GET:/servers/{id}/docker/projects/{project}/versions
+     */
+    listDockerProjectVersions: (
+      id: string,
+      project: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerProjectVersions, ErrorModel>({
+        path: `/servers/${id}/docker/projects/${project}/versions`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description Used for every pull on the workspace's servers (pulls, updates, compose projects). Passwords never come back.
      *
      * @tags Containers
@@ -18676,6 +20820,22 @@ export class Api<
     listDockerScans: (id: string, params: RequestParams = {}) =>
       this.request<DockerScans, ErrorModel>({
         path: `/servers/${id}/docker/scans`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Every server of the workspace that sets some container settings for itself, or had an automatic clean-up.
+     *
+     * @tags Containers
+     * @name ListDockerServerSettings
+     * @summary Servers with their own container settings
+     * @request GET:/workspaces/{id}/docker/settings/servers
+     */
+    listDockerServerSettings: (id: string, params: RequestParams = {}) =>
+      this.request<ListDockerServerSettingsResponse, ErrorModel>({
+        path: `/workspaces/${id}/docker/settings/servers`,
         method: "GET",
         format: "json",
         ...params,
@@ -18709,6 +20869,30 @@ export class Api<
       this.request<DockerUpdates, ErrorModel>({
         path: `/servers/${id}/docker/updates`,
         method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Newest first, at most 500.
+     *
+     * @tags Containers
+     * @name ListDockerVolumeBackups
+     * @summary Copies of a server's volumes kept on storages
+     * @request GET:/servers/{id}/docker/volume-backups
+     */
+    listDockerVolumeBackups: (
+      id: string,
+      query?: {
+        /** Only this volume's copies */
+        volume?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ListDockerVolumeBackupsResponse, ErrorModel>({
+        path: `/servers/${id}/docker/volume-backups`,
+        method: "GET",
+        query: query,
         format: "json",
         ...params,
       }),
@@ -18894,6 +21078,95 @@ export class Api<
       }),
 
     /**
+     * @description The old address stops working at once.
+     *
+     * @tags Containers
+     * @name ResetDockerProjectWebhook
+     * @summary Make a new webhook address
+     * @request POST:/servers/{id}/docker/projects/{project}/git/webhook-token
+     */
+    resetDockerProjectWebhook: (
+      id: string,
+      project: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerGitSource, ErrorModel>({
+        path: `/servers/${id}/docker/projects/${project}/git/webhook-token`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Writes that version's compose and .env (checked with `docker compose config` like a save) and keeps it as a new version. With `deploy`, runs compose up as a job. 409 when the files changed since `revision`.
+     *
+     * @tags Containers
+     * @name RestoreDockerProjectVersion
+     * @summary Put an older version of a project's files back
+     * @request POST:/servers/{id}/docker/projects/{project}/versions/{version}/restore
+     */
+    restoreDockerProjectVersion: (
+      id: string,
+      project: string,
+      version: string,
+      data: DockerProjectRestoreBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerProjectCreated, ErrorModel>({
+        path: `/servers/${id}/docker/projects/${project}/versions/${version}/restore`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Streams the copy from its storage into the volume (created when missing), as a job (kind `docker-volume-restore`). Needs Operator on the storage too.
+     *
+     * @tags Containers
+     * @name RestoreDockerVolumeBackup
+     * @summary Put a volume's copy back
+     * @request POST:/servers/{id}/docker/volume-backups/{backup}/restore
+     */
+    restoreDockerVolumeBackup: (
+      id: string,
+      backup: string,
+      data: DockerVolumeRestoreBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/servers/${id}/docker/volume-backups/${backup}/restore`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Like `docker run -d`: creates the container and starts it (`create_only` leaves it stopped). The image must be on the server already. A container that is created but fails to start is kept and comes back with `error`.
+     *
+     * @tags Containers
+     * @name RunDockerContainer
+     * @summary Run a container from an image
+     * @request POST:/servers/{id}/docker/containers
+     */
+    runDockerContainer: (
+      id: string,
+      data: DockerRunBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerRunResult, ErrorModel>({
+        path: `/servers/${id}/docker/containers`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description Checked with `docker compose config` on the server first; a file it refuses is put back and answers 422. Doesn't redeploy: run `up` or `redeploy` after. 409 when the files changed since `revision`.
      *
      * @tags Containers
@@ -18917,6 +21190,29 @@ export class Api<
       }),
 
     /**
+     * @description Checks the server can read the branch, then keeps the source. The next deploy clones the repository into the project's folder (tracked files are replaced, others such as .env stay). Webhook and polling deploys run with the access of whoever saved it last.
+     *
+     * @tags Containers
+     * @name SaveDockerProjectGit
+     * @summary Connect a project to a git repository
+     * @request PUT:/servers/{id}/docker/projects/{project}/git
+     */
+    saveDockerProjectGit: (
+      id: string,
+      project: string,
+      data: DockerGitBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerGitSaved, ErrorModel>({
+        path: `/servers/${id}/docker/projects/${project}/git`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description Runs Trivy on the server: the `trivy` command if installed, else the workspace's scanner image through Docker (its database is cached in the `morcheh-trivy-cache` volume). Runs as a job (kind `docker-scan`).
      *
      * @tags Containers
@@ -18932,6 +21228,29 @@ export class Api<
       this.request<Job, ErrorModel>({
         path: `/servers/${id}/docker/scans`,
         method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description A display title and a note kept in Morche (the compose files don't change).
+     *
+     * @tags Containers
+     * @name SetDockerProjectMeta
+     * @summary Name and describe a project
+     * @request PUT:/servers/{id}/docker/projects/{project}/meta
+     */
+    setDockerProjectMeta: (
+      id: string,
+      project: string,
+      data: DockerProjectMetaBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerProject, ErrorModel>({
+        path: `/servers/${id}/docker/projects/${project}/meta`,
+        method: "PUT",
         body: data,
         type: ContentType.Json,
         format: "json",
@@ -19026,6 +21345,54 @@ export class Api<
       }),
 
     /**
+     * @description Server-sent events: `lines` (batched, about four a second) from all its running containers (or `containers`), from `since` (default: now) on; `end` when every one of them stopped, or the stream failed. A container started later isn't picked up: connect again.
+     *
+     * @tags Containers
+     * @name StreamDockerProjectLogs
+     * @summary Follow a project's log
+     * @request GET:/servers/{id}/docker/projects/{project}/logs/stream
+     */
+    streamDockerProjectLogs: (
+      id: string,
+      project: string,
+      query?: {
+        /** @maxLength 2000 */
+        containers?: string;
+        /** @format date-time */
+        since?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<
+        (
+          | {
+              data: DockerStreamEnd;
+              /** The event name. */
+              event: "end";
+              /** The event ID. */
+              id?: number | string;
+              /** The retry time in milliseconds. */
+              retry?: number;
+            }
+          | {
+              data: DockerProjectLogBatch;
+              /** The event name. */
+              event: "lines";
+              /** The event ID. */
+              id?: number | string;
+              /** The retry time in milliseconds. */
+              retry?: number;
+            }
+        )[],
+        ErrorModel
+      >({
+        path: `/servers/${id}/docker/projects/${project}/logs/stream`,
+        method: "GET",
+        query: query,
+        ...params,
+      }),
+
+    /**
      * No description
      *
      * @tags Containers
@@ -19085,6 +21452,29 @@ export class Api<
     ) =>
       this.request<DockerRegistry, ErrorModel>({
         path: `/workspaces/${id}/docker/registries/${registry}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Only the keys sent are the server's own; the rest follow the workspace. Sending none = follow the workspace in everything.
+     *
+     * @tags Containers
+     * @name UpdateDockerServerSettings
+     * @summary Set a server's own container settings
+     * @request PUT:/workspaces/{id}/docker/settings/servers/{server}
+     */
+    updateDockerServerSettings: (
+      id: string,
+      server: string,
+      data: DockerSettingsOverrides,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerServerSettings, ErrorModel>({
+        path: `/workspaces/${id}/docker/settings/servers/${server}`,
         method: "PUT",
         body: data,
         type: ContentType.Json,
@@ -22292,6 +24682,407 @@ export class Api<
         ...params,
       }),
   };
+  docker = {
+    /**
+     * No description
+     *
+     * @tags Docker
+     * @name ChmodDockerVolumeFiles
+     * @summary Change permissions in a volume
+     * @request POST:/servers/{id}/docker/volumes/{volume}/files/chmod
+     */
+    chmodDockerVolumeFiles: (
+      id: string,
+      volume: string,
+      data: ChmodDockerVolumeFilesRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<AffectedOutputBody, ErrorModel>({
+        path: `/servers/${id}/docker/volumes/${volume}/files/chmod`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Owners are best given as numbers (uid/gid): a container's users aren't the server's.
+     *
+     * @tags Docker
+     * @name ChownDockerVolumeFiles
+     * @summary Change owner and group in a volume
+     * @request POST:/servers/{id}/docker/volumes/{volume}/files/chown
+     */
+    chownDockerVolumeFiles: (
+      id: string,
+      volume: string,
+      data: ChownDockerVolumeFilesRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<AffectedOutputBody, ErrorModel>({
+        path: `/servers/${id}/docker/volumes/${volume}/files/chown`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Starts a background job. Copies into the same folder get a free "copy" name; any other clash is 409.
+     *
+     * @tags Docker
+     * @name CopyDockerVolumeFiles
+     * @summary Copy files inside a volume
+     * @request POST:/servers/{id}/docker/volumes/{volume}/files/copy
+     */
+    copyDockerVolumeFiles: (
+      id: string,
+      volume: string,
+      data: TransferFilesBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/servers/${id}/docker/volumes/${volume}/files/copy`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Folders go with everything in them. The volume's top folder is refused.
+     *
+     * @tags Docker
+     * @name DeleteDockerVolumeFiles
+     * @summary Delete files and folders in a volume
+     * @request POST:/servers/{id}/docker/volumes/{volume}/files/delete
+     */
+    deleteDockerVolumeFiles: (
+      id: string,
+      volume: string,
+      data: FilePathsBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<AffectedOutputBody, ErrorModel>({
+        path: `/servers/${id}/docker/volumes/${volume}/files/delete`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Runs `du -x` one level deep as root, like the server's disk usage.
+     *
+     * @tags Docker
+     * @name DockerVolumeDiskUsage
+     * @summary What takes the space in a volume's folder
+     * @request GET:/servers/{id}/docker/volumes/{volume}/files/usage
+     */
+    dockerVolumeDiskUsage: (
+      id: string,
+      volume: string,
+      query?: {
+        /** Inside the volume; / or empty is its top */
+        path?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<DiskUsage, ErrorModel>({
+        path: `/servers/${id}/docker/volumes/${volume}/files/usage`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Docker
+     * @name DockerVolumeFolderSize
+     * @summary Total size of a folder in a volume
+     * @request GET:/servers/{id}/docker/volumes/{volume}/files/size
+     */
+    dockerVolumeFolderSize: (
+      id: string,
+      volume: string,
+      query?: {
+        /** Inside the volume; / or empty is its top */
+        path?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<FolderSize, ErrorModel>({
+        path: `/servers/${id}/docker/volumes/${volume}/files/size`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description One file streams as itself (with Range support). Several paths, or a folder, stream as one zip.
+     *
+     * @tags Docker
+     * @name DownloadDockerVolumeFiles
+     * @summary Download files from a volume
+     * @request GET:/servers/{id}/docker/volumes/{volume}/files/download
+     */
+    downloadDockerVolumeFiles: (
+      id: string,
+      volume: string,
+      query: {
+        /** Show in the browser instead of saving (images, media, PDF, plain text only) */
+        inline?: boolean;
+        /** File name for a zip of several paths */
+        name?: string;
+        /**
+         * Inside the volume; repeat for several
+         * @minItems 1
+         */
+        path: string[];
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<Blob, ErrorModel>({
+        path: `/servers/${id}/docker/volumes/${volume}/files/download`,
+        method: "GET",
+        query: query,
+        ...params,
+      }),
+
+    /**
+     * @description As root (through sudo when needed). Paths are inside the volume; owners are numbers, since a container's users aren't the server's.
+     *
+     * @tags Docker
+     * @name ListDockerVolumeFiles
+     * @summary List a folder in a volume
+     * @request GET:/servers/{id}/docker/volumes/{volume}/files
+     */
+    listDockerVolumeFiles: (
+      id: string,
+      volume: string,
+      query?: {
+        /** Inside the volume; / or empty is its top */
+        path?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<DirListing, ErrorModel>({
+        path: `/servers/${id}/docker/volumes/${volume}/files`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Docker
+     * @name MakeDockerVolumeFolder
+     * @summary Create a folder in a volume
+     * @request POST:/servers/{id}/docker/volumes/{volume}/files/mkdir
+     */
+    makeDockerVolumeFolder: (
+      id: string,
+      volume: string,
+      data: MakeDockerVolumeFolderRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<FileEntry, ErrorModel>({
+        path: `/servers/${id}/docker/volumes/${volume}/files/mkdir`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Starts a background job. Copies into the same folder get a free "copy" name; any other clash is 409.
+     *
+     * @tags Docker
+     * @name MoveDockerVolumeFiles
+     * @summary Move files inside a volume
+     * @request POST:/servers/{id}/docker/volumes/{volume}/files/move
+     */
+    moveDockerVolumeFiles: (
+      id: string,
+      volume: string,
+      data: TransferFilesBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/servers/${id}/docker/volumes/${volume}/files/move`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description For the editor: UTF-8 text up to 5 MB. Bigger files are 413, binary ones 415.
+     *
+     * @tags Docker
+     * @name ReadDockerVolumeFile
+     * @summary Read a text file in a volume
+     * @request GET:/servers/{id}/docker/volumes/{volume}/files/content
+     */
+    readDockerVolumeFile: (
+      id: string,
+      volume: string,
+      query?: {
+        /** Inside the volume; / or empty is its top */
+        path?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<FileContent, ErrorModel>({
+        path: `/servers/${id}/docker/volumes/${volume}/files/content`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Docker
+     * @name RenameDockerVolumeFile
+     * @summary Rename or move one file or folder in a volume
+     * @request POST:/servers/{id}/docker/volumes/{volume}/files/rename
+     */
+    renameDockerVolumeFile: (
+      id: string,
+      volume: string,
+      data: RenameDockerVolumeFileRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<FileEntry, ErrorModel>({
+        path: `/servers/${id}/docker/volumes/${volume}/files/rename`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Case-insensitive name match anywhere under path, up to 200 results.
+     *
+     * @tags Docker
+     * @name SearchDockerVolumeFiles
+     * @summary Find files by name in a volume
+     * @request GET:/servers/{id}/docker/volumes/{volume}/files/search
+     */
+    searchDockerVolumeFiles: (
+      id: string,
+      volume: string,
+      query?: {
+        /** Inside the volume; / or empty is its top */
+        path?: string;
+        /**
+         * Part of the name; * and ? work as wildcards
+         * @minLength 1
+         * @maxLength 200
+         */
+        q?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<SearchResult, ErrorModel>({
+        path: `/servers/${id}/docker/volumes/${volume}/files/search`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Docker
+     * @name StatDockerVolumeFile
+     * @summary Details of one file or folder in a volume
+     * @request GET:/servers/{id}/docker/volumes/{volume}/files/stat
+     */
+    statDockerVolumeFile: (
+      id: string,
+      volume: string,
+      query?: {
+        /** Inside the volume; / or empty is its top */
+        path?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<FileEntry, ErrorModel>({
+        path: `/servers/${id}/docker/volumes/${volume}/files/stat`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The raw body is the file, written next to the destination and renamed into place once complete. Missing folders are created. An existing file is 409 unless overwrite is set.
+     *
+     * @tags Docker
+     * @name UploadDockerVolumeFile
+     * @summary Upload a file into a volume
+     * @request PUT:/servers/{id}/docker/volumes/{volume}/files/upload
+     */
+    uploadDockerVolumeFile: (
+      id: string,
+      volume: string,
+      query: {
+        /** Replace an existing file */
+        overwrite?: boolean;
+        /** Destination inside the volume, including the file name */
+        path: string;
+      },
+      data: File,
+      params: RequestParams = {},
+    ) =>
+      this.request<FileEntry, ErrorModel>({
+        path: `/servers/${id}/docker/volumes/${volume}/files/upload`,
+        method: "PUT",
+        query: query,
+        body: data,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Overwrites the file in place, keeping its owner and permissions. With expected_modified, refuses (409) if the file changed since it was read. With create, makes a new file.
+     *
+     * @tags Docker
+     * @name WriteDockerVolumeFile
+     * @summary Save a text file in a volume
+     * @request PUT:/servers/{id}/docker/volumes/{volume}/files/content
+     */
+    writeDockerVolumeFile: (
+      id: string,
+      volume: string,
+      data: WriteDockerVolumeFileRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<FileEntry, ErrorModel>({
+        path: `/servers/${id}/docker/volumes/${volume}/files/content`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
   files = {
     /**
      * No description
@@ -24546,7 +27337,7 @@ export class Api<
       }),
 
     /**
-     * @description Shells keep running on the backend while no browser is attached, so a reload or a dropped network resumes them. Connect with a WebSocket to `/servers/{id}/terminals/connect` (`?session=` to attach to one of these, else a new shell; `cols`, `rows`, `cwd` for a new one). Binary frames carry terminal bytes both ways; JSON text frames carry control: the client sends `{type:"resize",cols,rows}`; the server sends `session`, `title`, `exit` and `error`.
+     * @description Shells keep running on the backend while no browser is attached, so a reload or a dropped network resumes them. Connect with a WebSocket to `/servers/{id}/terminals/connect` (`?session=` to attach to one of these, else a new shell; `cols`, `rows`, `cwd` for a new one; `container` (+ optional `user`, `shell`) opens a shell inside that running container instead). Binary frames carry terminal bytes both ways; JSON text frames carry control: the client sends `{type:"resize",cols,rows}`; the server sends `session`, `title`, `exit` and `error`.
      *
      * @tags Terminal
      * @name ListTerminals

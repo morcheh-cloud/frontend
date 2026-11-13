@@ -15,6 +15,7 @@ import {
 } from "@/app/(panel)/ansible/components/run-layer"
 import { useCatalog, useInstalls } from "@/app/(panel)/applications/api"
 import { RecipeIcon } from "@/app/(panel)/applications/components/meta"
+import { useDockerFleet } from "@/app/(panel)/containers/api"
 import { backupKeys } from "@/app/(panel)/databases/api"
 import { useDatabaseCan } from "@/app/(panel)/databases/components/permissions"
 import { useScripts } from "@/app/(panel)/scripts/api"
@@ -30,7 +31,7 @@ import { ServerChecklist } from "@/app/(panel)/servers/components/server-checkli
 import { useAccess } from "@/components/auth/auth"
 import { atLeast, type Level } from "@/components/auth/level"
 import { Field } from "@/components/field"
-import { databasesQuery } from "@/components/panel/problems"
+import { databasesQuery, storagesQuery } from "@/components/panel/problems"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -109,6 +110,28 @@ export type TaskDraft = {
   pkgReboot: PackageReboot
   pkgParallel: string
   pkgKeepGoing: boolean
+  // docker-update (servers shared): names or patterns, one per line.
+  dockerOnly: string
+  dockerCheck: boolean
+  dockerRollback: boolean
+  dockerWait: string
+  dockerKeepGoing: boolean
+  // docker-prune (servers shared).
+  pruneContainers: boolean
+  pruneImages: "none" | "dangling" | "all"
+  pruneVolumes: "none" | "anonymous" | "all"
+  pruneNetworks: boolean
+  pruneBuildCache: boolean
+  pruneOlder: string
+  pruneKeepGoing: boolean
+  // docker-volume-backup: one server, one storage.
+  volServer: string
+  volStorage: string
+  volFolder: string
+  volNames: string
+  volKeep: string
+  volStop: boolean
+  volKeepGoing: boolean
 }
 
 export type PackageMode = "all" | "security" | "full"
@@ -151,6 +174,25 @@ export const freshTask = (): TaskDraft => ({
   pkgReboot: "never",
   pkgParallel: "1",
   pkgKeepGoing: true,
+  dockerOnly: "",
+  dockerCheck: true,
+  dockerRollback: true,
+  dockerWait: "60",
+  dockerKeepGoing: true,
+  pruneContainers: true,
+  pruneImages: "dangling",
+  pruneVolumes: "none",
+  pruneNetworks: true,
+  pruneBuildCache: true,
+  pruneOlder: "24",
+  pruneKeepGoing: true,
+  volServer: "",
+  volStorage: "",
+  volFolder: "",
+  volNames: "",
+  volKeep: "7",
+  volStop: false,
+  volKeepGoing: true,
 })
 
 export function taskFromSaved(s: Schedule): TaskDraft {
@@ -228,6 +270,36 @@ export function taskFromSaved(s: Schedule): TaskDraft {
       d.message = pk.message ?? ""
     }
   }
+  const dk = t.docker
+  if (dk) {
+    d.servers = named(dk.server_ids)
+    d.dockerOnly = (dk.only ?? []).join("\n")
+    d.dockerCheck = !!dk.check
+    d.dockerRollback = !!dk.rollback
+    d.dockerWait = String(dk.wait_seconds || 60)
+    d.dockerKeepGoing = !!dk.keep_going
+  }
+  const pr = t.prune
+  if (pr) {
+    d.servers = named(pr.server_ids)
+    d.pruneContainers = !!pr.containers
+    d.pruneImages = pr.images || "none"
+    d.pruneVolumes = pr.volumes || "none"
+    d.pruneNetworks = !!pr.networks
+    d.pruneBuildCache = !!pr.build_cache
+    d.pruneOlder = String(pr.older_than_hours ?? 0)
+    d.pruneKeepGoing = !!pr.keep_going
+  }
+  const vb = t.volumes
+  if (vb) {
+    d.volServer = vb.server_id
+    d.volStorage = vb.storage_id
+    d.volFolder = vb.folder ?? ""
+    d.volNames = (vb.volumes ?? []).join("\n")
+    d.volKeep = String(vb.keep ?? 0)
+    d.volStop = !!vb.stop
+    d.volKeepGoing = !!vb.keep_going
+  }
   const f = t.fetch
   if (f) {
     d.url = f.url
@@ -257,6 +329,16 @@ function parseEnv(text: string): Record<string, string> | string {
   }
   return env
 }
+
+// One name or pattern per line (commas work too).
+export const listOf = (text: string) => [
+  ...new Set(
+    text
+      .split(/[\n,]/)
+      .map((l) => l.trim())
+      .filter(Boolean),
+  ),
+]
 
 const firstLine = (text: string) =>
   text
@@ -346,6 +428,42 @@ export function toTask(action: Action, t: TaskDraft): ScheduleTask | undefined {
         },
       }
     }
+    case "docker-update":
+      return {
+        docker: {
+          server_ids: ids,
+          only: listOf(t.dockerOnly),
+          check: t.dockerCheck,
+          rollback: t.dockerRollback,
+          wait_seconds: t.dockerRollback ? Number(t.dockerWait) || 60 : 0,
+          keep_going: t.dockerKeepGoing,
+        },
+      }
+    case "docker-prune":
+      return {
+        prune: {
+          server_ids: ids,
+          containers: t.pruneContainers,
+          images: t.pruneImages,
+          volumes: t.pruneVolumes,
+          networks: t.pruneNetworks,
+          build_cache: t.pruneBuildCache,
+          older_than_hours: Number(t.pruneOlder) || 0,
+          keep_going: t.pruneKeepGoing,
+        },
+      }
+    case "docker-volume-backup":
+      return {
+        volumes: {
+          server_id: t.volServer,
+          storage_id: t.volStorage,
+          folder: t.volFolder.trim(),
+          volumes: listOf(t.volNames),
+          keep: Number(t.volKeep) || 0,
+          stop: t.volStop,
+          keep_going: t.volKeepGoing,
+        },
+      }
     case "fetch":
       return {
         fetch: {
@@ -383,6 +501,14 @@ export type TaskKey =
   | "plan"
   | "recipes"
   | "parallel"
+  | "only"
+  | "wait"
+  | "storage"
+  | "folder"
+  | "volumes"
+  | "keep"
+  | "prune"
+  | "older"
 
 export type TaskErrors = Partial<Record<TaskKey, string>>
 
@@ -399,7 +525,9 @@ export function checkTask(
     (needServers ||
       action === "reboot" ||
       action === "software-update" ||
-      action === "package-upgrade") &&
+      action === "package-upgrade" ||
+      action === "docker-update" ||
+      action === "docker-prune") &&
     t.servers.size === 0
   ) {
     e.servers = "Choose at least one server"
@@ -451,6 +579,45 @@ export function checkTask(
       }
       break
     }
+    case "docker-update": {
+      if (t.servers.size > 50) e.servers = "Up to 50 servers"
+      const only = listOf(t.dockerOnly)
+      if (only.length > 50) e.only = "Up to 50 names"
+      else if (only.some((n) => n.length > 128))
+        e.only = "Keep each name under 128 characters"
+      const w = Number(t.dockerWait)
+      if (t.dockerRollback && (!Number.isInteger(w) || w < 10 || w > 600))
+        e.wait = "Seconds, from 10 to 600"
+      break
+    }
+    case "docker-prune": {
+      if (t.servers.size > 50) e.servers = "Up to 50 servers"
+      if (
+        !t.pruneContainers &&
+        t.pruneImages === "none" &&
+        t.pruneVolumes === "none" &&
+        !t.pruneNetworks &&
+        !t.pruneBuildCache
+      )
+        e.prune = "Pick something to remove"
+      const h = Number(t.pruneOlder)
+      if (!Number.isInteger(h) || h < 0 || h > 8760)
+        e.older = "Hours, from 0 to 8760"
+      break
+    }
+    case "docker-volume-backup": {
+      if (!t.volServer) e.servers = "Choose a server"
+      if (!t.volStorage) e.storage = "Choose a storage"
+      const names = listOf(t.volNames)
+      if (names.length > 100) e.volumes = "Up to 100 names"
+      else if (names.some((n) => n.length > 255))
+        e.volumes = "Keep each name under 255 characters"
+      if (/\.\./.test(t.volFolder)) e.folder = "No .. in the folder"
+      const k = Number(t.volKeep)
+      if (!Number.isInteger(k) || k < 0 || k > 1000)
+        e.keep = "A whole number from 0 to 1000"
+      break
+    }
     case "fetch":
       if (!/^https?:\/\/[^/\s]/i.test(t.url.trim())) {
         e.url = "Enter a full http:// or https:// address"
@@ -487,6 +654,20 @@ export function taskErrorKey(action: Action, field: string): TaskKey | null {
     ["plan_id", "plan"],
     ["recipes", "recipes"],
     ["parallel", "parallel"],
+    ["only", "only"],
+    ["wait_seconds", "wait"],
+    ["server_id", "servers"],
+    ["storage_id", "storage"],
+    ["path", "folder"],
+    ["folder", "folder"],
+    ["volumes", action === "docker-prune" ? "prune" : "volumes"],
+    ["keep_going", "servers"],
+    ["keep", "keep"],
+    ["containers", "prune"],
+    ["images", "prune"],
+    ["networks", "prune"],
+    ["build_cache", "prune"],
+    ["older_than_hours", "older"],
   ]
   for (const [prefix, key] of pairs) if (rest.startsWith(prefix)) return key
   const whole: Partial<Record<Action, TaskKey>> = {
@@ -498,6 +679,9 @@ export function taskErrorKey(action: Action, field: string): TaskKey | null {
     "verify-backup": "database",
     "software-update": "servers",
     "package-upgrade": "servers",
+    "docker-update": "servers",
+    "docker-prune": "servers",
+    "docker-volume-backup": "storage",
   }
   return whole[action] ?? null
 }
@@ -514,6 +698,9 @@ export const accessText: Record<Action, string> = {
   "verify-backup": "Operator on the database",
   "software-update": "Engineer on every server",
   "package-upgrade": "Engineer on every server",
+  "docker-update": "Engineer on every server",
+  "docker-prune": "Engineer on every server",
+  "docker-volume-backup": "Engineer on the server and on the storage",
 }
 
 // ---- What it does ----
@@ -634,6 +821,12 @@ export function TaskSections(props: Props) {
       return <SoftwareSections {...props} />
     case "package-upgrade":
       return <PackageSections {...props} />
+    case "docker-update":
+      return <DockerUpdateSections {...props} />
+    case "docker-prune":
+      return <DockerPruneSections {...props} />
+    case "docker-volume-backup":
+      return <VolumeBackupSections {...props} />
   }
   return null
 }
@@ -1398,6 +1591,351 @@ function PackageSections(props: Props) {
           While the package manager works the run can't be stopped: stopping it
           half way can leave a server's packages broken.
         </Callout>
+      </Section>
+    </>
+  )
+}
+
+// ---- Containers ----
+
+function DockerUpdateSections(props: Props) {
+  const { t, set, errors, phone } = props
+  return (
+    <>
+      <ServersSection
+        {...props}
+        min="engineer"
+        hint="Servers with Docker or Podman. Each one pulls its newer images and recreates the containers using them. Up to 50."
+      />
+      <Section
+        title="What to update"
+        hint="Only containers whose image has a newer version are touched; the rest keep running."
+        phone={phone}
+      >
+        <Field
+          label="Only these (optional)"
+          hint="Projects or containers, one per line; * and ? work. Empty = every running container with an update."
+          error={errors.only}
+        >
+          {(p) => (
+            <Textarea
+              {...p}
+              value={t.dockerOnly}
+              onChange={(e) => set({ dockerOnly: e.target.value })}
+              rows={3}
+              placeholder={"shop\nworker-*"}
+              className="font-mono placeholder:text-ash"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+          )}
+        </Field>
+        <ToggleRow
+          id="cronjob-docker-check"
+          label="Ask the registries first"
+          hint="Off = use what the last daily update check found."
+          checked={t.dockerCheck}
+          onChange={(dockerCheck) => set({ dockerCheck })}
+        />
+      </Section>
+      <Section
+        title="Safety"
+        hint="An update that breaks a container can be undone on its own."
+        phone={phone}
+      >
+        <ToggleRow
+          id="cronjob-docker-rollback"
+          label="Put the old image back if it fails"
+          hint="Each updated container is watched for a while; if it stops or turns unhealthy, it's recreated from its old image."
+          checked={t.dockerRollback}
+          onChange={(dockerRollback) => set({ dockerRollback })}
+        />
+        {t.dockerRollback && (
+          <Field
+            label="Watch for (seconds)"
+            hint="Long enough for the app to start and its healthcheck to run."
+            error={errors.wait}
+          >
+            {(p) => (
+              <Input
+                {...p}
+                type="number"
+                inputMode="numeric"
+                min={10}
+                max={600}
+                value={t.dockerWait}
+                onChange={(e) => set({ dockerWait: e.target.value })}
+                className="w-28"
+              />
+            )}
+          </Field>
+        )}
+        <ToggleRow
+          id="cronjob-docker-keep-going"
+          label="Carry on after a server fails"
+          hint="Off = the servers not started yet are left alone."
+          checked={t.dockerKeepGoing}
+          onChange={(dockerKeepGoing) => set({ dockerKeepGoing })}
+        />
+      </Section>
+    </>
+  )
+}
+
+function DockerPruneSections(props: Props) {
+  const { t, set, errors, phone } = props
+  return (
+    <>
+      <ServersSection
+        {...props}
+        min="engineer"
+        hint="Servers with Docker or Podman. Each one removes what nothing uses any more. Up to 50."
+      />
+      <Section
+        title="What to remove"
+        hint="Only what no container uses; running and stopped projects keep their images."
+        phone={phone}
+      >
+        <div className="flex flex-col gap-1.5">
+          <span className="text-body-sm font-medium">Images</span>
+          <div className="[scrollbar-width:none] overflow-x-auto">
+            <Segmented
+              label="Images"
+              value={t.pruneImages}
+              onChange={(pruneImages) => set({ pruneImages })}
+              items={[
+                { value: "none", label: "Keep" },
+                { value: "dangling", label: "Untagged" },
+                { value: "all", label: "Every unused one" },
+              ]}
+            />
+          </div>
+          <p className="text-caption text-muted-foreground">
+            {t.pruneImages === "all"
+              ? "Every image no container uses, tagged or not. The next deploy pulls what it needs again."
+              : t.pruneImages === "dangling"
+                ? "Only images with no tag left: old layers replaced by a newer pull or build."
+                : "Images stay as they are."}
+          </p>
+        </div>
+        <ToggleRow
+          id="cronjob-prune-build-cache"
+          label="Build cache"
+          hint="What docker build kept to go faster next time."
+          checked={t.pruneBuildCache}
+          onChange={(pruneBuildCache) => set({ pruneBuildCache })}
+        />
+        <ToggleRow
+          id="cronjob-prune-containers"
+          label="Stopped containers"
+          hint="Ones that exited and were never removed. Their logs go with them."
+          checked={t.pruneContainers}
+          onChange={(pruneContainers) => set({ pruneContainers })}
+        />
+        <ToggleRow
+          id="cronjob-prune-networks"
+          label="Unused networks"
+          hint="Networks no container is attached to. Docker's own (bridge, host, none) stay."
+          checked={t.pruneNetworks}
+          onChange={(pruneNetworks) => set({ pruneNetworks })}
+        />
+        <div className="flex flex-col gap-1.5">
+          <span className="text-body-sm font-medium">Volumes</span>
+          <div className="[scrollbar-width:none] overflow-x-auto">
+            <Segmented
+              label="Volumes"
+              value={t.pruneVolumes}
+              onChange={(pruneVolumes) => set({ pruneVolumes })}
+              items={[
+                { value: "none", label: "Keep" },
+                { value: "anonymous", label: "Unnamed only" },
+                { value: "all", label: "Every unused one" },
+              ]}
+            />
+          </div>
+          {t.pruneVolumes !== "none" && (
+            <Callout icon={<TriangleAlert />} tone="warning">
+              Volumes hold data. A project that's down when this runs loses{" "}
+              {t.pruneVolumes === "all" ? "its volumes" : "its unnamed volumes"}
+              , and there's no undo. Back them up first.
+            </Callout>
+          )}
+        </div>
+        <FieldError text={errors.prune} />
+      </Section>
+      <Section
+        title="Safety"
+        hint="Keep what's new, in case it's about to be used."
+        phone={phone}
+      >
+        <Field
+          label="Only what's older than (hours)"
+          hint="0 = all of it. Doesn't apply to volumes: Docker keeps no age for them."
+          error={errors.older}
+        >
+          {(p) => (
+            <Input
+              {...p}
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={8760}
+              value={t.pruneOlder}
+              onChange={(e) => set({ pruneOlder: e.target.value })}
+              className="w-28"
+            />
+          )}
+        </Field>
+        <ToggleRow
+          id="cronjob-prune-keep-going"
+          label="Carry on after a server fails"
+          hint="Off = the servers not started yet are left alone."
+          checked={t.pruneKeepGoing}
+          onChange={(pruneKeepGoing) => set({ pruneKeepGoing })}
+        />
+      </Section>
+    </>
+  )
+}
+
+function VolumeBackupSections({ t, set, errors, phone, ws }: Props) {
+  const fleet = useDockerFleet()
+  const storages = useQuery(storagesQuery)
+  const canPick = useCanPick("engineer")
+  const servers = (fleet.data?.servers ?? []).filter(
+    (s) =>
+      s.workspace_id === ws && canPick({ id: s.server_id, workspace_id: ws }),
+  )
+  const places = (storages.data?.items ?? []).filter(
+    (s) => s.workspace_id === ws && !s.read_only,
+  )
+  return (
+    <>
+      <Section
+        title="Volumes"
+        hint="Each volume is packed into a .tar.gz on the server and sent to the storage."
+        phone={phone}
+      >
+        <Field label="Server" error={errors.servers}>
+          {(p) =>
+            fleet.isPending ? (
+              <Skeleton className="h-10 rounded-lg" />
+            ) : (
+              <Choice
+                id={p.id}
+                value={t.volServer}
+                onChange={(volServer) => set({ volServer })}
+                placeholder="Choose a server with Docker"
+                items={servers.map((s) => ({
+                  value: s.server_id,
+                  label: s.name,
+                  detail: s.podman ? "Podman" : "Docker",
+                }))}
+              />
+            )
+          }
+        </Field>
+        <Field
+          label="Only these (optional)"
+          hint="Volume names, one per line; * and ? work. Empty = every volume."
+          error={errors.volumes}
+        >
+          {(p) => (
+            <Textarea
+              {...p}
+              value={t.volNames}
+              onChange={(e) => set({ volNames: e.target.value })}
+              rows={3}
+              placeholder={"shop_db\n*_data"}
+              className="font-mono placeholder:text-ash"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+          )}
+        </Field>
+        <ToggleRow
+          id="cronjob-volumes-stop"
+          label="Stop the containers using it while it's copied"
+          hint="A database's files are only safe to copy while it's stopped. They start again right after."
+          checked={t.volStop}
+          onChange={(volStop) => set({ volStop })}
+        />
+      </Section>
+      <Section
+        title="Send to"
+        hint="A storage of this workspace that can be written to."
+        phone={phone}
+      >
+        <Field label="Storage" error={errors.storage}>
+          {(p) =>
+            storages.isPending ? (
+              <Skeleton className="h-10 rounded-lg" />
+            ) : places.length === 0 ? (
+              <NoneYet
+                text="No storage to write to in this workspace yet."
+                href="/storage?tab=storages"
+                label="Add a storage"
+              />
+            ) : (
+              <Choice
+                id={p.id}
+                value={t.volStorage}
+                onChange={(volStorage) => set({ volStorage })}
+                placeholder="Choose a storage"
+                items={places.map((s) => ({
+                  value: s.id,
+                  label: s.name,
+                  detail: s.protocol.toUpperCase(),
+                }))}
+              />
+            )
+          }
+        </Field>
+        <Field
+          label="Folder"
+          hint="One file per volume and run: <volume>-<date>.tar.gz."
+          error={errors.folder}
+        >
+          {(p) => (
+            <Input
+              {...p}
+              value={t.volFolder}
+              onChange={(e) => set({ volFolder: e.target.value })}
+              placeholder="/backups/docker-volumes"
+              className="font-mono placeholder:text-ash"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+          )}
+        </Field>
+        <Field
+          label="Copies to keep of each volume"
+          hint="Older copies made by this job are removed. 0 = keep them all."
+          error={errors.keep}
+        >
+          {(p) => (
+            <Input
+              {...p}
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={1000}
+              value={t.volKeep}
+              onChange={(e) => set({ volKeep: e.target.value })}
+              className="w-28"
+            />
+          )}
+        </Field>
+        <ToggleRow
+          id="cronjob-volumes-keep-going"
+          label="Carry on after a volume fails"
+          hint="Off = the volumes not copied yet are left for the next run."
+          checked={t.volKeepGoing}
+          onChange={(volKeepGoing) => set({ volKeepGoing })}
+        />
       </Section>
     </>
   )

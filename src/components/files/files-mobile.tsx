@@ -745,8 +745,9 @@ function SelectionActions({
         )}
       {!movable &&
         !files.source.listOnly &&
+        actions.transfer &&
         item("Send to", <Send />, () =>
-          afterAction(() => actions.transfer(sel)),
+          afterAction(() => actions.transfer?.(sel)),
         )}
       {write &&
         item(
@@ -914,14 +915,18 @@ function AddSheet({ close }: { close: () => void }) {
           onClick={pick(uploads.pickFolder)}
         />
       </li>
-      <li>
-        <SheetAction
-          icon={<HardDriveDownload />}
-          label="From a server or storage"
-          description="Straight from there, not through this phone"
-          onClick={() => afterClose(close, actions.importFrom)}
-        />
-      </li>
+      {actions.importFrom && (
+        <li>
+          <SheetAction
+            icon={<HardDriveDownload />}
+            label="From a server or storage"
+            description="Straight from there, not through this phone"
+            onClick={() =>
+              actions.importFrom && afterClose(close, actions.importFrom)
+            }
+          />
+        </li>
+      )}
       {actions.fetchUrl && (
         <li>
           <SheetAction

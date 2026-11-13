@@ -23,11 +23,14 @@ export function Layer({
   title,
   subtitle,
   actions,
+  wide,
   children,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   title: string
+  // A wider side sheet (tables side by side).
+  wide?: boolean
   subtitle?: ReactNode
   // Buttons under the header (desktop) or at the foot (phone).
   actions?: ReactNode
@@ -56,7 +59,14 @@ export function Layer({
   }
   return (
     <Sheet open={open} onOpenChange={(next) => onOpenChange(next)}>
-      <SheetContent className="w-full gap-0 data-[side=right]:sm:max-w-xl">
+      <SheetContent
+        className={cn(
+          "w-full gap-0",
+          wide
+            ? "data-[side=right]:sm:max-w-5xl"
+            : "data-[side=right]:sm:max-w-xl",
+        )}
+      >
         <SheetHeader className="border-b border-border px-6 py-4">
           <SheetTitle className="pe-8 text-body break-all">{title}</SheetTitle>
           {subtitle && (

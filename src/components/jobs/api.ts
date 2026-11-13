@@ -103,6 +103,11 @@ export function refreshAfterJob(qc: QueryClient, job: Job) {
   }
   if (job.kind.startsWith("docker-")) {
     qc.invalidateQueries({ queryKey: ["docker"] })
+    // A saved image is a new file on the storage.
+    if (job.kind === "docker-image-export" && job.target?.storage_id)
+      qc.invalidateQueries({
+        queryKey: ["storage-files", job.target.storage_id],
+      })
     return
   }
   if (job.kind === "script-run") {

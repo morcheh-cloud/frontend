@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils"
 import { Empty } from "../../servers/[id]/components/parts"
 import { Meter } from "../../servers/[id]/components/resources"
 import { STATS_HISTORY, useContainerStats } from "../api"
+import { CPU_FLOOR, Spark as SharedSpark } from "./project-stats"
 
 function pct(n: number) {
   return `${n < 10 ? n.toFixed(1) : Math.round(n)}%`
@@ -24,47 +25,8 @@ function rate(n: number) {
 }
 
 // A small line of the last minute and a half; `max` fixes the top (percent).
-function Spark({
-  values,
-  max,
-  className,
-}: {
-  values: number[]
-  max?: number
-  className?: string
-}) {
-  const w = 120
-  const h = 32
-  if (values.length < 2)
-    return <div className={cn("h-8 w-full", className)} aria-hidden />
-  const top = max ?? Math.max(...values, 1)
-  const step = w / (STATS_HISTORY - 1)
-  const start = w - (values.length - 1) * step
-  const pts = values.map(
-    (v, i) =>
-      `${(start + i * step).toFixed(1)},${(h - (Math.min(v, top) / top) * (h - 2) - 1).toFixed(1)}`,
-  )
-  return (
-    <svg
-      viewBox={`0 0 ${w} ${h}`}
-      preserveAspectRatio="none"
-      className={cn("h-8 w-full text-brand", className)}
-      aria-hidden
-    >
-      <polygon
-        points={`${start.toFixed(1)},${h} ${pts.join(" ")} ${w},${h}`}
-        className="fill-brand/10"
-      />
-      <polyline
-        points={pts.join(" ")}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={1.5}
-        vectorEffect="non-scaling-stroke"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
+function Spark(props: { values: number[]; max?: number; className?: string }) {
+  return <SharedSpark {...props} slots={STATS_HISTORY} />
 }
 
 function Tile({
@@ -175,7 +137,7 @@ export function ContainerStats({
         }
       >
         <Meter value={Math.min(100, cpuShare)} label="CPU use" />
-        <Spark values={h.map((x) => x.cpu)} />
+        <Spark values={h.map((x) => x.cpu)} max={CPU_FLOOR} />
       </Tile>
       <Tile
         phone={phone}

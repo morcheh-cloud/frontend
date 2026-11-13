@@ -27,8 +27,8 @@ export type Target = {
   buckets: boolean
 }
 
-const endpointId = (e: Endpoint) =>
-  "server_id" in e ? e.server_id : e.storage_id
+const endpointId = (e?: Endpoint) =>
+  !e ? "" : "server_id" in e ? e.server_id : e.storage_id
 
 // Query key of the other end's file lists, to refresh them after a transfer.
 export const filesKey = (t: Target) =>

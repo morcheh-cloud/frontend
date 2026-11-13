@@ -224,6 +224,67 @@ export const alerts: GuideSection[] = [
     ),
   },
   {
+    id: "containers",
+    title: "Containers",
+    body: (
+      <>
+        <P>
+          Under <UI>Watch</UI> › <UI>Containers</UI> six measures watch Docker
+          and Podman on the covered servers: <UI>Container down</UI>,{" "}
+          <UI>Container unhealthy</UI>, <UI>Container restarts</UI> (stops in
+          the last 10 minutes), <UI>Container CPU</UI> (% of one core),{" "}
+          <UI>Container memory</UI> (% of its limit) and <UI>Docker engine</UI>.
+        </P>
+        <P>
+          <UI>Project</UI> and <UI>Container</UI> narrow a rule to a compose
+          project and to container or service names (<C>*</C> and <C>?</C> as
+          wildcards; empty = any). Without a project or container,{" "}
+          <UI>Container down</UI> only fires on crashes (an error exit) and
+          restart loops, so containers you stopped on purpose stay quiet; with
+          one, any of them not running counts.
+        </P>
+        <Recommended
+          rows={[
+            {
+              setting: <C>Container crashed</C>,
+              value: "2 min, critical",
+              why: "A service is gone; someone should hear about it.",
+            },
+            {
+              setting: <C>Restart loop</C>,
+              value: "more than 3 in 10 min, critical",
+              why: "It keeps dying: read its logs.",
+            },
+            {
+              setting: <C>Near its memory limit</C>,
+              value: "90% for 5 min, warning",
+              why: "Before the kernel kills it.",
+            },
+            {
+              setting: <C>Critical vulnerabilities</C>,
+              value: "above 0, warning",
+              why: "A running image has a known hole with a fix to pull.",
+            },
+          ]}
+        />
+        <P>
+          Two more watch known security holes: <UI>Critical vulnerabilities</UI>{" "}
+          and <UI>High vulnerabilities</UI> (high or critical) count what the
+          last security scan found in the image of each running container.
+          Images never scanned count as nothing, so scan them first (Containers
+          › Security), and put the rule's limit at 0 to hear about the first
+          one.
+        </P>
+        <Tip>
+          A project's <UI>Alerts</UI> tab starts rules already limited to it.{" "}
+          <See guide="containers" section="alerts">
+            Container alerts
+          </See>
+        </Tip>
+      </>
+    ),
+  },
+  {
     id: "mutes",
     title: "Muting for maintenance",
     body: (

@@ -16,11 +16,17 @@ import type {
   DockerLogBatch,
   DockerLogLine,
   DockerNetworkBody,
+  DockerProject,
   DockerProjectDetails,
+  DockerProjectLogBatch,
+  DockerProjectLogLine,
   DockerPruneBody,
   DockerRegistryBody,
+  DockerRunBody,
   DockerScanBody,
+  DockerServerSettings,
   DockerSettingsBody,
+  DockerSettingsOverrides,
   DockerStats,
   DockerStreamEnd,
   DockerTemplateBody,
@@ -49,15 +55,43 @@ export const dockerKeys = {
   projects: (id: string) => ["docker", id, "projects"] as const,
   project: (id: string, name: string) =>
     ["docker", id, "project", name] as const,
+  projectStats: (id: string) => ["docker", id, "project-stats"] as const,
+  report: (id: string) => ["docker", id, "report"] as const,
+  projectLogs: (id: string, name: string, tail: number) =>
+    ["docker", id, "project-logs", name, tail] as const,
+  versions: (id: string, name: string) =>
+    ["docker", id, "project", name, "versions"] as const,
+  version: (id: string, name: string, v: string) =>
+    ["docker", id, "project", name, "version", v] as const,
+  history: (id: string, name: string, range: HistoryRange) =>
+    ["docker", id, "project", name, "history", range] as const,
+  git: (id: string, name: string) =>
+    ["docker", id, "project", name, "git"] as const,
+  volumeBackups: (id: string, volume?: string) =>
+    ["docker", id, "volume-backups", volume ?? ""] as const,
   updates: (id: string) => ["docker", id, "updates"] as const,
   scans: (id: string) => ["docker", id, "scans"] as const,
   scan: (id: string, image: string) => ["docker", id, "scan", image] as const,
+  layers: (id: string, image: string) =>
+    ["docker", id, "layers", image] as const,
+  layerFiles: (
+    id: string,
+    image: string,
+    layer: number,
+    path: string,
+    changes: boolean,
+  ) => ["docker", id, "layers", image, "files", layer, path, changes] as const,
   events: (id: string, q: EventQuery) => ["docker", id, "events", q] as const,
   workspace: (ws: string) => ["docker", "ws", ws] as const,
   settings: (ws: string) => ["docker", "ws", ws, "settings"] as const,
+  serverSettings: (ws: string) =>
+    ["docker", "ws", ws, "settings", "servers"] as const,
+  effectiveSettings: (id: string) => ["docker", id, "settings"] as const,
   registries: (ws: string) => ["docker", "ws", ws, "registries"] as const,
   templates: (ws: string) => ["docker", "ws", ws, "templates"] as const,
 }
+
+export type HistoryRange = "24h" | "7d" | "30d"
 
 export type EventQuery = {
   hours: number
@@ -591,6 +625,147 @@ export function useDockerProject(id: string, name: string) {
   })
 }
 
+// Live numbers for every compose project on a server (CPU, memory,
+// network, health, restarts, a short history). Measuring takes a couple of
+// seconds on the server, so this polls gently.
+// fast: a deploy is running, so containers come and go by the second.
+export function useProjectStats(
+  id: string | undefined,
+  enabled = true,
+  fast = false,
+) {
+  return useQuery({
+    queryKey: dockerKeys.projectStats(id ?? ""),
+    queryFn: () => api.containers.dockerProjectStats(id ?? ""),
+    refetchInterval: fast ? 4_000 : 12_000,
+    placeholderData: keepPreviousData,
+    enabled: !!id && enabled,
+    retry,
+  })
+}
+
+// The Dashboard's report: every container's state and live numbers, the
+// networks and who talks to whom. Measuring reads the server, so it polls
+// gently and keeps the last answer while the next one loads.
+export function useDockerReport(id: string | undefined) {
+  return useQuery({
+    queryKey: dockerKeys.report(id ?? ""),
+    queryFn: () => api.containers.dockerReport(id ?? ""),
+    refetchInterval: 10_000,
+    placeholderData: keepPreviousData,
+    enabled: !!id,
+    retry,
+  })
+}
+
+export function useProjectLogs(
+  id: string,
+  name: string,
+  tail: number,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: dockerKeys.projectLogs(id, name, tail),
+    queryFn: () => api.containers.dockerProjectLogs(id, seg(name), { tail }),
+    enabled,
+    retry,
+    staleTime: Number.POSITIVE_INFINITY,
+  })
+}
+
+// Follows every running container of a project from `since` on; reconnects
+// after a failure and, when the stream ends because all of them stopped,
+// tries again a little later (a redeploy makes new containers).
+export function useProjectLogFollow(
+  id: string,
+  name: string,
+  since: string | undefined,
+  enabled: boolean,
+) {
+  const [lines, setLines] = useState<DockerProjectLogLine[]>([])
+  const [end, setEnd] = useState<DockerStreamEnd | null>(null)
+  const [live, setLive] = useState(false)
+
+  useEffect(() => {
+    setLines([])
+    setEnd(null)
+    setLive(false)
+    if (!enabled) return
+    let after = since
+    let es: EventSource | null = null
+    let closed = false
+    let timer = 0
+    const open = () => {
+      es = new EventSource(
+        streamUrl(
+          `/servers/${id}/docker/projects/${seg(name)}/logs/stream`,
+          after ? { since: after } : undefined,
+        ),
+        { withCredentials: true },
+      )
+      es.onopen = () => {
+        setLive(true)
+        setEnd(null)
+      }
+      es.addEventListener("lines", (ev) => {
+        const batch = JSON.parse(
+          (ev as MessageEvent).data,
+        ) as DockerProjectLogBatch
+        const last = batch.lines.at(-1)?.time
+        if (last) after = nextNano(last)
+        setLines((prev) => {
+          const next = prev.concat(batch.lines)
+          return next.length > MAX_LIVE ? next.slice(-MAX_LIVE) : next
+        })
+      })
+      es.addEventListener("end", (ev) => {
+        setEnd(JSON.parse((ev as MessageEvent).data) as DockerStreamEnd)
+        setLive(false)
+        es?.close()
+        if (!closed) timer = window.setTimeout(() => !closed && open(), 10_000)
+      })
+      es.onerror = () => {
+        setLive(false)
+        es?.close()
+        if (!closed) timer = window.setTimeout(() => !closed && open(), 2000)
+      }
+    }
+    open()
+    return () => {
+      closed = true
+      window.clearTimeout(timer)
+      es?.close()
+    }
+  }, [id, name, since, enabled])
+
+  return { lines, end, live }
+}
+
+export function useSaveProjectMeta() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: {
+      server: string
+      project: string
+      title: string
+      note: string
+    }) =>
+      api.containers.setDockerProjectMeta(v.server, seg(v.project), {
+        title: v.title,
+        note: v.note,
+      }),
+    onSuccess: (p: DockerProject, v) => {
+      qc.setQueryData<DockerProject[]>(dockerKeys.projects(v.server), (old) =>
+        old?.map((o) => (o.name === p.name ? { ...o, ...p } : o)),
+      )
+      qc.setQueryData<DockerProjectDetails>(
+        dockerKeys.project(v.server, v.project),
+        (old) => (old ? { ...old, title: p.title, note: p.note } : old),
+      )
+    },
+  })
+}
+
 export type ProjectAction =
   | "up"
   | "down"
@@ -645,6 +820,24 @@ export function useCreateProject() {
   })
 }
 
+// `docker compose config` + a port check on the server, over a temporary
+// copy of the files. Nothing is saved.
+export function useCheckProject() {
+  return useMutation({
+    mutationFn: (v: {
+      server: string
+      name: string
+      compose: string
+      env: string
+    }) =>
+      api.containers.checkDockerProject(v.server, {
+        compose: v.compose,
+        ...(v.name ? { name: v.name } : {}),
+        ...(v.env ? { env: v.env } : {}),
+      }),
+  })
+}
+
 export function useSaveProjectFiles() {
   const qc = useQueryClient()
   return useMutation({
@@ -654,15 +847,20 @@ export function useSaveProjectFiles() {
       compose: string
       env: string
       revision: string
+      note?: string
     }) =>
       api.containers.saveDockerProjectFiles(v.server, seg(v.project), {
         compose: v.compose,
         env: v.env,
         ...(v.revision ? { revision: v.revision } : {}),
+        ...(v.note?.trim() ? { note: v.note.trim() } : {}),
       }),
     onSuccess: (d: DockerProjectDetails, v) => {
       qc.setQueryData(dockerKeys.project(v.server, v.project), d)
       qc.invalidateQueries({ queryKey: dockerKeys.projects(v.server) })
+      qc.invalidateQueries({
+        queryKey: dockerKeys.versions(v.server, v.project),
+      })
     },
   })
 }
@@ -759,7 +957,79 @@ export function useSaveDockerSettings() {
   return useMutation({
     mutationFn: ({ ws, ...body }: DockerSettingsBody & { ws: string }) =>
       api.containers.updateDockerSettings(ws, body),
-    onSuccess: (d, v) => qc.setQueryData(dockerKeys.settings(v.ws), d),
+    onSuccess: (d, v) => {
+      qc.setQueryData(dockerKeys.settings(v.ws), d)
+      dropEffective(qc)
+    },
+  })
+}
+
+// A server's settings are its workspace's with its own laid over them.
+const dropEffective = (qc: ReturnType<typeof useQueryClient>) =>
+  qc.invalidateQueries({
+    predicate: (q) =>
+      q.queryKey[0] === "docker" &&
+      q.queryKey[1] !== "ws" &&
+      q.queryKey[2] === "settings",
+  })
+
+// Every environment that sets some of its own settings, with its last
+// automatic clean-up.
+export function useDockerServerSettings(ws: string | undefined) {
+  return useQuery({
+    queryKey: dockerKeys.serverSettings(ws ?? ""),
+    queryFn: () =>
+      api.containers.listDockerServerSettings(ws ?? "").then((r) => r.items),
+    enabled: !!ws,
+    retry,
+  })
+}
+
+// Saves one environment's own settings; none at all = it follows the
+// workspace again.
+export function useSaveDockerServerSettings() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      ws,
+      server,
+      overrides,
+    }: {
+      ws: string
+      server: string
+      overrides: DockerSettingsOverrides
+    }) =>
+      Object.keys(overrides).length === 0
+        ? api.containers
+            .deleteDockerServerSettings(ws, server)
+            .then(() => undefined)
+        : api.containers.updateDockerServerSettings(ws, server, overrides),
+    onSuccess: (d, v) => {
+      // Written at once, so the settings page never shows the old values
+      // between the save and the refetch.
+      qc.setQueryData<DockerServerSettings[]>(
+        dockerKeys.serverSettings(v.ws),
+        (list) =>
+          list &&
+          (d
+            ? [...list.filter((x) => x.server_id !== v.server), d]
+            : list.map((x) =>
+                x.server_id === v.server ? { ...x, overrides: {} } : x,
+              )),
+      )
+      qc.invalidateQueries({ queryKey: dockerKeys.serverSettings(v.ws) })
+      qc.invalidateQueries({ queryKey: dockerKeys.effectiveSettings(v.server) })
+    },
+  })
+}
+
+// What a server actually uses (`overridden` = the keys it sets itself).
+export function useEffectiveDockerSettings(server: string | undefined) {
+  return useQuery({
+    queryKey: dockerKeys.effectiveSettings(server ?? ""),
+    queryFn: () => api.containers.getServerDockerSettings(server ?? ""),
+    enabled: !!server,
+    retry,
   })
 }
 
@@ -864,5 +1134,362 @@ export function useActiveDockerJob(serverId: string, kinds: string[]) {
       isActive(j) &&
       kinds.includes(j.kind) &&
       (j.target?.server_id === serverId || j.refs.includes(serverId)),
+  )
+}
+
+// --- Project file history ---------------------------------------------------
+
+export function useProjectVersions(id: string, name: string, enabled = true) {
+  return useQuery({
+    queryKey: dockerKeys.versions(id, name),
+    queryFn: () => api.containers.listDockerProjectVersions(id, seg(name)),
+    enabled,
+    retry,
+  })
+}
+
+export function useProjectVersion(id: string, name: string, v: string | null) {
+  return useQuery({
+    queryKey: dockerKeys.version(id, name, v ?? ""),
+    queryFn: () =>
+      api.containers.getDockerProjectVersion(id, seg(name), v ?? ""),
+    enabled: !!v,
+    // Old versions never change; the .env inside is a secret, so it isn't
+    // kept around once nobody looks.
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: 60_000,
+    retry,
+  })
+}
+
+export function useRestoreVersion() {
+  const qc = useQueryClient()
+  const jobs = useJobActions()
+  return useMutation({
+    mutationFn: (v: {
+      server: string
+      project: string
+      version: string
+      revision: string
+      deploy: boolean
+    }) =>
+      api.containers.restoreDockerProjectVersion(
+        v.server,
+        seg(v.project),
+        v.version,
+        {
+          ...(v.revision ? { revision: v.revision } : {}),
+          ...(v.deploy ? { deploy: true } : {}),
+        },
+      ),
+    onSuccess: (res, v) => {
+      qc.setQueryData(dockerKeys.project(v.server, v.project), res.project)
+      qc.invalidateQueries({
+        queryKey: dockerKeys.versions(v.server, v.project),
+      })
+      if (res.job) jobs.track(res.job)
+    },
+  })
+}
+
+// --- Stats history ----------------------------------------------------------
+
+export function useProjectHistory(
+  id: string,
+  name: string,
+  range: HistoryRange,
+) {
+  return useQuery({
+    queryKey: dockerKeys.history(id, name, range),
+    queryFn: () =>
+      api.containers.dockerProjectHistory(id, seg(name), { range }),
+    refetchInterval: 60_000,
+    placeholderData: keepPreviousData,
+    retry,
+  })
+}
+
+// --- Git source -------------------------------------------------------------
+
+export type GitForm = {
+  repo_url: string
+  branch: string
+  compose_path: string
+  username: string
+  token: string
+  clear_token: boolean
+  auto_deploy: boolean
+  poll_minutes: number
+}
+
+function gitBody(f: GitForm) {
+  return {
+    repo_url: f.repo_url.trim(),
+    branch: f.branch.trim() || "main",
+    auto_deploy: f.auto_deploy,
+    poll_minutes: f.poll_minutes,
+    ...(f.compose_path.trim() ? { compose_path: f.compose_path.trim() } : {}),
+    ...(f.username.trim() ? { username: f.username.trim() } : {}),
+    ...(f.token.trim() ? { token: f.token.trim() } : {}),
+    ...(f.clear_token ? { clear_token: true } : {}),
+  }
+}
+
+export function useProjectGit(id: string, name: string) {
+  return useQuery({
+    queryKey: dockerKeys.git(id, name),
+    queryFn: () => api.containers.getDockerProjectGit(id, seg(name)),
+    refetchInterval: (q) => (q.state.data?.source?.deploying ? 4_000 : 30_000),
+    retry,
+  })
+}
+
+export function useSaveGit() {
+  const qc = useQueryClient()
+  const jobs = useJobActions()
+  return useMutation({
+    mutationFn: (v: {
+      server: string
+      project: string
+      form: GitForm
+      deploy: boolean
+    }) =>
+      api.containers.saveDockerProjectGit(v.server, seg(v.project), {
+        ...gitBody(v.form),
+        ...(v.deploy ? { deploy: true } : {}),
+      }),
+    onSuccess: (res, v) => {
+      qc.setQueryData(dockerKeys.git(v.server, v.project), {
+        source: res.source,
+      })
+      if (res.job) jobs.track(res.job)
+    },
+  })
+}
+
+export function useDeleteGit() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: { server: string; project: string }) =>
+      api.containers.deleteDockerProjectGit(v.server, seg(v.project)),
+    onSuccess: (_d, v) =>
+      qc.setQueryData(dockerKeys.git(v.server, v.project), { source: null }),
+  })
+}
+
+export function useDeployGit() {
+  const qc = useQueryClient()
+  const jobs = useJobActions()
+  return useMutation({
+    mutationFn: (v: { server: string; project: string; force: boolean }) =>
+      api.containers.deployDockerProjectGit(v.server, seg(v.project), {
+        ...(v.force ? { force: true } : {}),
+      }),
+    onSuccess: (job, v) => {
+      jobs.track(job)
+      qc.invalidateQueries({ queryKey: dockerKeys.git(v.server, v.project) })
+    },
+  })
+}
+
+export function useResetWebhook() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: { server: string; project: string }) =>
+      api.containers.resetDockerProjectWebhook(v.server, seg(v.project)),
+    onSuccess: (source, v) =>
+      qc.setQueryData(dockerKeys.git(v.server, v.project), { source }),
+  })
+}
+
+export function useCreateFromGit() {
+  const qc = useQueryClient()
+  const jobs = useJobActions()
+  return useMutation({
+    mutationFn: (v: {
+      server: string
+      name: string
+      form: GitForm
+      deploy?: boolean
+    }) =>
+      api.containers.createDockerProjectGit(v.server, {
+        name: v.name,
+        ...gitBody(v.form),
+        ...(v.deploy ? { deploy: true } : {}),
+      }),
+    onSuccess: (res, v) => {
+      qc.setQueryData(dockerKeys.git(v.server, v.name), { source: res.source })
+      qc.invalidateQueries({ queryKey: dockerKeys.projects(v.server) })
+      if (res.job) jobs.track(res.job)
+    },
+  })
+}
+
+// --- Volume backups ---------------------------------------------------------
+
+export function useVolumeBackups(id: string, volume?: string, enabled = true) {
+  return useQuery({
+    queryKey: dockerKeys.volumeBackups(id, volume),
+    queryFn: () =>
+      api.containers.listDockerVolumeBackups(id, volume ? { volume } : {}),
+    refetchInterval: (q) =>
+      q.state.data?.items.some((b) => b.state === "running") ? 4_000 : 30_000,
+    enabled,
+    retry,
+  })
+}
+
+export function useBackupVolume() {
+  const qc = useQueryClient()
+  const jobs = useJobActions()
+  return useMutation({
+    mutationFn: (v: {
+      server: string
+      volume: string
+      storage: string
+      folder: string
+      stop: boolean
+    }) =>
+      api.containers.backupDockerVolume(v.server, seg(v.volume), {
+        storage_id: v.storage,
+        ...(v.folder.trim() ? { folder: v.folder.trim() } : {}),
+        ...(v.stop ? { stop: true } : {}),
+      }),
+    onSuccess: (job, v) => {
+      jobs.track(job)
+      qc.invalidateQueries({ queryKey: ["docker", v.server, "volume-backups"] })
+    },
+  })
+}
+
+export function useRestoreVolumeBackup() {
+  const qc = useQueryClient()
+  const jobs = useJobActions()
+  return useMutation({
+    mutationFn: (v: {
+      server: string
+      backup: string
+      volume: string
+      replace: boolean
+      stop: boolean
+    }) =>
+      api.containers.restoreDockerVolumeBackup(v.server, v.backup, {
+        ...(v.volume ? { volume: v.volume } : {}),
+        ...(v.replace ? { replace: true } : {}),
+        ...(v.stop ? { stop: true } : {}),
+      }),
+    onSuccess: (job, v) => {
+      jobs.track(job)
+      qc.invalidateQueries({ queryKey: dockerKeys.server(v.server) })
+    },
+  })
+}
+
+export function useDeleteVolumeBackup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: { server: string; backup: string }) =>
+      api.containers.deleteDockerVolumeBackup(v.server, v.backup),
+    onSettled: (_d, _e, v) =>
+      qc.invalidateQueries({
+        queryKey: ["docker", v.server, "volume-backups"],
+      }),
+  })
+}
+
+// Layer explorer: the first call starts reading the image on the backend;
+// it answers `reading` with the bytes read until it is `ready`.
+export function useImageLayers(id: string, image: string, enabled = true) {
+  return useQuery({
+    queryKey: dockerKeys.layers(id, image),
+    queryFn: () => api.containers.getDockerImageLayers(id, seg(image)),
+    refetchInterval: (q) => (q.state.data?.state === "reading" ? 1000 : false),
+    enabled: enabled && !!image,
+    retry,
+  })
+}
+
+export function useReadLayersAgain() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: { server: string; image: string }) =>
+      api.containers.getDockerImageLayers(v.server, seg(v.image), {
+        refresh: true,
+      }),
+    onSuccess: (data, v) => {
+      qc.removeQueries({
+        queryKey: [...dockerKeys.layers(v.server, v.image), "files"],
+      })
+      qc.setQueryData(dockerKeys.layers(v.server, v.image), data)
+    },
+  })
+}
+
+export function useLayerFiles(
+  id: string,
+  image: string,
+  layer: number,
+  path: string,
+  changes: boolean,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: dockerKeys.layerFiles(id, image, layer, path, changes),
+    queryFn: () =>
+      api.containers.listDockerImageLayerFiles(id, seg(image), {
+        layer,
+        ...(path ? { path } : {}),
+        ...(changes ? { changes: true } : {}),
+      }),
+    placeholderData: keepPreviousData,
+    staleTime: Number.POSITIVE_INFINITY,
+    enabled,
+    retry,
+  })
+}
+
+export function useExportImage() {
+  const jobs = useJobActions()
+  return useMutation({
+    mutationFn: (v: {
+      server: string
+      image: string
+      storage: string
+      folder: string
+    }) =>
+      api.containers.exportDockerImage(v.server, seg(v.image), {
+        storage_id: v.storage,
+        ...(v.folder.trim() ? { folder: v.folder.trim() } : {}),
+      }),
+    onSuccess: (job) => jobs.track(job),
+  })
+}
+
+export function useImportImage() {
+  const jobs = useJobActions()
+  return useMutation({
+    mutationFn: (v: { server: string; storage: string; path: string }) =>
+      api.containers.importDockerImage(v.server, {
+        storage_id: v.storage,
+        path: v.path,
+      }),
+    onSuccess: (job) => jobs.track(job),
+  })
+}
+
+export function useCopyImage() {
+  const jobs = useJobActions()
+  return useMutation({
+    mutationFn: (v: { server: string; image: string; targets: string[] }) =>
+      api.containers.copyDockerImage(v.server, seg(v.image), {
+        server_ids: v.targets,
+      }),
+    onSuccess: (job) => jobs.track(job),
+  })
+}
+
+export function useRunContainer() {
+  return useDockerWrite((v: { server: string; body: DockerRunBody }) =>
+    api.containers.runDockerContainer(v.server, v.body),
   )
 }

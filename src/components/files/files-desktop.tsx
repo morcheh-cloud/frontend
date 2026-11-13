@@ -182,10 +182,12 @@ function UploadMenu() {
         <DropdownMenuItem onClick={() => uploads.pickFolder(dir)}>
           <FolderUp /> Folder…
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={actions.importFrom}>
-          <HardDriveDownload /> From a server or storage…
-        </DropdownMenuItem>
+        {(actions.importFrom || actions.fetchUrl) && <DropdownMenuSeparator />}
+        {actions.importFrom && (
+          <DropdownMenuItem onClick={actions.importFrom}>
+            <HardDriveDownload /> From a server or storage…
+          </DropdownMenuItem>
+        )}
         {actions.fetchUrl && (
           <DropdownMenuItem onClick={actions.fetchUrl}>
             <Link2 /> From a URL…
@@ -1007,9 +1009,11 @@ function BackgroundMenu() {
           <ContextMenuItem onClick={() => uploads.pickFolder(dir)}>
             <FolderUp /> Upload folder…
           </ContextMenuItem>
-          <ContextMenuItem onClick={actions.importFrom}>
-            <HardDriveDownload /> Copy from a server or storage…
-          </ContextMenuItem>
+          {actions.importFrom && (
+            <ContextMenuItem onClick={actions.importFrom}>
+              <HardDriveDownload /> Copy from a server or storage…
+            </ContextMenuItem>
+          )}
           {actions.fetchUrl && (
             <ContextMenuItem onClick={actions.fetchUrl}>
               <Link2 /> Download from a URL…
@@ -1197,7 +1201,8 @@ function BulkBar() {
       {movable && item("Cut", <Scissors />, () => files.cut(sel))}
       {movable && item("Move to", <FolderInput />, () => actions.moveTo(sel))}
       {!source.listOnly &&
-        item("Send to", <Send />, () => actions.transfer(sel))}
+        actions.transfer &&
+        item("Send to", <Send />, () => actions.transfer?.(sel))}
       {write &&
         source.compress &&
         item("Compress", <Archive />, () => actions.compress(sel))}
