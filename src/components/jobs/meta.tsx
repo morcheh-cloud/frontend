@@ -1,5 +1,7 @@
 import {
+  Archive,
   ArchiveRestore,
+  ArchiveX,
   ArrowLeftRight,
   BrickWallShield,
   BrushCleaning,
@@ -35,10 +37,12 @@ import {
   Shield,
   ShieldBan,
   ShieldCheck,
+  Shrink,
   Split,
 } from "lucide-react"
 import { envHref, volumeHref } from "@/app/(panel)/containers/components/meta"
 import { backupsHref } from "@/app/(panel)/databases/[id]/components/backups/meta"
+import { datasetHref } from "@/app/(panel)/settings/logs/components/meta"
 import { filesHref } from "@/components/files/file-manager"
 import { formatSize } from "@/lib/format"
 import type { Job } from "@/lib/services"
@@ -92,6 +96,10 @@ const icons: Record<string, LucideIcon> = {
   "docker-image-import": HardDriveDownload,
   "docker-image-copy": Send,
   "docker-auto-update": RefreshCcwDot,
+  "log-archive": Archive,
+  "log-archive-restore": ArchiveRestore,
+  "log-archive-putaway": ArchiveX,
+  "log-compact": Shrink,
 }
 
 // Which Containers page a Docker job's results are on.
@@ -235,6 +243,12 @@ export function placeHref(job: Job) {
     )
   }
   if (t?.auto_update) return `/containers/auto-update/${t.auto_update}`
+  // Log archives: the kind's files, or its tables after a compaction.
+  if (t?.dataset)
+    return datasetHref(
+      t.dataset,
+      job.kind === "log-compact" ? "policy" : "archives",
+    )
   if (t?.schedule_id) {
     return `/cronjobs/${t.schedule_id}${t.run_id ? `?run=${t.run_id}` : ""}`
   }
@@ -270,6 +284,8 @@ export function placeHref(job: Job) {
 export function placeLabel(job: Job) {
   if (job.kind === "storage-scan") return "Open Insights"
   if (job.target?.auto_update) return "Open auto-update"
+  if (job.target?.dataset)
+    return job.kind === "log-compact" ? "Open logs" : "Open files"
   if (job.kind === "software-scan") return "Open applications"
   if (job.kind.startsWith("proxy-")) return "Open proxy"
   if (job.kind.startsWith("package-")) return "Open packages"
@@ -303,7 +319,8 @@ export function canRetry(job: Job) {
     job.kind !== "schedule-sync" &&
     job.kind !== "schedule-run" &&
     job.kind !== "database-backup" &&
-    job.kind !== "database-backup-restore"
+    job.kind !== "database-backup-restore" &&
+    !job.kind.startsWith("log-")
   )
 }
 

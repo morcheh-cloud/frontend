@@ -13,6 +13,7 @@ import { fail2ban } from "./fail2ban"
 import { files } from "./files"
 import { firewall } from "./firewall"
 import { gettingStarted } from "./getting-started"
+import { logRetention } from "./log-retention"
 import { networkMap } from "./network-map"
 import { packages } from "./packages"
 import { ports } from "./ports"
@@ -68,4 +69,5 @@ export const content: Record<string, GuideSection[]> = {
   storage,
   tasks,
   access,
+  "log-retention": logRetention,
 }

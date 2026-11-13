@@ -760,6 +760,17 @@ export interface AppUpdateBody {
   note?: string;
 }
 
+export interface ArchiveListBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: LogArchiveView[];
+  /** @format int64 */
+  total: number;
+}
+
 export interface Auth {
   forward?: ForwardAuth;
   /** basic = user names and passwords; forward = ask a sign-in service; empty = off */
@@ -2106,6 +2117,15 @@ export interface CommandOutput {
   text: string;
   /** Only the first 16 KiB and the last 48 KiB were kept */
   truncated: boolean;
+}
+
+export interface CompactLogDatasetRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  full: boolean;
 }
 
 export interface ComposeOutputBody {
@@ -8851,6 +8871,11 @@ export interface Job {
 
 export interface JobPlace {
   /**
+   * The log archive it writes, restores or puts away
+   * @format uuid
+   */
+  archive?: string;
+  /**
    * The container auto-update it is a run of
    * @format uuid
    */
@@ -8860,6 +8885,8 @@ export interface JobPlace {
    * @format uuid
    */
   database_id?: string;
+  /** The kind of logs it archives, puts back or compacts */
+  dataset?: string;
   /** The server's or storage's name when the job started */
   name?: string;
   path: string;
@@ -9195,6 +9222,120 @@ export interface LocationRule {
   down_count: number;
 }
 
+export interface LogArchiveCopyView {
+  error: string;
+  /** @format int64 */
+  id: number;
+  local: boolean;
+  path: string;
+  state: "pending" | "stored" | "failed";
+  storage_id?: string;
+  storage_name: string;
+}
+
+export interface LogArchiveRestore {
+  /** @format date-time */
+  at?: string;
+  by: string;
+  error: string;
+  /**
+   * When they're put away by themselves; none = until someone does
+   * @format date-time
+   */
+  hold_until?: string;
+  /** @format int64 */
+  rows: number;
+  /** held = rows back until put away; done = missing rows put back (copy) */
+  state: "" | "running" | "held" | "done";
+}
+
+export interface LogArchiveTotals {
+  /** @format int64 */
+  bytes: number;
+  /** @format int64 */
+  files: number;
+  /**
+   * Archives whose rows are back in the database for now
+   * @format int64
+   */
+  held: number;
+  /**
+   * Start of the oldest period in a file
+   * @format date-time
+   */
+  oldest?: string;
+  /** @format int64 */
+  rows: number;
+}
+
+export interface LogArchiveView {
+  sha256: string;
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format int64 */
+  bytes: number;
+  copies: LogArchiveCopyView[];
+  /** @format date-time */
+  created_at: string;
+  created_by_name: string;
+  dataset: string;
+  dataset_title: string;
+  error: string;
+  /**
+   * When its policy deletes the files
+   * @format date-time
+   */
+  expires_at?: string;
+  file_name: string;
+  /** @format date-time */
+  finished_at?: string;
+  /** @format date-time */
+  from: string;
+  id: string;
+  job_id?: string;
+  mode: "archive" | "copy";
+  note: string;
+  restore: LogArchiveRestore;
+  /** @format int64 */
+  rows: number;
+  state: "running" | "stored" | "failed" | "interrupted";
+  tables: Record<string, number>;
+  /** @format date-time */
+  to: string;
+}
+
+export interface LogDatasetView {
+  about: string;
+  archives: LogArchiveTotals;
+  /** What happens to old rows without a policy */
+  builtin: string;
+  /** @format int64 */
+  bytes: number;
+  /** @format int64 */
+  dead_rows: number;
+  /** The policy this kind starts with, and what Reset to default puts back */
+  default: LogPolicyBody;
+  error?: string;
+  group: string;
+  /** The policy is still the default one */
+  is_default: boolean;
+  key: string;
+  /** @format date-time */
+  oldest?: string;
+  /** A policy removes old rows, so the built-in clean-up is off */
+  owned: boolean;
+  policy?: LogPolicy;
+  /** @format int64 */
+  rows: number;
+  /** @format int64 */
+  suggested_days: number;
+  tables: LogTableSize[];
+  title: string;
+}
+
 export interface LogEntry {
   /** Where this entry sits in the journal, to continue after it */
   cursor: string;
@@ -9228,6 +9369,24 @@ export interface LogEvent {
   source: string;
 }
 
+export interface LogExportBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  folder?: string;
+  /** @format date-time */
+  from: string;
+  keep_local: boolean;
+  /** @maxLength 500 */
+  note?: string;
+  /** @maxItems 10 */
+  storage_ids: string[];
+  /** @format date-time */
+  to: string;
+}
+
 export interface LogOutBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -9235,6 +9394,179 @@ export interface LogOutBody {
    */
   $schema?: string;
   items: NotificationLogEntry[];
+}
+
+export interface LogOverview {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * The whole of Morche's database
+   * @format int64
+   */
+  database_bytes: number;
+  items: LogDatasetView[];
+  /**
+   * Archive files there
+   * @format int64
+   */
+  local_bytes: number;
+  /** Where files kept on Morche's disk go */
+  local_dir: string;
+  /**
+   * Free space on that disk; 0 = not known
+   * @format int64
+   */
+  local_free: number;
+  /** @format int64 */
+  local_total: number;
+  /**
+   * Of which these logs
+   * @format int64
+   */
+  log_bytes: number;
+  /** @format date-time */
+  read_at: string;
+}
+
+export interface LogPeriod {
+  /** In a stored archive file */
+  archived: boolean;
+  /**
+   * Estimated share of the tables' size
+   * @format int64
+   */
+  bytes: number;
+  /** @format date-time */
+  from: string;
+  /** Rows put back from an archive for now */
+  held: boolean;
+  /** @format int64 */
+  rows: number;
+  /** @format date-time */
+  to: string;
+}
+
+export interface LogPolicy {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Rows older than this go
+   * @format int64
+   */
+  after_days: number;
+  cron: string;
+  enabled: boolean;
+  /** Folder on the storages; {year} {month} {day} are filled in */
+  folder: string;
+  /**
+   * Delete files after this many days; 0 = keep them
+   * @format int64
+   */
+  keep_days: number;
+  /** Keep the files on Morche's own disk */
+  keep_local: boolean;
+  last_job_id?: string;
+  last_note: string;
+  /** @format date-time */
+  last_run_at?: string;
+  last_state: string;
+  /**
+   * Also take older periods until the tables fit this size; 0 = no limit
+   * @format int64
+   */
+  max_mb: number;
+  /** archive = file then delete, copy = file only, delete = no file */
+  mode: "archive" | "copy" | "delete";
+  /** @format date-time */
+  next_run_at?: string;
+  /** One file per period */
+  period: "day" | "week" | "month";
+  /** Storages a copy goes to */
+  storage_ids: string[];
+  timezone: string;
+  /** @format date-time */
+  updated_at: string;
+}
+
+export interface LogPolicyBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * @format int64
+   * @min 1
+   * @max 3650
+   */
+  after_days: number;
+  cron: string;
+  enabled: boolean;
+  folder?: string;
+  /**
+   * @format int64
+   * @min 0
+   */
+  keep_days: number;
+  keep_local: boolean;
+  /**
+   * @format int64
+   * @min 0
+   */
+  max_mb: number;
+  mode: "archive" | "copy" | "delete";
+  period: "day" | "week" | "month";
+  /** @maxItems 10 */
+  storage_ids: string[];
+  timezone?: string;
+}
+
+export interface LogPreview {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format int64 */
+  bytes: number;
+  note: string;
+  /** The size limit takes newer periods than the age does */
+  over: boolean;
+  /** What a run would take now */
+  periods: LogPeriod[];
+  /** @format int64 */
+  rows: number;
+  skipped: string[];
+}
+
+export interface LogTableSize {
+  /**
+   * On disk, indexes included
+   * @format int64
+   */
+  bytes: number;
+  /**
+   * Deleted rows whose space isn't reused yet
+   * @format int64
+   */
+  dead_rows: number;
+  name: string;
+  /**
+   * Rows, estimated by PostgreSQL
+   * @format int64
+   */
+  rows: number;
+  /**
+   * Last tidied (VACUUM)
+   * @format date-time
+   */
+  vacuumed?: string;
 }
 
 export interface Login {
@@ -10706,6 +11038,15 @@ export interface PauseMonitorRequest {
    */
   $schema?: string;
   paused: boolean;
+}
+
+export interface PeriodsOutBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  periods: LogPeriod[];
 }
 
 export interface PinServerNoteRequest {
@@ -12677,6 +13018,21 @@ export interface RestoreListBody {
   items: BackupRestore[];
   /** @format int64 */
   total: number;
+}
+
+export interface RestoreLogArchiveRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * 0 = until someone puts them away
+   * @format int64
+   * @min 0
+   * @max 3650
+   */
+  hold_days: number;
 }
 
 export interface RevealSoftwareSecretsResponse {
@@ -14695,6 +15051,21 @@ export interface SetDockerAutoUpdateEnabledRequest {
    */
   $schema?: string;
   enabled: boolean;
+}
+
+export interface SetLogArchiveHoldRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * From now; 0 = until someone puts them away
+   * @format int64
+   * @min 0
+   * @max 3650
+   */
+  days: number;
 }
 
 export interface SetProxyHostEnabledRequest {
@@ -23102,6 +23473,329 @@ export class Api<
       >({
         path: `/jobs/stream`,
         method: "GET",
+        ...params,
+      }),
+  };
+  logRetention = {
+    /**
+     * @description Plain compacting lets PostgreSQL reuse the space of deleted rows. Full gives it back to the disk, but locks the tables (writes wait) until it ends.
+     *
+     * @tags Log retention
+     * @name CompactLogDataset
+     * @summary Give a kind of logs' unused space back
+     * @request POST:/log-datasets/{key}/compact
+     */
+    compactLogDataset: (
+      key: string,
+      data: CompactLogDatasetRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/log-datasets/${key}/compact`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Deletes the file from Morche's disk and every storage. Its rows are gone for good unless they're back in the database.
+     *
+     * @tags Log retention
+     * @name DeleteLogArchive
+     * @summary Delete an archive and its files
+     * @request DELETE:/log-archives/{id}
+     */
+    deleteLogArchive: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/log-archives/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * @description From the copy named, or else Morche's own copy, or else the first storage holding it.
+     *
+     * @tags Log retention
+     * @name DownloadLogArchive
+     * @summary Download an archive's zip file
+     * @request GET:/log-archives/{id}/download
+     */
+    downloadLogArchive: (
+      id: string,
+      query?: {
+        /**
+         * Which copy
+         * @format int64
+         */
+        copy?: number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<void, ErrorModel>({
+        path: `/log-archives/${id}/download`,
+        method: "GET",
+        query: query,
+        ...params,
+      }),
+
+    /**
+     * @description The rows stay in the database. The file is listed with the archives and can be downloaded.
+     *
+     * @tags Log retention
+     * @name ExportLogDataset
+     * @summary Copy a period of logs into a file
+     * @request POST:/log-datasets/{key}/export
+     */
+    exportLogDataset: (
+      key: string,
+      data: LogExportBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/log-datasets/${key}/export`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Log retention
+     * @name GetLogArchive
+     * @summary Get an archive file's details
+     * @request GET:/log-archives/{id}
+     */
+    getLogArchive: (id: string, params: RequestParams = {}) =>
+      this.request<LogArchiveView, ErrorModel>({
+        path: `/log-archives/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Log retention
+     * @name ListLogArchives
+     * @summary List archive files, newest period first
+     * @request GET:/log-archives
+     */
+    listLogArchives: (
+      query?: {
+        dataset?: string;
+        /** Only archives whose rows are back for now */
+        held?: boolean;
+        /**
+         * @format int64
+         * @min 1
+         * @max 200
+         * @default 50
+         */
+        limit?: number;
+        /**
+         * @format int64
+         * @min 1
+         * @default 1
+         */
+        page?: number;
+        state?: "" | "running" | "stored" | "failed" | "interrupted";
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ArchiveListBody, ErrorModel>({
+        path: `/log-archives`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Log retention
+     * @name ListLogDatasetPeriods
+     * @summary A kind of logs' rows per month (or week or day), newest first
+     * @request GET:/log-datasets/{key}/periods
+     */
+    listLogDatasetPeriods: (
+      key: string,
+      query?: {
+        /** @default "month" */
+        period?: "day" | "week" | "month";
+        tz?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<PeriodsOutBody, ErrorModel>({
+        path: `/log-datasets/${key}/periods`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Sizes are read at most once a minute unless fresh is set.
+     *
+     * @tags Log retention
+     * @name ListLogDatasets
+     * @summary Every kind of log Morche keeps, with its size and policy
+     * @request GET:/log-datasets
+     */
+    listLogDatasets: (
+      query?: {
+        fresh?: boolean;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<LogOverview, ErrorModel>({
+        path: `/log-datasets`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Nothing is saved or changed.
+     *
+     * @tags Log retention
+     * @name PreviewLogPolicy
+     * @summary What a policy would take if it ran now
+     * @request POST:/log-datasets/{key}/preview
+     */
+    previewLogPolicy: (
+      key: string,
+      data: LogPolicyBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<LogPreview, ErrorModel>({
+        path: `/log-datasets/${key}/preview`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Only rows the file holds are deleted; the file stays.
+     *
+     * @tags Log retention
+     * @name PutAwayLogArchive
+     * @summary Take an archive's restored rows out again
+     * @request POST:/log-archives/{id}/put-away
+     */
+    putAwayLogArchive: (id: string, params: RequestParams = {}) =>
+      this.request<Job, ErrorModel>({
+        path: `/log-archives/${id}/put-away`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The policy goes back to the one every kind starts with (archive to Morche's disk after the kind's suggested days, nightly). Its last run and the files already written stay.
+     *
+     * @tags Log retention
+     * @name ResetLogPolicy
+     * @summary Put a kind of logs' default policy back
+     * @request POST:/log-datasets/{key}/policy/reset
+     */
+    resetLogPolicy: (key: string, params: RequestParams = {}) =>
+      this.request<LogPolicy, ErrorModel>({
+        path: `/log-datasets/${key}/policy/reset`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Rows already there are left as they are. Rows of an archive (not a copy) stay back for hold_days, or until put away when 0; the file is kept either way.
+     *
+     * @tags Log retention
+     * @name RestoreLogArchive
+     * @summary Put an archive's rows back in the database
+     * @request POST:/log-archives/{id}/restore
+     */
+    restoreLogArchive: (
+      id: string,
+      data: RestoreLogArchiveRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/log-archives/${id}/restore`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Log retention
+     * @name RunLogPolicy
+     * @summary Run a kind of logs' policy now
+     * @request POST:/log-datasets/{key}/run
+     */
+    runLogPolicy: (key: string, params: RequestParams = {}) =>
+      this.request<Job, ErrorModel>({
+        path: `/log-datasets/${key}/run`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description An enabled archive or delete policy takes over from the built-in clean-up of these logs.
+     *
+     * @tags Log retention
+     * @name SaveLogPolicy
+     * @summary Set a kind of logs' retention policy
+     * @request PUT:/log-datasets/{key}/policy
+     */
+    saveLogPolicy: (
+      key: string,
+      data: LogPolicyBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<LogPolicy, ErrorModel>({
+        path: `/log-datasets/${key}/policy`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Log retention
+     * @name SetLogArchiveHold
+     * @summary Change how long restored rows stay
+     * @request PUT:/log-archives/{id}/hold
+     */
+    setLogArchiveHold: (
+      id: string,
+      data: SetLogArchiveHoldRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<LogArchiveView, ErrorModel>({
+        path: `/log-archives/${id}/hold`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
         ...params,
       }),
   };

@@ -226,6 +226,7 @@ export const settingsItem: NavItem = {
     { href: "/settings/groups", label: "Groups" },
     { href: "/settings/workspaces", label: "Workspaces" },
     { href: "/settings/security", label: "Security" },
+    { href: "/settings/logs", label: "Logs & archives" },
   ],
 }
 

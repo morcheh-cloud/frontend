@@ -110,6 +110,12 @@ export function refreshAfterJob(qc: QueryClient, job: Job) {
       })
     return
   }
+  // Log archives, put-backs and compactions change the log tables' sizes,
+  // the archive list and the policies' last runs.
+  if (job.kind.startsWith("log-")) {
+    qc.invalidateQueries({ queryKey: ["log-retention"] })
+    return
+  }
   if (job.kind === "script-run") {
     qc.invalidateQueries({ queryKey: ["scripts"] })
     return
