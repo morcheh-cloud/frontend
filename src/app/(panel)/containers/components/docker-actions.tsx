@@ -16,6 +16,7 @@ import {
   Pencil,
   Play,
   PlayCircle,
+  RefreshCcwDot,
   RotateCw,
   Send,
   ShieldCheck,
@@ -46,6 +47,7 @@ import {
   useRemoveVolume,
   useScanImages,
 } from "../api"
+import { newAutoUpdateHref } from "./auto-update-meta"
 import { ImageDetails, NetworkDetails, VolumeDetails } from "./details"
 import {
   ConnectDialog,
@@ -664,6 +666,14 @@ export function useContainerMenu(
       label: "Open a shell",
       icon: <SquareTerminal />,
       onSelect: () => router.push(containerHref(server, c.name, "shell")),
+    })
+  if (can.manage)
+    look.push({
+      key: "auto-update",
+      label: "Keep up to date…",
+      icon: <RefreshCcwDot />,
+      onSelect: () =>
+        router.push(newAutoUpdateHref({ server, container: c.name })),
     })
   look.push({
     key: "copy",

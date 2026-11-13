@@ -2,6 +2,7 @@
 
 import {
   keepPreviousData,
+  useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
@@ -12,7 +13,13 @@ import { isActive, useJobList } from "@/components/jobs/api"
 import { useJobActions } from "@/components/jobs/jobs-provider"
 import { ApiError, api } from "@/lib/api"
 import type {
+  DockerAutoUpdate,
+  DockerAutoUpdateBody,
+  DockerAutoUpdateEvent,
+  DockerAutoUpdateRules,
   DockerContainer,
+  DockerDaemonResult,
+  DockerDaemonSaveBody,
   DockerLogBatch,
   DockerLogLine,
   DockerNetworkBody,
@@ -53,6 +60,7 @@ export const dockerKeys = {
   networks: (id: string) => ["docker", id, "networks"] as const,
   usage: (id: string) => ["docker", id, "usage"] as const,
   projects: (id: string) => ["docker", id, "projects"] as const,
+  projectScan: (id: string) => ["docker", id, "project-scan"] as const,
   project: (id: string, name: string) =>
     ["docker", id, "project", name] as const,
   projectStats: (id: string) => ["docker", id, "project-stats"] as const,
@@ -87,8 +95,23 @@ export const dockerKeys = {
   serverSettings: (ws: string) =>
     ["docker", "ws", ws, "settings", "servers"] as const,
   effectiveSettings: (id: string) => ["docker", id, "settings"] as const,
+  daemon: (id: string) => ["docker", id, "daemon"] as const,
   registries: (ws: string) => ["docker", "ws", ws, "registries"] as const,
   templates: (ws: string) => ["docker", "ws", ws, "templates"] as const,
+  autoUpdates: (ws: string) => ["docker", "ws", ws, "auto-updates"] as const,
+  autoUpdate: (ws: string, id: string) =>
+    ["docker", "ws", ws, "auto-updates", id] as const,
+  autoUpdatePreview: (ws: string, rules: DockerAutoUpdateRules) =>
+    ["docker", "ws", ws, "auto-update-preview", rules] as const,
+  autoUpdateEvents: (ws: string, q: AutoUpdateEventQuery) =>
+    ["docker", "ws", ws, "auto-update-events", q] as const,
+  serverAutoUpdate: (id: string) => ["docker", id, "auto-update"] as const,
+}
+
+export type AutoUpdateEventQuery = {
+  policy?: string
+  server?: string
+  result?: DockerAutoUpdateEvent["result"]
 }
 
 export type HistoryRange = "24h" | "7d" | "30d"
@@ -739,6 +762,69 @@ export function useProjectLogFollow(
   }, [id, name, since, enabled])
 
   return { lines, end, live }
+}
+
+// The last look for compose projects on the server's disk. The first
+// listing of its projects starts one by itself, so this polls while it runs.
+export function useProjectScan(id: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: dockerKeys.projectScan(id ?? ""),
+    queryFn: () => api.containers.getDockerProjectScan(id ?? ""),
+    enabled: !!id && enabled,
+    refetchInterval: (q) => (q.state.data?.running ? 3_000 : 60_000),
+    retry,
+  })
+}
+
+export function useScanProjects() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: { server: string; paths?: string[]; depth?: number }) =>
+      api.containers.scanDockerProjects(v.server, {
+        paths: v.paths?.length ? v.paths : undefined,
+        depth: v.depth || undefined,
+      }),
+    onSuccess: (r, v) => {
+      qc.setQueryData(dockerKeys.projectScan(v.server), r)
+    },
+  })
+}
+
+export function useAddProjects() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: {
+      server: string
+      items: { path: string; name?: string }[]
+    }) =>
+      api.containers.addDockerProjects(v.server, {
+        items: v.items.map((i) => ({
+          path: i.path,
+          name: i.name || undefined,
+        })),
+      }),
+    onSettled: (_r, _e, v) => {
+      qc.invalidateQueries({ queryKey: dockerKeys.projects(v.server) })
+      qc.invalidateQueries({ queryKey: dockerKeys.projectScan(v.server) })
+      qc.invalidateQueries({ queryKey: dockerKeys.projectStats(v.server) })
+    },
+  })
+}
+
+export function useForgetProject() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: { server: string; project: string }) =>
+      api.containers.forgetDockerProject(v.server, seg(v.project)),
+    onSuccess: (_r, v) => {
+      qc.setQueryData<DockerProject[]>(dockerKeys.projects(v.server), (old) =>
+        old?.filter((p) => p.name !== v.project),
+      )
+      qc.invalidateQueries({ queryKey: dockerKeys.projects(v.server) })
+      qc.invalidateQueries({ queryKey: dockerKeys.projectScan(v.server) })
+      qc.invalidateQueries({ queryKey: dockerKeys.projectStats(v.server) })
+    },
+  })
 }
 
 export function useSaveProjectMeta() {
@@ -1492,4 +1578,250 @@ export function useRunContainer() {
   return useDockerWrite((v: { server: string; body: DockerRunBody }) =>
     api.containers.runDockerContainer(v.server, v.body),
   )
+}
+
+// --- Auto-update (Watchtower-like policies) ---------------------------------
+
+export function useAutoUpdates(ws: string | undefined) {
+  return useQuery({
+    queryKey: dockerKeys.autoUpdates(ws ?? ""),
+    queryFn: () => api.containers.listDockerAutoUpdates(ws ?? ""),
+    enabled: !!ws,
+    // A run's state and next time move by themselves: keep it fresh.
+    refetchInterval: (q) =>
+      q.state.data?.items.some((p) => p.running) ? 3_000 : 15_000,
+    retry,
+  })
+}
+
+export function useAutoUpdate(ws: string | undefined, id: string | undefined) {
+  const qc = useQueryClient()
+  return useQuery({
+    queryKey: dockerKeys.autoUpdate(ws ?? "", id ?? ""),
+    queryFn: () => api.containers.getDockerAutoUpdate(ws ?? "", id ?? ""),
+    enabled: !!ws && !!id,
+    initialData: () =>
+      qc
+        .getQueryData<{ items: DockerAutoUpdate[] }>(
+          dockerKeys.autoUpdates(ws ?? ""),
+        )
+        ?.items.find((p) => p.id === id),
+    initialDataUpdatedAt: 0,
+    refetchInterval: (q) => (q.state.data?.running ? 3_000 : 15_000),
+    retry,
+  })
+}
+
+// Every write answers the fresh policy: put it in both caches.
+function usePutAutoUpdate() {
+  const qc = useQueryClient()
+  return (ws: string, p: DockerAutoUpdate) => {
+    qc.setQueryData(dockerKeys.autoUpdate(ws, p.id), p)
+    qc.setQueryData<{ items: DockerAutoUpdate[] }>(
+      dockerKeys.autoUpdates(ws),
+      (old) =>
+        old && {
+          ...old,
+          items: old.items.some((x) => x.id === p.id)
+            ? old.items.map((x) => (x.id === p.id ? p : x))
+            : [...old.items, p],
+        },
+    )
+  }
+}
+
+export function useSaveAutoUpdate() {
+  const qc = useQueryClient()
+  const put = usePutAutoUpdate()
+  return useMutation({
+    mutationFn: ({
+      ws,
+      id,
+      ...body
+    }: DockerAutoUpdateBody & { ws: string; id?: string }) =>
+      id
+        ? api.containers.updateDockerAutoUpdate(ws, id, body)
+        : api.containers.createDockerAutoUpdate(ws, body),
+    onSuccess: (p, v) => put(v.ws, p),
+    onSettled: (_d, _e, v) =>
+      qc.invalidateQueries({ queryKey: dockerKeys.autoUpdates(v.ws) }),
+  })
+}
+
+export function useSetAutoUpdateEnabled() {
+  const put = usePutAutoUpdate()
+  return useMutation({
+    mutationFn: (v: { ws: string; id: string; enabled: boolean }) =>
+      api.containers.setDockerAutoUpdateEnabled(v.ws, v.id, {
+        enabled: v.enabled,
+      }),
+    onSuccess: (p, v) => put(v.ws, p),
+  })
+}
+
+export function useResetAutoUpdateWebhook() {
+  const put = usePutAutoUpdate()
+  return useMutation({
+    mutationFn: (v: { ws: string; id: string }) =>
+      api.containers.resetDockerAutoUpdateWebhook(v.ws, v.id),
+    onSuccess: (p, v) => put(v.ws, p),
+  })
+}
+
+export function useDeleteAutoUpdate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: { ws: string; id: string }) =>
+      api.containers.deleteDockerAutoUpdate(v.ws, v.id),
+    onSuccess: (_d, v) => {
+      qc.setQueryData<{ items: DockerAutoUpdate[] }>(
+        dockerKeys.autoUpdates(v.ws),
+        (old) =>
+          old && { ...old, items: old.items.filter((x) => x.id !== v.id) },
+      )
+      qc.removeQueries({ queryKey: dockerKeys.autoUpdate(v.ws, v.id) })
+    },
+    onSettled: (_d, _e, v) =>
+      qc.invalidateQueries({ queryKey: dockerKeys.autoUpdates(v.ws) }),
+  })
+}
+
+export function useRunAutoUpdate() {
+  const qc = useQueryClient()
+  const jobs = useJobActions()
+  return useMutation({
+    mutationFn: (v: {
+      ws: string
+      id: string
+      checkOnly?: boolean
+      server?: string
+    }) =>
+      api.containers.runDockerAutoUpdate(v.ws, v.id, {
+        ...(v.checkOnly ? { check_only: true } : {}),
+        ...(v.server ? { server: v.server } : {}),
+      }),
+    onSuccess: (job, v) => {
+      jobs.track(job)
+      qc.invalidateQueries({ queryKey: dockerKeys.autoUpdates(v.ws) })
+    },
+  })
+}
+
+// Which containers the rules take right now, on each server. The rules are
+// the key, so the caller debounces them.
+export function useAutoUpdatePreview(
+  ws: string | undefined,
+  rules: DockerAutoUpdateRules | null,
+) {
+  return useQuery({
+    queryKey: dockerKeys.autoUpdatePreview(
+      ws ?? "",
+      rules ?? {
+        servers: [],
+        pick: "all",
+        mode: "update",
+        include_stopped: false,
+      },
+    ),
+    queryFn: ({ signal }) =>
+      api.containers.previewDockerAutoUpdate(
+        ws ?? "",
+        rules as DockerAutoUpdateRules,
+        { signal },
+      ),
+    enabled: !!ws && !!rules && rules.servers.length > 0,
+    placeholderData: keepPreviousData,
+    staleTime: 20_000,
+    retry,
+  })
+}
+
+export function useAutoUpdateEvents(
+  ws: string | undefined,
+  q: AutoUpdateEventQuery,
+) {
+  return useInfiniteQuery({
+    queryKey: dockerKeys.autoUpdateEvents(ws ?? "", q),
+    queryFn: ({ pageParam, signal }) =>
+      api.containers.listDockerAutoUpdateEvents(
+        ws ?? "",
+        {
+          ...(pageParam ? { before: pageParam } : {}),
+          ...(q.policy ? { policy: q.policy } : {}),
+          ...(q.server ? { server: q.server } : {}),
+          ...(q.result ? { result: q.result } : {}),
+        },
+        { signal },
+      ),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.next || undefined,
+    enabled: !!ws,
+    placeholderData: keepPreviousData,
+    refetchInterval: 30_000,
+    retry,
+  })
+}
+
+// Which of this server's containers some policy keeps up to date.
+export function useServerAutoUpdate(server: string | undefined) {
+  return useQuery({
+    queryKey: dockerKeys.serverAutoUpdate(server ?? ""),
+    queryFn: () => api.containers.getServerDockerAutoUpdate(server ?? ""),
+    enabled: !!server,
+    staleTime: 30_000,
+    retry,
+  })
+}
+
+// Docker's own daemon.json on a server. Read as root/sudo; written by an
+// Owner. A save answers the fresh file, written straight into the cache.
+export function useDaemonConfig(server: string | undefined) {
+  return useQuery({
+    queryKey: dockerKeys.daemon(server ?? ""),
+    queryFn: () => api.containers.getDockerDaemonConfig(server ?? ""),
+    enabled: !!server,
+    refetchOnWindowFocus: false,
+    retry,
+  })
+}
+
+function useDaemonDone() {
+  const qc = useQueryClient()
+  return (server: string, d: DockerDaemonResult) => {
+    qc.setQueryData(dockerKeys.daemon(server), d.config)
+    // A restart drops every container's connection and may change what the
+    // engine reports (storage driver, log driver…).
+    if (d.applied === "restart") {
+      qc.invalidateQueries({ queryKey: dockerKeys.server(server) })
+      qc.invalidateQueries({ queryKey: dockerKeys.fleet })
+    } else if (d.applied === "reload") {
+      qc.invalidateQueries({ queryKey: dockerKeys.engine(server) })
+    }
+  }
+}
+
+export function useSaveDaemonConfig() {
+  const done = useDaemonDone()
+  return useMutation({
+    mutationFn: ({
+      server,
+      ...body
+    }: DockerDaemonSaveBody & { server: string }) =>
+      api.containers.saveDockerDaemonConfig(server, body),
+    onSuccess: (d, v) => done(v.server, d),
+  })
+}
+
+export function useApplyDaemon() {
+  const done = useDaemonDone()
+  return useMutation({
+    mutationFn: ({
+      server,
+      apply,
+    }: {
+      server: string
+      apply: "reload" | "restart"
+    }) => api.containers.applyDockerDaemonConfig(server, { apply }),
+    onSuccess: (d, v) => done(v.server, d),
+  })
 }

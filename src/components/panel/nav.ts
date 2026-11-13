@@ -11,6 +11,7 @@ import {
   Database,
   Disc3,
   FileCode,
+  FileCog,
   Globe,
   HardDrive,
   HeartPulse,
@@ -25,6 +26,7 @@ import {
   type LucideIcon,
   Network,
   Palette,
+  RefreshCcwDot,
   ScrollText,
   Server,
   ServerCog,
@@ -68,6 +70,11 @@ export const dockerGroups: NavGroup[] = [
     items: [
       { href: "/containers", label: "Dashboard", icon: LayoutDashboard },
       { href: "/containers/updates", label: "Updates", icon: CircleArrowUp },
+      {
+        href: "/containers/auto-update",
+        label: "Auto-update",
+        icon: RefreshCcwDot,
+      },
       { href: "/containers/security", label: "Security", icon: ShieldCheck },
       { href: "/containers/projects", label: "Projects", icon: Layers },
       {
@@ -100,6 +107,7 @@ export const dockerGroups: NavGroup[] = [
           { href: "/containers/registries", label: "Registries" },
         ],
       },
+      { href: "/containers/daemon", label: "Engine config", icon: FileCog },
       { href: "/containers/settings", label: "Settings", icon: Settings },
     ],
   },

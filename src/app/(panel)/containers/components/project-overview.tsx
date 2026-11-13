@@ -29,6 +29,7 @@ import { timeAgo } from "../../servers/components/meta"
 import { useSaveProjectMeta } from "../api"
 import { containerHref, Dot } from "./meta"
 import { Block, CopyButton, Pairs, Quiet } from "./parts"
+import { projectSourceMeta } from "./project-actions"
 import { StateLabel, stateText, stoppedText } from "./project-containers"
 import type { ServiceRow } from "./project-deploy"
 import { readiness, scoreTone } from "./project-production"
@@ -123,8 +124,8 @@ export function ProjectOverview({
   if (!p.managed && !p.missing) {
     notes.push({
       key: "external",
-      title: "Started outside Morche",
-      body: "It lives outside the workspace's projects folder. Morche runs the same compose commands on it, and Destroy leaves its folder alone.",
+      title: `Outside the projects folder · ${projectSourceMeta[p.source].label.toLowerCase()}`,
+      body: "Morche runs the same compose commands on it and edits its files in place. Destroy and Stop listing leave its folder alone.",
     })
   }
 
@@ -203,6 +204,10 @@ export function ProjectOverview({
                   mono: true,
                 },
                 { label: ".env", value: p.has_env ? "Yes" : "No" },
+                {
+                  label: "Found",
+                  value: projectSourceMeta[p.source].hint,
+                },
                 { label: "Services", value: p.services.join(", ") },
                 { label: "Images", value: p.images.join("\n"), mono: true },
                 {

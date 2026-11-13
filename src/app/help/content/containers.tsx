@@ -232,9 +232,13 @@ export const containers: GuideSection[] = [
       <>
         <P>
           <UI>Projects</UI> lists the server's compose projects: the ones Morche
-          made and the ones it finds running (by their compose labels). States:{" "}
-          <UI>Running</UI>, <UI>Partly running</UI>, <UI>Stopped</UI>,{" "}
-          <UI>Not deployed</UI> (saved but never brought up).
+          made, the ones it finds by their containers and the ones it finds on
+          the disk (see{" "}
+          <See guide="containers" section="existing-projects">
+            Compose projects already on the server
+          </See>
+          ). States: <UI>Running</UI>, <UI>Partly running</UI>, <UI>Stopped</UI>
+          , <UI>Not deployed</UI> (saved but never brought up).
         </P>
         <Steps>
           {[
@@ -316,6 +320,100 @@ export const containers: GuideSection[] = [
         <Warn>
           <UI>Destroy</UI> deletes the project's volumes and files for good.
         </Warn>
+      </>
+    ),
+  },
+  {
+    id: "existing-projects",
+    title: "Compose projects already on the server",
+    body: (
+      <>
+        <P>
+          When you add a server, its compose projects don't have to be made
+          again: Morche finds them, and from then on you edit and run them like
+          the ones it made. It knows a project in three ways:
+        </P>
+        <Table
+          head={["Tag on the card", "How it was found"]}
+          rows={[
+            [
+              "(none)",
+              "It is in the environment's projects folder, made by Morche or copied there",
+            ],
+            [
+              "External",
+              "Its running or stopped containers carry compose labels that say which file made them",
+            ],
+            [
+              "On the disk",
+              "Morche found its compose file by looking at the disk, or someone added it by its path",
+            ],
+          ]}
+        />
+        <P>
+          The first time someone opens <UI>Projects</UI> for a server, Morche
+          looks at the whole disk for <C>compose.yaml</C>,{" "}
+          <C>docker-compose.yml</C> and their <C>.yml</C>/<C>.yaml</C> twins
+          (and the <C>override</C> files beside them), in the background. It
+          skips system folders (<C>/proc</C>, <C>/sys</C>, <C>/usr</C>,{" "}
+          <C>/var/lib/docker</C>…) and caches like <C>node_modules</C>,{" "}
+          <C>.git</C> and <C>vendor</C>. Nothing on the server changes.
+        </P>
+        <P>
+          When it finds projects that aren't listed yet, a notice says{" "}
+          <UI>Found N compose projects on this server</UI>. <UI>Review</UI>{" "}
+          opens the list; <UI>Not now</UI> hides the notice on this browser
+          until something new turns up.
+        </P>
+        <Steps>
+          {[
+            <>
+              <UI>Review</UI> (or the toolbar's ⋯ ›{" "}
+              <UI>Find compose projects on the disk</UI>).
+            </>,
+            <>
+              Tick the ones to add. Each row shows its folder, its compose files
+              and services. The name is the one compose itself would use: the
+              file's <C>name:</C>, else <C>COMPOSE_PROJECT_NAME</C> in its{" "}
+              <C>.env</C>, else the folder name.
+            </>,
+            <>
+              <UI>Their name is taken</UI>: another project already has that
+              name. Type another one to add it (its future containers get the
+              new name).
+            </>,
+            <>
+              <UI>Add N projects</UI>. They show up as projects at once, with
+              every tab: Files edits their compose file and <C>.env</C> in
+              place, and the menu runs up, down, pull, restart on them.
+            </>,
+          ]}
+        </Steps>
+        <P>
+          <UI>Where to look</UI> narrows the next look to some folders (up to
+          10) and sets how deep it goes (default 7). <UI>Look again</UI> runs it
+          now; it stops after 3000 files or a minute.
+        </P>
+        <Example title="A compose file with another name">
+          The shop runs from <C>/opt/shop/compose.prod.yml</C>, which a look
+          doesn't pick up (only the standard names). Use ⋯ ›{" "}
+          <UI>Add a project by its path…</UI>, type{" "}
+          <C>/opt/shop/compose.prod.yml</C> (or pick the folder in the tree when
+          the file has a standard name) and press <UI>Add project</UI>.
+        </Example>
+        <P>
+          <UI>Stop listing it</UI> (in a project's menu, for projects outside
+          the projects folder with no containers) takes it off the list; its
+          files stay where they are and later looks leave it out. To bring it
+          back, tick it under <UI>Not listed yet</UI> (it says{" "}
+          <UI>Set aside</UI>) or add it by its path.
+        </P>
+        <Tip>
+          Keep each project's compose file and <C>.env</C> in its own folder, as
+          compose expects: Morche runs compose in that folder, so relative paths
+          in the file keep working. Finding, adding and setting aside projects
+          needs <UI>Engineer</UI> on the server.
+        </Tip>
       </>
     ),
   },
@@ -1026,8 +1124,11 @@ export const containers: GuideSection[] = [
           restarts once, and the old one is kept until the new one runs.
         </P>
         <P>
-          To update on a schedule, make a cron job with the{" "}
-          <UI>Update containers</UI> action (
+          To keep containers updated by themselves (like Watchtower), use{" "}
+          <See guide="containers" section="auto-update">
+            Auto-update
+          </See>
+          . Or make a cron job with the <UI>Update containers</UI> action (
           <See guide="cronjobs" section="actions" />
           ): it can limit itself to some projects or containers and put the old
           image back when a container stops or turns unhealthy after the update.
@@ -1041,6 +1142,281 @@ export const containers: GuideSection[] = [
             },
           ]}
         />
+      </>
+    ),
+  },
+  {
+    id: "auto-update",
+    title: "Auto-update (keep containers on the newest image)",
+    body: (
+      <>
+        <P>
+          <UI>Auto-update</UI> (under Management) keeps chosen containers on the
+          newest image of their tag by themselves, like Watchtower but without
+          installing anything: Morche asks each registry for a newer image,
+          pulls it and recreates the container with the same settings. A
+          workspace can have several <UI>policies</UI>, each with its own
+          servers, containers, schedule and safety settings.
+        </P>
+        <Steps>
+          <>
+            Open <UI>Auto-update</UI> and press <UI>New policy</UI> (or{" "}
+            <UI>Keep up to date…</UI> in a container's menu, or{" "}
+            <UI>Set up auto-update</UI> on a server's Updates page: the server
+            and container are filled in).
+          </>
+          <>
+            Tick the servers, then say which containers it takes in. The list
+            under the form shows, live, every container it would take and the
+            ones it leaves out, with why.
+          </>
+          <>
+            Pick <UI>Update them</UI> or <UI>Only tell me</UI>, a schedule (or
+            none: by hand and webhook only) and who to tell.
+          </>
+          <>
+            Press <UI>Create</UI>. <UI>Check now</UI> / <UI>Run now</UI> on its
+            page runs it at once; <UI>Run here</UI> runs it on one server.
+          </>
+        </Steps>
+        <P>
+          A policy's page has <UI>Overview</UI> (last and next run, what it did
+          in the last 30 days, the containers it takes in now, its webhook),{" "}
+          <UI>Activity</UI> (every container it updated, found, rolled back,
+          skipped or failed on) and <UI>Settings</UI>. The <UI>Activity</UI> tab
+          of the list shows every policy's, kept 180 days.
+        </P>
+        <Table
+          head={["Activity", "Means"]}
+          rows={[
+            ["Updated", "Now runs the new image"],
+            [
+              "New image",
+              "A newer image is waiting (Only tell me, or a monitor-only label)",
+            ],
+            [
+              "Rolled back",
+              "The new one stopped or turned unhealthy, so the old image came back",
+            ],
+            ["Skipped", "A pre-update hook asked to skip this time"],
+            [
+              "Failed",
+              "The pull or the swap went wrong; the old container still runs",
+            ],
+          ]}
+        />
+        <Tip>
+          Each run is a background task (<UI>Container auto-update</UI>) you can
+          follow or cancel from Tasks. A policy runs with the access of whoever
+          saved it last.
+        </Tip>
+        <P>
+          Levels: workspace Viewer sees policies and their activity, Operator
+          runs them, Engineer creates, edits and deletes them.
+        </P>
+      </>
+    ),
+  },
+  {
+    id: "auto-update-picking",
+    title: "Auto-update: which containers, and labels",
+    body: (
+      <>
+        <Table
+          head={["Containers", "Takes in"]}
+          rows={[
+            [
+              "Every container",
+              "All of them on the servers, except the ones you leave out",
+            ],
+            [
+              "Labelled ones",
+              <>
+                Only containers labelled <C>morcheh.auto-update.enable=true</C>
+              </>,
+            ],
+            [
+              "Chosen ones",
+              "The containers, compose projects or images you name (labelled ones too)",
+            ],
+          ]}
+        />
+        <P>
+          A name can be a container (<C>web</C>), a compose project (<C>shop</C>
+          ), a project's service (<C>shop/api</C>) or an image (<C>nginx</C>,{" "}
+          <C>ghcr.io/acme/*</C>); <C>*</C> and <C>?</C> work. <UI>Leave out</UI>{" "}
+          takes the same names and always wins. Containers built on the server,
+          pinned to a digest, paused or (unless ticked) stopped are never taken.
+        </P>
+        <P>
+          Labels on a container tune it from its compose file. Watchtower's{" "}
+          <C>com.centurylinklabs.watchtower.*</C> labels work as they are, so a
+          stack moved from Watchtower needs no changes.
+        </P>
+        <Table
+          head={["Label (morcheh.auto-update.…)", "Does"]}
+          rows={[
+            [
+              <C key="e">enable=true|false</C>,
+              "Take it in, or never touch it (false wins over every policy)",
+            ],
+            [
+              <C key="m">monitor-only=true</C>,
+              "Only report a new image for this one",
+            ],
+            [
+              <C key="n">no-pull=true</C>,
+              "Never pull; recreate only when the image was replaced on the server",
+            ],
+            [
+              <C key="d">depends-on=db,cache</C>,
+              "Restart this one after those are updated",
+            ],
+          ]}
+        />
+        <Example title="A compose service that updates itself, a database that only reports">
+          <Code>{`services:
+  web:
+    image: ghcr.io/acme/web:1
+    labels:
+      morcheh.auto-update.enable: "true"
+  db:
+    image: postgres:16
+    labels:
+      morcheh.auto-update.enable: "true"
+      morcheh.auto-update.monitor-only: "true"`}</Code>
+        </Example>
+      </>
+    ),
+  },
+  {
+    id: "auto-update-safety",
+    title: "Auto-update: safety settings",
+    body: (
+      <>
+        <P>
+          Compose containers are recreated through <C>docker compose</C> (one
+          service, <C>--no-deps</C>), others with their exact settings. Around
+          that:
+        </P>
+        <Table
+          head={["Setting", "Does"]}
+          rows={[
+            [
+              "Roll back if it fails",
+              "Watches the new container for the set time (its health check decides sooner); if it stops or turns unhealthy, the old image is put back",
+            ],
+            [
+              "Wait before taking a new image",
+              "Skips an image younger than this, so a broken release can be pulled back by its publisher first",
+            ],
+            [
+              "Never pull",
+              "Only recreates containers whose image was already replaced on the server",
+            ],
+            [
+              "Restart linked containers",
+              "Restarts containers that depend on an updated one (depends-on label, network_mode: container:)",
+            ],
+            ["Time to stop", "How long a container gets to shut down cleanly"],
+            ["Remove the old image", "Once nothing uses it any more"],
+            [
+              "Stopped containers too / Start them",
+              "Updates stopped containers; off leaves an updated one stopped",
+            ],
+          ]}
+        />
+        <Recommended
+          rows={[
+            {
+              setting: "Mode",
+              value: "Update for stateless apps, Only tell me for databases",
+              why: "A database's major upgrade usually needs a migration step",
+            },
+            {
+              setting: "Roll back if it fails",
+              value: "On, 30–60 s",
+              why: "A crash-looping release goes back to the old image by itself",
+            },
+            {
+              setting: "Wait before taking a new image",
+              value: "6–24 hours on production",
+              why: "Bad releases are usually replaced within hours",
+            },
+            {
+              setting: "Schedule",
+              value: "Once a night, outside busy hours",
+              why: "Each updated container restarts once",
+            },
+          ]}
+        />
+        <Warn>
+          A tag like <C>latest</C> can jump a major version. Prefer tags such as{" "}
+          <C>postgres:16</C> or <C>nginx:1.27</C>.
+        </Warn>
+      </>
+    ),
+  },
+  {
+    id: "auto-update-hooks",
+    title: "Auto-update: lifecycle hooks",
+    body: (
+      <>
+        <P>
+          With <UI>Run lifecycle hooks</UI> on, a container can run its own
+          commands (inside itself, with <C>sh -c</C>) around its update, set
+          with labels:
+        </P>
+        <Table
+          head={["Label (morcheh.auto-update.lifecycle.…)", "Runs"]}
+          rows={[
+            [<C key="a">pre-check</C>, "Before each check for a new image"],
+            [
+              <C key="b">pre-update</C>,
+              "In the old container, just before it stops. Exit code 75 = skip this update",
+            ],
+            [
+              <C key="c">post-update</C>,
+              "In the new container, once it started",
+            ],
+            [<C key="d">post-check</C>, "After the run is done with it"],
+          ]}
+        />
+        <P>
+          A <C>pre-update</C> hook that fails (any exit code but 0 or 75) stops
+          that container's update and the old one keeps running; the other hooks
+          are only logged. Hooks run in running containers only.{" "}
+          <C>…-timeout</C> labels (minutes) override the policy's{" "}
+          <UI>Time a hook may take</UI>.
+        </P>
+        <Example title="Dump the database before an update">
+          <Code>{`labels:
+  morcheh.auto-update.lifecycle.pre-update: "pg_dump -U app app > /backup/before-update.sql"
+  morcheh.auto-update.lifecycle.pre-update-timeout: "5"`}</Code>
+        </Example>
+      </>
+    ),
+  },
+  {
+    id: "auto-update-webhook",
+    title: "Auto-update: webhook and notifications",
+    body: (
+      <>
+        <P>
+          Every policy has a webhook URL (its <UI>Overview</UI>). Calling it
+          runs the policy at once, even when it has no schedule; add{" "}
+          <C>?image=</C> to look only at containers of that image. No sign-in is
+          needed, so treat the URL as a password: <UI>New URL</UI> makes the old
+          one stop working.
+        </P>
+        <Example title="At the end of a CI pipeline">
+          <Code>{`curl -fsS -X POST "https://morche.example.com/hooks/docker-update/<token>?image=ghcr.io/acme/web"`}</Code>
+        </Example>
+        <P>
+          <UI>Tell me</UI> sends a summary to the policy's channels (
+          <See guide="alerts">Alerts</See>): when something is updated, found or
+          fails (default), only on failures, after every run, or never.
+        </P>
       </>
     ),
   },
@@ -1137,6 +1513,96 @@ export const containers: GuideSection[] = [
             },
           ]}
         />
+      </>
+    ),
+  },
+  {
+    id: "daemon-config",
+    title: "Engine config (daemon.json)",
+    body: (
+      <>
+        <P>
+          <UI>Engine config</UI> (under Administration) edits Docker's own
+          settings file, <C>/etc/docker/daemon.json</C> on the selected
+          environment (the rootless one for a rootless Docker), and applies it.
+          Anyone with Engineer access can read it; only an Owner of the server
+          can change it, since it affects every container there. Podman has no
+          daemon.json, so the page says so instead.
+        </P>
+        <Steps>
+          <li>
+            Pick the environment at the top of the sidebar and open{" "}
+            <UI>Engine config</UI>.
+          </li>
+          <li>
+            Edit the JSON, or open a card under <UI>Suggested settings</UI>, set
+            its values and press <UI>Add to the file</UI>.{" "}
+            <UI>Add recommended</UI> adds every recommended one at once.
+          </li>
+          <li>
+            Press <UI>Save</UI>. The dialog shows what changes and lets you
+            choose: <UI>Save and restart Docker</UI>, <UI>Save and reload</UI>{" "}
+            or <UI>Only save</UI>.
+          </li>
+        </Steps>
+        <Table
+          head={["Then", "What happens"]}
+          rows={[
+            [
+              "Restart Docker",
+              "Every setting applies. Running containers stop and start again (unless live-restore is on); ones without a restart policy stay stopped. If Docker doesn't come back, Morche puts the old file back and starts Docker again, and shows Docker's own error",
+            ],
+            [
+              "Reload",
+              "No downtime. Docker re-reads only some settings (labels, debug, log level, registry mirrors, insecure registries, live-restore, max concurrent downloads/uploads, shutdown timeout, runtimes, features). The rest wait for a restart, and the dialog names them",
+            ],
+            [
+              "Only save",
+              "The file is written; Docker uses it from its next restart. The page then shows Saved, but Docker isn't using it yet with Reload and Restart buttons",
+            ],
+          ]}
+        />
+        <P>
+          Before writing, Morche asks Docker to check the file (
+          <C>dockerd --validate</C>, Docker 23 and later), so a file Docker
+          would refuse is never saved. The file before each save is kept as{" "}
+          <C>daemon.json.morcheh-bak</C>; <UI>⋯</UI> ›{" "}
+          <UI>Load the copy before the last save</UI> puts it back in the
+          editor. An empty editor removes the file, so Docker uses its defaults.
+        </P>
+        <Recommended
+          rows={[
+            {
+              setting: "Limit container log size",
+              value: "10m × 3 files",
+              why: "Stops container logs filling the disk",
+            },
+            {
+              setting: "Keep containers running while Docker restarts",
+              value: "On",
+              why: "Later restarts of Docker no longer stop your containers",
+            },
+          ]}
+        />
+        <Tip>
+          Add both, then restart once while nothing important is busy. After
+          that most changes need only a reload or a calm restart.
+        </Tip>
+        <Warn>
+          A setting given both as a flag on the service (for example{" "}
+          <C>-H fd://</C> in <C>ExecStart</C>) and in daemon.json stops Docker
+          from starting. The page warns about it and won't save until one of
+          them goes. It also warns before you open Docker's API on a TCP port
+          without TLS, turn off iptables, or move <C>data-root</C> or change{" "}
+          <C>storage-driver</C> (existing containers and images seem to
+          disappear until they're moved).
+        </Warn>
+        <Tip>
+          Someone else changed the file meanwhile? Saving says so: choose{" "}
+          <UI>Load theirs</UI> or <UI>Overwrite</UI>. If Docker runs as the
+          container's main process (no systemd), Morche can only reload it;
+          restart it yourself after saving.
+        </Tip>
       </>
     ),
   },

@@ -9,7 +9,7 @@ import {
   Save,
 } from "lucide-react"
 import Link from "next/link"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs"
 import { type ReactNode, useState } from "react"
 import { toast } from "sonner"
@@ -36,10 +36,11 @@ import { ComposeFiles } from "./compose-files"
 import { ProjectAlerts, useContainerRules } from "./container-alerts"
 import { DeployPanel } from "./deploy-panel"
 import { EnvPage } from "./env-page"
-import { Dot } from "./meta"
+import { Dot, envHref } from "./meta"
 import { useDockerCan } from "./permissions"
 import {
   projectHref,
+  projectSourceMeta,
   projectStateMeta,
   useProjectActions,
 } from "./project-actions"
@@ -95,7 +96,10 @@ function Project({
 }) {
   const id = env.server_id
   const query = useDockerProject(id, name)
-  const actions = useProjectActions(id, env.workspace_id)
+  const router = useRouter()
+  const actions = useProjectActions(id, env.workspace_id, {
+    onForgot: () => router.replace(envHref(id, "/containers/projects")),
+  })
   const can = useDockerCan(id, env.workspace_id)
   const deploy = useProjectDeploy(id, query.data)
   // While a deploy runs, containers appear by the second.
@@ -377,7 +381,11 @@ function Project({
                   </span>
                 )}
                 <span>on {env.name}</span>
-                {!p.managed && <span>outside the projects folder</span>}
+                {!p.managed && (
+                  <span title={projectSourceMeta[p.source].hint}>
+                    {projectSourceMeta[p.source].label.toLowerCase()}
+                  </span>
+                )}
               </p>
             </div>
             <div className="flex shrink-0 gap-2">

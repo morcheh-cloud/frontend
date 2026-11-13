@@ -5,6 +5,8 @@ import {
   Boxes,
   Clock,
   Cpu,
+  FolderOpen,
+  FolderSearch,
   GitBranch,
   HeartPulse,
   Layers,
@@ -30,6 +32,7 @@ import { cn } from "@/lib/utils"
 import {
   Empty,
   ItemMenu,
+  Notices,
   SearchBox,
   Segmented,
 } from "../../servers/[id]/components/parts"
@@ -40,9 +43,11 @@ import { Dot } from "./meta"
 import {
   newProjectHref,
   projectHref,
+  projectSourceMeta,
   projectStateMeta,
   useProjectActions,
 } from "./project-actions"
+import { useProjectDiscovery } from "./project-discovery"
 import {
   attentionOf,
   ContainerBar,
@@ -101,6 +106,7 @@ export function ProjectsView({
   const query = useDockerProjects(id)
   const stats = useProjectStats(id)
   const actions = useProjectActions(id, env.workspace_id)
+  const discovery = useProjectDiscovery(id, actions.can.manage)
   const [filters, setFilters] = useQueryStates(filterParsers, {
     history: "replace",
   })
@@ -157,12 +163,15 @@ export function ProjectsView({
     }),
     { cpu: 0, memory: 0, containers: 0 },
   )
-  const caption = totals && totals.containers > 0 && (
-    <>
-      {totals.containers} running containers · CPU {pct(totals.cpu)} ·{" "}
-      {formatSize(totals.memory)}
-    </>
-  )
+  const caption = discovery.looking
+    ? "Looking for compose projects on the disk…"
+    : totals &&
+      totals.containers > 0 && (
+        <>
+          {totals.containers} running containers · CPU {pct(totals.cpu)} ·{" "}
+          {formatSize(totals.memory)}
+        </>
+      )
 
   let body: ReactNode
   if (query.isPending) {
@@ -189,7 +198,7 @@ export function ProjectsView({
       <Empty
         icon={Layers}
         title="No compose projects yet"
-        body="A project is a compose file and the containers it makes. Start one from a template, paste your own compose file or deploy one from git; projects started by hand on the server show up here too."
+        body="A project is a compose file and the containers it makes. Start one from a template, paste your own compose file or deploy one from git. Compose projects already on the server show up here by their containers, or add them from the disk."
         className="max-md:mt-4"
         action={
           actions.can.manage && (
@@ -208,6 +217,10 @@ export function ProjectsView({
               >
                 <GitBranch />
                 From a git repository
+              </Button>
+              <Button variant="outline" onClick={discovery.find}>
+                <FolderSearch />
+                Find on the disk
               </Button>
               <Button
                 variant="outline"
@@ -328,9 +341,38 @@ export function ProjectsView({
               }
             : undefined
         }
+        more={
+          actions.can.manage
+            ? [
+                [
+                  {
+                    key: "find",
+                    label: "Find compose projects on the disk",
+                    icon: <FolderSearch />,
+                    onSelect: discovery.find,
+                  },
+                  {
+                    key: "add-path",
+                    label: "Add a project by its path…",
+                    icon: <FolderOpen />,
+                    onSelect: discovery.add,
+                  },
+                ],
+              ]
+            : undefined
+        }
       />
-      <div className={cn(phone ? "pt-3 pb-24" : "mt-4")}>{body}</div>
+      <div className={cn(phone ? "pt-3 pb-24" : "mt-4")}>
+        {discovery.notes.length > 0 && (
+          <Notices
+            notes={discovery.notes}
+            className={cn(phone ? "mb-3 max-md:mt-0" : "mb-4")}
+          />
+        )}
+        {body}
+      </div>
       {actions.dialog}
+      {discovery.layers}
     </>
   )
 }
@@ -441,7 +483,13 @@ function ProjectCard({
             {p.title && (
               <span className="truncate font-mono text-ash">· {p.name}</span>
             )}
-            {!p.managed && <Tag>External</Tag>}
+            {!p.managed && (
+              <span title={projectSourceMeta[p.source].hint}>
+                <Tag>
+                  {p.source === "containers" ? "External" : "On the disk"}
+                </Tag>
+              </span>
+            )}
           </p>
         </div>
         <div className="relative z-10 -me-2 -mt-1">{menu}</div>

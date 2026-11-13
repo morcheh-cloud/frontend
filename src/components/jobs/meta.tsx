@@ -29,6 +29,7 @@ import {
   Package,
   PackageOpen,
   Play,
+  RefreshCcwDot,
   SearchCheck,
   Send,
   Shield,
@@ -90,6 +91,7 @@ const icons: Record<string, LucideIcon> = {
   "docker-image-export": HardDriveUpload,
   "docker-image-import": HardDriveDownload,
   "docker-image-copy": Send,
+  "docker-auto-update": RefreshCcwDot,
 }
 
 // Which Containers page a Docker job's results are on.
@@ -232,6 +234,7 @@ export function placeHref(job: Job) {
       job.kind === "database-backup-restore" ? "restores" : "backups",
     )
   }
+  if (t?.auto_update) return `/containers/auto-update/${t.auto_update}`
   if (t?.schedule_id) {
     return `/cronjobs/${t.schedule_id}${t.run_id ? `?run=${t.run_id}` : ""}`
   }
@@ -266,6 +269,7 @@ export function placeHref(job: Job) {
 
 export function placeLabel(job: Job) {
   if (job.kind === "storage-scan") return "Open Insights"
+  if (job.target?.auto_update) return "Open auto-update"
   if (job.kind === "software-scan") return "Open applications"
   if (job.kind.startsWith("proxy-")) return "Open proxy"
   if (job.kind.startsWith("package-")) return "Open packages"

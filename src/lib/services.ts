@@ -4115,6 +4115,303 @@ export interface DockerAutoPrune {
   space: number;
 }
 
+export interface DockerAutoUpdate {
+  last_30_days: DockerAutoUpdateCounts;
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  channels: string[];
+  cleanup: boolean;
+  /** @format date-time */
+  created_at: string;
+  cron: string;
+  enabled: boolean;
+  exclude: string[];
+  /** @format int64 */
+  hook_timeout: number;
+  hooks: boolean;
+  id: string;
+  include: string[];
+  include_stopped: boolean;
+  last_job_id?: string;
+  last_note: string;
+  /** @format date-time */
+  last_run_at?: string;
+  /** '' = never ran; running, ok, updated, available, failed */
+  last_state: string;
+  /** @format int64 */
+  min_age_hours: number;
+  mode: "update" | "monitor";
+  name: string;
+  /** @format date-time */
+  next_run_at?: string;
+  no_pull: boolean;
+  notify: "never" | "changes" | "failures" | "always";
+  pick: "all" | "labeled" | "chosen";
+  restart_linked: boolean;
+  revive_stopped: boolean;
+  rollback: boolean;
+  running: boolean;
+  /** Whose access runs use: the person who saved it last */
+  runs_as: string;
+  servers: DockerAutoUpdateServer[];
+  /** @format int64 */
+  stop_timeout: number;
+  timezone: string;
+  /** @format date-time */
+  updated_at: string;
+  /** @format int64 */
+  wait_seconds: number;
+  /** Only for Engineers: POST /hooks/docker-update/{token} runs it */
+  webhook_token?: string;
+  workspace_id: string;
+}
+
+export interface DockerAutoUpdateBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Notification channel ids
+   * @maxItems 20
+   */
+  channels?: string[];
+  /** Remove the old image once nothing uses it */
+  cleanup: boolean;
+  /**
+   * When it runs (5-field cron); empty = only by hand or webhook
+   * @maxLength 100
+   */
+  cron?: string;
+  enabled: boolean;
+  /**
+   * Names, compose projects or images (* and ?) never touched
+   * @maxItems 200
+   */
+  exclude?: string[];
+  /**
+   * Seconds a hook may run (a -timeout label, in minutes, wins)
+   * @format int64
+   * @min 5
+   * @max 1800
+   */
+  hook_timeout: number;
+  /** Run the containers' lifecycle hook labels (pre-check, pre-update, post-update, post-check) */
+  hooks: boolean;
+  /**
+   * Names, compose projects or images (* and ? allowed), for pick = chosen
+   * @maxItems 200
+   */
+  include?: string[];
+  /** Also update containers that aren't running (they stay stopped unless revive_stopped) */
+  include_stopped: boolean;
+  /**
+   * Only take a new image once the registry has had it this long (0 = at once)
+   * @format int64
+   * @min 0
+   * @max 720
+   */
+  min_age_hours: number;
+  /** monitor = only report new images, never pull or recreate */
+  mode: "update" | "monitor";
+  /**
+   * @minLength 1
+   * @maxLength 80
+   */
+  name: string;
+  /** Never pull: only recreate containers whose image was replaced on the server some other way (built or pulled there) */
+  no_pull: boolean;
+  notify: "never" | "changes" | "failures" | "always";
+  /** all = every container (but excluded ones); labeled = only containers labelled morcheh.auto-update.enable=true or com.centurylinklabs.watchtower.enable=true; chosen = containers, compose projects or images named in include (or labelled) */
+  pick: "all" | "labeled" | "chosen";
+  /** Restart containers that depend on an updated one (depends-on label or network_mode container:) */
+  restart_linked: boolean;
+  /** Start a stopped container after updating it */
+  revive_stopped: boolean;
+  /** Watch each updated container and put the old image back if it stops or turns unhealthy */
+  rollback: boolean;
+  /**
+   * Server ids in the workspace
+   * @maxItems 100
+   * @minItems 1
+   */
+  servers: string[];
+  /**
+   * Seconds a container gets to stop before it is killed
+   * @format int64
+   * @min 0
+   * @max 600
+   */
+  stop_timeout: number;
+  /** @maxLength 64 */
+  timezone?: string;
+  /**
+   * How long to watch for rollback
+   * @format int64
+   * @min 10
+   * @max 600
+   */
+  wait_seconds: number;
+}
+
+export interface DockerAutoUpdateCandidate {
+  /** Lifecycle hooks its labels define */
+  hooks?: string[];
+  id: string;
+  image: string;
+  included: boolean;
+  /** Its label says report only */
+  monitor_only?: boolean;
+  name: string;
+  /** Its label says never pull */
+  no_pull?: boolean;
+  project?: string;
+  service?: string;
+  state: string;
+  /** From the server's last registry check */
+  update: "available" | "current" | "local" | "pinned" | "error" | "unchecked";
+  /** Why it is in or out, in plain words */
+  why: string;
+}
+
+export interface DockerAutoUpdateCounts {
+  /** @format int64 */
+  available: number;
+  /** @format int64 */
+  failed: number;
+  /** @format int64 */
+  rolled_back: number;
+  /** @format int64 */
+  updated: number;
+}
+
+export interface DockerAutoUpdateEvent {
+  /** @format date-time */
+  at: string;
+  container: string;
+  id: string;
+  image: string;
+  job_id?: string;
+  message: string;
+  new_image: string;
+  old_image: string;
+  policy_id: string;
+  policy_name: string;
+  result: "updated" | "available" | "rolled_back" | "failed" | "skipped";
+  server_id: string;
+  server_name: string;
+}
+
+export interface DockerAutoUpdateEvents {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: DockerAutoUpdateEvent[];
+  /** Pass as before for older ones */
+  next?: string;
+}
+
+export interface DockerAutoUpdateHookOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  job_id?: string;
+  message: string;
+  ok: boolean;
+}
+
+export interface DockerAutoUpdatePreview {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format int64 */
+  included: number;
+  servers: DockerAutoUpdatePreviewServer[];
+  /**
+   * Included containers whose image has a newer version (last check)
+   * @format int64
+   */
+  waiting: number;
+}
+
+export interface DockerAutoUpdatePreviewServer {
+  containers: DockerAutoUpdateCandidate[];
+  error?: string;
+  id: string;
+  name: string;
+}
+
+export interface DockerAutoUpdateRules {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Names, compose projects or images (* and ?) never touched
+   * @maxItems 200
+   */
+  exclude?: string[];
+  /**
+   * Names, compose projects or images (* and ? allowed), for pick = chosen
+   * @maxItems 200
+   */
+  include?: string[];
+  /** Also update containers that aren't running (they stay stopped unless revive_stopped) */
+  include_stopped: boolean;
+  /** monitor = only report new images, never pull or recreate */
+  mode: "update" | "monitor";
+  /** all = every container (but excluded ones); labeled = only containers labelled morcheh.auto-update.enable=true or com.centurylinklabs.watchtower.enable=true; chosen = containers, compose projects or images named in include (or labelled) */
+  pick: "all" | "labeled" | "chosen";
+  /**
+   * Server ids in the workspace
+   * @maxItems 100
+   * @minItems 1
+   */
+  servers: string[];
+}
+
+export interface DockerAutoUpdateRunBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Only look and report, as in monitor mode */
+  check_only?: boolean;
+  /**
+   * Only this one of its servers
+   * @format uuid
+   */
+  server?: string;
+}
+
+export interface DockerAutoUpdateServer {
+  id: string;
+  /** Deleted or moved out of the workspace */
+  missing?: boolean;
+  name: string;
+}
+
+export interface DockerAutoUpdates {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: DockerAutoUpdate[];
+}
+
 export interface DockerCheckPort {
   /** Another service in this file publishes it too */
   duplicate: boolean;
@@ -4287,6 +4584,84 @@ export interface DockerContainerDetails {
   tty: boolean;
   user?: string;
   working_dir?: string;
+}
+
+export interface DockerDaemonApplyBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  apply: "reload" | "restart";
+}
+
+export interface DockerDaemonConfig {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  can_reload: boolean;
+  can_restart: boolean;
+  content: string;
+  exists: boolean;
+  /** dockerd's command line; a setting given both here and in the file stops Docker from starting */
+  flags: string[];
+  /** What restarts Docker; none = Morche can't restart it (it is PID 1 in a container, or unknown) */
+  manager: "systemd" | "snap" | "openrc" | "sysv" | "none";
+  /** @format date-time */
+  modified_at?: string;
+  /** Why it isn't supported, or something to know */
+  note?: string;
+  /** The file dockerd reads */
+  path: string;
+  /** The file changed after Docker started (or was last reloaded) */
+  pending: boolean;
+  /** The copy kept by the last save (.morcheh-bak), empty when none */
+  previous: string;
+  /** sha256 of the content, empty when there is no file; send it back with a save */
+  revision: string;
+  rootless: boolean;
+  running: boolean;
+  /** @format date-time */
+  started_at?: string;
+  /** A Docker engine (dockerd) is installed or running; Podman has no daemon.json */
+  supported: boolean;
+  /** dockerd --validate is available, so a save is checked first */
+  validates: boolean;
+  /** Morche can write it: root or sudo */
+  writable: boolean;
+}
+
+export interface DockerDaemonResult {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  applied: "none" | "reload" | "restart";
+  config: DockerDaemonConfig;
+  /** What the restart printed, when it says anything */
+  output?: string;
+}
+
+export interface DockerDaemonSaveBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @default "none" */
+  apply: "none" | "reload" | "restart";
+  /**
+   * A JSON object; empty removes the file (Docker's defaults)
+   * @maxLength 1048576
+   */
+  content: string;
+  /** Overwrite even when the file changed since it was read */
+  force?: boolean;
+  /** From the read; 409 when the file changed since */
+  revision: string;
 }
 
 export interface DockerDevice {
@@ -5291,11 +5666,56 @@ export interface DockerProject {
   running: number;
   /** Services that have a container */
   services: string[];
+  /** How Morche knows it: folder = in the projects folder; containers = its containers name it; scan = found on the disk; added = someone gave its path */
+  source: "folder" | "containers" | "scan" | "added";
   state: "running" | "partial" | "stopped" | "not-deployed";
   /** A display name set in Morche; empty = use the name */
   title: string;
   /** @format int64 */
   total: number;
+}
+
+export interface DockerProjectAddBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * @maxItems 100
+   * @minItems 1
+   */
+  items: DockerProjectAddItem[];
+}
+
+export interface DockerProjectAddItem {
+  /**
+   * Empty = the name compose would use
+   * @maxLength 63
+   */
+  name?: string;
+  /**
+   * A compose file, or the folder holding one
+   * @minLength 1
+   * @maxLength 1024
+   */
+  path: string;
+}
+
+export interface DockerProjectAddProblem {
+  message: string;
+  path: string;
+}
+
+export interface DockerProjectAddResult {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Names of the projects now listed */
+  added: string[];
+  problems: DockerProjectAddProblem[];
 }
 
 export interface DockerProjectCheck {
@@ -5480,6 +5900,8 @@ export interface DockerProjectDetails {
   running: number;
   /** Services that have a container */
   services: string[];
+  /** How Morche knows it: folder = in the projects folder; containers = its containers name it; scan = found on the disk; added = someone gave its path */
+  source: "folder" | "containers" | "scan" | "added";
   state: "running" | "partial" | "stopped" | "not-deployed";
   /** A display name set in Morche; empty = use the name */
   title: string;
@@ -5507,6 +5929,21 @@ export interface DockerProjectFilesBody {
   note?: string;
   /** From the details; empty = overwrite */
   revision?: string;
+}
+
+export interface DockerProjectFound {
+  dir: string;
+  /** The compose file, then any override beside it */
+  files: string[];
+  /** The project name compose would use for it */
+  name: string;
+  /** Why it can't be added as it is (unreadable file, no usable name…) */
+  problem?: string;
+  /** listed: the project it is; clash: the project holding its name */
+  project?: string;
+  services: string[];
+  /** new = not listed yet; listed = already a project; forgotten = someone chose to forget it; clash = another project already has its name */
+  state: "new" | "listed" | "forgotten" | "clash";
 }
 
 export interface DockerProjectHistory {
@@ -5586,6 +6023,52 @@ export interface DockerProjectRestoreBody {
   deploy?: boolean;
   /** The project's revision when the person decided; a change in between answers 409 */
   revision?: string;
+}
+
+export interface DockerProjectScanBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * How many folders deep; default 7
+   * @format int64
+   * @min 1
+   * @max 12
+   */
+  depth?: number;
+  /**
+   * Folders to look in; empty = the whole disk (system folders skipped)
+   * @maxItems 10
+   */
+  paths?: string[];
+}
+
+export interface DockerProjectScanResult {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  error?: string;
+  items: DockerProjectFound[];
+  /**
+   * Items in state new without a problem
+   * @format int64
+   */
+  new: number;
+  /** A look is going on now */
+  running: boolean;
+  /**
+   * Empty = never looked
+   * @format date-time
+   */
+  scanned_at?: string;
+  /** @format int64 */
+  took_ms: number;
+  /** It stopped early (too slow or too many files); what it found is listed */
+  truncated: boolean;
 }
 
 export interface DockerProjectStats {
@@ -6188,6 +6671,23 @@ export interface DockerScans {
   scanner: string;
   /** Over the scanned images */
   totals: DockerScanCounts;
+}
+
+export interface DockerServerAutoUpdate {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  containers: DockerServerAutoUpdateCover[];
+  policies: DockerAutoUpdate[];
+}
+
+export interface DockerServerAutoUpdateCover {
+  container: string;
+  /** Every policy that takes it only reports */
+  monitor: boolean;
+  policies: string[];
 }
 
 export interface DockerServerSettings {
@@ -8350,6 +8850,11 @@ export interface Job {
 }
 
 export interface JobPlace {
+  /**
+   * The container auto-update it is a run of
+   * @format uuid
+   */
+  auto_update?: string;
   /**
    * The database it backs up
    * @format uuid
@@ -14183,6 +14688,15 @@ export interface SetDnsZoneEnabledRequest {
   enabled: boolean;
 }
 
+export interface SetDockerAutoUpdateEnabledRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  enabled: boolean;
+}
+
 export interface SetProxyHostEnabledRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -19730,6 +20244,50 @@ export class Api<
   };
   containers = {
     /**
+     * @description Each path is a compose file or the folder holding one, anywhere on the server. They are listed from then on (even with nothing running), and can be edited, deployed and taken down like any project; their folder is never deleted. Engineer.
+     *
+     * @tags Containers
+     * @name AddDockerProjects
+     * @summary List compose projects that are already on a server
+     * @request POST:/servers/{id}/docker/project-places
+     */
+    addDockerProjects: (
+      id: string,
+      data: DockerProjectAddBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerProjectAddResult, ErrorModel>({
+        path: `/servers/${id}/docker/project-places`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Applies the saved daemon.json: `reload` sends dockerd SIGHUP (only some settings take effect), `restart` restarts the service and waits for it (422 with Docker's log when it doesn't come back).
+     *
+     * @tags Containers
+     * @name ApplyDockerDaemonConfig
+     * @summary Reload or restart Docker
+     * @request POST:/servers/{id}/docker/daemon/apply
+     */
+    applyDockerDaemonConfig: (
+      id: string,
+      data: DockerDaemonApplyBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerDaemonResult, ErrorModel>({
+        path: `/servers/${id}/docker/daemon/apply`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description Pulls each container's image again, then recreates it with the same settings: a compose service through `docker compose up -d --no-deps <service>`, any other container by copying its settings (the old one is kept until the new one runs). Runs as a job (kind `docker-update`).
      *
      * @tags Containers
@@ -19850,6 +20408,28 @@ export class Api<
     ) =>
       this.request<Job, ErrorModel>({
         path: `/servers/${id}/docker/images/${image}/copy`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Saving needs Engineer access to every server it updates (Operator in monitor mode). Runs act with the access of whoever saved it last.
+     *
+     * @tags Containers
+     * @name CreateDockerAutoUpdate
+     * @summary Add a container auto-update
+     * @request POST:/workspaces/{id}/docker/auto-updates
+     */
+    createDockerAutoUpdate: (
+      id: string,
+      data: DockerAutoUpdateBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerAutoUpdate, ErrorModel>({
+        path: `/workspaces/${id}/docker/auto-updates`,
         method: "POST",
         body: data,
         type: ContentType.Json,
@@ -19990,6 +20570,25 @@ export class Api<
       }),
 
     /**
+     * @description Its history goes with it.
+     *
+     * @tags Containers
+     * @name DeleteDockerAutoUpdate
+     * @summary Delete a container auto-update
+     * @request DELETE:/workspaces/{id}/docker/auto-updates/{policy}
+     */
+    deleteDockerAutoUpdate: (
+      id: string,
+      policy: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, ErrorModel>({
+        path: `/workspaces/${id}/docker/auto-updates/${policy}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
      * @description The files and the clone stay on the server; only Morche stops following the repository.
      *
      * @tags Containers
@@ -20126,6 +20725,35 @@ export class Api<
         method: "POST",
         body: data,
         type: ContentType.Json,
+        ...params,
+      }),
+
+    /**
+     * @description Call it from CI after pushing an image, or from a registry's webhook. No sign-in; the token is the secret. ?image= limits the run to containers of that image.
+     *
+     * @tags Containers
+     * @name DockerAutoUpdateWebhook
+     * @summary Run a container auto-update (webhook)
+     * @request POST:/hooks/docker-update/{token}
+     */
+    dockerAutoUpdateWebhook: (
+      token: string,
+      data: File,
+      query?: {
+        /**
+         * Only containers of this image (or repository; * allowed)
+         * @maxLength 300
+         */
+        image?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerAutoUpdateHookOutputBody, ErrorModel>({
+        path: `/hooks/docker-update/${token}`,
+        method: "POST",
+        query: query,
+        body: data,
+        format: "json",
         ...params,
       }),
 
@@ -20373,6 +21001,45 @@ export class Api<
       }),
 
     /**
+     * @description For a project outside the projects folder with no containers: Morche stops listing it and a later look leaves it out. Its files stay on the server. Engineer.
+     *
+     * @tags Containers
+     * @name ForgetDockerProject
+     * @summary Stop listing a compose project
+     * @request DELETE:/servers/{id}/docker/projects/{project}/place
+     */
+    forgetDockerProject: (
+      id: string,
+      project: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, ErrorModel>({
+        path: `/servers/${id}/docker/projects/${project}/place`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Containers
+     * @name GetDockerAutoUpdate
+     * @summary One container auto-update
+     * @request GET:/workspaces/{id}/docker/auto-updates/{policy}
+     */
+    getDockerAutoUpdate: (
+      id: string,
+      policy: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerAutoUpdate, ErrorModel>({
+        path: `/workspaces/${id}/docker/auto-updates/${policy}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description Config, state, health, resources, networks. The command needs Operator, the environment Engineer.
      *
      * @tags Containers
@@ -20393,6 +21060,22 @@ export class Api<
         path: `/servers/${id}/docker/containers/${container}`,
         method: "GET",
         query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The engine's settings file, where it is, whether Morche can write it, and how a change can be applied.
+     *
+     * @tags Containers
+     * @name GetDockerDaemonConfig
+     * @summary Docker's daemon.json
+     * @request GET:/servers/{id}/docker/daemon
+     */
+    getDockerDaemonConfig: (id: string, params: RequestParams = {}) =>
+      this.request<DockerDaemonConfig, ErrorModel>({
+        path: `/servers/${id}/docker/daemon`,
+        method: "GET",
         format: "json",
         ...params,
       }),
@@ -20494,6 +21177,22 @@ export class Api<
       }),
 
     /**
+     * @description What it found, each with its state against the projects listed now. The first listing of a server's projects starts a look by itself. Engineer.
+     *
+     * @tags Containers
+     * @name GetDockerProjectScan
+     * @summary The last look for compose projects on a server's disk
+     * @request GET:/servers/{id}/docker/project-scan
+     */
+    getDockerProjectScan: (id: string, params: RequestParams = {}) =>
+      this.request<DockerProjectScanResult, ErrorModel>({
+        path: `/servers/${id}/docker/project-scan`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * No description
      *
      * @tags Containers
@@ -20541,6 +21240,22 @@ export class Api<
     getDockerSettings: (id: string, params: RequestParams = {}) =>
       this.request<DockerSettings, ErrorModel>({
         path: `/workspaces/${id}/docker/settings`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The auto-updates that name this server, and which of its containers each one takes.
+     *
+     * @tags Containers
+     * @name GetServerDockerAutoUpdate
+     * @summary Auto-updates covering a server
+     * @request GET:/servers/{id}/docker/auto-update
+     */
+    getServerDockerAutoUpdate: (id: string, params: RequestParams = {}) =>
+      this.request<DockerServerAutoUpdate, ErrorModel>({
+        path: `/servers/${id}/docker/auto-update`,
         method: "GET",
         format: "json",
         ...params,
@@ -20623,6 +21338,51 @@ export class Api<
         method: "POST",
         body: data,
         type: ContentType.Json,
+        ...params,
+      }),
+
+    /**
+     * @description Newest first, 50 at a time.
+     *
+     * @tags Containers
+     * @name ListDockerAutoUpdateEvents
+     * @summary What auto-updates did
+     * @request GET:/workspaces/{id}/docker/auto-updates-events
+     */
+    listDockerAutoUpdateEvents: (
+      id: string,
+      query?: {
+        /** The next value of the page before */
+        before?: string;
+        /** @format uuid */
+        policy?: string;
+        result?: "updated" | "available" | "rolled_back" | "failed" | "skipped";
+        /** @format uuid */
+        server?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerAutoUpdateEvents, ErrorModel>({
+        path: `/workspaces/${id}/docker/auto-updates-events`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The workspace's auto-update policies with their last run and what the last 30 days held.
+     *
+     * @tags Containers
+     * @name ListDockerAutoUpdates
+     * @summary Container auto-updates
+     * @request GET:/workspaces/{id}/docker/auto-updates
+     */
+    listDockerAutoUpdates: (id: string, params: RequestParams = {}) =>
+      this.request<DockerAutoUpdates, ErrorModel>({
+        path: `/workspaces/${id}/docker/auto-updates`,
+        method: "GET",
+        format: "json",
         ...params,
       }),
 
@@ -20758,7 +21518,7 @@ export class Api<
       }),
 
     /**
-     * @description Projects its containers belong to, plus folders in the workspace's projects folder that hold a compose file.
+     * @description Projects its containers belong to, folders in the workspace's projects folder that hold a compose file, and compose projects elsewhere on the disk that were found or added. The first listing starts a look for compose files in the background.
      *
      * @tags Containers
      * @name ListDockerProjects
@@ -20921,6 +21681,28 @@ export class Api<
       }),
 
     /**
+     * @description Lists each server's containers with whether the rules take them in and why, and what the last registry check said about their image. Nothing is changed.
+     *
+     * @tags Containers
+     * @name PreviewDockerAutoUpdate
+     * @summary What an auto-update would take
+     * @request POST:/workspaces/{id}/docker/auto-updates/preview
+     */
+    previewDockerAutoUpdate: (
+      id: string,
+      data: DockerAutoUpdateRules,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerAutoUpdatePreview, ErrorModel>({
+        path: `/workspaces/${id}/docker/auto-updates/preview`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description Stopped containers, unused images, volumes, networks and the build cache, as chosen. Runs as a background job (kind `docker-prune`); its result says what went.
      *
      * @tags Containers
@@ -21078,6 +21860,26 @@ export class Api<
       }),
 
     /**
+     * @description The old address stops working.
+     *
+     * @tags Containers
+     * @name ResetDockerAutoUpdateWebhook
+     * @summary Make a new webhook address
+     * @request POST:/workspaces/{id}/docker/auto-updates/{policy}/webhook
+     */
+    resetDockerAutoUpdateWebhook: (
+      id: string,
+      policy: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerAutoUpdate, ErrorModel>({
+        path: `/workspaces/${id}/docker/auto-updates/${policy}/webhook`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description The old address stops working at once.
      *
      * @tags Containers
@@ -21145,6 +21947,29 @@ export class Api<
       }),
 
     /**
+     * @description Runs as a job (kind `docker-auto-update`) with the access of whoever saved it last. check_only = only look and report.
+     *
+     * @tags Containers
+     * @name RunDockerAutoUpdate
+     * @summary Run a container auto-update now
+     * @request POST:/workspaces/{id}/docker/auto-updates/{policy}/run
+     */
+    runDockerAutoUpdate: (
+      id: string,
+      policy: string,
+      data: DockerAutoUpdateRunBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/workspaces/${id}/docker/auto-updates/${policy}/run`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description Like `docker run -d`: creates the container and starts it (`create_only` leaves it stopped). The image must be on the server already. A container that is created but fails to start is kept and comes back with `error`.
      *
      * @tags Containers
@@ -21160,6 +21985,28 @@ export class Api<
       this.request<DockerRunResult, ErrorModel>({
         path: `/servers/${id}/docker/containers`,
         method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Checks the JSON (and `dockerd --validate` when there is one), keeps the old file as daemon.json.morcheh-bak, writes the new one and optionally reloads or restarts Docker. A restart that doesn't bring Docker back puts the old file back and restarts again (422 with Docker's log). 409 when the file changed since it was read.
+     *
+     * @tags Containers
+     * @name SaveDockerDaemonConfig
+     * @summary Save Docker's daemon.json
+     * @request PUT:/servers/{id}/docker/daemon
+     */
+    saveDockerDaemonConfig: (
+      id: string,
+      data: DockerDaemonSaveBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerDaemonResult, ErrorModel>({
+        path: `/servers/${id}/docker/daemon`,
+        method: "PUT",
         body: data,
         type: ContentType.Json,
         format: "json",
@@ -21227,6 +22074,51 @@ export class Api<
     ) =>
       this.request<Job, ErrorModel>({
         path: `/servers/${id}/docker/scans`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Finds compose files (system folders and dependency trees skipped, about a minute at most) and answers what it found. Nothing is added: send the ones to keep to add-docker-projects. Engineer.
+     *
+     * @tags Containers
+     * @name ScanDockerProjects
+     * @summary Look for compose projects on a server's disk
+     * @request POST:/servers/{id}/docker/project-scan
+     */
+    scanDockerProjects: (
+      id: string,
+      data: DockerProjectScanBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerProjectScanResult, ErrorModel>({
+        path: `/servers/${id}/docker/project-scan`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Containers
+     * @name SetDockerAutoUpdateEnabled
+     * @summary Turn a container auto-update on or off
+     * @request POST:/workspaces/{id}/docker/auto-updates/{policy}/enabled
+     */
+    setDockerAutoUpdateEnabled: (
+      id: string,
+      policy: string,
+      data: SetDockerAutoUpdateEnabledRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerAutoUpdate, ErrorModel>({
+        path: `/workspaces/${id}/docker/auto-updates/${policy}/enabled`,
         method: "POST",
         body: data,
         type: ContentType.Json,
@@ -21430,6 +22322,29 @@ export class Api<
       this.request<DockerRegistryTest, ErrorModel>({
         path: `/workspaces/${id}/docker/registries/test`,
         method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Containers
+     * @name UpdateDockerAutoUpdate
+     * @summary Change a container auto-update
+     * @request PUT:/workspaces/{id}/docker/auto-updates/{policy}
+     */
+    updateDockerAutoUpdate: (
+      id: string,
+      policy: string,
+      data: DockerAutoUpdateBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<DockerAutoUpdate, ErrorModel>({
+        path: `/workspaces/${id}/docker/auto-updates/${policy}`,
+        method: "PUT",
         body: data,
         type: ContentType.Json,
         format: "json",

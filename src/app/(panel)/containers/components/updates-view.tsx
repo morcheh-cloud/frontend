@@ -37,6 +37,7 @@ import {
   useCheckUpdates,
   useDockerUpdates,
 } from "../api"
+import { AutoUpdateStrip } from "./auto-update-strip"
 import { EnvPage } from "./env-page"
 import { BulkBar, NoMatch, PageBar, Rows } from "./kit"
 import { containerHref, Dot, dockerHref, shortId, type Tone } from "./meta"
@@ -391,6 +392,12 @@ export function UpdatesView({
           </Button>
         </div>
       )}
+      <AutoUpdateStrip
+        server={id}
+        workspace={env.workspace_id}
+        total={env.total}
+        phone={phone}
+      />
       <div className={cn(phone ? "pt-3 pb-24" : "mt-4")}>{body}</div>
       {!phone && pickedItems.length > 0 && (
         <BulkBar
