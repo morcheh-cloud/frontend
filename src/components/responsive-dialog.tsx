@@ -78,9 +78,12 @@ export function ResponsiveDialog({
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
+        {/* minmax(0,1fr): a grid column defaults to min-content, so one
+            long nowrap line (a truncated name) would widen the body and
+            scroll it sideways. Nothing in a dialog scrolls sideways. */}
         <div
           data-slot="dialog-body"
-          className="-mx-6 -my-1 grid min-h-0 flex-1 gap-5 overflow-y-auto px-6 py-1"
+          className="-mx-6 -my-1 grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] gap-5 overflow-x-hidden overflow-y-auto px-6 py-1"
         >
           {children}
         </div>

@@ -434,7 +434,7 @@ function MoreTabs({
         )}
         <ChevronDown />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-56">
+      <DropdownMenuContent align="start" className="min-w-56">
         {tabs.map((info) => {
           const Icon = editorTabMeta[info.tab].icon
           return (

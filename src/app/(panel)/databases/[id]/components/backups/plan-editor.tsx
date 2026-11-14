@@ -25,6 +25,10 @@ import { toast } from "sonner"
 
 import { usePreview } from "@/app/(panel)/cronjobs/api"
 import {
+  FieldError,
+  Section,
+} from "@/app/(panel)/cronjobs/components/editor-parts"
+import {
   browserZone,
   cronText,
   formatInZone,
@@ -43,6 +47,12 @@ import { useServers } from "@/app/(panel)/servers/api"
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
 import { useAccess } from "@/components/auth/auth"
 import { atLeast } from "@/components/auth/level"
+import {
+  AsideCard,
+  EditorLoading,
+  EditorPage,
+  SummaryList,
+} from "@/components/editor-page"
 import { Field } from "@/components/field"
 import { useJobActions } from "@/components/jobs/jobs-provider"
 import { usePageCrumbs } from "@/components/panel/breadcrumbs"
@@ -535,6 +545,60 @@ function Editor({
     .filter(Boolean)
     .join(" · ")
 
+  const summaryRows: [string, ReactNode, boolean?][] = [
+    [
+      "When",
+      `${scheduleLabel}${draft.cron && !draft.enabled ? " (paused)" : ""}`,
+    ],
+    [
+      "What",
+      db.engine === "redis"
+        ? "Everything"
+        : draft.selection === "selected"
+          ? draft.targets.join(", ") || "Nothing picked yet"
+          : selectionText(draft, db.engine),
+    ],
+    [
+      "Type",
+      methodText({
+        method: draft.method,
+        full_every_days: num(draft.fullEvery) || 7,
+      }),
+    ],
+    [
+      "Stored on",
+      draft.storages.length
+        ? draft.storages.map(storageName).join(", ")
+        : "Nothing picked yet",
+    ],
+    ["Folder", folderPreview, true],
+    [
+      "Keeps",
+      retentionText({
+        retention: draft.retention,
+        keep_days: num(draft.keepDays) || 0,
+        gfs_daily: num(draft.gfsDaily) || 0,
+        gfs_weekly: num(draft.gfsWeekly) || 0,
+        gfs_monthly: num(draft.gfsMonthly) || 0,
+      }),
+    ],
+    [
+      "Runs on",
+      db.server_id
+        ? "The server it's reached through"
+        : draft.runner
+          ? (runnerItems.find((r) => r.value === draft.runner)?.label ??
+            "A server")
+          : LOCAL_RUNNER,
+    ],
+    [
+      "Runs as",
+      saved?.runs_as
+        ? `${saved.runs_as} now; once you save, you`
+        : "You: whoever saves it last",
+    ],
+  ]
+
   const sections = (
     <>
       <Section title="Name" phone={phone}>
@@ -956,55 +1020,13 @@ function Editor({
         )}
       </Section>
 
-      <Section title="Summary" phone={phone}>
+      <Section title="Summary" phone={phone} className="xl:hidden">
         <dl className="grid gap-x-6 gap-y-3 text-body-sm md:grid-cols-[10rem_minmax(0,1fr)]">
-          <SummaryRow label="When">
-            {scheduleLabel}
-            {draft.cron && !draft.enabled && " (paused)"}
-          </SummaryRow>
-          <SummaryRow label="What">
-            {db.engine === "redis"
-              ? "Everything"
-              : draft.selection === "selected"
-                ? draft.targets.join(", ") || "Nothing picked yet"
-                : selectionText(draft, db.engine)}
-          </SummaryRow>
-          <SummaryRow label="Type">
-            {methodText({
-              method: draft.method,
-              full_every_days: num(draft.fullEvery) || 7,
-            })}
-          </SummaryRow>
-          <SummaryRow label="Stored on">
-            {draft.storages.length
-              ? draft.storages.map(storageName).join(", ")
-              : "Nothing picked yet"}
-          </SummaryRow>
-          <SummaryRow label="Folder" mono>
-            {folderPreview}
-          </SummaryRow>
-          <SummaryRow label="Keeps">
-            {retentionText({
-              retention: draft.retention,
-              keep_days: num(draft.keepDays) || 0,
-              gfs_daily: num(draft.gfsDaily) || 0,
-              gfs_weekly: num(draft.gfsWeekly) || 0,
-              gfs_monthly: num(draft.gfsMonthly) || 0,
-            })}
-          </SummaryRow>
-          <SummaryRow label="Runs on">
-            {db.server_id
-              ? "The server it's reached through"
-              : draft.runner
-                ? (runnerItems.find((r) => r.value === draft.runner)?.label ??
-                  "A server")
-                : LOCAL_RUNNER}
-          </SummaryRow>
-          <SummaryRow label="Runs as">
-            {saved?.runs_as
-              ? `${saved.runs_as} now; once you save, you`
-              : "You: whoever saves it last"}
-          </SummaryRow>
+          {summaryRows.map(([label, value, mono]) => (
+            <SummaryRow key={label} label={label} mono={mono}>
+              {value}
+            </SummaryRow>
+          ))}
         </dl>
       </Section>
     </>
@@ -1048,25 +1070,25 @@ function Editor({
   }
 
   return (
-    <div className="flex flex-col gap-6 px-6 pt-5 pb-12">
-      <div className="flex items-center gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-          <DatabaseBackup className="size-5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-subheading font-medium">
-            {draft.name.trim() || saved?.name || "New backup plan"}
-          </h1>
-          <p className="truncate text-caption text-ash">
-            {db.name} ·{" "}
-            {dirty
-              ? "Unsaved changes"
-              : saved
-                ? `Saved ${timeAgo(saved.updated_at)}`
-                : "Not saved yet"}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
+    <EditorPage
+      icon={<DatabaseBackup />}
+      title={draft.name.trim() || saved?.name || "New backup plan"}
+      dirty={dirty}
+      status={`${db.name} · ${
+        dirty
+          ? "Unsaved changes"
+          : saved
+            ? `Saved ${timeAgo(saved.updated_at)}`
+            : "Not saved yet"
+      }`}
+      onSave={save.isPending || (!!saved && !dirty) ? undefined : submit}
+      aside={
+        <AsideCard title="Summary">
+          <SummaryList rows={summaryRows} />
+        </AsideCard>
+      }
+      actions={
+        <>
           <Button
             variant="outline"
             className="h-9"
@@ -1082,14 +1104,15 @@ function Editor({
           >
             {saveLabel}
           </Button>
-        </div>
-      </div>
-      <div className="max-w-5xl rounded-2xl border border-border bg-subtle px-5 py-3">
+        </>
+      }
+    >
+      <div className="rounded-2xl border border-border bg-subtle px-5 py-3 xl:hidden">
         <p className="text-body-sm">{summary}</p>
         <p className="text-caption text-muted-foreground">{summaryTail}</p>
       </div>
-      <div className="grid max-w-5xl gap-6">{sections}</div>
-    </div>
+      {sections}
+    </EditorPage>
   )
 }
 
@@ -1594,38 +1617,6 @@ function SummaryRow({
   )
 }
 
-// A titled block: a card on desktop, a plain full-width group on phones.
-function Section({
-  title,
-  hint,
-  phone,
-  children,
-}: {
-  title: string
-  hint?: string
-  phone: boolean
-  children: ReactNode
-}) {
-  return (
-    <section
-      className={cn(
-        "flex flex-col gap-4",
-        phone
-          ? "border-b border-border px-4 py-5"
-          : "rounded-2xl border border-border p-6 lg:grid lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-8",
-      )}
-    >
-      <div>
-        <h2 className="text-body font-medium">{title}</h2>
-        {hint && (
-          <p className="mt-0.5 text-caption text-muted-foreground">{hint}</p>
-        )}
-      </div>
-      <div className="flex min-w-0 flex-col gap-4">{children}</div>
-    </section>
-  )
-}
-
 function Note({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   return (
     <div className="flex gap-2.5 rounded-lg bg-subtle px-3 py-2.5 text-caption text-muted-foreground [&>svg]:mt-px [&>svg]:size-4 [&>svg]:shrink-0">
@@ -1633,11 +1624,6 @@ function Note({ icon, children }: { icon: ReactNode; children: ReactNode }) {
       <p>{children}</p>
     </div>
   )
-}
-
-function FieldError({ text }: { text?: string }) {
-  if (!text) return null
-  return <p className="text-caption text-destructive">{text}</p>
 }
 
 function Missing({
@@ -1671,11 +1657,12 @@ function Missing({
 }
 
 function Loading({ phone }: { phone: boolean }) {
+  if (!phone) return <EditorLoading />
   return (
-    <div className={cn("flex flex-col gap-4", phone ? "p-4" : "px-6 pt-6")}>
+    <div className="flex flex-col gap-4 p-4">
       <Skeleton className="h-8 w-60" />
-      <Skeleton className="h-40 w-full max-w-5xl rounded-2xl" />
-      <Skeleton className="h-40 w-full max-w-5xl rounded-2xl" />
+      <Skeleton className="h-40 w-full rounded-2xl" />
+      <Skeleton className="h-40 w-full rounded-2xl" />
     </div>
   )
 }

@@ -249,9 +249,11 @@ function Editor({
     !can(p, "engineer") || !canWrite(p) || !!host?.redacted || save.isPending
   const why = !can(p, "engineer")
     ? "You can look, but changing sites needs Engineer access on this server."
-    : !canWrite(p)
-      ? `${p.kind_label} can't take changes right now (${proxyStatusMeta[p.status].label.toLowerCase()}). Fix that on the proxy's page first.`
-      : ""
+    : p.manager
+      ? `${p.container} runs ${p.manager}, which writes nginx's config itself: change sites there.`
+      : !canWrite(p)
+        ? `${p.kind_label} can't take changes right now (${proxyStatusMeta[p.status].label.toLowerCase()}). Fix that on the proxy's page first.`
+        : ""
 
   // Don't lose a half-made site to a closed tab.
   useEffect(() => {
@@ -1160,7 +1162,7 @@ function Editor({
         }
       />
       {showNotices && (
-        <div className="flex max-w-3xl flex-col gap-3 px-6 pt-5">{notices}</div>
+        <div className="flex flex-col gap-3 px-6 pt-5">{notices}</div>
       )}
       <div className="px-6 pt-5">{form}</div>
       {conflictDialog}

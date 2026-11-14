@@ -184,7 +184,7 @@ export function TerminalDesktop({
               <Empty onNew={() => w.add()}>No terminals open</Empty>
             )}
           </ContextMenuTrigger>
-          <ContextMenuContent className="w-52">
+          <ContextMenuContent className="min-w-52">
             <ContextMenuItem onClick={w.copy}>
               <Copy />
               Copy

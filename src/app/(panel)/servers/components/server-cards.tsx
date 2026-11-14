@@ -194,7 +194,7 @@ function Card({
               >
                 <Ellipsis />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="end" className="min-w-56">
                 <ServerMenuItems server={server} checking={checking} />
               </DropdownMenuContent>
             </DropdownMenu>

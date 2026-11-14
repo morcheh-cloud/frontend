@@ -76,7 +76,7 @@ export function FilterMenu({ f }: { f: FilterSpec }) {
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
-        className="max-h-[min(28rem,var(--available-height))] w-72"
+        className="max-h-[min(28rem,var(--available-height))] min-w-72"
       >
         <DropdownMenuGroup>
           <DropdownMenuLabel>{f.title}</DropdownMenuLabel>

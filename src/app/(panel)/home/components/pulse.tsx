@@ -350,7 +350,7 @@ function AddMenu() {
         <Plus />
         Add
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
+      <DropdownMenuContent align="end" className="min-w-48">
         <DropdownMenuGroup>
           <DropdownMenuLabel>Add to this workspace</DropdownMenuLabel>
           {actions.map((a) => (

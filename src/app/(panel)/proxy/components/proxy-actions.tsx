@@ -351,20 +351,22 @@ export function ProxyActionsProvider({ children }: { children: ReactNode }) {
               Morche forgets this proxy and its sites.{" "}
               {toRemove?.proxy.kind_label} itself stays installed on the server.
             </p>
-            {/* biome-ignore lint/a11y/noLabelWithoutControl: Base UI checkbox renders the control inside */}
-            <label className="flex min-h-11 items-start gap-2 text-foreground md:min-h-0">
-              <Checkbox
-                className="mt-0.5"
-                checked={removeFiles}
-                onCheckedChange={(v) => setRemoveFiles(v)}
-              />
-              <span>
-                Take Morche's sites off the server too
-                <span className="block text-caption text-muted-foreground">
-                  Untick to leave them running as they are, unmanaged.
+            {!toRemove?.proxy.manager && (
+              // biome-ignore lint/a11y/noLabelWithoutControl: Base UI checkbox renders the control inside
+              <label className="flex min-h-11 items-start gap-2 text-foreground md:min-h-0">
+                <Checkbox
+                  className="mt-0.5"
+                  checked={removeFiles}
+                  onCheckedChange={(v) => setRemoveFiles(v)}
+                />
+                <span>
+                  Take Morche's sites off the server too
+                  <span className="block text-caption text-muted-foreground">
+                    Untick to leave them running as they are, unmanaged.
+                  </span>
                 </span>
-              </span>
-            </label>
+              </label>
+            )}
           </div>
         }
         confirmLabel="Remove proxy"
@@ -372,7 +374,10 @@ export function ProxyActionsProvider({ children }: { children: ReactNode }) {
         onConfirm={() =>
           toRemove &&
           removeProxy.mutate(
-            { id: toRemove.proxy.id, removeFiles },
+            {
+              id: toRemove.proxy.id,
+              removeFiles: removeFiles && !toRemove.proxy.manager,
+            },
             {
               onSuccess: () => {
                 whenClosed(setRemoveOpen, toRemove.done)
@@ -620,7 +625,9 @@ export function useProxyMenu() {
   ): Item[][] => {
     const engineer = can(p, "engineer")
     const operator = can(p, "operator")
-    const live = canWrite(p) || p.status === "config_error"
+    const live = canWrite({ status: p.status }) || p.status === "config_error"
+    // A proxy manager owns the config: test it, never reload or stop it.
+    const control = !p.manager
     return [
       open
         ? [
@@ -650,31 +657,37 @@ export function useProxyMenu() {
               icon: <FileCheck />,
               onSelect: () => a.run(p, "test"),
             },
-            {
-              key: "reload",
-              label: "Reload",
-              icon: <RefreshCw />,
-              disabled: p.status === "stopped",
-              onSelect: () => a.run(p, "reload"),
-            },
-            ...(p.status === "stopped"
+            ...(control
               ? [
                   {
-                    key: "start",
-                    label: "Start",
-                    icon: <CirclePlay />,
-                    onSelect: () => a.run(p, "start"),
+                    key: "reload",
+                    label: "Reload",
+                    icon: <RefreshCw />,
+                    disabled: p.status === "stopped",
+                    onSelect: () => a.run(p, "reload"),
                   },
                 ]
-              : [
-                  {
-                    key: "restart",
-                    label: "Restart",
-                    icon: <RotateCw />,
-                    onSelect: () => a.run(p, "restart"),
-                  },
-                ]),
-            ...(engineer && p.status !== "stopped"
+              : []),
+            ...(!control
+              ? []
+              : p.status === "stopped"
+                ? [
+                    {
+                      key: "start",
+                      label: "Start",
+                      icon: <CirclePlay />,
+                      onSelect: () => a.run(p, "start"),
+                    },
+                  ]
+                : [
+                    {
+                      key: "restart",
+                      label: "Restart",
+                      icon: <RotateCw />,
+                      onSelect: () => a.run(p, "restart"),
+                    },
+                  ]),
+            ...(control && engineer && p.status !== "stopped"
               ? [
                   {
                     key: "stop",
@@ -688,6 +701,7 @@ export function useProxyMenu() {
         : [],
       [
         ...(engineer &&
+        control &&
         p.status !== "unreachable" &&
         !(inContainer(p) && p.status === "not_installed")
           ? [

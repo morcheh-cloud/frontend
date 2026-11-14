@@ -191,7 +191,7 @@ export function ServerContextContent({
   checking: boolean
 }) {
   return (
-    <ContextMenuContent className="w-56">
+    <ContextMenuContent className="min-w-56">
       <ContextMenuItem
         onClick={() =>
           window.open(`/servers/${server.id}`, "_blank", "noopener")

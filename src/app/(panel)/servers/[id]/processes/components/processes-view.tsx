@@ -345,7 +345,7 @@ function ShowMenu() {
         <SlidersHorizontal className="size-4" />
         {showLabels[filters.show]} · {count(filters.show)}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-72">
+      <DropdownMenuContent align="start" className="min-w-72">
         <DropdownMenuGroup>
           <DropdownMenuLabel>Show</DropdownMenuLabel>
           <DropdownMenuRadioGroup
@@ -394,7 +394,7 @@ function UserMenu() {
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
-        className="max-h-96 w-56 overflow-y-auto"
+        className="max-h-96 min-w-56 overflow-y-auto"
       >
         <DropdownMenuGroup>
           <DropdownMenuLabel>User</DropdownMenuLabel>
@@ -447,7 +447,7 @@ function LiveMenu({
         {live === "off" ? "Paused" : `Live · ${live} s`}
         <ChevronDown className="size-3.5 text-ash" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent align="end" className="min-w-56">
         <DropdownMenuGroup>
           <DropdownMenuLabel>Read the processes again</DropdownMenuLabel>
           <DropdownMenuRadioGroup

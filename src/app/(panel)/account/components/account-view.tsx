@@ -62,7 +62,7 @@ export function AccountView() {
           title="Password"
           note="Changing it signs out your other browsers and closes your open terminals."
         >
-          <div className="max-w-md">
+          <div className="max-w-xl">
             <ChangePasswordForm
               currentLabel="Current password"
               submitLabel="Change password"
@@ -95,13 +95,15 @@ function Section({
   return (
     <section
       id={id}
-      className="scroll-mt-16 border-border max-md:border-y max-md:px-4 max-md:py-5 md:rounded-2xl md:border md:p-6"
+      className="scroll-mt-16 border-border max-md:border-y max-md:px-4 max-md:py-5 md:rounded-2xl md:border md:p-6 lg:grid lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-10 2xl:grid-cols-[20rem_minmax(0,1fr)]"
     >
-      <h2 className="font-medium">{title}</h2>
-      {note && (
-        <p className="mt-1 text-body-sm text-muted-foreground">{note}</p>
-      )}
-      <div className="mt-4">{children}</div>
+      <div>
+        <h2 className="font-medium">{title}</h2>
+        {note && (
+          <p className="mt-1 text-body-sm text-muted-foreground">{note}</p>
+        )}
+      </div>
+      <div className="mt-4 min-w-0 lg:mt-0">{children}</div>
     </section>
   )
 }
@@ -136,7 +138,7 @@ function Profile() {
     save.mutate()
   }
   return (
-    <form onSubmit={submit} className="flex max-w-md flex-col gap-4">
+    <form onSubmit={submit} className="grid max-w-4xl gap-4 sm:grid-cols-2">
       <Field label="Username" hint="Can't be changed.">
         {(props) => <Input {...props} value={user.username} disabled />}
       </Field>
@@ -176,7 +178,7 @@ function Profile() {
           />
         )}
       </Field>
-      <div>
+      <div className="sm:col-span-2">
         <Button type="submit" className="max-md:h-11" disabled={save.isPending}>
           {save.isPending ? "Saving…" : "Save"}
         </Button>

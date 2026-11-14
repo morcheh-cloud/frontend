@@ -526,7 +526,7 @@ function MoreFilters({
           </span>
         )}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-64">
+      <DropdownMenuContent align="start" className="min-w-64">
         <DropdownMenuGroup>
           <DropdownMenuCheckboxItem checked={root} onCheckedChange={onRoot}>
             <ShieldAlert />

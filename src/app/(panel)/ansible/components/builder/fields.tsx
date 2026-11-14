@@ -372,7 +372,7 @@ function ChoiceField({
       <SelectTrigger
         id={id}
         className={cn(
-          "h-11 w-full md:h-9",
+          "h-11 w-full md:h-10",
           value === undefined && "text-muted-foreground",
         )}
       >

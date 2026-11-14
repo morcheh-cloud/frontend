@@ -1,6 +1,6 @@
 "use client"
 
-import { ChevronRight, RefreshCw } from "lucide-react"
+import { ChevronRight, Globe, Lock, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { type ReactNode, useState } from "react"
 
@@ -15,19 +15,34 @@ import type {
   ProxyHost,
   ProxyHostTraffic,
   ProxyInspection,
+  ProxyTraffic,
 } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { useInspection, useProxy, useProxyTraffic } from "../../api"
-import { count, errorTone, MiniBars, rate, sum } from "../../components/live"
+import {
+  count,
+  errorTone,
+  MiniBars,
+  rate,
+  type SiteTraffic,
+  sum,
+} from "../../components/live"
+import {
+  type ManagedSite,
+  managedTraffic,
+  useManagedSites,
+} from "../../components/managed-sites"
 import {
   byHostName,
   domainsText,
   hostHref,
+  hostName,
   hostTypeMeta,
   hostTypes,
   proxyStatusMeta,
 } from "../../components/meta"
 import { Tag, Th } from "../../components/parts"
+import { useProxyActions } from "../../components/proxy-actions"
 import { ProxyLive } from "./live-traffic"
 import { Domain } from "./sites-tab"
 import { inspectable, Toolbar, useTab } from "./toolbar"
@@ -46,7 +61,14 @@ const sortLabels: Record<Sort, string> = {
 const FIRST = 8
 
 type SiteRow = {
-  host: ProxyHost
+  key: string
+  // Sorts rows with the same numbers.
+  sortName: string
+  name: ReactNode
+  title: string
+  // A Morche site opens its page, a proxy manager's its read-only view.
+  href?: string
+  open?: () => void
   stream: boolean
   series: number[]
   errorSeries: number[]
@@ -58,32 +80,88 @@ type SiteRow = {
   share: number
 }
 
-function siteRows(
+type Numbers = Omit<
+  SiteRow,
+  "key" | "sortName" | "name" | "title" | "href" | "open" | "stream"
+>
+
+function numbers(t: SiteTraffic | undefined, minutes: number): Numbers {
+  const blank = Array.from({ length: Math.max(0, minutes - 1) }, () => 0)
+  const series = t ? t.requests.slice(0, -1) : blank
+  return {
+    series,
+    errorSeries: t ? t.server_errors.slice(0, -1) : blank,
+    now: series.at(-1) ?? 0,
+    total: sum(t?.requests),
+    client: sum(t?.client_errors),
+    server: sum(t?.server_errors),
+    bytes: sum(t?.bytes),
+    share: 0,
+  }
+}
+
+function hostRows(
+  proxyId: string,
   hosts: ProxyHost[],
   traffic: ProxyHostTraffic[],
   minutes: number,
-  sort: Sort,
 ): SiteRow[] {
   const byId = new Map(traffic.map((t) => [t.host_id, t]))
-  const blank = Array.from({ length: Math.max(0, minutes - 1) }, () => 0)
-  const rows = hosts
+  return hosts
     .filter((h) => h.enabled)
-    .map((host) => {
-      const t = byId.get(host.id)
-      const series = t ? t.requests.slice(0, -1) : blank
-      return {
-        host,
-        stream: host.config.type === "stream",
-        series,
-        errorSeries: t ? t.server_errors.slice(0, -1) : blank,
-        now: series.at(-1) ?? 0,
-        total: sum(t?.requests),
-        client: sum(t?.client_errors),
-        server: sum(t?.server_errors),
-        bytes: sum(t?.bytes),
-        share: 0,
-      }
-    })
+    .map((host) => ({
+      key: host.id,
+      sortName: hostName(host),
+      name: <Domain host={host} />,
+      title: `${hostTypeMeta[host.config.type].label} · open its report`,
+      href: hostHref(proxyId, host.id),
+      stream: host.config.type === "stream",
+      ...numbers(byId.get(host.id), minutes),
+    }))
+}
+
+// A proxy manager's sites with a log of their own (the rest has no numbers).
+function managedRows(
+  sites: ManagedSite[],
+  traffic: ProxyTraffic | undefined,
+  minutes: number,
+  open: (m: ManagedSite) => void,
+): SiteRow[] {
+  const byKey = managedTraffic(traffic)
+  return sites.flatMap((m) => {
+    const t = byKey.get(m.key)
+    if (!t) return []
+    const name = m.site.domains[0] ?? "No domain"
+    return [
+      {
+        key: m.key,
+        sortName: name,
+        name: (
+          <span className="flex min-w-0 items-center gap-2">
+            {m.site.tls ? (
+              <Lock
+                aria-label="https"
+                className="size-3.5 shrink-0 text-success"
+              />
+            ) : (
+              <Globe
+                aria-label="http only"
+                className="size-3.5 shrink-0 text-ash"
+              />
+            )}
+            <span className="truncate font-mono font-medium">{name}</span>
+          </span>
+        ),
+        title: `Set in ${m.proxy.manager} · see its settings`,
+        open: () => open(m),
+        stream: false,
+        ...numbers(t, minutes),
+      },
+    ]
+  })
+}
+
+function sortRows(rows: SiteRow[], sort: Sort): SiteRow[] {
   // A site's share of its own kind: connections and requests don't add up.
   for (const stream of [false, true]) {
     const all = sum(rows.filter((r) => r.stream === stream).map((r) => r.total))
@@ -96,7 +174,38 @@ function siteRows(
       : sort === "sent"
         ? r.bytes
         : r.total
-  return rows.sort((a, b) => key(b) - key(a) || byHostName(a.host, b.host))
+  return rows.sort(
+    (a, b) => key(b) - key(a) || a.sortName.localeCompare(b.sortName),
+  )
+}
+
+// The row's name as a link to its page, or a button for its view.
+function RowLink({
+  row,
+  className,
+  children,
+}: {
+  row: SiteRow
+  className: string
+  children: ReactNode
+}) {
+  if (row.href) {
+    return (
+      <Link href={row.href} className={className} title={row.title}>
+        {children}
+      </Link>
+    )
+  }
+  return (
+    <button
+      type="button"
+      onClick={row.open}
+      className={cn("w-full text-start", className)}
+      title={row.title}
+    >
+      {children}
+    </button>
+  )
 }
 
 export function ReportTab({ detail }: { detail: ProxyDetail }) {
@@ -105,9 +214,19 @@ export function ReportTab({ detail }: { detail: ProxyDetail }) {
   const query = useProxy(p.id)
   const traffic = useProxyTraffic(p.id)
   const inspection = useInspection(p.id, inspectable(p))
+  const actions = useProxyActions()
+  const managed = useManagedSites([p], "")
   const [sort, setSort] = useState<Sort>("busiest")
   const minutes = traffic.data?.minutes ?? 30
-  const rows = siteRows(detail.hosts, traffic.data?.hosts ?? [], minutes, sort)
+  const rows = sortRows(
+    p.manager
+      ? managedRows(managed.sites, traffic.data, minutes, (m) =>
+          actions.viewSite(p, m.site),
+        )
+      : hostRows(p.id, detail.hosts, traffic.data?.hosts ?? [], minutes),
+    sort,
+  )
+  const many = rows.length > 1
   const fetching =
     query.isFetching || traffic.isFetching || inspection.isFetching
   const refresh = () => {
@@ -127,16 +246,17 @@ export function ReportTab({ detail }: { detail: ProxyDetail }) {
   const sites = (
     <SitesNow
       rows={rows}
-      proxyId={p.id}
       minutes={minutes}
       pending={traffic.isPending}
       phone={!!phone}
       off={detail.hosts.filter((h) => !h.enabled).length}
+      manager={p.manager}
     />
   )
   const glance = (
     <AtAGlance
       detail={detail}
+      managed={managed.sites}
       inspection={inspection.data}
       checking={inspectable(p) && inspection.isPending}
       phone={!!phone}
@@ -163,9 +283,7 @@ export function ReportTab({ detail }: { detail: ProxyDetail }) {
 
       {phone ? (
         <>
-          <PhoneHeading action={detail.hosts.length > 1 && sorter}>
-            Sites right now
-          </PhoneHeading>
+          <PhoneHeading action={many && sorter}>Sites right now</PhoneHeading>
           {sites}
           <PhoneHeading>This proxy</PhoneHeading>
           {glance}
@@ -175,7 +293,7 @@ export function ReportTab({ detail }: { detail: ProxyDetail }) {
           <Card
             title="Sites right now"
             caption={`Last ${minutes} minutes`}
-            action={detail.hosts.length > 1 && sorter}
+            action={many && sorter}
           >
             {sites}
           </Card>
@@ -233,18 +351,18 @@ function PhoneHeading({
 
 function SitesNow({
   rows,
-  proxyId,
   minutes,
   pending,
   phone,
   off,
+  manager,
 }: {
   rows: SiteRow[]
-  proxyId: string
   minutes: number
   pending: boolean
   phone: boolean
   off: number
+  manager?: string
 }) {
   const [all, setAll] = useState(false)
   if (rows.length === 0) {
@@ -255,9 +373,13 @@ function SitesNow({
           phone && "border-y border-border px-4",
         )}
       >
-        {off
-          ? "Every site is turned off."
-          : "No sites yet. Add one in the Sites tab and its numbers show here."}
+        {manager
+          ? pending
+            ? "Reading the live numbers…"
+            : `No site in ${manager} has a log of its own yet.`
+          : off
+            ? "Every site is turned off."
+            : "No sites yet. Add one in the Sites tab and its numbers show here."}
       </p>
     )
   }
@@ -292,15 +414,13 @@ function SitesNow({
       <>
         <ul className="divide-y divide-border border-y border-border">
           {shown.map((r) => (
-            <li key={r.host.id}>
-              <Link
-                href={hostHref(proxyId, r.host.id)}
+            <li key={r.key}>
+              <RowLink
+                row={r}
                 className="flex min-h-16 items-center gap-3 px-4 py-3 outline-none active:bg-muted"
               >
                 <span className="flex min-w-0 flex-1 flex-col gap-1">
-                  <span className="text-body">
-                    <Domain host={r.host} />
-                  </span>
+                  <span className="text-body">{r.name}</span>
                   <span className="truncate text-body-sm text-muted-foreground tabular-nums">
                     {pending ? (
                       "–"
@@ -329,7 +449,7 @@ function SitesNow({
                   />
                 )}
                 <ChevronRight className="size-4 shrink-0 text-ash" />
-              </Link>
+              </RowLink>
             </li>
           ))}
         </ul>
@@ -356,15 +476,14 @@ function SitesNow({
           </thead>
           <tbody className="divide-y divide-border">
             {shown.map((r) => (
-              <tr key={r.host.id} className="h-12 hover:bg-subtle">
+              <tr key={r.key} className="h-12 hover:bg-subtle">
                 <td className="max-w-72 ps-5 pe-3">
-                  <Link
-                    href={hostHref(proxyId, r.host.id)}
+                  <RowLink
+                    row={r}
                     className="block outline-none hover:text-brand focus-visible:text-brand"
-                    title={`${hostTypeMeta[r.host.config.type].label} · open its report`}
                   >
-                    <Domain host={r.host} />
-                  </Link>
+                    {r.name}
+                  </RowLink>
                 </td>
                 <td className="hidden px-3 @2xl:table-cell">
                   {pending ? (
@@ -493,11 +612,14 @@ type Glance = {
 
 function AtAGlance({
   detail,
+  managed,
   inspection: i,
   checking,
   phone,
 }: {
   detail: ProxyDetail
+  // A proxy manager's sites, which stand in for Morche's.
+  managed: ManagedSite[]
   inspection?: ProxyInspection
   checking: boolean
   phone: boolean
@@ -537,16 +659,47 @@ function AtAGlance({
               ? "destructive"
               : undefined,
     },
-    {
+  ]
+  if (p.manager) {
+    const kinds = [
+      { tab: "hosts", label: "proxy" },
+      { tab: "redirects", label: "redirect" },
+      { tab: "notfound", label: "404" },
+    ]
+      .map((k) => ({ ...k, n: managed.filter((m) => m.tab === k.tab).length }))
+      .filter((k) => k.n > 0)
+    const served = managed.filter((m) => m.tab !== "notfound")
+    const secure = served.filter((m) => m.site.tls).length
+    items.push({
+      key: "sites",
+      label: `Sites in ${p.manager}`,
+      value: managed.length ? String(managed.length) : "None",
+      sub: kinds.map((k) => `${k.n} ${k.label}`).join(" · "),
+      go: () => t.setTab("existing"),
+      goLabel: "See what's on the server",
+    })
+    if (served.length > 0) {
+      items.push({
+        key: "https",
+        label: "HTTPS",
+        value: `${secure} of ${served.length} site${served.length === 1 ? "" : "s"}`,
+        sub:
+          secure === served.length
+            ? "Every site answers over https"
+            : `${served.length - secure} answer over plain http only`,
+      })
+    }
+  } else {
+    items.push({
       key: "sites",
       label: "Sites",
       value: `${on.length} on${hosts.length > on.length ? ` · ${hosts.length - on.length} off` : ""}`,
       sub: types.map((x) => `${x.n} ${x.label.toLowerCase()}`).join(" · "),
       go: () => t.setTab("sites"),
       goLabel: "Open the sites",
-    },
-  ]
-  if (web.length > 0) {
+    })
+  }
+  if (!p.manager && web.length > 0) {
     items.push({
       key: "https",
       label: "HTTPS",
@@ -582,47 +735,50 @@ function AtAGlance({
       tone: tone === "muted" ? undefined : tone,
     })
 
-    const states = new Map(i.hosts.map((h) => [h.id, h]))
-    const look = hosts.filter((h) => {
-      const s = states.get(h.id)
-      return (
-        h.enabled &&
-        !!s &&
-        (s.state === "changed" ||
-          s.state === "missing" ||
-          s.conflicts.length > 0 ||
-          !!s.unpublished)
-      )
-    })
-    items.push({
-      key: "attention",
-      label: "Need a look",
-      value: look.length
-        ? `${look.length} site${look.length === 1 ? "" : "s"}`
-        : "None",
-      sub: look.length
-        ? look
-            .sort(byHostName)
-            .slice(0, 3)
-            .map((h) => domainsText(h.domains))
-            .join(", ")
-        : "Every site on the server is as Morche wrote it",
-      tone: look.length ? "warning" : undefined,
-      go: look.length ? () => t.setTab("sites") : undefined,
-      goLabel: "Open the sites",
-    })
+    // A proxy manager has no Morche sites, and its own aren't hand-written.
+    if (!p.manager) {
+      const states = new Map(i.hosts.map((h) => [h.id, h]))
+      const look = hosts.filter((h) => {
+        const s = states.get(h.id)
+        return (
+          h.enabled &&
+          !!s &&
+          (s.state === "changed" ||
+            s.state === "missing" ||
+            s.conflicts.length > 0 ||
+            !!s.unpublished)
+        )
+      })
+      items.push({
+        key: "attention",
+        label: "Need a look",
+        value: look.length
+          ? `${look.length} site${look.length === 1 ? "" : "s"}`
+          : "None",
+        sub: look.length
+          ? look
+              .sort(byHostName)
+              .slice(0, 3)
+              .map((h) => domainsText(h.domains))
+              .join(", ")
+          : "Every site on the server is as Morche wrote it",
+        tone: look.length ? "warning" : undefined,
+        go: look.length ? () => t.setTab("sites") : undefined,
+        goLabel: "Open the sites",
+      })
 
-    const written = i.sites.filter((s) => !s.managed).length
-    items.push({
-      key: "existing",
-      label: "Hand-written sites",
-      value: written ? String(written) : "None",
-      sub: written
-        ? "Server blocks in the server's own files, read only here"
-        : undefined,
-      go: written ? () => t.setTab("existing") : undefined,
-      goLabel: "See what's on the server",
-    })
+      const written = i.sites.filter((s) => !s.managed).length
+      items.push({
+        key: "existing",
+        label: "Hand-written sites",
+        value: written ? String(written) : "None",
+        sub: written
+          ? "Server blocks in the server's own files, read only here"
+          : undefined,
+        go: written ? () => t.setTab("existing") : undefined,
+        goLabel: "See what's on the server",
+      })
+    }
 
     const features = [
       i.http3 && "HTTP/3",

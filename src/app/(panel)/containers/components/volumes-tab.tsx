@@ -23,7 +23,12 @@ import type { DockerVolume, DockerVolumeBackup, Server } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { Empty, SearchBox } from "../../servers/[id]/components/parts"
 import { timeAgo } from "../../servers/components/meta"
-import { useDockerUsage, useDockerVolumes, useVolumeBackups } from "../api"
+import {
+  useDockerUsage,
+  useDockerVolumes,
+  useRefreshDockerUsage,
+  useVolumeBackups,
+} from "../api"
 import { useDockerActions, useVolumeMenu } from "./docker-actions"
 import {
   BulkBar,
@@ -136,6 +141,7 @@ export function VolumesTab({
   const sizes = measure || f.sort === "size"
   const list = useDockerVolumes(server.id, sizes)
   const usage = useDockerUsage(server.id)
+  const refreshUsage = useRefreshDockerUsage(server.id)
   const backups = useVolumeBackups(server.id)
   const copies = copiesOf(backups.data?.items ?? [])
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -408,7 +414,7 @@ export function VolumesTab({
           busy: list.isFetching,
           run: () => {
             list.refetch()
-            usage.refetch()
+            refreshUsage()
             backups.refetch()
           },
         }}

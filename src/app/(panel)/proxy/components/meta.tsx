@@ -102,9 +102,15 @@ export function ProxyStatusDot({
 export const needsSetup = (p: Pick<ReverseProxy, "status">) =>
   p.status === "not_installed" || p.status === "not_set_up"
 
-// Sites can be written only while the proxy is set up and the server answers.
-export const canWrite = (p: Pick<ReverseProxy, "status">) =>
-  p.status === "online" || p.status === "stopped" || p.status === "unknown"
+// Run by a proxy manager (Nginx Proxy Manager…) that writes nginx's config
+// itself: Morche only reads it, and the backend refuses every change.
+export const managedBy = (p: Pick<ReverseProxy, "manager">) => p.manager || ""
+
+// Sites can be written only while the proxy is set up, the server answers and
+// no proxy manager owns the config.
+export const canWrite = (p: Pick<ReverseProxy, "status" | "manager">) =>
+  !p.manager &&
+  (p.status === "online" || p.status === "stopped" || p.status === "unknown")
 
 export type HostType = HostConfig["type"]
 
@@ -408,7 +414,10 @@ export function ProxyName({
   p,
   className,
 }: {
-  p: Pick<ReverseProxy, "server_name"> & { container?: string }
+  p: Pick<ReverseProxy, "server_name"> & {
+    container?: string
+    manager?: string
+  }
   className?: string
 }) {
   return (
@@ -421,6 +430,14 @@ export function ProxyName({
         >
           <Container className="size-3" />
           Container
+        </span>
+      )}
+      {p.manager && (
+        <span
+          title={`Runs ${p.manager}: Morche only reads it`}
+          className="inline-flex h-5 shrink-0 items-center rounded-full bg-muted px-2 text-caption font-normal whitespace-nowrap text-muted-foreground"
+        >
+          Read only
         </span>
       )}
     </span>

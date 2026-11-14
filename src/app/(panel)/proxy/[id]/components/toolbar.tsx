@@ -1,6 +1,6 @@
 "use client"
 
-import { useQueryStates } from "nuqs"
+import { parseAsStringLiteral, useQueryState, useQueryStates } from "nuqs"
 import type { ReactNode } from "react"
 
 import { Segmented } from "@/app/(panel)/servers/[id]/components/parts"
@@ -29,17 +29,34 @@ export const inspectable = (p: ReverseProxy) =>
 
 export function useTab(p: ReverseProxy) {
   const can = useProxyCan()
-  const [{ tab }, setFilters] = useQueryStates(pageKeys, {
+  const [, setFilters] = useQueryStates(pageKeys, {
     history: "replace",
     scroll: false,
   })
-  // Logs need Operator; the rest is for every reader.
-  const tabs = proxyTabs.filter((t) => t !== "logs" || can(p, "operator"))
+  const [raw, setRaw] = useQueryState(
+    "tab",
+    parseAsStringLiteral(proxyTabs).withOptions({
+      history: "replace",
+      scroll: false,
+    }),
+  )
+  const fallback: ProxyTab = "report"
+  // Logs need Operator; the rest is for every reader. A proxy manager's
+  // container has no Morche sites, so no Sites or History either.
+  const allowed = proxyTabs.filter(
+    (t) =>
+      (t !== "logs" || can(p, "operator")) &&
+      !(p.manager && (t === "sites" || t === "history")),
+  )
+  const tabs = allowed
+  const want = raw ?? fallback
   return {
-    tab: tabs.includes(tab) ? tab : ("report" as const),
+    tab: tabs.includes(want) ? want : fallback,
     tabs,
-    setTab: (t: ProxyTab) =>
-      setFilters({ ...cleared, tab: t === "report" ? null : t }),
+    setTab: (t: ProxyTab) => {
+      setFilters({ ...cleared, tab: null })
+      setRaw(t === fallback ? null : t)
+    },
   }
 }
 

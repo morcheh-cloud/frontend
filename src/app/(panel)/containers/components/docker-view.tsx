@@ -5,6 +5,7 @@ import {
   Container,
   FolderGit2,
   List,
+  LoaderCircle,
   Play,
   Plus,
   RotateCw,
@@ -34,6 +35,7 @@ import {
   useDockerNetworks,
   useDockerUsage,
   useDockerVolumes,
+  useRefreshDockerUsage,
 } from "../api"
 import {
   ContainerRows,
@@ -523,6 +525,7 @@ function SystemTab({
   const { server, can } = ctx
   const a = useDockerActions()
   const usage = useDockerUsage(server.id)
+  const refreshUsage = useRefreshDockerUsage(server.id)
   const engine = useDockerEngine(server.id)
   return (
     <div className="flex flex-col gap-4 max-md:gap-0">
@@ -530,9 +533,10 @@ function SystemTab({
         ctx={ctx}
         aside={aside}
         refresh={{
-          busy: usage.isFetching || engine.isFetching,
+          busy:
+            usage.isFetching || !!usage.data?.measuring || engine.isFetching,
           run: () => {
-            usage.refetch()
+            refreshUsage()
             engine.refetch()
           },
         }}
@@ -623,7 +627,14 @@ export function SystemPanels({
         }
       >
         {usage.isPending ? (
-          <Skeleton className="h-48 rounded-xl" />
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-48 rounded-xl" />
+            <p className="flex items-center gap-2 text-caption text-muted-foreground">
+              <LoaderCircle className="size-3.5 animate-spin" />
+              The engine is measuring every image, container and volume. With a
+              lot of data this takes a while; after that it opens at once.
+            </p>
+          </div>
         ) : !u ? (
           <p className="text-body-sm text-muted-foreground">
             Couldn't read it: {usage.error?.message}
@@ -677,6 +688,17 @@ export function SystemPanels({
                 </li>
               ))}
             </ul>
+            <p className="flex items-center gap-1.5 border-t border-border pt-3 text-caption text-ash">
+              {u.measuring ? (
+                <>
+                  <LoaderCircle className="size-3.5 animate-spin" />
+                  Measuring again… these are from{" "}
+                  {timeAgo(u.measured_at).toLowerCase()}
+                </>
+              ) : (
+                <>Measured {timeAgo(u.measured_at).toLowerCase()}</>
+              )}
+            </p>
           </div>
         )}
       </Block>

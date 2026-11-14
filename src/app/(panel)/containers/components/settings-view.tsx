@@ -64,7 +64,7 @@ function SettingsView({ ws, phone }: WsCtx) {
   const envQuery = useDockerServerSettings(ws.id)
   if (query.isPending || envQuery.isPending) {
     return (
-      <div className="flex max-w-3xl flex-col gap-6">
+      <div className="flex flex-col gap-6">
         <Skeleton className="h-9 w-64" />
         {[0, 1, 2, 3].map((i) => (
           <div key={i} className="flex flex-col gap-2">
@@ -488,7 +488,7 @@ function SettingsForm({
 
   if (phone) return body
   return (
-    <div className="grid gap-10 lg:grid-cols-[12rem_minmax(0,48rem)]">
+    <div className="grid gap-10 lg:grid-cols-[12rem_minmax(0,1fr)] 2xl:grid-cols-[14rem_minmax(0,1fr)]">
       <SideNav
         mark={(id) => {
           const keys = (sections.find((s) => s.id === id)?.keys ??

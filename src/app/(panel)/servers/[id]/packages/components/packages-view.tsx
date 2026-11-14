@@ -359,7 +359,7 @@ function ShowMenu() {
           ? "All packages"
           : `${showLabels[filters.show]} · ${count(filters.show)}`}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-60">
+      <DropdownMenuContent align="start" className="min-w-60">
         <DropdownMenuGroup>
           <DropdownMenuLabel>Show</DropdownMenuLabel>
           <DropdownMenuRadioGroup
@@ -402,7 +402,7 @@ function SortMenu() {
         <ArrowDownUp className="size-4" />
         {sortLabels[filters.sort]}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-48">
+      <DropdownMenuContent align="start" className="min-w-48">
         <DropdownMenuGroup>
           <DropdownMenuLabel>Sort by</DropdownMenuLabel>
           <DropdownMenuRadioGroup

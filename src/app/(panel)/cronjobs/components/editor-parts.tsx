@@ -3,6 +3,7 @@
 import { Pencil, Plus, X } from "lucide-react"
 import type { ReactNode } from "react"
 
+import { sectionId } from "@/components/editor-page"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
@@ -10,24 +11,30 @@ import type { EndDraft } from "./end-picker"
 import { EndIcon, endName } from "./meta"
 
 // A titled block: a card on desktop, a plain full-width group on phones.
+// On an `EditorPage` it shows in the "On this page" list.
 export function Section({
   title,
   hint,
   phone,
   children,
+  className,
 }: {
   title: string
   hint?: string
   phone: boolean
   children: ReactNode
+  className?: string
 }) {
   return (
     <section
+      id={sectionId(title)}
+      data-editor-section={title}
       className={cn(
         "flex flex-col gap-4",
         phone
           ? "border-b border-border px-4 py-5"
-          : "rounded-2xl border border-border p-6 lg:grid lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-8",
+          : "rounded-2xl border border-border p-6 lg:grid lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-8 2xl:grid-cols-[16rem_minmax(0,1fr)] 2xl:gap-10",
+        className,
       )}
     >
       <div>
@@ -114,7 +121,11 @@ export function AddButton({
 
 export function FieldError({ text }: { text?: string }) {
   if (!text) return null
-  return <p className="text-caption text-destructive">{text}</p>
+  return (
+    <p data-error className="text-caption text-destructive">
+      {text}
+    </p>
+  )
 }
 
 export function Callout({

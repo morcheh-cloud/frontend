@@ -65,7 +65,7 @@ export function BottomSheet({
               )}
               <div
                 className={cn(
-                  "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4",
+                  "min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4",
                   !footer &&
                     "pb-[calc(--spacing(4)+env(safe-area-inset-bottom))]",
                   className,

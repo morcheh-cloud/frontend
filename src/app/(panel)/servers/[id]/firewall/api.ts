@@ -4,7 +4,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { isActive, useJobList } from "@/components/jobs/api"
 import { type ApiError, api } from "@/lib/api"
-import type { FirewallApplyBody, FirewallOverview } from "@/lib/services"
+import type {
+  ContainerAccess,
+  ContainerAccessBody,
+  FirewallApplyBody,
+  FirewallOverview,
+} from "@/lib/services"
 
 export const firewallKeys = {
   all: (serverId: string) => ["firewall", serverId] as const,
@@ -12,6 +17,8 @@ export const firewallKeys = {
   log: (serverId: string) => ["firewall", serverId, "log"] as const,
   raw: (serverId: string) => ["firewall", serverId, "raw"] as const,
   history: (serverId: string) => ["firewall", serverId, "history"] as const,
+  containers: (serverId: string) =>
+    ["firewall", serverId, "containers"] as const,
 }
 
 // One SSH round trip. Polled only while a change is waiting, so everyone
@@ -109,4 +116,31 @@ export function useInstallJob(serverId: string) {
     (j) =>
       isActive(j) && j.refs.includes(serverId) && j.kind === "firewall-install",
   )
+}
+
+// Who may reach containers' published ports: Morche's own chain under
+// DOCKER-USER, apart from ufw/firewalld. One SSH round trip.
+export function useContainerAccess(serverId: string, enabled = true) {
+  return useQuery({
+    queryKey: firewallKeys.containers(serverId),
+    queryFn: () => api.firewall.getContainerAccess(serverId),
+    enabled,
+    staleTime: 15_000,
+    refetchOnWindowFocus: false,
+  })
+}
+
+// Sends the whole list; the answer is the fresh state, straight into the
+// cache. A 409 means someone else changed it: read it again.
+export function useSetContainerAccess(serverId: string) {
+  const qc = useQueryClient()
+  return useMutation<ContainerAccess, ApiError, ContainerAccessBody>({
+    mutationFn: (body) => api.firewall.setContainerAccess(serverId, body),
+    onSuccess: (o) => qc.setQueryData(firewallKeys.containers(serverId), o),
+    onError: (err) => {
+      if (err.status === 409) {
+        qc.invalidateQueries({ queryKey: firewallKeys.containers(serverId) })
+      }
+    },
+  })
 }

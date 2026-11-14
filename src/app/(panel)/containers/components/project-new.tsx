@@ -878,7 +878,7 @@ function GitProjectForm({
         </div>
       </div>
       {notices}
-      <div className="max-w-3xl">{fields}</div>
+      <div className="min-w-0">{fields}</div>
     </div>
   )
 }

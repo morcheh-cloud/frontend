@@ -28,7 +28,7 @@ import {
   EndPicker,
   type Role,
 } from "@/app/(panel)/cronjobs/components/end-picker"
-import { browserZone } from "@/app/(panel)/cronjobs/components/meta"
+import { browserZone, cronText } from "@/app/(panel)/cronjobs/components/meta"
 import { ScheduleField } from "@/app/(panel)/cronjobs/components/schedule-field"
 import { Empty, Segmented } from "@/app/(panel)/servers/[id]/components/parts"
 import {
@@ -38,6 +38,12 @@ import {
 } from "@/app/(panel)/servers/[id]/cron/components/schedule"
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
 import { useAuth } from "@/components/auth/auth"
+import {
+  AsideCard,
+  EditorLoading,
+  EditorPage,
+  SummaryList,
+} from "@/components/editor-page"
 import { Field } from "@/components/field"
 import { usePageCrumbs } from "@/components/panel/breadcrumbs"
 import { storagesQuery } from "@/components/panel/problems"
@@ -1125,30 +1131,68 @@ function Editor({
     )
   }
 
+  const where = (e: EndDraft | null) => {
+    const n = named(e)
+    return n ? `${n.name || "A storage"}:${n.path}` : ""
+  }
+  const when = replication
+    ? "As files change"
+    : kind === "migrate"
+      ? "Once, when you start it"
+      : draft.trigger === "schedule"
+        ? cronText(draft.cron)
+        : draft.trigger === "interval"
+          ? `Every ${draft.interval || "?"} min`
+          : triggerMeta.manual.label
+  const summary = (
+    <AsideCard title="Summary">
+      <SummaryList
+        rows={[
+          ["Kind", kindMeta[kind].label],
+          ["From", where(draft.source), true],
+          ["To", where(draft.dest), true],
+          ...(kind === "sync"
+            ? ([
+                ["Copied by", engineMeta[engine].label],
+                ...(replication
+                  ? []
+                  : ([["Mode", modeMeta[draft.mode].label]] as const)),
+              ] as const)
+            : ([
+                [
+                  "Afterwards",
+                  draft.deleteSource
+                    ? "Empty the source"
+                    : draft.verify
+                      ? "Check every file"
+                      : "Nothing",
+                ],
+              ] as const)),
+          ["When", when],
+          ...(kind === "sync"
+            ? ([["State", draft.paused ? "Paused" : "Turned on"]] as const)
+            : []),
+        ].map((r) => [...r] as [string, ReactNode, boolean?])}
+      />
+    </AsideCard>
+  )
+
   return (
-    <div className="flex flex-col gap-6 px-6 pt-5 pb-12">
-      <div className="flex items-center gap-3">
-        <span
-          className={cn(
-            "flex size-9 shrink-0 items-center justify-center rounded-lg",
-            replication
-              ? "bg-brand text-primary-foreground"
-              : "bg-brand-soft text-brand-strong",
-          )}
-        >
-          <KindIcon className="size-5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-subheading font-medium">{title}</h1>
-          <p className="truncate text-caption text-ash">
-            {dirty
-              ? "Unsaved changes"
-              : saved
-                ? `Saved ${timeAgo(saved.updated_at)}`
-                : "Not saved yet"}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
+    <EditorPage
+      icon={<KindIcon />}
+      title={title}
+      dirty={dirty}
+      status={
+        dirty
+          ? "Unsaved changes"
+          : saved
+            ? `Saved ${timeAgo(saved.updated_at)}`
+            : "Not saved yet"
+      }
+      onSave={saving || (!!saved && !dirty) ? undefined : () => save()}
+      aside={summary}
+      actions={
+        <>
           <Button
             variant="outline"
             className="h-9"
@@ -1164,12 +1208,13 @@ function Editor({
           >
             {saveLabel}
           </Button>
-        </div>
-      </div>
-      <div className="grid max-w-5xl gap-6">{sections}</div>
+        </>
+      }
+    >
+      {sections}
       {picker}
       {conflictDialog}
-    </div>
+    </EditorPage>
   )
 }
 
@@ -1253,11 +1298,12 @@ function Cards<T extends string>({
 }
 
 function Loading({ phone }: { phone: boolean }) {
+  if (!phone) return <EditorLoading />
   return (
-    <div className={cn("flex flex-col gap-4", phone ? "p-4" : "px-6 pt-6")}>
+    <div className="flex flex-col gap-4 p-4">
       <Skeleton className="h-8 w-60" />
-      <Skeleton className="h-40 w-full max-w-5xl rounded-2xl" />
-      <Skeleton className="h-40 w-full max-w-5xl rounded-2xl" />
+      <Skeleton className="h-40 w-full rounded-2xl" />
+      <Skeleton className="h-40 w-full rounded-2xl" />
     </div>
   )
 }

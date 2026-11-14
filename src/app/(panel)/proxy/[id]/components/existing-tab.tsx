@@ -247,7 +247,7 @@ function DefaultSection({
   const can = useProxyCan()
   const mine = catchAllHost(hosts)
   const hand = sites.find(holdsDefault)
-  const manage = can(p, "engineer") && (
+  const manage = can(p, "engineer") && !p.manager && (
     <Button
       variant={hand ? "default" : "outline"}
       size={phone ? "lg" : "default"}
@@ -349,7 +349,7 @@ function DefaultSection({
           stops answering other names or is removed.
         </p>
       )}
-      {!mine && hand && can(p, "engineer") && (
+      {!mine && hand && can(p, "engineer") && !p.manager && (
         <p className="text-caption text-muted-foreground max-md:px-4">
           Saving one takes only the word default_server off that file's listen
           lines (a copy is kept) and puts it back if that site is turned off or

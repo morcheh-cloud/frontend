@@ -851,6 +851,19 @@ export const containers: GuideSection[] = [
           <UI>Restart them on a crash</UI> (<C>restart: unless-stopped</C>) and{" "}
           <UI>Rotate their logs</UI> (3 files of 10 MB).
         </P>
+        <P>
+          <UI>Keep ports private</UI> shows when the compose file publishes a
+          port on every address of the server (<C>"3030:3000"</C>). Docker opens
+          those ahead of ufw and firewalld, so anyone can connect. The ticked
+          ports are rewritten to <C>"127.0.0.1:3030:3000"</C>: apps and a
+          reverse proxy on the same server still reach them, other machines
+          don't. Ports 80 and 443 start unticked. To let a few addresses in
+          instead, use{" "}
+          <See guide="firewall" section="containers">
+            the firewall's Containers tab
+          </See>
+          .
+        </P>
         <Recommended
           rows={[
             {

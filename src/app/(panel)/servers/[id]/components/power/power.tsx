@@ -141,14 +141,14 @@ export function PowerMenu() {
         </TooltipTrigger>
         <TooltipContent side="bottom">Power</TooltipContent>
       </Tooltip>
-      <DropdownMenuContent align="end" className="w-64">
+      <DropdownMenuContent align="end" className="min-w-64">
         <DropdownMenuGroup>
-          <DropdownMenuLabel className="text-caption">
+          <DropdownMenuLabel className="w-0 min-w-full text-caption whitespace-normal">
             {o ? <Status o={o} /> : blocked}
           </DropdownMenuLabel>
         </DropdownMenuGroup>
         {o?.reboot_required && (
-          <div className="flex gap-2 px-2 pb-1.5 text-caption">
+          <div className="flex w-0 min-w-full gap-2 px-2 pb-1.5 text-caption">
             <TriangleAlert className="mt-px size-3.5 shrink-0 text-warning" />
             <p>
               <span className="text-warning">Reboot needed</span>
@@ -180,7 +180,7 @@ export function PowerMenu() {
           </DropdownMenuItem>
         )}
         {o && blocked && o.access === "user" && (
-          <p className="px-2 py-1.5 text-caption text-muted-foreground">
+          <p className="w-0 min-w-full px-2 py-1.5 text-caption text-muted-foreground">
             {blocked}
           </p>
         )}

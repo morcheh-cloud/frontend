@@ -257,6 +257,78 @@ export const firewall: GuideSection[] = [
     ),
   },
   {
+    id: "containers",
+    title: "Container ports",
+    body: (
+      <>
+        <P>
+          Docker publishes container ports with its own rules, ahead of ufw and
+          firewalld: a port like <C>3030:3000</C> is open to everyone even when
+          ufw blocks 3030. The <UI>Containers</UI> tab lists every port a
+          container publishes and who can reach it, and lets you limit it.
+        </P>
+        <Steps>
+          {[
+            <>
+              Press <UI>Limit…</UI> on a port (or <UI>Add limit</UI> for a port
+              or range no container uses yet).
+            </>,
+            <>
+              Pick <UI>Only these addresses</UI> and add addresses or networks (
+              <C>203.0.113.7</C>, <C>10.0.0.0/8</C>), or{" "}
+              <UI>Nobody from outside</UI>.
+            </>,
+            <>
+              <UI>Save</UI>. It takes effect at once; the toast's <UI>Undo</UI>{" "}
+              puts the old list back.
+            </>,
+          ]}
+        </Steps>
+        <Example title="An admin console only the office uses">
+          Port <C>3030</C> › <UI>Only these addresses</UI> ›{" "}
+          <C>198.51.100.0/24</C>. Everyone else gets no answer.
+        </Example>
+        <Example title="A database only this server's apps use">
+          Port <C>5432</C> › <UI>Nobody from outside</UI>. Containers and the
+          server itself still connect. Better still, publish it on{" "}
+          <C>127.0.0.1</C> (
+          <See guide="containers" section="production">
+            Keep ports private
+          </See>
+          ).
+        </Example>
+        <List>
+          <li>
+            A limit is by the port on the server, so it covers every container
+            that publishes it, and one started later.
+          </li>
+          <li>
+            Containers on the same server always get through; so does the server
+            itself.
+          </li>
+          <li>
+            Morche keeps the rules in its own chain (<C>MORCHEH-DOCKER</C>,
+            reached from Docker's <C>DOCKER-USER</C>) and puts them back after a
+            reboot or a Docker restart.
+          </li>
+          <li>
+            Works with ufw, firewalld or no firewall at all. Needs root or{" "}
+            <C>sudo</C> and Docker's iptables rules.
+          </li>
+        </List>
+        <Warn>
+          Limiting 80 or 443 shuts out the public from a website. Leave out your
+          own address and you'll lose the console too: the form warns about
+          both.
+        </Warn>
+        <Tip>
+          <UI>The server's rules don't match</UI> means something (a Docker
+          restart, another tool) removed them: press <UI>Load again</UI>.
+        </Tip>
+      </>
+    ),
+  },
+  {
     id: "apply",
     title: "Applying rules to other servers",
     body: (

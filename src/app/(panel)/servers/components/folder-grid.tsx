@@ -141,13 +141,13 @@ function FolderCard({ node }: { node: FolderNode }) {
             >
               <Ellipsis />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end" className="min-w-48">
               <FolderMenuItems node={node} />
             </DropdownMenuContent>
           </DropdownMenu>
         )}
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-48">
+      <ContextMenuContent className="min-w-48">
         <FolderMenuItems
           node={node}
           Item={ContextMenuItem}
@@ -256,7 +256,7 @@ function CurrentCrumb({ node }: { node: FolderNode }) {
         {name}
         <Ellipsis className="size-4 shrink-0 text-ash" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-48">
+      <DropdownMenuContent align="start" className="min-w-48">
         <FolderMenuItems node={node} />
       </DropdownMenuContent>
     </DropdownMenu>

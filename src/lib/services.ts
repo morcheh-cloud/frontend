@@ -2558,6 +2558,59 @@ export interface ConnectionTestOutputBody {
     | "error";
 }
 
+export interface ContainerAccess {
+  /** IPv6 traffic is limited too */
+  ipv6: boolean;
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  access: "root" | "sudo" | "user";
+  /** Docker is installed */
+  docker: boolean;
+  init: "systemd" | "openrc" | "none";
+  limits: ContainerLimit[];
+  /** The saved limits are in force right now */
+  loaded: boolean;
+  /** The address this server sees Morche's connection from */
+  morcheh_ip: string;
+  /** They're loaded again after a restart */
+  persistent: boolean;
+  /** Why limits can't be set, or why Docker didn't answer */
+  problem?: string;
+  /** Ports running containers publish on this server */
+  published: PublishedPort[];
+  /** Send it back with a change */
+  revision: string;
+  /** Docker answers */
+  running: boolean;
+  /** @format int64 */
+  ssh_port: number;
+  /** Limits can be set here */
+  supported: boolean;
+  /** The address of the person asking, when it isn't a loopback one */
+  your_ip: string;
+}
+
+export interface ContainerAccessBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * The whole list: what's left out is removed
+   * @maxItems 200
+   */
+  limits: ContainerLimitBody[];
+  /**
+   * From the overview; a different one means it changed meanwhile (409)
+   * @maxLength 64
+   */
+  revision: string;
+}
+
 export interface ContainerInfo {
   /** The Compose project it belongs to */
   compose?: string;
@@ -2565,7 +2618,7 @@ export interface ContainerInfo {
   compose_dir?: string;
   id: string;
   image: string;
-  /** The image is a proxy manager that writes nginx's config itself (Nginx Proxy Manager, nginx-proxy, SWAG): Morche doesn't take it over */
+  /** The image is a proxy manager that writes nginx's config itself (Nginx Proxy Manager, nginx-proxy, SWAG): Morche only reads it */
   managed?: string;
   mounts: ContainerMount[];
   name: string;
@@ -2583,6 +2636,33 @@ export interface ContainerInfo {
   service?: string;
   /** running, exited, paused, restarting, created… */
   state: string;
+}
+
+export interface ContainerLimit {
+  /** Addresses and networks let in; empty = nobody from outside this server */
+  allow: string[];
+  comment?: string;
+  /** Changes when the limit does */
+  id: string;
+  /** The port on the server, or a range like 8000-8010 */
+  port: string;
+  protocol: "tcp" | "udp";
+}
+
+export interface ContainerLimitBody {
+  /**
+   * Addresses or networks let in; empty = nobody from outside this server
+   * @maxItems 200
+   */
+  allow: string[];
+  /** @maxLength 120 */
+  comment?: string;
+  /**
+   * The port on the server, or a range like 8000-8010
+   * @maxLength 11
+   */
+  port: string;
+  protocol: "tcp" | "udp";
 }
 
 export interface ContainerMount {
@@ -4346,7 +4426,7 @@ export interface DetectedContainer {
   compose_dir?: string;
   id: string;
   image: string;
-  /** The image is a proxy manager that writes nginx's config itself (Nginx Proxy Manager, nginx-proxy, SWAG): Morche doesn't take it over */
+  /** The image is a proxy manager that writes nginx's config itself (Nginx Proxy Manager, nginx-proxy, SWAG): Morche only reads it */
   managed?: string;
   mounts: ContainerMount[];
   name: string;
@@ -5061,6 +5141,13 @@ export interface DockerDiskUsage {
   build_cache: DockerUsage;
   containers: DockerUsage;
   images: DockerUsage;
+  /**
+   * When the engine measured these numbers
+   * @format date-time
+   */
+  measured_at: string;
+  /** A newer measurement is running: ask again in a few seconds */
+  measuring: boolean;
   /** @format int64 */
   reclaimable: number;
   /** @format int64 */
@@ -13147,6 +13234,8 @@ export interface Proxy {
   kind_label: string;
   /** @format date-time */
   last_checked_at?: string;
+  /** The container runs this proxy manager (Nginx Proxy Manager…), which writes nginx's config itself: Morche only reads the proxy (status, sites, logs) and refuses every change */
+  manager?: string;
   /** host = installed on the server; docker/podman = runs in a container */
   runtime: "host" | "docker" | "podman";
   server_host: string;
@@ -13790,6 +13879,21 @@ export interface ProxySiteRef {
   line: number;
 }
 
+export interface ProxySiteTraffic {
+  /** Bytes sent per minute */
+  bytes: number[];
+  /** 4xx answers per minute */
+  client_errors: number[];
+  file: string;
+  /** @format int64 */
+  line: number;
+  proxy_id: string;
+  /** Per minute, oldest first */
+  requests: number[];
+  /** 5xx answers per minute */
+  server_errors: number[];
+}
+
 export interface ProxyTraffic {
   /**
    * A URL to the JSON Schema for this object.
@@ -13799,6 +13903,8 @@ export interface ProxyTraffic {
   hosts: ProxyHostTraffic[];
   /** @format int64 */
   minutes: number;
+  /** Sites of proxy managers (Nginx Proxy Manager…), read from their own logs */
+  sites: ProxySiteTraffic[];
   sources: ProxyTrafficSource[];
   /**
    * Start of the first minute
@@ -13835,6 +13941,27 @@ export interface ProxyUpstreamTest {
    * @format int64
    */
   status: number;
+}
+
+export interface PublishedPort {
+  /** The server addresses it's bound to */
+  addresses: string[];
+  container: string;
+  /** The id of the limit that covers it */
+  limit?: string;
+  /**
+   * On the server
+   * @format int64
+   */
+  port: number;
+  protocol: "tcp" | "udp";
+  /** Bound to an address other machines can reach, not only a loopback one */
+  public: boolean;
+  /**
+   * Inside the container
+   * @format int64
+   */
+  target_port: number;
 }
 
 export interface PushOutputBody {
@@ -23421,17 +23548,25 @@ export class Api<
       }),
 
     /**
-     * @description What `docker system df` shows, with what a prune of each could free. The engine measures everything, so it can take a while.
+     * @description What `docker system df` shows, with what a prune of each could free. The engine measures everything, which can take a while, so the last measurement comes back at once (`measured_at`) and a newer one runs behind it when it's over 30 s old, out of date after a change, or `refresh` asks (`measuring`). Only a server never measured waits.
      *
      * @tags Containers
      * @name DockerDiskUsage
      * @summary Space used by images, containers, volumes and the build cache
      * @request GET:/servers/{id}/docker/disk-usage
      */
-    dockerDiskUsage: (id: string, params: RequestParams = {}) =>
+    dockerDiskUsage: (
+      id: string,
+      query?: {
+        /** Measure again now, behind the last answer */
+        refresh?: boolean;
+      },
+      params: RequestParams = {},
+    ) =>
       this.request<DockerDiskUsage, ErrorModel>({
         path: `/servers/${id}/docker/disk-usage`,
         method: "GET",
+        query: query,
         format: "json",
         ...params,
       }),
@@ -25272,6 +25407,22 @@ export class Api<
       }),
 
     /**
+     * @description Docker publishes ports past ufw and firewalld. These limits are kept in a chain of Morche's own under DOCKER-USER.
+     *
+     * @tags Firewall
+     * @name GetContainerAccess
+     * @summary Who may reach containers' published ports
+     * @request GET:/servers/{id}/firewall/containers
+     */
+    getContainerAccess: (id: string, params: RequestParams = {}) =>
+      this.request<ContainerAccess, ErrorModel>({
+        path: `/servers/${id}/firewall/containers`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description Which firewall is in charge (ufw, firewalld, or plain nftables/iptables, which are read-only here), whether it's on, its defaults and rules in one shape, the SSH port Morche depends on, and any change waiting to be kept.
      *
      * @tags Firewall
@@ -25374,6 +25525,28 @@ export class Api<
       this.request<FirewallOverview, ErrorModel>({
         path: `/servers/${id}/firewall/history/${change}/restore`,
         method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Replaces the whole list and loads it at once; an empty list takes Morche's chain and its boot service away. Sending the same list again loads it again. 409 when the list changed meanwhile.
+     *
+     * @tags Firewall
+     * @name SetContainerAccess
+     * @summary Set who may reach containers' published ports
+     * @request PUT:/servers/{id}/firewall/containers
+     */
+    setContainerAccess: (
+      id: string,
+      data: ContainerAccessBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<ContainerAccess, ErrorModel>({
+        path: `/servers/${id}/firewall/containers`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),
@@ -26647,7 +26820,7 @@ export class Api<
       }),
 
     /**
-     * @description Adds the proxy to the panel and checks the server. Nothing is installed or written yet: call setup for that. Needs Engineer on the server.
+     * @description Adds the proxy to the panel and checks the server. Nothing is installed or written yet: call setup for that. A container running a proxy manager (Nginx Proxy Manager…) is added read only (`manager`). Needs Engineer on the server.
      *
      * @tags Reverse proxy
      * @name CreateProxy

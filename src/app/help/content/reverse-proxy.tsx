@@ -327,10 +327,40 @@ networks:
   apps:
     external: true`}</Code>
         </Example>
-        <Warn>
+        <H3>Proxy managers: read only</H3>
+        <P>
           Images that write nginx's config themselves (Nginx Proxy Manager,
-          nginx-proxy, SWAG) can't be added: they'd overwrite Morche's changes.
-        </Warn>
+          nginx-proxy, SWAG) show a <UI>Read only</UI> tag in the list and can
+          be added to watch them. Morche then changes nothing in the container:
+          no setup, no sites of its own, no reload, restart or stop, no
+          certificates. You still get its status, the sites it serves, the
+          configuration test, and its logs.
+        </P>
+        <P>
+          Its sites show on <UI>Reverse proxy</UI> next to Morche's, under{" "}
+          <UI>In Nginx Proxy Manager</UI> (or the manager's name), sorted into
+          the same tabs: each card has the domain, where it passes visitors,
+          https, the ports and the file. Click one to read its configuration. On
+          the proxy's own page, <UI>On the server</UI> lists everything nginx
+          loads, the manager's admin page included.
+        </P>
+        <P>
+          Live numbers work for them too: Morche reads each site's own access
+          log (the file in its <C>access_log</C> line, for Nginx Proxy Manager{" "}
+          <C>/data/logs/proxy-host-N_access.log</C>) and counts requests, errors
+          and bytes per minute, without changing anything. They show on each
+          site's card and on the proxy's <UI>Report</UI> tab, added up.
+        </P>
+        <Tip>
+          A site without numbers shares its log with other sites (or writes
+          none), so its visits can't be told apart. Give it an <C>access_log</C>{" "}
+          of its own in the manager to count it.
+        </Tip>
+        <Tip>
+          Keep adding and editing sites in the manager itself (for Nginx Proxy
+          Manager, its own web page): it would overwrite anything else. Removing
+          such a proxy from Morche leaves the container as it is.
+        </Tip>
         <Tip>
           Recreated the container (a new image, <C>compose up</C>)? Morche
           notices on its next check, sets it up again and writes its sites back.

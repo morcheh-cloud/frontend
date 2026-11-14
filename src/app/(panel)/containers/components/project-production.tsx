@@ -7,6 +7,7 @@ import {
   CircleX,
   Clock,
   Loader2,
+  Lock,
   Pencil,
   Rocket,
   Save,
@@ -14,6 +15,7 @@ import {
   ShieldCheck,
   Wrench,
 } from "lucide-react"
+import Link from "next/link"
 import { useState } from "react"
 import { toast } from "sonner"
 import { isMap, parseDocument, stringify } from "yaml"
@@ -21,6 +23,7 @@ import { isMap, parseDocument, stringify } from "yaml"
 import { Field } from "@/components/field"
 import { ResponsiveDialog } from "@/components/responsive-dialog"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
@@ -34,7 +37,16 @@ import type {
 } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { type Note, Notices } from "../../servers/[id]/components/parts"
+import { firewallHref } from "../../servers/[id]/firewall/components/meta"
 import { dockerKeys, useSaveProjectFiles } from "../api"
+import {
+  allAddresses,
+  bindPort,
+  edit,
+  type PortSpec,
+  portText,
+  readCompose,
+} from "./compose-edit"
 import { healthMeta } from "./meta"
 import { Quiet } from "./parts"
 import { Ring } from "./project-overview"
@@ -618,6 +630,7 @@ export function ProjectProduction({
   const [open, setOpen] = useOpen("docker-production-edit")
   const [fix, setFix] = useState<Quick | null>(null)
   const [fixOpen, setFixOpen] = useOpen("docker-production-fix")
+  const [bindOpen, setBindOpen] = useOpen("docker-production-bind")
 
   if (!stats)
     return pending ? (
@@ -664,6 +677,8 @@ export function ProjectProduction({
         },
       ].filter((q) => q.services.length > 0)
     : []
+
+  const publicPorts = readable && !composeBroken ? openPorts(p.compose) : []
 
   const notes: Note[] = []
   if (r.pending > 0)
@@ -724,8 +739,21 @@ export function ProjectProduction({
           </p>
         </div>
       </div>
-      {quick.length > 0 && (
+      {(quick.length > 0 || publicPorts.length > 0) && (
         <div className="flex flex-col gap-2 md:flex-row">
+          {publicPorts.length > 0 && (
+            <Button
+              variant="outline"
+              className="max-md:h-11"
+              onClick={() => setBindOpen(true)}
+            >
+              <Lock />
+              Keep ports private
+              <span className="text-muted-foreground tabular-nums">
+                {publicPorts.length}
+              </span>
+            </Button>
+          )}
           {quick.map((q) => (
             <Button
               key={q.key}
@@ -781,6 +809,17 @@ export function ProjectProduction({
           serverId={serverId}
           open={open}
           onOpenChange={setOpen}
+          onApply={onApply}
+        />
+      )}
+      {bindOpen && (
+        <PrivatePorts
+          key={p.revision}
+          p={p}
+          ports={publicPorts}
+          serverId={serverId}
+          open={bindOpen}
+          onOpenChange={setBindOpen}
           onApply={onApply}
         />
       )}
@@ -1445,6 +1484,145 @@ function QuickFix({
             </li>
           ))}
         </ul>
+      </div>
+    </ResponsiveDialog>
+  )
+}
+
+// --- Ports open to every address ---------------------------------------------
+
+type OpenPortRow = { key: string; service: string; port: PortSpec }
+
+// Ports the compose file publishes on all of the server's addresses. Docker
+// opens them ahead of ufw and firewalld, so they're reachable from anywhere.
+function openPorts(compose: string | undefined): OpenPortRow[] {
+  if (!compose) return []
+  const m = readCompose(compose)
+  if (!m.ok) return []
+  return m.services.flatMap((s) =>
+    s.networkMode
+      ? []
+      : s.ports.filter(allAddresses).map((port) => ({
+          key: `${s.name}:${portText(port)}`,
+          service: s.name,
+          port,
+        })),
+  )
+}
+
+const webPort = (p: PortSpec) => p.host === "80" || p.host === "443"
+
+function PrivatePorts({
+  p,
+  ports,
+  serverId,
+  open,
+  onOpenChange,
+  onApply,
+}: {
+  p: DockerProjectDetails
+  ports: OpenPortRow[]
+  serverId: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onApply: () => void
+}) {
+  const { write, save, refused } = useWriteCompose(p, serverId, onApply)
+  // Web ports usually must stay open; everything else starts ticked.
+  const [picked, setPicked] = useState(
+    () => new Set(ports.filter((r) => !webPort(r.port)).map((r) => r.key)),
+  )
+  const chosen = ports.filter((r) => picked.has(r.key))
+  const submit = (apply: boolean) =>
+    write(
+      edit(
+        p.compose,
+        ...chosen.map((r) => bindPort(r.service, r.port, "127.0.0.1")),
+      ),
+      apply,
+      () => onOpenChange(false),
+    )
+
+  return (
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Keep ports private"
+      description="Publishes the ticked ports on 127.0.0.1 only. Apps and a reverse proxy on this server still reach them; other machines can't."
+      footer={
+        <>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="max-md:h-11"
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="outline"
+            disabled={save.isPending || chosen.length === 0}
+            onClick={() => submit(false)}
+            className="max-md:h-11"
+          >
+            {save.isPending ? <Loader2 className="animate-spin" /> : <Save />}
+            Save
+          </Button>
+          <Button
+            disabled={save.isPending || chosen.length === 0}
+            onClick={() => submit(true)}
+            className="max-md:h-11"
+          >
+            <Rocket />
+            Save and apply
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        {refused && (
+          <p className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 font-mono text-caption whitespace-pre-wrap text-destructive">
+            {refused}
+          </p>
+        )}
+        <ul className="flex flex-col divide-y divide-border rounded-xl border border-border">
+          {ports.map((r) => (
+            <li key={r.key}>
+              {/* biome-ignore lint/a11y/noLabelWithoutControl: the Checkbox inside is the control */}
+              <label className="flex min-h-11 cursor-pointer items-center gap-3 px-3 py-2">
+                <Checkbox
+                  checked={picked.has(r.key)}
+                  onCheckedChange={(v) => {
+                    const next = new Set(picked)
+                    if (v === true) next.add(r.key)
+                    else next.delete(r.key)
+                    setPicked(next)
+                  }}
+                />
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate font-mono text-body-sm">
+                    {r.port.host ? `${r.port.host} → ` : "random → "}
+                    {r.port.target}
+                    {r.port.protocol !== "tcp" && `/${r.port.protocol}`}
+                  </span>
+                  <span className="truncate text-caption text-muted-foreground">
+                    {r.service}
+                    {webPort(r.port) && " · web traffic usually needs it open"}
+                  </span>
+                </span>
+              </label>
+            </li>
+          ))}
+        </ul>
+        <p className="text-caption text-muted-foreground">
+          Need a few addresses to reach it instead?{" "}
+          <Link
+            href={firewallHref(serverId, { tab: "containers" })}
+            className="text-brand underline-offset-4 hover:underline"
+          >
+            Limit who can reach it in the firewall
+          </Link>
+          .
+        </p>
       </div>
     </ResponsiveDialog>
   )

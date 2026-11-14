@@ -227,7 +227,7 @@ function ServerHeader() {
             </TooltipTrigger>
             <TooltipContent side="bottom">More</TooltipContent>
           </Tooltip>
-          <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuContent align="end" className="min-w-56">
             <ServerMenuItems
               server={server}
               checking={checking}
@@ -426,7 +426,7 @@ function MoreSections({ sections }: { sections: Section[] }) {
         More
         <ChevronDown />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-56">
+      <DropdownMenuContent align="start" className="min-w-56">
         {groups.map((group, i) => (
           <Fragment key={group.label ?? "main"}>
             {i > 0 && <DropdownMenuSeparator />}

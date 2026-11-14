@@ -15,13 +15,16 @@ import {
 
 // The proxy's overall live numbers: every site added up. Streams count
 // connections, not requests, so they get their own view when both exist.
+// A proxy manager's numbers come from its own sites' logs.
 export function ProxyLive({ detail }: { detail: ProxyDetail }) {
   const p = detail.proxy
   const phone = useIsPhone()
   const traffic = useProxyTraffic(p.id)
   const [kind, setKind] = useState<"web" | "stream">("web")
-  const hasStream = detail.hosts.some((h) => h.config.type === "stream")
-  const hasWeb = detail.hosts.some((h) => h.config.type !== "stream")
+  const manager = !!p.manager
+  const hasStream =
+    !manager && detail.hosts.some((h) => h.config.type === "stream")
+  const hasWeb = manager || detail.hosts.some((h) => h.config.type !== "stream")
   if (!hasStream && !hasWeb) return null
 
   const stream = hasStream && (!hasWeb || kind === "stream")
@@ -29,9 +32,11 @@ export function ProxyLive({ detail }: { detail: ProxyDetail }) {
     detail.hosts.map((h) => [h.id, h.config.type === "stream"]),
   )
   const s = sumTraffic(
-    (traffic.data?.hosts ?? []).filter(
-      (t) => (isStream.get(t.host_id) ?? false) === stream,
-    ),
+    manager
+      ? (traffic.data?.sites ?? []).filter((t) => t.proxy_id === p.id)
+      : (traffic.data?.hosts ?? []).filter(
+          (t) => (isStream.get(t.host_id) ?? false) === stream,
+        ),
   )
   const source = traffic.data?.sources.find((x) => x.proxy_id === p.id)
   const minutes = traffic.data?.minutes ?? 30
@@ -39,7 +44,11 @@ export function ProxyLive({ detail }: { detail: ProxyDetail }) {
     <LiveState
       data={traffic.data}
       error={traffic.error}
-      note={source && !source.ok ? "couldn't read the access log" : undefined}
+      note={
+        source && !source.ok
+          ? `couldn't read the access log${manager ? "s" : ""}`
+          : undefined
+      }
       noteTitle={source?.error}
     />
   )

@@ -435,7 +435,7 @@ function JobRowView({
           >
             <Ellipsis />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuContent align="end" className="min-w-52">
             {menu.map((group, i) => (
               <div key={group[0].key}>
                 {i > 0 && <DropdownMenuSeparator />}

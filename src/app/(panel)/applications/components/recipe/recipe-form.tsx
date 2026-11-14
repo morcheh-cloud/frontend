@@ -706,7 +706,7 @@ function ParamRow({
                   })
                 }}
               >
-                <SelectTrigger id={a.id} className="h-11 w-full md:h-9">
+                <SelectTrigger id={a.id} className="h-11 w-full md:h-10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent alignItemWithTrigger={false}>
@@ -819,7 +819,7 @@ function DefaultField({
             value={p.default ?? ""}
             onValueChange={(v) => v !== null && set(v)}
           >
-            <SelectTrigger id={a.id} className="h-11 w-full md:h-9">
+            <SelectTrigger id={a.id} className="h-11 w-full md:h-10">
               <SelectValue />
             </SelectTrigger>
             <SelectContent alignItemWithTrigger={false}>
@@ -1387,7 +1387,7 @@ function LinkRow({
                 >
                   <SelectTrigger
                     id={fromParam ? a.id : undefined}
-                    className="h-11 min-w-0 flex-1 md:h-9"
+                    className="h-11 min-w-0 flex-1 md:h-10"
                   >
                     <SelectValue />
                   </SelectTrigger>
@@ -1443,7 +1443,7 @@ function LinkRow({
                 })
               }
             >
-              <SelectTrigger id={a.id} className="h-11 w-full md:h-9">
+              <SelectTrigger id={a.id} className="h-11 w-full md:h-10">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent alignItemWithTrigger={false}>

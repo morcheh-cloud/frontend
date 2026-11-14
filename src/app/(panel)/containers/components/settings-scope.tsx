@@ -124,7 +124,7 @@ export function ScopeBar({
               </Button>
             }
           />
-          <DropdownMenuContent align="start" className="w-72">
+          <DropdownMenuContent align="start" className="min-w-72">
             <DropdownMenuRadioGroup value={scope} onValueChange={onScope}>
               <DropdownMenuRadioItem value="">
                 <ScopeLabel

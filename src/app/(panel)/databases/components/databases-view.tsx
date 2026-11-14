@@ -477,7 +477,7 @@ function Row({
           >
             <Ellipsis />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuContent align="end" className="min-w-56">
             <DatabaseMenuItems database={d} checking={checking} />
           </DropdownMenuContent>
         </DropdownMenu>

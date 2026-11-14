@@ -175,7 +175,7 @@ function UploadMenu() {
       >
         <Upload /> Upload <ChevronDown className="text-ash" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-60">
+      <DropdownMenuContent align="end" className="min-w-60">
         <DropdownMenuItem onClick={() => uploads.pickFiles(dir)}>
           <FilePlus /> Files…
         </DropdownMenuItem>
@@ -206,7 +206,7 @@ function NewMenu() {
       <DropdownMenuTrigger render={<Button disabled={!files.listing} />}>
         <FolderPlus /> New <ChevronDown className="opacity-70" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44">
+      <DropdownMenuContent align="end" className="min-w-44">
         <DropdownMenuItem onClick={actions.newFolder}>
           {actions.bucketRoot ? (
             <>
@@ -380,7 +380,7 @@ function UsersMenu() {
       >
         <Users />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-64">
+      <DropdownMenuContent align="start" className="min-w-64">
         <DropdownMenuGroup>
           <DropdownMenuLabel>Home folders</DropdownMenuLabel>
           {users.map((u) => (
@@ -956,7 +956,7 @@ function RowMenu({ entry }: { entry: FileEntry }) {
         <Ellipsis />
       </DropdownMenuTrigger>
       {open && (
-        <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuContent align="end" className="min-w-56">
           <MenuGroups
             groups={menu(entry).groups}
             Item={DropdownMenuItem}
@@ -972,7 +972,7 @@ function RowMenu({ entry }: { entry: FileEntry }) {
 function EntryContextMenu({ entry }: { entry: FileEntry }) {
   const menu = useEntryMenu()
   return (
-    <ContextMenuContent className="w-56">
+    <ContextMenuContent className="min-w-56">
       <MenuGroups
         groups={menu(entry).groups}
         Item={ContextMenuItem}
@@ -992,7 +992,7 @@ function BackgroundMenu() {
   const write = !files.source.readOnly
   const { openTerminal } = files
   return (
-    <ContextMenuContent className="w-56">
+    <ContextMenuContent className="min-w-56">
       {write && (
         <>
           <ContextMenuItem onClick={actions.newFolder}>

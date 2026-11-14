@@ -486,7 +486,7 @@ function TabBar({
     <div
       role="tablist"
       aria-label="Project section"
-      className="flex gap-5 overflow-x-auto border-b border-border"
+      className="flex [scrollbar-width:none] gap-5 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--color-border)]"
     >
       {tabs.map((t) => (
         <button
@@ -496,7 +496,7 @@ function TabBar({
           aria-selected={current === t}
           onClick={() => onChange(t)}
           className={cn(
-            "-mb-px inline-flex h-10 shrink-0 items-center gap-1.5 border-b-2 text-body-sm whitespace-nowrap outline-none focus-visible:text-brand",
+            "inline-flex h-10 shrink-0 items-center gap-1.5 border-b-2 text-body-sm whitespace-nowrap outline-none focus-visible:text-brand",
             current === t
               ? "border-brand font-medium text-foreground"
               : "border-transparent text-muted-foreground hover:text-foreground",

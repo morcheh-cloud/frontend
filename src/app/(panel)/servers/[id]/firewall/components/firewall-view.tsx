@@ -43,10 +43,17 @@ import { useServerPage } from "../../components/server-page"
 import { portKeys } from "../../ports/api"
 import {
   firewallKeys,
+  useContainerAccess,
   useFirewall,
   useInstallFirewall,
   useInstallJob,
 } from "../api"
+import { ContainersTab } from "./containers/containers-tab"
+import {
+  ContainerLimitsProvider,
+  useContainerLimits,
+} from "./containers/limits-provider"
+import { portRows, reachOf } from "./containers/meta"
 import { FirewallActionsProvider, useFirewallActions } from "./firewall-actions"
 import { ForwardsTab } from "./forwards-tab"
 import { LogTab } from "./log-tab"
@@ -64,6 +71,14 @@ const TOOL: Record<FirewallOverview["backend"], string> = {
 }
 
 export function FirewallView() {
+  return (
+    <ContainerLimitsProvider>
+      <Firewall />
+    </ContainerLimitsProvider>
+  )
+}
+
+function Firewall() {
   const { server, phone } = useServerPage()
   const qc = useQueryClient()
   const query = useFirewall(server.id)
@@ -185,8 +200,27 @@ function NotInstalled({ refresh }: { refresh: ReactNode }) {
             }
           />
         )}
+        <ContainersBelow />
       </div>
     </>
+  )
+}
+
+// Container limits don't need ufw or firewalld, so they show without one.
+function ContainersBelow() {
+  const { server } = useServerPage()
+  const q = useContainerAccess(server.id)
+  const a = q.data
+  if (!a?.docker || (a.published.length === 0 && a.limits.length === 0)) {
+    return null
+  }
+  return (
+    <section className="flex flex-col gap-3 md:mt-6">
+      <h2 className="text-body font-medium max-md:px-4 max-md:pt-6">
+        Ports containers publish
+      </h2>
+      <ContainersTab />
+    </section>
   )
 }
 
@@ -220,7 +254,8 @@ function Content({ refresh }: { refresh: ReactNode }) {
   if (filters.tab === "ports") body = <PortsTab />
   else if (filters.tab === "forwarding" && o.capabilities.forwards) {
     body = <ForwardsTab />
-  } else if (filters.tab === "log" && can("operator")) body = <LogTab />
+  } else if (filters.tab === "containers") body = <ContainersTab />
+  else if (filters.tab === "log" && can("operator")) body = <LogTab />
 
   return (
     <BarSlots>
@@ -281,6 +316,10 @@ function Bar({ refresh }: { refresh: ReactNode }) {
   const { filters, setFilters } = useFirewallFilters()
   const searching = useSlotFilled("search")
   const forwarding = filters.tab === "forwarding" && o.capabilities.forwards
+  const ct = useContainerTab(filters.tab === "containers")
+  const containers = filters.tab === "containers"
+  const limits = useContainerLimits()
+  const addLimit = limits.can && ct.supported
 
   const tabs = (
     <Segmented
@@ -296,6 +335,15 @@ function Bar({ refresh }: { refresh: ReactNode }) {
                   o.forwards.length > 0
                     ? `Forwarding · ${o.forwards.length}`
                     : "Forwarding",
+              },
+            ]
+          : []),
+        ...(ct.shown
+          ? [
+              {
+                value: "containers" as const,
+                label:
+                  ct.open > 0 ? `Containers · ${ct.open} open` : "Containers",
               },
             ]
           : []),
@@ -328,16 +376,27 @@ function Bar({ refresh }: { refresh: ReactNode }) {
         <div className="flex items-center gap-2">
           {search}
           {!searching && <State className="flex-1" />}
-          {a.manage && (
-            <Button
-              size="icon-lg"
-              aria-label={forwarding ? "Add forward" : "Add rule"}
-              disabled={a.locked}
-              onClick={() => (forwarding ? a.addForward() : a.addRule())}
-            >
-              <Plus />
-            </Button>
-          )}
+          {containers
+            ? addLimit && (
+                <Button
+                  size="icon-lg"
+                  aria-label="Add limit"
+                  disabled={limits.busy}
+                  onClick={() => limits.edit()}
+                >
+                  <Plus />
+                </Button>
+              )
+            : a.manage && (
+                <Button
+                  size="icon-lg"
+                  aria-label={forwarding ? "Add forward" : "Add rule"}
+                  disabled={a.locked}
+                  onClick={() => (forwarding ? a.addForward() : a.addRule())}
+                >
+                  <Plus />
+                </Button>
+              )}
           {refresh}
           <More />
         </div>
@@ -358,33 +417,53 @@ function Bar({ refresh }: { refresh: ReactNode }) {
       {filterSlot}
       <div className="ms-auto flex shrink-0 items-center gap-2">
         <State className="me-2 hidden @4xl:flex" />
-        {a.manage &&
-          (forwarding ? (
-            <Button disabled={a.locked} onClick={a.addForward}>
-              <Plus />
-              Add forward
-            </Button>
-          ) : (
-            <>
-              <Button
-                variant="outline"
-                disabled={a.locked}
-                onClick={() => a.blockAddress()}
-              >
-                <ShieldBan />
-                Block address
-              </Button>
-              <Button disabled={a.locked} onClick={() => a.addRule()}>
+        {containers
+          ? addLimit && (
+              <Button disabled={limits.busy} onClick={() => limits.edit()}>
                 <Plus />
-                Add rule
+                Add limit
               </Button>
-            </>
-          ))}
+            )
+          : a.manage &&
+            (forwarding ? (
+              <Button disabled={a.locked} onClick={a.addForward}>
+                <Plus />
+                Add forward
+              </Button>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  disabled={a.locked}
+                  onClick={() => a.blockAddress()}
+                >
+                  <ShieldBan />
+                  Block address
+                </Button>
+                <Button disabled={a.locked} onClick={() => a.addRule()}>
+                  <Plus />
+                  Add rule
+                </Button>
+              </>
+            ))}
         {refresh}
         <More />
       </div>
     </div>
   )
+}
+
+// The tab shows once Docker is found (or when it's the one asked for), with
+// how many published ports anyone can reach.
+function useContainerTab(current: boolean) {
+  const { server } = useServerPage()
+  const a = useContainerAccess(server.id).data
+  const open = a ? portRows(a).filter((r) => reachOf(r) === "anyone").length : 0
+  return {
+    shown: current || !!a?.docker,
+    open,
+    supported: !!a?.supported,
+  }
 }
 
 function State({ className }: { className?: string }) {

@@ -162,7 +162,7 @@ export function AddProxyDialog({
             ? `${p.kind_label} on ${p.server_name} added`
             : `${p.kind_label} in ${p.container} on ${p.server_name} added`,
         )
-        onAdded(p, setupNow && needsSetup(p))
+        onAdded(p, setupNow && !p.manager && needsSetup(p))
       },
       onError: (err) => {
         const f = fieldErrors(err)
@@ -174,6 +174,11 @@ export function AddProxyDialog({
   }
 
   const isContainer = !!choice && choice !== "host"
+  // A container run by a proxy manager (Nginx Proxy Manager…): Morche only
+  // reads it, so there's nothing to set up.
+  const manager = found?.containers.find(
+    (c) => containerKey(c) === choice,
+  )?.managed
   const hostInstalled = found?.native.installed ?? false
   const setupHint = isContainer
     ? "Wires Morche's folder into the container and rotates its logs from the server. The image isn't changed; sites already in it keep working."
@@ -355,7 +360,16 @@ export function AddProxyDialog({
           </div>
         )}
 
-        {choice && (
+        {manager && (
+          <p className="rounded-lg bg-subtle px-3 py-2 text-body-sm text-muted-foreground">
+            <span className="font-medium text-foreground">Read only.</span>{" "}
+            {manager} writes nginx's config itself, so Morche won't change
+            anything in this container: it shows its sites, status, logs and
+            traffic. Add and edit sites in {manager}.
+          </p>
+        )}
+
+        {choice && !manager && (
           // biome-ignore lint/a11y/noLabelWithoutControl: Base UI checkbox renders the control inside
           <label className="flex min-h-11 items-start gap-2 text-body-sm md:min-h-0">
             <Checkbox
@@ -442,15 +456,15 @@ function Found({
             tags={[
               c.recommended && !c.proxy_id && !c.managed ? "Recommended" : "",
               runtimeLabel[c.runtime],
+              c.managed ? "Read only" : "",
               c.compose ? `Compose · ${c.service || c.compose}` : "",
               c.running ? "" : c.state || "stopped",
             ]}
             hint={
               c.managed
-                ? `Runs ${c.managed}, which writes nginx's config itself: manage it there.`
+                ? `Runs ${c.managed}: Morche only reads it (sites, status, logs).`
                 : `${c.image} · ${containerReach(c)}${c.running ? "" : " · start it before setting it up"}`
             }
-            disabled={!!c.managed}
             added={c.proxy_id}
             onOpen={onOpenProxy}
           />

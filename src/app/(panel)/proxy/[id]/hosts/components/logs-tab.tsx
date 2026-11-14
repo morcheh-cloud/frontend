@@ -747,7 +747,7 @@ function FilterFields({
                 set({ ...d, method: !v || v === any ? "" : String(v) })
               }
             >
-              <SelectTrigger id={props.id} className="h-11 w-full md:h-9">
+              <SelectTrigger id={props.id} className="h-11 w-full md:h-10">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent alignItemWithTrigger={false}>
@@ -775,7 +775,7 @@ function FilterFields({
                 set({ ...d, domain: !v || v === any ? "" : String(v) })
               }
             >
-              <SelectTrigger id={props.id} className="h-11 w-full md:h-9">
+              <SelectTrigger id={props.id} className="h-11 w-full md:h-10">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent alignItemWithTrigger={false}>
@@ -964,7 +964,7 @@ function FirewallMenu({
         )}
         <ChevronDown className="size-3.5 opacity-60" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-60">
+      <DropdownMenuContent align="start" className="min-w-60">
         <DropdownMenuGroup>
           <DropdownMenuLabel>Web application firewall</DropdownMenuLabel>
           <DropdownMenuRadioGroup

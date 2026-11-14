@@ -1,10 +1,17 @@
 "use client"
 
-import { Container, Cpu, TriangleAlert } from "lucide-react"
+import {
+  Container,
+  Cpu,
+  ShieldAlert,
+  ShieldCheck,
+  TriangleAlert,
+} from "lucide-react"
 import Link from "next/link"
 import type { ReactNode } from "react"
 
 import { BottomSheet } from "@/components/bottom-sheet"
+import { Button } from "@/components/ui/button"
 import {
   Sheet,
   SheetContent,
@@ -12,12 +19,16 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import type { OpenPort } from "@/lib/services"
+import type { ContainerLimit, OpenPort } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { Copyable, Mono } from "../../components/facts"
 import { useServerPage } from "../../components/server-page"
+import { useContainerAccess } from "../../firewall/api"
+import { useContainerLimits } from "../../firewall/components/containers/limits-provider"
+import { covers, limitText } from "../../firewall/components/containers/meta"
+import { firewallHref } from "../../firewall/components/meta"
 import { processesHref } from "../../processes/components/meta"
-import { endpoint, exposureMeta, risks } from "./meta"
+import { dockerPublished, endpoint, exposureMeta, risks } from "./meta"
 
 // Everything known about one port: a side sheet on desktop, a bottom sheet
 // on phones. Drive `open` with useOpen.
@@ -81,10 +92,14 @@ function PortDetails({
   const exposure = exposureMeta[port.exposure]
   const ExposureIcon = exposure.icon
   const { container: ct, process: proc, unit } = port
+  const docker = dockerPublished(port)
+  const access = useContainerAccess(server.id, docker)
+  const protocol = port.protocol === "udp" ? "udp" : "tcp"
+  const limit = access.data?.limits.find((l) => covers(l, protocol, port.port))
 
   return (
     <div className="flex flex-col gap-6 pb-2">
-      {risks(port).map((risk) => (
+      {risks(port, !!limit).map((risk) => (
         <div
           key={risk.title}
           className="flex gap-3 rounded-2xl border border-warning/25 bg-warning/5 p-4 text-body-sm"
@@ -96,6 +111,18 @@ function PortDetails({
           </div>
         </div>
       ))}
+
+      {docker && (
+        <ContainerReach
+          loading={access.isPending}
+          error={access.error?.message}
+          supported={access.data?.supported ?? false}
+          problem={access.data?.problem}
+          port={port.port}
+          protocol={protocol}
+          limit={limit}
+        />
+      )}
 
       <Group title="Listening on">
         <Row label="Reach">
@@ -236,6 +263,100 @@ function PortDetails({
         )
       )}
     </div>
+  )
+}
+
+// Who can reach a port Docker publishes, and the way to limit it.
+function ContainerReach({
+  loading,
+  error,
+  supported,
+  problem,
+  port,
+  protocol,
+  limit,
+}: {
+  loading: boolean
+  error?: string
+  supported: boolean
+  problem?: string
+  port: number
+  protocol: "tcp" | "udp"
+  limit?: ContainerLimit
+}) {
+  const { server, phone } = useServerPage()
+  const a = useContainerLimits()
+  const editable = a.can && supported
+  let body: ReactNode
+  if (loading) {
+    body = <p className="text-body-sm text-ash">Checking…</p>
+  } else if (error) {
+    body = <p className="text-body-sm text-destructive">{error}</p>
+  } else if (limit) {
+    body = (
+      <div className="flex gap-3">
+        <ShieldCheck className="mt-0.5 size-4 shrink-0 text-success" />
+        <div className="min-w-0 text-body-sm">
+          <p className="font-medium">{limitText(limit)}</p>
+          {limit.allow.length > 1 && (
+            <p className="mt-0.5 font-mono text-caption break-words text-muted-foreground">
+              {limit.allow.join(", ")}
+            </p>
+          )}
+          {limit.comment && (
+            <p className="mt-0.5 text-caption text-muted-foreground">
+              {limit.comment}
+            </p>
+          )}
+        </div>
+      </div>
+    )
+  } else {
+    body = (
+      <div className="flex gap-3">
+        <ShieldAlert className="mt-0.5 size-4 shrink-0 text-warning" />
+        <p className="text-body-sm text-muted-foreground">
+          {supported
+            ? "Anyone who can reach this server can connect. Limit it to the addresses that need it."
+            : (problem ?? "Limits can't be set on this server.")}
+        </p>
+      </div>
+    )
+  }
+  return (
+    <Group title="Who can reach it">
+      <div className="col-span-full flex flex-col gap-3">
+        {body}
+        <div className="flex flex-wrap gap-2">
+          {editable && !loading && !error && (
+            <Button
+              size={phone ? "lg" : "sm"}
+              variant={limit ? "outline" : "default"}
+              className="max-md:flex-1"
+              disabled={a.busy}
+              onClick={() =>
+                limit
+                  ? a.edit({ limit })
+                  : a.edit({ port: String(port), protocol })
+              }
+            >
+              {limit ? "Change" : "Limit who can reach it"}
+            </Button>
+          )}
+          <Button
+            size={phone ? "lg" : "sm"}
+            variant="ghost"
+            className="max-md:flex-1"
+            nativeButton={false}
+            render={
+              <Link href={firewallHref(server.id, { tab: "containers" })} />
+            }
+          >
+            All container ports
+          </Button>
+        </div>
+      </div>
+    </Group>
   )
 }
 

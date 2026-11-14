@@ -13,6 +13,7 @@ import {
   fromBuilder,
   toBuilder,
 } from "@/app/(panel)/servers/[id]/cron/components/schedule"
+import { AsideCard, EditorPage, SummaryList } from "@/components/editor-page"
 import { Field } from "@/components/field"
 import { usePageCrumbs } from "@/components/panel/breadcrumbs"
 import { useWorkspace } from "@/components/panel/workspace"
@@ -30,7 +31,7 @@ import {
   Section,
   ToggleRow,
 } from "../../cronjobs/components/editor-parts"
-import { browserZone } from "../../cronjobs/components/meta"
+import { browserZone, cronText } from "../../cronjobs/components/meta"
 import { Choice, ScheduleField } from "../../cronjobs/components/schedule-field"
 import { Empty } from "../../servers/[id]/components/parts"
 import { Checklist } from "../../servers/components/server-checklist"
@@ -546,16 +547,14 @@ export function AutoUpdateEditor({
   if (saved) {
     return (
       <div className={cn("flex flex-col", !phone && "gap-6")}>
-        <div className={cn("flex flex-col", !phone && "max-w-5xl gap-6")}>
-          {sections}
-        </div>
+        <div className={cn("flex flex-col", !phone && "gap-6")}>{sections}</div>
         {dirty && (
           <div
             className={cn(
               "sticky z-10 flex items-center gap-2 border-border bg-background",
               phone
                 ? "bottom-[calc(--spacing(16)+env(safe-area-inset-bottom))] border-t px-4 py-2"
-                : "bottom-0 max-w-5xl rounded-2xl border px-4 py-3 shadow-md",
+                : "bottom-4 rounded-2xl border px-4 py-3 shadow-md",
             )}
           >
             <span className="min-w-0 flex-1 truncate text-body-sm text-muted-foreground">
@@ -616,19 +615,40 @@ export function AutoUpdateEditor({
     )
   }
 
+  const serverCount = d.servers.length
   return (
-    <div className="flex flex-col gap-6 px-6 pt-5 pb-12">
-      <div className="flex items-center gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-strong">
-          <RefreshCcwDot className="size-5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-subheading font-medium">
-            {d.name.trim() || "New auto-update policy"}
-          </h1>
-          <p className="truncate text-caption text-ash">Not saved yet</p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
+    <EditorPage
+      icon={<RefreshCcwDot />}
+      title={d.name.trim() || "New auto-update policy"}
+      status="Not saved yet"
+      onSave={save.isPending ? undefined : submit}
+      aside={
+        <AsideCard title="Summary">
+          <SummaryList
+            rows={[
+              [
+                "Servers",
+                serverCount === 0
+                  ? ""
+                  : serverCount === 1
+                    ? "1 server"
+                    : `${serverCount} servers`,
+              ],
+              ["Containers", pickMeta[d.pick].label],
+              ["Does", modeMeta[d.mode].label],
+              [
+                "When",
+                form.manual
+                  ? "By hand or from its webhook"
+                  : cronText(fromBuilder(form.builder)),
+              ],
+              ["Tells", notifyMeta[d.notify]],
+            ]}
+          />
+        </AsideCard>
+      }
+      actions={
+        <>
           <Button
             variant="outline"
             className="h-9"
@@ -640,10 +660,11 @@ export function AutoUpdateEditor({
           <Button className="h-9" disabled={save.isPending} onClick={submit}>
             {save.isPending ? "Creating…" : "Create"}
           </Button>
-        </div>
-      </div>
-      <div className="grid max-w-5xl gap-6">{sections}</div>
-    </div>
+        </>
+      }
+    >
+      {sections}
+    </EditorPage>
   )
 }
 

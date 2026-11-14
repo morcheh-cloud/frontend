@@ -492,7 +492,7 @@ export function ChoiceChip<T extends string>({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger render={chip} />
-      <DropdownMenuContent align="start" className="w-48">
+      <DropdownMenuContent align="start" className="min-w-48">
         <DropdownMenuRadioGroup
           value={value}
           onValueChange={(v) => onChange(v as T)}

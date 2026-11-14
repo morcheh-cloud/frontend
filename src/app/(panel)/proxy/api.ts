@@ -4,6 +4,7 @@ import {
   type QueryClient,
   type QueryKey,
   useMutation,
+  useQueries,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query"
@@ -106,6 +107,18 @@ export function useInspection(id: string, enabled = true) {
     refetchInterval: INSPECT_POLL,
     enabled,
     retry: (count, error) => !notFound(error) && count < 1,
+  })
+}
+
+// The server's reading for several proxies at once (proxy managers' sites).
+export function useInspections(ids: string[]) {
+  return useQueries({
+    queries: ids.map((id) => ({
+      queryKey: proxyKeys.inspect(id),
+      queryFn: () => api.reverseProxy.inspectProxy(id),
+      refetchInterval: INSPECT_POLL,
+      retry: (count: number, error: Error) => !notFound(error) && count < 1,
+    })),
   })
 }
 

@@ -379,7 +379,7 @@ function FilterMenu({
         <span className="max-w-40 truncate">{current.label}</span>
         <ChevronDown className="size-4 text-ash" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-56">
+      <DropdownMenuContent align="start" className="min-w-56">
         <DropdownMenuGroup>
           <DropdownMenuLabel>{label}</DropdownMenuLabel>
           <DropdownMenuRadioGroup value={value} onValueChange={onChange}>

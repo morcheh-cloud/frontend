@@ -282,13 +282,26 @@ export function useDockerNetworks(id: string, enabled = true) {
   })
 }
 
+// The engine takes long to measure (seconds to minutes with big volumes), so
+// the backend answers its last measurement at once and measures again behind
+// it (`measuring`): poll until that one lands.
 export function useDockerUsage(id: string, enabled = true) {
   return useQuery({
     queryKey: dockerKeys.usage(id),
     queryFn: () => api.containers.dockerDiskUsage(id),
+    refetchInterval: (q) => (q.state.data?.measuring ? 3_000 : false),
     enabled,
     retry,
   })
+}
+
+// Refresh = ask for a new measurement; the last numbers stay until it lands.
+export function useRefreshDockerUsage(id: string) {
+  const qc = useQueryClient()
+  return async () => {
+    const u = await api.containers.dockerDiskUsage(id, { refresh: true })
+    qc.setQueryData(dockerKeys.usage(id), u)
+  }
 }
 
 // Every write refreshes the whole server: a container action changes the

@@ -17,6 +17,7 @@ import type { OpenPort, PortsReport } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { timeAgo } from "../../../components/meta"
 import { useServerPage } from "../../components/server-page"
+import { ContainerLimitsProvider } from "../../firewall/components/containers/limits-provider"
 import { usePorts } from "../api"
 import { countPorts, filterPorts, usePortFilters } from "./meta"
 import { PortDetailsLayer } from "./port-details"
@@ -111,7 +112,7 @@ export function PortsView() {
   }
 
   return (
-    <>
+    <ContainerLimitsProvider>
       <div className="flex flex-col gap-4 max-md:gap-0 max-md:pb-6">{body}</div>
       <PortDetailsLayer
         port={selected}
@@ -119,7 +120,7 @@ export function PortsView() {
         onOpenChange={setOpen}
         privileged={report?.privileged ?? true}
       />
-    </>
+    </ContainerLimitsProvider>
   )
 }
 
@@ -248,7 +249,7 @@ function Toolbar({
           {refresh}
         </div>
       </div>
-      <div className="-mx-4 flex [scrollbar-width:none] gap-2 overflow-x-auto px-4 md:mx-0 md:px-0">
+      <div className="-mx-4 flex [scrollbar-width:none] gap-2 overflow-x-auto px-4 md:mx-0 md:min-w-0 md:flex-wrap md:overflow-visible md:px-0">
         <Segmented
           items={[
             { value: null, label: "All", count: n.total },

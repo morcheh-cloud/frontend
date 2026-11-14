@@ -334,6 +334,40 @@ export const removePort =
     })
   }
 
+// Whether a published port is open on every address of the server.
+export const allAddresses = (p: PortSpec) =>
+  !p.ip || p.ip === "0.0.0.0" || p.ip === "::" || p.ip === "[::]"
+
+// Publishes a port on one address only (127.0.0.1 = this server only),
+// keeping the item's own form (short string or long map).
+export const bindPort =
+  (service: string, port: PortSpec, ip: string): Edit =>
+  (doc) => {
+    const node = doc.getIn([...svc(service), "ports"], true)
+    if (!isSeq(node)) return
+    node.items.forEach((item, i) => {
+      const json = isScalar(item)
+        ? item.value
+        : (item as { toJSON?: () => unknown })?.toJSON?.()
+      const p = parsePort(json)
+      if (
+        !p ||
+        p.target !== port.target ||
+        (p.host ?? "") !== (port.host ?? "") ||
+        p.protocol !== port.protocol ||
+        (p.ip ?? "") !== (port.ip ?? "")
+      )
+        return
+      if (isMap(item)) {
+        item.set("host_ip", ip)
+        return
+      }
+      const host = p.host ?? ""
+      const proto = p.protocol !== "tcp" ? `/${p.protocol}` : ""
+      node.set(i, quoted(`${ip}:${host}:${p.target}${proto}`))
+    })
+  }
+
 export function mountText(m: {
   source?: string
   target: string

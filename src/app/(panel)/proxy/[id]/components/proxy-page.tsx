@@ -4,6 +4,7 @@ import {
   CirclePlay,
   Container,
   Ellipsis,
+  Eye,
   FileCheck,
   RefreshCw,
   TriangleAlert,
@@ -113,7 +114,7 @@ function DesktopPage({ detail }: { detail: ProxyDetail }) {
   const t = useTab(p)
   const busy = actions.running(p)
   const operator = can(p, "operator")
-  const live = canWrite(p) || p.status === "config_error"
+  const live = canWrite({ status: p.status }) || p.status === "config_error"
 
   return (
     <div className="flex flex-col pb-24">
@@ -167,16 +168,18 @@ function DesktopPage({ detail }: { detail: ProxyDetail }) {
                 <FileCheck />
                 {busy === "test" ? "Testing…" : "Test"}
               </Button>
-              <Button
-                variant="outline"
-                disabled={!!busy || p.status === "stopped"}
-                onClick={() => actions.run(p, "reload")}
-              >
-                <RefreshCw
-                  className={cn(busy === "reload" && "animate-spin")}
-                />
-                {busy === "reload" ? "Reloading…" : "Reload"}
-              </Button>
+              {!p.manager && (
+                <Button
+                  variant="outline"
+                  disabled={!!busy || p.status === "stopped"}
+                  onClick={() => actions.run(p, "reload")}
+                >
+                  <RefreshCw
+                    className={cn(busy === "reload" && "animate-spin")}
+                  />
+                  {busy === "reload" ? "Reloading…" : "Reload"}
+                </Button>
+              )}
             </>
           )}
           <ItemMenu
@@ -277,6 +280,27 @@ export function ProxyBanner({
           {job.progress.current || job.progress.phase || job.title}
         </p>
         <JobBar job={job} className="mt-2" />
+      </Banner>
+    )
+  }
+  if (
+    p.manager &&
+    p.status !== "unreachable" &&
+    p.status !== "error" &&
+    p.status !== "config_error"
+  ) {
+    return (
+      <Banner tone="brand" icon={Eye} className={className}>
+        <p className="font-medium">
+          Read only: {p.container} runs {p.manager}
+        </p>
+        <p className="text-muted-foreground">
+          {p.manager} writes nginx's config itself, so Morche doesn't change
+          anything here: it shows the sites, status, logs and traffic. Add and
+          edit sites in {p.manager}.
+          {p.status === "stopped" &&
+            " The container isn't running, so none of its sites answer."}
+        </p>
       </Banner>
     )
   }

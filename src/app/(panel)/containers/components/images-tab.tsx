@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils"
 import { newCronjobHref } from "../../cronjobs/components/meta"
 import { Empty, SearchBox } from "../../servers/[id]/components/parts"
 import { timeAgo } from "../../servers/components/meta"
-import { useDockerImages, useDockerUsage } from "../api"
+import { useDockerImages, useDockerUsage, useRefreshDockerUsage } from "../api"
 import { useDockerActions, useImageMenu } from "./docker-actions"
 import {
   type ImageFacts,
@@ -164,6 +164,7 @@ export function ImagesTab({
   const router = useRouter()
   const list = useDockerImages(server.id)
   const usage = useDockerUsage(server.id)
+  const refreshUsage = useRefreshDockerUsage(server.id)
   const facts = useImageFacts(server.id)
   const [filters, setFilters] = useDockerFilters()
   const [f, setF] = useImageFilters()
@@ -428,7 +429,7 @@ export function ImagesTab({
           busy: list.isFetching,
           run: () => {
             list.refetch()
-            usage.refetch()
+            refreshUsage()
           },
         }}
         more={

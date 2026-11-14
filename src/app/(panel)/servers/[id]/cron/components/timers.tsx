@@ -197,7 +197,7 @@ function TimersTable({ timers }: { timers: CronTimer[] }) {
                           <Ellipsis />
                         )}
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-44">
+                      <DropdownMenuContent align="end" className="min-w-44">
                         {timerItems(t).map((item) => (
                           <DropdownMenuItem
                             key={item.key}

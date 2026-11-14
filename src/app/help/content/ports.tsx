@@ -71,6 +71,16 @@ export const ports: GuideSection[] = [
             port stays open even if ufw says it's blocked.
           </li>
         </List>
+        <P>
+          A container's port also gets a <UI>Who can reach it</UI> section.{" "}
+          <UI>Limit who can reach it</UI> (Engineer) lets only the addresses you
+          list connect, or nobody from outside; the warnings go away once a
+          limit covers the port. See{" "}
+          <See guide="firewall" section="containers">
+            Container ports
+          </See>
+          .
+        </P>
       </>
     ),
   },
@@ -102,6 +112,13 @@ services:
           <P>
             Better still, drop <C>ports:</C> entirely when only other containers
             in the same Compose project need it; they reach it by service name.
+          </P>
+        </Example>
+        <Example title="A container port only some machines need">
+          <P>
+            Open the port's details › <UI>Limit who can reach it</UI>, add the
+            addresses (or <UI>Private networks</UI>) and save. ufw rules don't
+            work here, since Docker skips them.
           </P>
         </Example>
         <Example title="A service other machines do need">

@@ -803,7 +803,7 @@ function RowMenu({ name, groups }: { name: string; groups: Action[][] }) {
         <Ellipsis />
       </DropdownMenuTrigger>
       {open && (
-        <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuContent align="end" className="min-w-48">
           {groups
             .filter((g) => g.length)
             .map((group, i) => (

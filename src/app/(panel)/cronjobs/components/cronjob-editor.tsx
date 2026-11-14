@@ -16,6 +16,12 @@ import {
 } from "@/app/(panel)/servers/[id]/cron/components/schedule"
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
 import { useAuth } from "@/components/auth/auth"
+import {
+  AsideCard,
+  EditorLoading,
+  EditorPage,
+  SummaryList,
+} from "@/components/editor-page"
 import { Field } from "@/components/field"
 import { usePageCrumbs } from "@/components/panel/breadcrumbs"
 import { useWorkspace } from "@/components/panel/workspace"
@@ -29,7 +35,6 @@ import { useIsPhone } from "@/hooks/useIsPhone"
 import { useOpen } from "@/hooks/useOpen"
 import { ApiError, api, fieldErrors } from "@/lib/api"
 import type { Schedule, ScheduleBody, ScheduleEnd } from "@/lib/services"
-import { cn } from "@/lib/utils"
 import {
   cronjobKeys,
   useCreateCronjob,
@@ -50,6 +55,7 @@ import {
   ActionIcon,
   actionMeta,
   browserZone,
+  cronText,
   endId,
   modeMeta,
   modes,
@@ -844,23 +850,40 @@ function Editor({
     )
   }
 
+  const ActionGlyph = actionMeta[a].icon
   return (
-    <div className="flex flex-col gap-6 px-6 pt-5 pb-12">
-      <div className="flex items-center gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-          <CalendarClock className="size-5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-subheading font-medium">{title}</h1>
-          <p className="truncate text-caption text-ash">
-            {dirty
-              ? "Unsaved changes"
-              : saved
-                ? `Saved ${timeAgo(saved.updated_at)}`
-                : "Not saved yet"}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
+    <EditorPage
+      icon={<ActionGlyph />}
+      title={title}
+      dirty={dirty}
+      status={
+        dirty
+          ? "Unsaved changes"
+          : saved
+            ? `Saved ${timeAgo(saved.updated_at)}`
+            : "Not saved yet"
+      }
+      onSave={saving || (!!saved && !dirty) ? undefined : () => save()}
+      aside={
+        <AsideCard title="Summary">
+          <SummaryList
+            rows={[
+              ["Does", actionMeta[a].label],
+              ["When", draft.cron.trim() ? cronText(draft.cron) : ""],
+              ["Time zone", draft.timezone],
+              ["State", draft.enabled ? "Turned on" : "Paused"],
+              [
+                "Runs with",
+                saved?.run_as_id && saved.run_as_id !== user.id && !dirty
+                  ? `${saved.run_as_name || "Someone else"}'s access`
+                  : "Your access",
+              ],
+            ]}
+          />
+        </AsideCard>
+      }
+      actions={
+        <>
           <Button
             variant="outline"
             className="h-9"
@@ -876,21 +899,23 @@ function Editor({
           >
             {saving ? "Saving…" : saved ? "Save" : "Create"}
           </Button>
-        </div>
-      </div>
-      <div className="grid max-w-5xl gap-6">{sections}</div>
+        </>
+      }
+    >
+      {sections}
       {picker}
       {conflictDialog}
-    </div>
+    </EditorPage>
   )
 }
 
 function Loading({ phone }: { phone: boolean }) {
+  if (!phone) return <EditorLoading />
   return (
-    <div className={cn("flex flex-col gap-4", phone ? "p-4" : "px-6 pt-6")}>
+    <div className="flex flex-col gap-4 p-4">
       <Skeleton className="h-8 w-60" />
-      <Skeleton className="h-40 w-full max-w-5xl rounded-2xl" />
-      <Skeleton className="h-40 w-full max-w-5xl rounded-2xl" />
+      <Skeleton className="h-40 w-full rounded-2xl" />
+      <Skeleton className="h-40 w-full rounded-2xl" />
     </div>
   )
 }

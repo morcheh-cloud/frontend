@@ -53,10 +53,16 @@ export function ownerText(p: OpenPort) {
 
 export type Risk = { title: string; body: string }
 
-// What deserves a second look about a port, most serious first.
-export function risks(p: OpenPort): Risk[] {
+// Whether a port is a container's, published through Docker's own rules
+// (so ufw doesn't apply, but a container limit does).
+export const dockerPublished = (p: OpenPort) =>
+  !!p.container && p.container.network !== "host" && p.exposure !== "local"
+
+// What deserves a second look about a port, most serious first. `limited` =
+// a container limit already decides who reaches it.
+export function risks(p: OpenPort, limited = false): Risk[] {
   const out: Risk[] = []
-  if (p.exposure !== "public") return out
+  if (p.exposure !== "public" || limited) return out
   const name = p.service || `Port ${p.port}`
   if (p.sensitive) {
     out.push({
@@ -69,7 +75,7 @@ export function risks(p: OpenPort): Risk[] {
   if (p.container && p.container.network !== "host") {
     out.push({
       title: "Docker bypasses ufw for this port",
-      body: "Docker publishes ports with its own iptables rules, ahead of ufw and firewalld, so blocking the port there won't close it.",
+      body: "Docker publishes ports with its own iptables rules, ahead of ufw and firewalld, so blocking the port there won't close it. Limit who can reach it below.",
     })
   }
   return out

@@ -65,6 +65,15 @@ import { cn } from "@/lib/utils"
 import { useFleetHosts, useProxies, useProxyTraffic } from "../api"
 import { count, LiveState, MiniBars, SiteNumbers, Sparkline } from "./live"
 import {
+  groupManaged,
+  ManagedHeading,
+  ManagedSiteCard,
+  ManagedSiteRow,
+  managedMatches,
+  managedTraffic,
+  useManagedSites,
+} from "./managed-sites"
+import {
   byHostName,
   canWrite,
   hostHref,
@@ -88,6 +97,9 @@ import { useCanAddProxy, useProxyCan } from "./permissions"
 import { useHostMenu, useProxyActions, useProxyMenu } from "./proxy-actions"
 
 // ---- data ----
+
+const cardGrid =
+  "grid grid-cols-[repeat(auto-fill,minmax(min(100%,30rem),1fr))] gap-3"
 
 // Proxies with a problem first, then by server name.
 const rank = (p: ReverseProxy) =>
@@ -146,8 +158,15 @@ function useData() {
   )
   const inTab = (t: SiteTab) => (h: ProxyFleetHost) =>
     siteTabMeta[t].types.includes(h.host.config.type)
+  // Proxy managers' own sites, read from their servers.
+  const managed = useManagedSites(all, proxyFilter)
+  const managedTrafficOf = managedTraffic(traffic.data)
   const counts = Object.fromEntries(
-    siteTabs.map((t) => [t, scoped.filter(inTab(t)).length]),
+    siteTabs.map((t) => [
+      t,
+      scoped.filter(inTab(t)).length +
+        managed.sites.filter((m) => m.tab === t).length,
+    ]),
   ) as Record<SiteTab, number>
 
   const needle = q.trim().toLowerCase()
@@ -169,10 +188,20 @@ function useData() {
       traffic: trafficOf.get(h.host.id),
       unread: unread.has(h.host.proxy_id),
     }))
+  const managedGroups = groupManaged(
+    managed.proxies,
+    managed.sites.filter((m) => m.tab === tab && managedMatches(m, needle)),
+  )
   return {
     proxies,
     fleet,
     traffic,
+    managed,
+    managedGroups,
+    managedTrafficOf,
+    unread,
+    // Nothing at all to show in this tab.
+    empty: rows.length === 0 && managedGroups.length === 0,
     all,
     byId,
     tab,
@@ -181,7 +210,8 @@ function useData() {
     setFilters,
     counts,
     rows,
-    tabTotal: tabRows.length,
+    tabTotal:
+      tabRows.length + managed.sites.filter((m) => m.tab === tab).length,
     // Proxies in view that aren't serving.
     troubled: all.filter(
       (p) =>
@@ -234,8 +264,10 @@ function useAddSite(d: Data) {
     else if (writable.length > 1) setPickOpen(true)
     else if (canAdd) actions.add()
   }
+  // A proxy manager's sites are added in the manager.
+  const managedOnly = !!(d.proxyFilter && d.byId.get(d.proxyFilter)?.manager)
   return {
-    shown: writable.length > 0 || canAdd,
+    shown: !managedOnly && (writable.length > 0 || canAdd),
     label: `Add ${meta.noun}`,
     start,
     picker: (
@@ -345,6 +377,7 @@ function ProxyDesktop() {
             d.proxies.refetch()
             d.fleet.refetch()
             d.traffic.refetch()
+            d.managed.refetch()
           }}
         >
           <RefreshCw className={cn(fetching && "animate-spin")} />
@@ -381,21 +414,48 @@ function ProxyDesktop() {
           title="Couldn't load sites"
           body={d.fleet.error.message}
         />
-      ) : d.rows.length === 0 ? (
+      ) : d.empty && d.managed.pending ? (
+        <CardsSkeleton />
+      ) : d.empty ? (
         <NoSites d={d} add={add} />
       ) : (
-        <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,30rem),1fr))] gap-3">
-          {d.rows.map((r) => (
-            <li key={r.fleet.host.id} className="contents">
-              <SiteCard
-                row={r}
-                stream={d.tab === "streams"}
-                minutes={d.traffic.data?.minutes ?? 30}
-                loaded={!!d.traffic.data}
-              />
-            </li>
+        <>
+          {d.rows.length > 0 && (
+            <ul className={cardGrid}>
+              {d.rows.map((r) => (
+                <li key={r.fleet.host.id} className="contents">
+                  <SiteCard
+                    row={r}
+                    stream={d.tab === "streams"}
+                    minutes={d.traffic.data?.minutes ?? 30}
+                    loaded={!!d.traffic.data}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+          {d.managedGroups.map((g) => (
+            <section
+              key={g.proxy.id}
+              className={cn("flex flex-col gap-3", d.rows.length > 0 && "pt-4")}
+            >
+              <ManagedHeading proxy={g.proxy} count={g.sites.length} />
+              <ul className={cardGrid}>
+                {g.sites.map((m) => (
+                  <li key={m.key} className="contents">
+                    <ManagedSiteCard
+                      m={m}
+                      traffic={d.managedTrafficOf.get(m.key)}
+                      minutes={d.traffic.data?.minutes ?? 30}
+                      loaded={!!d.traffic.data}
+                      unread={d.unread.has(m.proxy.id)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </section>
           ))}
-        </ul>
+        </>
       )}
 
       {add.picker}
@@ -436,7 +496,7 @@ function ProxyFilterMenu({ d }: { d: Data }) {
         )}
         <ChevronDown className="size-4 text-ash" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-64">
+      <DropdownMenuContent align="start" className="min-w-64">
         <DropdownMenuGroup>
           <DropdownMenuLabel>Show sites on</DropdownMenuLabel>
           <DropdownMenuRadioGroup
@@ -837,6 +897,24 @@ function NoSites({ d, add }: { d: Data; add: ReturnType<typeof useAddSite> }) {
     )
   }
   const where = d.proxyFilter ? d.byId.get(d.proxyFilter) : undefined
+  const failed = d.managed.failed[0]
+  if (where?.manager) {
+    return (
+      <Empty
+        icon={failed ? CloudOff : tabIcons[d.tab]}
+        title={
+          failed
+            ? `Couldn't read ${proxyName(where)}`
+            : `No ${meta.label.toLowerCase()} in ${where.manager}`
+        }
+        body={
+          failed
+            ? failed.message
+            : `${proxyName(where)} runs ${where.manager}: its sites are added and changed there, and show up here read only.`
+        }
+      />
+    )
+  }
   return (
     <Empty
       icon={tabIcons[d.tab]}
@@ -1065,21 +1143,49 @@ function ProxyMobile() {
           <div className="pt-4 pb-[calc(6rem+env(safe-area-inset-bottom))]">
             {d.fleet.isPending ? (
               <ListSkeleton />
-            ) : d.rows.length === 0 ? (
+            ) : d.empty && d.managed.pending ? (
+              <ListSkeleton />
+            ) : d.empty ? (
               <NoSites d={d} add={add} />
             ) : (
-              <ul className="divide-y divide-border border-y border-border">
-                {d.rows.map((r) => (
-                  <MobileRow
-                    key={r.fleet.host.id}
-                    row={r}
-                    onMore={() => {
-                      setSheetId(r.fleet.host.id)
-                      setSheetOpen(true)
-                    }}
-                  />
+              <div className="flex flex-col gap-6">
+                {d.rows.length > 0 && (
+                  <ul className="divide-y divide-border border-y border-border">
+                    {d.rows.map((r) => (
+                      <MobileRow
+                        key={r.fleet.host.id}
+                        row={r}
+                        onMore={() => {
+                          setSheetId(r.fleet.host.id)
+                          setSheetOpen(true)
+                        }}
+                      />
+                    ))}
+                  </ul>
+                )}
+                {d.managedGroups.map((g) => (
+                  <section key={g.proxy.id} className="flex flex-col gap-2">
+                    <ManagedHeading
+                      proxy={g.proxy}
+                      count={g.sites.length}
+                      phone
+                    />
+                    <ul className="divide-y divide-border border-y border-border">
+                      {g.sites.map((m) => (
+                        <ManagedSiteRow
+                          key={m.key}
+                          m={m}
+                          traffic={
+                            d.unread.has(m.proxy.id)
+                              ? undefined
+                              : d.managedTrafficOf.get(m.key)
+                          }
+                        />
+                      ))}
+                    </ul>
+                  </section>
                 ))}
-              </ul>
+              </div>
             )}
           </div>
         </>

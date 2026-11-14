@@ -450,7 +450,7 @@ export function ParamField({
               value={value}
               onValueChange={(v) => v !== null && onChange(v)}
             >
-              <SelectTrigger id={id} className="h-11 w-full md:h-9">
+              <SelectTrigger id={id} className="h-11 w-full md:h-10">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent alignItemWithTrigger={false}>

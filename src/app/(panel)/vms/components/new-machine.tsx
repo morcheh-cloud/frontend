@@ -23,6 +23,7 @@ import {
 } from "@/app/(panel)/cronjobs/components/editor-parts"
 import { Empty, Segmented } from "@/app/(panel)/servers/[id]/components/parts"
 import { TagInput } from "@/app/(panel)/servers/components/fields"
+import { AsideCard, EditorPage, SummaryList } from "@/components/editor-page"
 import { Field } from "@/components/field"
 import { isActive, useJobList, useJobLog } from "@/components/jobs/api"
 import { JobBar, progressText, StateText } from "@/components/jobs/meta"
@@ -784,25 +785,19 @@ export function NewMachine() {
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-6 px-6 pt-5 pb-12">
-      <div className="flex items-center gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-          {d.kind === "lxc" ? (
-            <Box className="size-5" />
-          ) : (
-            <Monitor className="size-5" />
-          )}
-        </span>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-subheading font-medium">
-            New {kindNoun(d.kind)}
-          </h1>
-          <p className="truncate text-caption text-ash">
-            {mine.find((c) => c.id === cluster)?.name}
-            {m.node ? ` · ${m.node}` : ""}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
+    <EditorPage
+      as="form"
+      onSubmit={submit}
+      icon={d.kind === "lxc" ? <Box /> : <Monitor />}
+      title={`New ${kindNoun(d.kind)}`}
+      status={
+        [mine.find((c) => c.id === cluster)?.name, m.node]
+          .filter(Boolean)
+          .join(" · ") || "Not created yet"
+      }
+      aside={o && <Summary d={d} m={m} />}
+      actions={
+        <>
           <Button
             variant="outline"
             className="h-9"
@@ -814,17 +809,11 @@ export function NewMachine() {
           <Button type="submit" className="h-9" disabled={pending || !o}>
             {label}
           </Button>
-        </div>
-      </div>
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,64rem)_18rem]">
-        <div className="grid min-w-0 gap-6">{sections}</div>
-        {o && (
-          <aside className="hidden xl:block">
-            <Summary d={d} m={m} />
-          </aside>
-        )}
-      </div>
-    </form>
+        </>
+      }
+    >
+      {sections}
+    </EditorPage>
   )
 }
 
@@ -1233,17 +1222,9 @@ function Summary({ d, m }: { d: Draft; m: Model }) {
     ],
   ]
   return (
-    <div className="sticky top-[calc(3rem+1px+1.25rem)] rounded-2xl border border-border p-5">
-      <h2 className="text-body-sm font-medium">Summary</h2>
-      <dl className="mt-3 grid gap-2.5">
-        {rows.map(([k, v]) => (
-          <div key={k}>
-            <dt className="text-caption text-ash">{k}</dt>
-            <dd className="truncate text-body-sm">{v}</dd>
-          </div>
-        ))}
-      </dl>
-    </div>
+    <AsideCard title="Summary">
+      <SummaryList rows={rows.map(([k, v]) => [k, v === "—" ? "" : v])} />
+    </AsideCard>
   )
 }
 
@@ -1279,7 +1260,7 @@ function Progress({
   return (
     <div
       className={cn(
-        "flex max-w-3xl flex-col gap-5",
+        "flex flex-col gap-5",
         phone ? "px-4 py-5" : "rounded-2xl border border-border p-6",
       )}
     >
@@ -1434,8 +1415,8 @@ function Loading({ phone }: { phone: boolean }) {
   return (
     <div className={cn("flex flex-col gap-4", phone ? "p-4" : "px-6 pt-6")}>
       <Skeleton className="h-8 w-60" />
-      <Skeleton className="h-40 w-full max-w-5xl rounded-2xl" />
-      <Skeleton className="h-40 w-full max-w-5xl rounded-2xl" />
+      <Skeleton className="h-40 w-full rounded-2xl" />
+      <Skeleton className="h-40 w-full rounded-2xl" />
     </div>
   )
 }

@@ -8,6 +8,7 @@ import {
   use,
   useCallback,
   useEffect,
+  useEffectEvent,
   useMemo,
   useRef,
   useState,
@@ -15,6 +16,7 @@ import {
 
 import { Logo } from "@/components/logo"
 import { Button } from "@/components/ui/button"
+import { useNow } from "@/hooks/useNow"
 import { ApiError, api, onRefused } from "@/lib/api"
 import type { MyAccess, PanelUser } from "@/lib/services"
 import { AddressBlocked, isAddressRefused, refusedAddress } from "./address"
@@ -153,6 +155,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
     if (id) rememberUser(id)
   }, [id])
 
+  // A refetch of a query without data clears its error, so remember that it
+  // was down: the Unreachable screen stays (and keeps counting) until it
+  // answers, instead of blinking away on every try.
+  const meDown = useStuck(!!me.error && !user, !!user)
+  const accessDown = useStuck(!!access.error && !access.data, !!access.data)
+
   if (lost) return null
   // The allowlist now keeps this address out: show nothing of the panel.
   const refused = [me.error, access.error].find(isAddressRefused)
@@ -163,13 +171,13 @@ export function AuthGate({ children }: { children: ReactNode }) {
       </Screen>
     )
   }
-  if (me.error && !user) {
+  if (meDown && !user) {
     return <Unreachable onRetry={() => me.refetch()} checking={me.isFetching} />
   }
   if (!user) return null
   if (user.status === "pending") return <WaitingView onSignOut={signOut} />
   if (user.must_change_password) return <MustChangeView onSignOut={signOut} />
-  if (access.error && !access.data) {
+  if (accessDown && !access.data) {
     return (
       <Unreachable
         onRetry={() => access.refetch()}
@@ -186,6 +194,14 @@ export function AuthGate({ children }: { children: ReactNode }) {
   )
 }
 
+// True from the moment `down` is, until `ok`.
+function useStuck(down: boolean, ok: boolean) {
+  const [stuck, setStuck] = useState(false)
+  if (down && !stuck) setStuck(true)
+  if (ok && stuck) setStuck(false)
+  return down || stuck
+}
+
 function Screen({ children }: { children: ReactNode }) {
   return (
     <main className="flex min-h-svh flex-col bg-background px-6 pt-[max(--spacing(8),env(safe-area-inset-top))] pb-[max(--spacing(6),env(safe-area-inset-bottom))] sm:items-center sm:justify-center">
@@ -197,6 +213,11 @@ function Screen({ children }: { children: ReactNode }) {
   )
 }
 
+// Seconds between automatic tries: quick at first, then every 10 s.
+const RETRY_DELAYS = [3, 5, 10]
+
+// The backend went away (restart, network): keep trying by itself, and at
+// once when the browser comes back online or the tab is shown again.
 function Unreachable({
   onRetry,
   checking,
@@ -204,21 +225,71 @@ function Unreachable({
   onRetry: () => void
   checking: boolean
 }) {
+  const [tries, setTries] = useState(0)
+  const [due, setDue] = useState<number | null>(null)
+  const now = useNow(1000, !checking && due !== null)
+  const retry = useEffectEvent(() => onRetry())
+
+  useEffect(() => {
+    if (checking) {
+      setDue(null)
+      return
+    }
+    const wait = RETRY_DELAYS[Math.min(tries, RETRY_DELAYS.length - 1)] * 1000
+    setDue(Date.now() + wait)
+    const t = setTimeout(() => {
+      setTries((n) => n + 1)
+      retry()
+    }, wait)
+    return () => clearTimeout(t)
+  }, [checking, tries])
+
+  useEffect(() => {
+    const wake = () => {
+      if (document.visibilityState !== "visible") return
+      setTries(0)
+      retry()
+    }
+    window.addEventListener("online", wake)
+    document.addEventListener("visibilitychange", wake)
+    return () => {
+      window.removeEventListener("online", wake)
+      document.removeEventListener("visibilitychange", wake)
+    }
+  }, [])
+
+  const left = due === null ? 0 : Math.max(1, Math.ceil((due - now) / 1000))
   return (
     <Screen>
       <div className="flex flex-col gap-3">
         <h1 className="text-subheading font-medium">Can't reach the server</h1>
         <p className="text-body-sm text-muted-foreground">
-          Check your connection, then try again.
+          Morche keeps trying by itself and opens as soon as the server answers.
+        </p>
+        <p
+          className="flex items-center gap-2 text-body-sm text-ash"
+          aria-live="polite"
+        >
+          {checking ? (
+            <>
+              <LoaderCircle className="size-4 animate-spin" />
+              Connecting…
+            </>
+          ) : (
+            `Trying again in ${left} s`
+          )}
         </p>
         <Button
           size="lg"
           className="mt-3 w-full"
           disabled={checking}
-          onClick={onRetry}
+          onClick={() => {
+            setTries(0)
+            onRetry()
+          }}
         >
           {checking ? <LoaderCircle className="animate-spin" /> : <RefreshCw />}
-          Try again
+          Try now
         </Button>
       </div>
     </Screen>

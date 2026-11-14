@@ -19,14 +19,20 @@ import { cn } from "@/lib/utils"
 // access log, drawn small on each site card of /proxy and added up for the
 // panel on a proxy's own page.
 
+// What a site's numbers are made of: a Morche site's or a proxy manager's.
+export type SiteTraffic = Pick<
+  ProxyHostTraffic,
+  "requests" | "server_errors" | "client_errors" | "bytes"
+>
+
 export const sum = (xs: number[] | undefined) =>
   (xs ?? []).reduce((a, b) => a + b, 0)
 
 // Per-minute series added up; the last minute is still running, so it's
 // left out of charts and "now" (but counted in the totals).
-export function sumTraffic(list: ProxyHostTraffic[]) {
+export function sumTraffic(list: SiteTraffic[]) {
   const n = Math.max(0, ...list.map((t) => t.requests.length))
-  const add = (pick: (t: ProxyHostTraffic) => number[]) =>
+  const add = (pick: (t: SiteTraffic) => number[]) =>
     Array.from({ length: n }, (_, i) =>
       list.reduce((a, t) => a + (pick(t)[i] ?? 0), 0),
     )
@@ -519,7 +525,7 @@ export function SiteNumbers({
   stream,
   minutes,
 }: {
-  t: ProxyHostTraffic
+  t: SiteTraffic
   stream: boolean
   minutes: number
 }) {

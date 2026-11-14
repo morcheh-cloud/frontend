@@ -36,6 +36,7 @@ export function Field({
       {(error || hint) && (
         <p
           id={noteId}
+          data-error={error ? true : undefined}
           className={cn(
             "text-caption",
             error ? "text-destructive" : "text-muted-foreground",

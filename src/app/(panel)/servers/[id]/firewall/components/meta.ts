@@ -1,6 +1,11 @@
 "use client"
 
-import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs"
+import {
+  createSerializer,
+  parseAsString,
+  parseAsStringLiteral,
+  useQueryStates,
+} from "nuqs"
 
 import type {
   FilterRule,
@@ -11,22 +16,31 @@ import type {
   OpenPort,
 } from "@/lib/services"
 
-const tabs = ["rules", "ports", "forwarding", "log"] as const
+const tabs = ["rules", "ports", "forwarding", "containers", "log"] as const
 const shows = ["allow", "block"] as const
 export type Tab = (typeof tabs)[number]
 export type Show = (typeof shows)[number]
 
+const filterParsers = {
+  tab: parseAsStringLiteral(tabs).withDefault("rules"),
+  q: parseAsString.withDefault(""),
+  show: parseAsStringLiteral(shows),
+}
+
 export function useFirewallFilters() {
-  const [filters, setFilters] = useQueryStates(
-    {
-      tab: parseAsStringLiteral(tabs).withDefault("rules"),
-      q: parseAsString.withDefault(""),
-      show: parseAsStringLiteral(shows),
-    },
-    { history: "replace" },
-  )
+  const [filters, setFilters] = useQueryStates(filterParsers, {
+    history: "replace",
+  })
   return { filters, setFilters }
 }
+
+const serializeFilters = createSerializer(filterParsers)
+
+// A link to a server's Firewall page, opened on a tab.
+export const firewallHref = (
+  serverId: string,
+  params: { tab?: Tab; q?: string; show?: Show } = {},
+) => serializeFilters(`/servers/${serverId}/firewall`, params)
 
 const KNOWN: Record<string, string> = {
   "21": "FTP",
