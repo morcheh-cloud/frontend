@@ -50,6 +50,11 @@ export interface AffectedOutputBody {
 export interface AlertEvent {
   /** @format date-time */
   at: string;
+  /**
+   * A Proxmox cluster's event
+   * @format uuid
+   */
+  cluster_id?: string;
   /** @format uuid */
   database_id?: string;
   detail: string;
@@ -103,7 +108,7 @@ export interface AlertMute {
   /** @format uuid */
   target_id?: string;
   /** Empty = everywhere */
-  target_kind: "" | "server" | "database";
+  target_kind: "" | "server" | "database" | "pve";
   target_name: string;
   /** @format date-time */
   until: string;
@@ -135,7 +140,7 @@ export interface AlertMuteBody {
   starts_at?: string;
   target_id?: string;
   /** With target_id: one server or database; empty = everywhere */
-  target_kind?: "server" | "database";
+  target_kind?: "server" | "database" | "pve";
   /** @format date-time */
   until?: string;
 }
@@ -152,7 +157,7 @@ export interface AlertPreviewItem {
   status: string;
   /** @format uuid */
   target_id: string;
-  target_kind: "server" | "database";
+  target_kind: "server" | "database" | "pve";
   target_name: string;
   /** @format double */
   value?: number;
@@ -175,6 +180,7 @@ export interface AlertRule {
    */
   $schema?: string;
   channel_ids: string[];
+  cluster_ids: string[];
   container: string;
   /** @format date-time */
   created_at: string;
@@ -217,6 +223,8 @@ export interface AlertRuleBody {
   $schema?: string;
   /** Notification channels of the same workspace */
   channel_ids?: string[];
+  /** scope clusters */
+  cluster_ids?: string[];
   /**
    * container_* only: a container or compose service name (* = any characters); empty = any
    * @maxLength 100
@@ -253,7 +261,10 @@ export interface AlertRuleBody {
     | "container_memory"
     | "docker_engine"
     | "container_vulns_critical"
-    | "container_vulns_high";
+    | "container_vulns_high"
+    | "pve_node_down"
+    | "pve_storage_full"
+    | "pve_vm_stopped";
   /**
    * disk only: one mount point; empty = the fullest
    * @maxLength 255
@@ -281,10 +292,10 @@ export interface AlertRuleBody {
    */
   repeat_minutes?: number;
   /**
-   * databases = for db_down/db_health, which take all or databases
+   * databases = for db_down/db_health, which take all or databases; clusters = for pve_*, which take all or clusters
    * @default "all"
    */
-  scope?: "all" | "servers" | "tags" | "databases";
+  scope?: "all" | "servers" | "tags" | "databases" | "clusters";
   /** scope servers */
   server_ids?: string[];
   /** @default "warning" */
@@ -292,7 +303,7 @@ export interface AlertRuleBody {
   /** scope tags: servers with any of them */
   tags?: string[];
   /**
-   * Percent for cpu, iowait, memory, swap, disk and container_memory (of its limit); load per core; bytes per second for net_rx/net_tx; percent of one core for container_cpu; stops in 10 minutes for container_restarts; findings in the image's last scan for container_vulns_critical (critical) and container_vulns_high (high or critical); ignored for offline, service, db_down, db_health, container_down, container_unhealthy and docker_engine
+   * Percent for cpu, iowait, memory, swap, disk and container_memory (of its limit); load per core; bytes per second for net_rx/net_tx; percent of one core for container_cpu; stops in 10 minutes for container_restarts; findings in the image's last scan for container_vulns_critical (critical) and container_vulns_high (high or critical); percent used for pve_storage_full; ignored for offline, service, db_down, db_health, container_down, container_unhealthy, docker_engine, pve_node_down and pve_vm_stopped
    * @format double
    */
   threshold: number;
@@ -315,11 +326,11 @@ export interface AlertRuleState {
   /** pending = the condition holds, not yet for long enough */
   state: "pending" | "firing";
   /**
-   * The server or database
+   * The server, database or Proxmox cluster
    * @format uuid
    */
   target_id: string;
-  target_kind: "server" | "database";
+  target_kind: "server" | "database" | "pve";
   target_name: string;
   /** @format date-time */
   updated_at: string;
@@ -1879,6 +1890,22 @@ export interface CheckProxyRedirectTargetsResponse {
   results: RedirectTargetCheck[];
 }
 
+export interface CheckPveMigrationResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  allowed: string[];
+  local_disks: string[];
+  local_resources: string[];
+  node: string;
+  not_allowed: Record<string, string>;
+  /** Containers move by restarting, VMs live */
+  online_supported: boolean;
+  running: boolean;
+}
+
 export interface CheckResult {
   /**
    * A URL to the JSON Schema for this object.
@@ -1983,6 +2010,36 @@ export interface ClearJobsResponse {
   $schema?: string;
   /** @format int64 */
   deleted: number;
+}
+
+export interface ClonePveGuestRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** A full copy. A linked clone (templates only) shares the template's disks */
+  full: boolean;
+  /** @maxLength 63 */
+  name?: string;
+  /**
+   * 0 = the next free id
+   * @format int64
+   * @min 0
+   * @max 999999999
+   */
+  new_id?: number;
+  start?: boolean;
+  /**
+   * Full clone: storage for its disks
+   * @maxLength 64
+   */
+  storage?: string;
+  /**
+   * Node to put it on
+   * @maxLength 64
+   */
+  target?: string;
 }
 
 export interface CommandLogEntry {
@@ -2353,6 +2410,23 @@ export interface CreateProxyRequest {
   runtime?: "host" | "docker" | "podman";
   /** @format uuid */
   server_id: string;
+}
+
+export interface CreatePveSnapshotRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 1000 */
+  description?: string;
+  /**
+   * @minLength 2
+   * @maxLength 40
+   */
+  name: string;
+  /** VMs: keep the memory too, so a rollback lands in the running machine */
+  with_ram?: boolean;
 }
 
 export interface CreateStorageBucketRequest {
@@ -8844,7 +8918,7 @@ export interface Job {
   finished_at?: string;
   /** @format uuid */
   id: string;
-  /** What it does: transfer, copy, move, storage-copy, storage-move, compress, extract, fetch, fail2ban-install, fail2ban-uninstall, firewall-install, firewall-apply, ansible-run, schedule-sync, schedule-run, script-run, database-backup, database-backup-verify, database-backup-restore, proxy-setup, proxy-geo, proxy-brotli, proxy-waf, proxy-image-filter, proxy-stream-geo, proxy-certificate, software-run, software-scan, package-action, package-refresh, docker-pull or docker-prune */
+  /** What it does: transfer, copy, move, storage-copy, storage-move, compress, extract, fetch, fail2ban-install, fail2ban-uninstall, firewall-install, firewall-apply, ansible-run, schedule-sync, schedule-run, script-run, database-backup, database-backup-verify, database-backup-restore, proxy-setup, proxy-geo, proxy-brotli, proxy-waf, proxy-image-filter, proxy-stream-geo, proxy-certificate, software-run, software-scan, package-action, package-refresh, docker-pull, docker-prune, pve-task or pve-create */
   kind: string;
   /** What it printed (newest last); only on GET /jobs/{id} */
   log?: string;
@@ -8881,6 +8955,11 @@ export interface JobPlace {
    */
   auto_update?: string;
   /**
+   * The Proxmox cluster it works on
+   * @format uuid
+   */
+  cluster_id?: string;
+  /**
    * The database it backs up
    * @format uuid
    */
@@ -8904,6 +8983,11 @@ export interface JobPlace {
   server_id?: string;
   /** @format uuid */
   storage_id?: string;
+  /**
+   * The Proxmox guest it works on
+   * @format int64
+   */
+  vmid?: number;
   /** The Docker volume it works in (path is inside it) */
   volume?: string;
 }
@@ -8973,6 +9057,16 @@ export interface LatestSample {
   swap_used: number;
   /** @format double */
   tx: number;
+}
+
+export interface LinkPveGuestRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format uuid */
+  server_id: string;
 }
 
 export interface ListAnsibleModulesResponse {
@@ -9119,6 +9213,15 @@ export interface ListProxyKindsResponse {
    */
   $schema?: string;
   items: ProxyKind[];
+}
+
+export interface ListPveSnapshotsResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: PVESnapshot[];
 }
 
 export interface ListServerNotesResponse {
@@ -9703,6 +9806,23 @@ export interface MetricPoint {
   tx_max: number;
 }
 
+export interface MigratePveGuestRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** VMs: move while running. Containers restart on the new node. */
+  online: boolean;
+  /**
+   * @minLength 1
+   * @maxLength 64
+   */
+  target: string;
+  /** Copy disks that aren't on shared storage */
+  with_local_disks?: boolean;
+}
+
 export interface Mirror {
   /**
    * Share of requests copied; 0 = all
@@ -10224,6 +10344,20 @@ export interface MonitorTestBody {
   timeout_seconds?: number;
 }
 
+export interface MovePveGuestFirewallRuleRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * @format int64
+   * @min 0
+   * @max 9999
+   */
+  to: number;
+}
+
 export interface MyAccess {
   /**
    * A URL to the JSON Schema for this object.
@@ -10454,6 +10588,954 @@ export interface OpenPort {
   service: string;
   service_source: "container" | "process" | "port" | "none";
   unit?: PortUnit;
+}
+
+export interface OpenPveConsoleRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  mode: "vnc" | "term";
+  /** @pattern ^(serial[0-3])?$ */
+  serial?: string;
+}
+
+export interface PVEBackup {
+  /** @format date-time */
+  created_at: string;
+  format: string;
+  node: string;
+  notes: string;
+  protected: boolean;
+  /** @format int64 */
+  size: number;
+  storage: string;
+  /** ok, failed or empty (PBS only) */
+  verified: string;
+  /** @format int64 */
+  vmid: number;
+  volid: string;
+}
+
+export interface PVEBackupBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Not for PBS, which compresses by itself */
+  compress?: "zstd" | "lzo" | "gzip" | "0" | "";
+  /** @default "snapshot" */
+  mode: "snapshot" | "suspend" | "stop";
+  /**
+   * Proxmox's notes template: {{guestname}}, {{vmid}}, {{node}}, {{cluster}}
+   * @maxLength 500
+   */
+  notes?: string;
+  /** Pruning leaves it alone */
+  protected?: boolean;
+  /**
+   * @minLength 1
+   * @maxLength 64
+   */
+  storage: string;
+}
+
+export interface PVEBackupsOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: PVEBackup[];
+  /** Storages that couldn't be read */
+  problems: string[];
+}
+
+export interface PVEBridge {
+  active: boolean;
+  cidr?: string;
+  comment?: string;
+  name: string;
+  type: string;
+}
+
+export interface PVECloudInit {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** The VM has a cloud-init drive */
+  has_drive: boolean;
+  has_password: boolean;
+  /** ipconfig0… as Proxmox writes them: ip=dhcp or ip=10.0.0.5/24,gw=10.0.0.1 */
+  ip_config: Record<string, string>;
+  nameserver: string;
+  search_domain: string;
+  /** One public key per line */
+  ssh_keys: string;
+  /** nocloud, configdrive2 or opennebula; empty = Proxmox's default */
+  type: string;
+  /** Upgrade packages on first boot */
+  upgrade: boolean;
+  user: string;
+}
+
+export interface PVECloudInitBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  clear_password?: boolean;
+  ip_config?: Record<string, string>;
+  /** @maxLength 200 */
+  nameserver?: string;
+  /**
+   * Blank keeps the saved one
+   * @maxLength 200
+   */
+  password?: string;
+  /** @maxLength 200 */
+  search_domain?: string;
+  /** @maxLength 20000 */
+  ssh_keys?: string;
+  upgrade?: boolean;
+  /** @maxLength 64 */
+  user?: string;
+}
+
+export interface PVECluster {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  allow_internal: boolean;
+  /** Proxmox's own name for the cluster; empty for a single node */
+  cluster_name: string;
+  /** @format date-time */
+  created_at: string;
+  description: string;
+  favorite: boolean;
+  /** The pinned certificate (SHA-256), empty when not pinned */
+  fingerprint: string;
+  /** @format int32 */
+  guest_count: number;
+  /** @format uuid */
+  id: string;
+  /** @format date-time */
+  last_checked_at?: string;
+  /** @format date-time */
+  last_online_at?: string;
+  /** @format int32 */
+  latency_ms?: number;
+  name: string;
+  /** @format int32 */
+  node_count: number;
+  /** @format int32 */
+  nodes_online: number;
+  /** @format int32 */
+  running_count: number;
+  status:
+    | "unknown"
+    | "online"
+    | "unreachable"
+    | "auth_failed"
+    | "tls_error"
+    | "blocked"
+    | "error";
+  status_message: string;
+  tls_skip_verify: boolean;
+  /** user@realm!tokenname */
+  token_id: string;
+  /** @format date-time */
+  updated_at: string;
+  url: string;
+  version: string;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface PVEClusterBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Reach a private or loopback address. System admins only. */
+  allow_internal?: boolean;
+  /** @maxLength 500 */
+  description?: string;
+  /**
+   * Pin the certificate (SHA-256). Safer than skipping the check.
+   * @maxLength 200
+   */
+  fingerprint?: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  /**
+   * The token's secret. Blank on update keeps the saved one.
+   * @maxLength 300
+   */
+  secret?: string;
+  tls_skip_verify?: boolean;
+  /**
+   * user@realm!tokenname, or the whole user@realm!tokenname=secret
+   * @minLength 1
+   * @maxLength 300
+   */
+  token_id: string;
+  /**
+   * Any node's address, like https://pve1.example.com:8006
+   * @minLength 1
+   * @maxLength 500
+   */
+  url: string;
+}
+
+export interface PVEClusterTasksOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: PVETask[];
+}
+
+export interface PVEClustersOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: PVECluster[];
+}
+
+export interface PVEConsole {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  kind: "qemu" | "lxc";
+  mode: "vnc" | "term";
+  node: string;
+  /** VNC password for noVNC (vnc only) */
+  password?: string;
+  /** One-time, good for 30 s: pass it to the websocket */
+  token: string;
+}
+
+export interface PVECreateBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  add_server?: boolean;
+  /** @maxLength 64 */
+  bridge?: string;
+  /**
+   * @format int64
+   * @min 0
+   * @max 512
+   */
+  cores?: number;
+  /**
+   * @format int64
+   * @min 0
+   * @max 131072
+   */
+  disk_gb?: number;
+  full?: boolean;
+  /**
+   * ip=dhcp or ip=10.0.0.5/24,gw=10.0.0.1
+   * @maxLength 200
+   */
+  ip_config?: string;
+  /** @maxLength 400 */
+  iso?: string;
+  kind: "qemu" | "lxc";
+  /**
+   * MiB
+   * @format int64
+   * @min 0
+   * @max 8388608
+   */
+  memory?: number;
+  /** @maxLength 63 */
+  name: string;
+  /** @maxLength 200 */
+  nameserver?: string;
+  nesting?: boolean;
+  /** @maxLength 63 */
+  node: string;
+  onboot?: boolean;
+  /** @maxLength 400 */
+  ostemplate?: string;
+  /** @maxLength 200 */
+  password?: string;
+  /** @maxLength 100 */
+  server_name?: string;
+  /** @maxItems 20 */
+  server_tags?: string[];
+  source: "clone" | "iso" | "ostemplate";
+  /** @maxLength 20000 */
+  ssh_keys?: string;
+  start?: boolean;
+  /** @maxLength 100 */
+  storage?: string;
+  /**
+   * MiB, containers
+   * @format int64
+   * @min 0
+   * @max 8388608
+   */
+  swap?: number;
+  /** @maxItems 20 */
+  tags?: string[];
+  /** @format int64 */
+  template?: number;
+  unprivileged?: boolean;
+  /** @maxLength 32 */
+  user?: string;
+  /**
+   * @format int64
+   * @min 0
+   * @max 4094
+   */
+  vlan?: number;
+  /**
+   * @format int64
+   * @min 0
+   * @max 999999999
+   */
+  vmid?: number;
+}
+
+export interface PVECreateOptions {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  bridges: Record<string, PVEBridge[]>;
+  ct_templates: PVEVolumeAt[];
+  ha_groups: string[];
+  isos: PVEVolumeAt[];
+  /** @format int64 */
+  next_id: number;
+  nodes: PVENode[];
+  problems: string[];
+  storages: PVEStorage[];
+  templates: PVEGuest[];
+}
+
+export interface PVEDownloadBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  algorithm?: "md5" | "sha1" | "sha224" | "sha256" | "sha384" | "sha512" | "";
+  /** @maxLength 256 */
+  checksum?: string;
+  content: "iso" | "vztmpl";
+  /** @maxLength 200 */
+  filename?: string;
+  /** @maxLength 2048 */
+  url: string;
+}
+
+export interface PVEFirewall {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  options: PVEFirewallOptions;
+  rules: PVEFirewallRule[];
+}
+
+export interface PVEFirewallOptions {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  dhcp: boolean;
+  enable: boolean;
+  ipfilter: boolean;
+  macfilter: boolean;
+  policy_in: "ACCEPT" | "DROP" | "REJECT" | "";
+  policy_out: "ACCEPT" | "DROP" | "REJECT" | "";
+}
+
+export interface PVEFirewallRule {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * ACCEPT, DROP, REJECT, or a security group's name
+   * @minLength 1
+   * @maxLength 64
+   */
+  action: string;
+  /** @maxLength 500 */
+  comment: string;
+  /** @maxLength 512 */
+  dest: string;
+  /** @maxLength 200 */
+  dport: string;
+  enable: boolean;
+  /** @maxLength 20 */
+  iface: string;
+  /** @maxLength 20 */
+  log: string;
+  /** @maxLength 64 */
+  macro: string;
+  /**
+   * Its place; ignored when adding
+   * @format int64
+   */
+  pos: number;
+  /** @maxLength 20 */
+  proto: string;
+  /** @maxLength 512 */
+  source: string;
+  /** @maxLength 200 */
+  sport: string;
+  type: "in" | "out" | "group";
+}
+
+export interface PVEGuest {
+  /** @format uuid */
+  cluster_id: string;
+  cluster_name: string;
+  /**
+   * Share of its cores in use, 0–1
+   * @format double
+   */
+  cpu: number;
+  /** @format double */
+  cpus: number;
+  /** @format int64 */
+  disk: number;
+  ha_state: string;
+  /** Addresses the guest agent (or the container) reports; empty when not known */
+  ips: string[];
+  kind: "qemu" | "lxc";
+  link?: PVEGuestLink;
+  lock: string;
+  /** @format int64 */
+  maxdisk: number;
+  /** @format int64 */
+  maxmem: number;
+  /** @format int64 */
+  mem: number;
+  name: string;
+  /** @format int64 */
+  netin: number;
+  /** @format int64 */
+  netout: number;
+  node: string;
+  pool: string;
+  /** running, stopped, paused (suspended) or unknown */
+  status: string;
+  tags: string[];
+  template: boolean;
+  /** @format int64 */
+  uptime: number;
+  /** @format int64 */
+  vmid: number;
+}
+
+export interface PVEGuestDetail {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** The QEMU guest agent is turned on */
+  agent: boolean;
+  /** @format uuid */
+  cluster_id: string;
+  cluster_name: string;
+  /** Proxmox's own keys (cores, memory, scsi0, net0…); cipassword is never sent */
+  config: Record<string, string>;
+  /**
+   * Share of its cores in use, 0–1
+   * @format double
+   */
+  cpu: number;
+  /** @format double */
+  cpus: number;
+  description: string;
+  /** Send it back with a change: the change fails if the config moved on meanwhile */
+  digest: string;
+  /** @format int64 */
+  disk: number;
+  ha_group: string;
+  ha_managed: boolean;
+  ha_state: string;
+  interfaces: PVEInterface[];
+  /** Addresses the guest agent (or the container) reports; empty when not known */
+  ips: string[];
+  kind: "qemu" | "lxc";
+  link?: PVEGuestLink;
+  lock: string;
+  /** @format int64 */
+  maxdisk: number;
+  /** @format int64 */
+  maxmem: number;
+  /** @format int64 */
+  mem: number;
+  name: string;
+  /** @format int64 */
+  netin: number;
+  /** @format int64 */
+  netout: number;
+  node: string;
+  onboot: boolean;
+  /** Changes waiting for a restart */
+  pending: PVEPendingChange[];
+  pool: string;
+  qmp_status: string;
+  running_machine: string;
+  running_qemu: string;
+  /** running, stopped, paused (suspended) or unknown */
+  status: string;
+  tags: string[];
+  template: boolean;
+  /** @format int64 */
+  uptime: number;
+  /** @format int64 */
+  vmid: number;
+}
+
+export interface PVEGuestLink {
+  /** @format uuid */
+  server_id: string;
+  server_name: string;
+  server_status: string;
+}
+
+export interface PVEGuestsOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: PVEGuest[];
+  problems: PVEProblem[];
+}
+
+export interface PVEHABody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 500 */
+  comment?: string;
+  /** @maxLength 64 */
+  group?: string;
+  /**
+   * @format int64
+   * @min 0
+   * @max 10
+   */
+  max_relocate: number;
+  /**
+   * @format int64
+   * @min 0
+   * @max 10
+   */
+  max_restart: number;
+  state: "started" | "stopped" | "disabled" | "ignored";
+}
+
+export interface PVEHAItem {
+  comment?: string;
+  group?: string;
+  kind: string;
+  /** @format int64 */
+  max_relocate: number;
+  /** @format int64 */
+  max_restart: number;
+  name: string;
+  node: string;
+  sid: string;
+  state: string;
+  /** @format int64 */
+  vmid: number;
+}
+
+export interface PVEHAOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  groups: string[];
+  items: PVEHAItem[];
+  quorate: boolean;
+}
+
+export interface PVEHardwareBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Keys to remove (an unused disk, a NIC) */
+  delete?: string[];
+  digest?: string;
+  /** Proxmox config keys to set (cores, memory, net0, scsi1 = local-lvm:32, boot…) */
+  set?: Record<string, string>;
+}
+
+export interface PVEInfrastructureOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  nodes: PVENode[];
+  problems: PVEProblem[];
+  storages: PVEStorage[];
+}
+
+export interface PVEInterface {
+  addresses: string[];
+  mac: string;
+  name: string;
+}
+
+export interface PVENode {
+  /** @format uuid */
+  cluster_id: string;
+  cluster_name: string;
+  /** @format double */
+  cpu: number;
+  /** @format int64 */
+  disk: number;
+  /** @format int64 */
+  guests: number;
+  /** @format int64 */
+  max_cpu: number;
+  /** @format int64 */
+  max_disk: number;
+  /** @format int64 */
+  max_mem: number;
+  /** @format int64 */
+  mem: number;
+  node: string;
+  /** @format int64 */
+  running: number;
+  status: "online" | "offline" | "unknown";
+  /** @format int64 */
+  uptime: number;
+}
+
+export interface PVENodeDetail {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  bridges: PVEBridge[];
+  /** @format uuid */
+  cluster_id: string;
+  cluster_name: string;
+  /** @format int64 */
+  cores: number;
+  /** @format double */
+  cpu: number;
+  cpu_model: string;
+  /** @format int64 */
+  disk: number;
+  guest_list: PVEGuest[];
+  /** @format double */
+  io_wait: number;
+  kernel: string;
+  load: number[];
+  /** @format int64 */
+  max_cpu: number;
+  /** @format int64 */
+  max_disk: number;
+  /** @format int64 */
+  max_mem: number;
+  /** @format int64 */
+  mem: number;
+  node: string;
+  pve_version: string;
+  /** @format int64 */
+  root_total: number;
+  /** @format int64 */
+  root_used: number;
+  /** @format int64 */
+  running: number;
+  /** @format int64 */
+  sockets: number;
+  status: "online" | "offline" | "unknown";
+  storages: PVEStorage[];
+  /** @format int64 */
+  swap_total: number;
+  /** @format int64 */
+  swap_used: number;
+  /** @format int64 */
+  uptime: number;
+}
+
+export interface PVEPendingChange {
+  delete: boolean;
+  key: string;
+  pending: string;
+  value: string;
+}
+
+export interface PVEPowerBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  action:
+    | "start"
+    | "stop"
+    | "shutdown"
+    | "reboot"
+    | "suspend"
+    | "resume"
+    | "reset";
+  /** Shut down: stop it when the timeout passes */
+  force?: boolean;
+  /**
+   * Shut down: seconds to wait for the guest before giving up
+   * @format int64
+   * @min 0
+   * @max 3600
+   */
+  timeout?: number;
+  /** Suspend (VMs): hibernate to disk instead of pausing in memory */
+  to_disk?: boolean;
+}
+
+export interface PVEProblem {
+  /** @format uuid */
+  cluster_id: string;
+  cluster_name: string;
+  message: string;
+}
+
+export interface PVERRDOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** time (Unix seconds), cpu (0–1), maxcpu, mem, maxmem, disk, maxdisk, netin, netout, diskread, diskwrite (bytes/s); keys missing when unknown */
+  points: Record<string, number>[];
+}
+
+export interface PVEServerLink {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  cluster_id?: string;
+  cluster_name?: string;
+  /** The machine right now; missing when the cluster can't be read or the caller can't see it */
+  guest?: PVEGuest;
+  /** The caller's level on the cluster: none means they see only that a link exists */
+  level?: string;
+  linked: boolean;
+  /** Why the machine couldn't be read */
+  problem?: string;
+  /** @format int64 */
+  vmid?: number;
+}
+
+export interface PVESnapshot {
+  /** The 'now' entry: where the machine is */
+  current: boolean;
+  description: string;
+  name: string;
+  parent: string;
+  /** @format date-time */
+  taken_at?: string;
+  with_ram: boolean;
+}
+
+export interface PVEStorage {
+  /** @format uuid */
+  cluster_id: string;
+  cluster_name: string;
+  content: string[];
+  node: string;
+  shared: boolean;
+  status: string;
+  storage: string;
+  /** @format int64 */
+  total: number;
+  type: string;
+  /** @format int64 */
+  used: number;
+}
+
+export interface PVETask {
+  /** @format date-time */
+  ended_at?: string;
+  id: string;
+  node: string;
+  ok: boolean;
+  running: boolean;
+  /** @format date-time */
+  started_at: string;
+  /** running, ok or what went wrong */
+  status: string;
+  type: string;
+  upid: string;
+  user: string;
+}
+
+export interface PVETaskLogOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  lines: string[];
+  task: PVETask;
+  /** @format int64 */
+  total: number;
+}
+
+export interface PVETasksOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: PVETask[];
+}
+
+export interface PVETestBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  allow_internal?: boolean;
+  /**
+   * When editing: the saved cluster, whose secret a blank one stands for.
+   * @format uuid
+   */
+  cluster_id?: string;
+  /** @maxLength 200 */
+  fingerprint?: string;
+  /** @maxLength 300 */
+  secret?: string;
+  tls_skip_verify?: boolean;
+  /**
+   * @minLength 1
+   * @maxLength 300
+   */
+  token_id: string;
+  /**
+   * @minLength 1
+   * @maxLength 500
+   */
+  url: string;
+}
+
+export interface PVETestOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  cluster_name: string;
+  /** The certificate the address shows now; pin it when you trust it */
+  fingerprint: string;
+  /** @format int64 */
+  guests: number;
+  /** @format int64 */
+  latency_ms: number;
+  message: string;
+  /** @format int64 */
+  nodes: number;
+  /** @format int64 */
+  nodes_online: number;
+  ok: boolean;
+  /** @format int64 */
+  running: number;
+  status: string;
+  version: string;
+}
+
+export interface PVEVolume {
+  content: string;
+  /** @format int64 */
+  created?: number;
+  format: string;
+  name: string;
+  notes?: string;
+  protected: boolean;
+  /** @format int64 */
+  size: number;
+  verified?: string;
+  /** @format int64 */
+  vmid?: number;
+  volid: string;
+}
+
+export interface PVEVolumeAt {
+  content: string;
+  /** @format int64 */
+  created?: number;
+  format: string;
+  name: string;
+  node: string;
+  notes?: string;
+  protected: boolean;
+  shared: boolean;
+  /** @format int64 */
+  size: number;
+  storage: string;
+  verified?: string;
+  /** @format int64 */
+  vmid?: number;
+  volid: string;
+}
+
+export interface PVEVolumeBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 400 */
+  volid: string;
+}
+
+export interface PVEVolumesOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: PVEVolume[];
 }
 
 export interface PackageActionBody {
@@ -12963,6 +14045,21 @@ export interface ReportWindow {
   uptime?: number;
 }
 
+export interface ResizePveGuestDiskRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @pattern ^(scsi|sata|virtio|ide|mp|rootfs)[0-9]*$ */
+  disk: string;
+  /**
+   * +10G grows by 10 GiB, 40G sets it to 40 GiB
+   * @pattern ^\+?[0-9]+(\.[0-9]+)?[KMGT]?$
+   */
+  size: string;
+}
+
 export interface ResourceAccess {
   /** @format uuid */
   id: string;
@@ -13035,6 +14132,35 @@ export interface RestoreLogArchiveRequest {
   hold_days: number;
 }
 
+export interface RestorePveGuestRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Restore into a new machine instead of replacing this one */
+  as_new?: boolean;
+  /**
+   * @format int64
+   * @min 0
+   * @max 999999999
+   */
+  new_id?: number;
+  start?: boolean;
+  /**
+   * Where the disks go; empty = where they were
+   * @maxLength 64
+   */
+  storage?: string;
+  /** New MAC addresses (do it for a copy next to the original) */
+  unique?: boolean;
+  /**
+   * @minLength 1
+   * @maxLength 500
+   */
+  volid: string;
+}
+
 export interface RevealSoftwareSecretsResponse {
   /**
    * A URL to the JSON Schema for this object.
@@ -13042,6 +14168,16 @@ export interface RevealSoftwareSecretsResponse {
    */
   $schema?: string;
   values: Record<string, string>;
+}
+
+export interface RollbackPveSnapshotRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Start the machine afterwards (when the snapshot has no memory) */
+  start?: boolean;
 }
 
 export interface Rule {
@@ -13234,7 +14370,9 @@ export interface Schedule {
     | "package-upgrade"
     | "docker-update"
     | "docker-volume-backup"
-    | "docker-prune";
+    | "docker-prune"
+    | "pve-backup"
+    | "pve-snapshot";
   /** @format date-time */
   created_at: string;
   cron: string;
@@ -13305,7 +14443,9 @@ export interface ScheduleBody {
     | "package-upgrade"
     | "docker-update"
     | "docker-volume-backup"
-    | "docker-prune";
+    | "docker-prune"
+    | "pve-backup"
+    | "pve-snapshot";
   /**
    * Five fields (minute hour day month weekday), or @hourly, @daily, @weekly, @monthly, @every 2h
    * @minLength 1
@@ -13465,6 +14605,56 @@ export interface ScheduleOptions {
   mode: "update" | "mirror" | "snapshot";
 }
 
+export interface SchedulePVE {
+  /** Every machine on the cluster (not templates), read at each run; vmids are left out */
+  all?: boolean;
+  /** @format uuid */
+  cluster_id: string;
+  /** pve-backup: default zstd */
+  compress?: "zstd" | "lzo" | "gzip" | "0" | "";
+  /**
+   * pve-snapshot: keep this many snapshots with the prefix per machine and delete older ones; 0 = never delete
+   * @format int64
+   * @min 0
+   * @max 100
+   */
+  keep?: number;
+  /** Carry on with the other machines after one fails */
+  keep_going?: boolean;
+  /** pve-backup: snapshot = live, no downtime (default); suspend = paused briefly; stop = shut down for the backup, then started again */
+  mode?: "snapshot" | "suspend" | "stop" | "";
+  /**
+   * pve-backup: note on each backup; {{guestname}}, {{vmid}}, {{node}} and {{cluster}} are filled in by Proxmox
+   * @maxLength 200
+   */
+  notes?: string;
+  /**
+   * pve-snapshot: snapshots are named <prefix>_<date>_<time>; default auto
+   * @maxLength 20
+   * @pattern ^([A-Za-z][A-Za-z0-9_-]*)?$
+   */
+  prefix?: string;
+  /** pve-backup: the storage's own pruning leaves these backups alone */
+  protected?: boolean;
+  /**
+   * With all: machines to leave out
+   * @maxItems 500
+   */
+  skip?: number[];
+  /**
+   * pve-backup: the Proxmox storage (or Backup Server) to back up to
+   * @maxLength 100
+   */
+  storage?: string;
+  /**
+   * The machines; ignored with all
+   * @maxItems 500
+   */
+  vmids?: number[];
+  /** pve-snapshot: also save a running VM's memory (slower, larger) */
+  vmstate?: boolean;
+}
+
 export interface SchedulePackages {
   /** Then remove packages nothing needs any more */
   autoremove?: boolean;
@@ -13524,7 +14714,7 @@ export interface ScheduleReboot {
 export interface ScheduleRef {
   /** @format uuid */
   id: string;
-  kind: "server" | "storage" | "script" | "playbook" | "database";
+  kind: "server" | "storage" | "script" | "playbook" | "database" | "cluster";
   missing: boolean;
   /** Empty when it was deleted */
   name: string;
@@ -13549,7 +14739,9 @@ export interface ScheduleRun {
     | "package-upgrade"
     | "docker-update"
     | "docker-volume-backup"
-    | "docker-prune";
+    | "docker-prune"
+    | "pve-backup"
+    | "pve-snapshot";
   /** @format int64 */
   bytes: number;
   /** @format date-time */
@@ -13763,6 +14955,8 @@ export interface ScheduleTask {
   packages?: SchedulePackages;
   /** action docker-prune */
   prune?: ScheduleDockerPrune;
+  /** actions pve-backup, pve-snapshot */
+  pve?: SchedulePVE;
   /** action reboot */
   reboot?: ScheduleReboot;
   /** action script */
@@ -13800,7 +14994,9 @@ export interface ScheduleUpdate {
     | "package-upgrade"
     | "docker-update"
     | "docker-volume-backup"
-    | "docker-prune";
+    | "docker-prune"
+    | "pve-backup"
+    | "pve-snapshot";
   /**
    * Five fields (minute hour day month weekday), or @hourly, @daily, @weekly, @monthly, @every 2h
    * @minLength 1
@@ -15075,6 +16271,15 @@ export interface SetProxyHostEnabledRequest {
    */
   $schema?: string;
   enabled: boolean;
+}
+
+export interface SetPveClusterFavoriteRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  favorite: boolean;
 }
 
 export interface SetScheduleEnabledRequest {
@@ -18186,6 +19391,8 @@ export class Api<
      */
     listAlertEvents: (
       query?: {
+        /** Only this Proxmox cluster */
+        cluster_id?: string;
         /** Only this database */
         database_id?: string;
         /**
@@ -18220,6 +19427,7 @@ export class Api<
      */
     listAlertMutes: (
       query?: {
+        cluster_id?: string;
         database_id?: string;
         server_id?: string;
       },
@@ -18243,6 +19451,8 @@ export class Api<
      */
     listAlertRules: (
       query?: {
+        /** Only rules covering this Proxmox cluster */
+        cluster_id?: string;
         /** Only rules covering this database */
         database_id?: string;
         /** Only rules covering this server */
@@ -25164,6 +26374,1157 @@ export class Api<
         method: "PUT",
         body: data,
         type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  virtualMachines = {
+    /**
+     * @description It goes to the top.
+     *
+     * @tags Virtual machines
+     * @name AddPveGuestFirewallRule
+     * @summary Add a firewall rule
+     * @request POST:/pve-clusters/{id}/guests/{vmid}/firewall/rules
+     */
+    addPveGuestFirewallRule: (
+      id: string,
+      vmid: number,
+      data: PVEFirewallRule,
+      params: RequestParams = {},
+    ) =>
+      this.request<PVEFirewall, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/firewall/rules`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name BackupPveGuest
+     * @summary Back up a machine now (vzdump)
+     * @request POST:/pve-clusters/{id}/guests/{vmid}/backups
+     */
+    backupPveGuest: (
+      id: string,
+      vmid: number,
+      data: PVEBackupBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/backups`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name CheckPveCluster
+     * @summary Check a Proxmox cluster's connection
+     * @request POST:/pve-clusters/{id}/check
+     */
+    checkPveCluster: (id: string, params: RequestParams = {}) =>
+      this.request<PVECluster, ErrorModel>({
+        path: `/pve-clusters/${id}/check`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name CheckPveMigration
+     * @summary Can a machine move, and where
+     * @request GET:/pve-clusters/{id}/guests/{vmid}/migrate
+     */
+    checkPveMigration: (
+      id: string,
+      vmid: number,
+      query?: {
+        /** @maxLength 64 */
+        target?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<CheckPveMigrationResponse, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/migrate`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name ClonePveGuest
+     * @summary Clone a machine or template
+     * @request POST:/pve-clusters/{id}/guests/{vmid}/clone
+     */
+    clonePveGuest: (
+      id: string,
+      vmid: number,
+      data: ClonePveGuestRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/clone`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description It can't be started any more, only cloned. There is no way back.
+     *
+     * @tags Virtual machines
+     * @name ConvertPveGuestToTemplate
+     * @summary Turn a machine into a template
+     * @request POST:/pve-clusters/{id}/guests/{vmid}/template
+     */
+    convertPveGuestToTemplate: (
+      id: string,
+      vmid: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/template`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name CreatePveCluster
+     * @summary Connect a Proxmox cluster
+     * @request POST:/pve-clusters
+     */
+    createPveCluster: (data: PVEClusterBody, params: RequestParams = {}) =>
+      this.request<PVECluster, ErrorModel>({
+        path: `/pve-clusters`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description From a cloud-init template (clone, set up, grow the disk, start, add to Servers), an ISO, or a container template. Runs as a background task.
+     *
+     * @tags Virtual machines
+     * @name CreatePveGuest
+     * @summary Create a VM or a container
+     * @request POST:/pve-clusters/{id}/guests
+     */
+    createPveGuest: (
+      id: string,
+      data: PVECreateBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/pve-clusters/${id}/guests`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name CreatePveSnapshot
+     * @summary Take a snapshot
+     * @request POST:/pve-clusters/{id}/guests/{vmid}/snapshots
+     */
+    createPveSnapshot: (
+      id: string,
+      vmid: number,
+      data: CreatePveSnapshotRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/snapshots`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Morche forgets the connection and its token. Nothing on the cluster changes.
+     *
+     * @tags Virtual machines
+     * @name DeletePveCluster
+     * @summary Disconnect a Proxmox cluster
+     * @request DELETE:/pve-clusters/{id}
+     */
+    deletePveCluster: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/pve-clusters/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * @description Removes it with its disks. A running machine is stopped first when stop is set.
+     *
+     * @tags Virtual machines
+     * @name DeletePveGuest
+     * @summary Delete a machine
+     * @request DELETE:/pve-clusters/{id}/guests/{vmid}
+     */
+    deletePveGuest: (
+      id: string,
+      vmid: number,
+      query?: {
+        /** Stop it first when it runs */
+        stop?: boolean;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}`,
+        method: "DELETE",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name DeletePveGuestFirewallRule
+     * @summary Delete a firewall rule
+     * @request DELETE:/pve-clusters/{id}/guests/{vmid}/firewall/rules/{pos}
+     */
+    deletePveGuestFirewallRule: (
+      id: string,
+      vmid: number,
+      pos: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<PVEFirewall, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/firewall/rules/${pos}`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name DeletePveSnapshot
+     * @summary Delete a snapshot
+     * @request DELETE:/pve-clusters/{id}/guests/{vmid}/snapshots/{name}
+     */
+    deletePveSnapshot: (
+      id: string,
+      vmid: number,
+      name: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/snapshots/${name}`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name DeletePveVolume
+     * @summary Delete a file from a storage (an ISO, a template or a backup)
+     * @request POST:/pve-clusters/{id}/nodes/{node}/storages/{storage}/delete
+     */
+    deletePveVolume: (
+      id: string,
+      node: string,
+      storage: string,
+      data: PVEVolumeBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/pve-clusters/${id}/nodes/${node}/storages/${storage}/delete`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name DownloadPveStorageUrl
+     * @summary Have the node download an ISO or a container template
+     * @request POST:/pve-clusters/{id}/nodes/{node}/storages/{storage}/download
+     */
+    downloadPveStorageUrl: (
+      id: string,
+      node: string,
+      storage: string,
+      data: PVEDownloadBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/pve-clusters/${id}/nodes/${node}/storages/${storage}/download`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name GetPveCloudInit
+     * @summary A VM's cloud-init settings
+     * @request GET:/pve-clusters/{id}/guests/{vmid}/cloud-init
+     */
+    getPveCloudInit: (id: string, vmid: number, params: RequestParams = {}) =>
+      this.request<PVECloudInit, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/cloud-init`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name GetPveCluster
+     * @summary Get a Proxmox cluster
+     * @request GET:/pve-clusters/{id}
+     */
+    getPveCluster: (id: string, params: RequestParams = {}) =>
+      this.request<PVECluster, ErrorModel>({
+        path: `/pve-clusters/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name GetPveCreateOptions
+     * @summary What a new machine can be made from on this cluster
+     * @request GET:/pve-clusters/{id}/create-options
+     */
+    getPveCreateOptions: (id: string, params: RequestParams = {}) =>
+      this.request<PVECreateOptions, ErrorModel>({
+        path: `/pve-clusters/${id}/create-options`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name GetPveGuest
+     * @summary A machine with its settings
+     * @request GET:/pve-clusters/{id}/guests/{vmid}
+     */
+    getPveGuest: (id: string, vmid: number, params: RequestParams = {}) =>
+      this.request<PVEGuestDetail, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name GetPveGuestFirewall
+     * @summary A machine's Proxmox firewall
+     * @request GET:/pve-clusters/{id}/guests/{vmid}/firewall
+     */
+    getPveGuestFirewall: (
+      id: string,
+      vmid: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<PVEFirewall, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/firewall`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name GetPveGuestRrd
+     * @summary A machine's usage over time
+     * @request GET:/pve-clusters/{id}/guests/{vmid}/rrd
+     */
+    getPveGuestRrd: (
+      id: string,
+      vmid: number,
+      query?: {
+        /** @default "hour" */
+        timeframe?: "hour" | "day" | "week" | "month" | "year";
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<PVERRDOutputBody, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/rrd`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name GetPveNode
+     * @summary A Proxmox node with its networks, storage and machines
+     * @request GET:/pve-clusters/{id}/nodes/{node}
+     */
+    getPveNode: (id: string, node: string, params: RequestParams = {}) =>
+      this.request<PVENodeDetail, ErrorModel>({
+        path: `/pve-clusters/${id}/nodes/${node}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name GetPveNodeRrd
+     * @summary A node's history: CPU, memory, network, load
+     * @request GET:/pve-clusters/{id}/nodes/{node}/rrd
+     */
+    getPveNodeRrd: (
+      id: string,
+      node: string,
+      query?: {
+        /** @default "hour" */
+        timeframe?: "hour" | "day" | "week" | "month" | "year";
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<PVERRDOutputBody, ErrorModel>({
+        path: `/pve-clusters/${id}/nodes/${node}/rrd`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name GetPveTaskLog
+     * @summary A Proxmox task's state and log
+     * @request GET:/pve-clusters/{id}/task-log
+     */
+    getPveTaskLog: (
+      id: string,
+      query?: {
+        /**
+         * @format int64
+         * @min 0
+         */
+        start?: number;
+        /** @maxLength 300 */
+        upid?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<PVETaskLogOutputBody, ErrorModel>({
+        path: `/pve-clusters/${id}/task-log`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description linked = false when the server isn't tied to a machine.
+     *
+     * @tags Virtual machines
+     * @name GetServerPveLink
+     * @summary The Proxmox machine a server is
+     * @request GET:/servers/{id}/pve-link
+     */
+    getServerPveLink: (id: string, params: RequestParams = {}) =>
+      this.request<PVEServerLink, ErrorModel>({
+        path: `/servers/${id}/pve-link`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The server's page then shows the machine, its node, power and console. A server is linked to one machine at most.
+     *
+     * @tags Virtual machines
+     * @name LinkPveGuest
+     * @summary Say which Morche server a machine is
+     * @request PUT:/pve-clusters/{id}/guests/{vmid}/link
+     */
+    linkPveGuest: (
+      id: string,
+      vmid: number,
+      data: LinkPveGuestRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<PVEGuestDetail, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/link`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Favourites first, then by name.
+     *
+     * @tags Virtual machines
+     * @name ListPveClusters
+     * @summary List Proxmox clusters
+     * @request GET:/pve-clusters
+     */
+    listPveClusters: (params: RequestParams = {}) =>
+      this.request<PVEClustersOutputBody, ErrorModel>({
+        path: `/pve-clusters`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name ListPveClusterTasks
+     * @summary Recent Proxmox tasks on every node
+     * @request GET:/pve-clusters/{id}/tasks
+     */
+    listPveClusterTasks: (
+      id: string,
+      query?: {
+        /**
+         * @format int64
+         * @min 1
+         * @max 500
+         * @default 100
+         */
+        limit?: number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<PVEClusterTasksOutputBody, ErrorModel>({
+        path: `/pve-clusters/${id}/tasks`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description On every backup storage its node sees (PBS included).
+     *
+     * @tags Virtual machines
+     * @name ListPveGuestBackups
+     * @summary A machine's backups
+     * @request GET:/pve-clusters/{id}/guests/{vmid}/backups
+     */
+    listPveGuestBackups: (
+      id: string,
+      vmid: number,
+      params: RequestParams = {},
+    ) =>
+      this.request<PVEBackupsOutputBody, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/backups`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name ListPveGuests
+     * @summary Machines on a Proxmox cluster
+     * @request GET:/pve-clusters/{id}/guests
+     */
+    listPveGuests: (id: string, params: RequestParams = {}) =>
+      this.request<PVEGuestsOutputBody, ErrorModel>({
+        path: `/pve-clusters/${id}/guests`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description VMs and containers of every cluster in scope, asked at once. A cluster that doesn't answer is listed under problems.
+     *
+     * @tags Virtual machines
+     * @name ListPveGuestsEverywhere
+     * @summary Machines on every Proxmox cluster
+     * @request GET:/pve-guests
+     */
+    listPveGuestsEverywhere: (params: RequestParams = {}) =>
+      this.request<PVEGuestsOutputBody, ErrorModel>({
+        path: `/pve-guests`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Proxmox's task history for it, newest first, from every node.
+     *
+     * @tags Virtual machines
+     * @name ListPveGuestTasks
+     * @summary What was done to a machine
+     * @request GET:/pve-clusters/{id}/guests/{vmid}/tasks
+     */
+    listPveGuestTasks: (
+      id: string,
+      vmid: number,
+      query?: {
+        /**
+         * @format int64
+         * @min 1
+         * @max 500
+         * @default 100
+         */
+        limit?: number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<PVETasksOutputBody, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/tasks`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name ListPveHa
+     * @summary High availability: guarded machines and groups
+     * @request GET:/pve-clusters/{id}/ha
+     */
+    listPveHa: (id: string, params: RequestParams = {}) =>
+      this.request<PVEHAOutputBody, ErrorModel>({
+        path: `/pve-clusters/${id}/ha`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name ListPveInfrastructure
+     * @summary Nodes and storage of every Proxmox cluster
+     * @request GET:/pve-infrastructure
+     */
+    listPveInfrastructure: (params: RequestParams = {}) =>
+      this.request<PVEInfrastructureOutputBody, ErrorModel>({
+        path: `/pve-infrastructure`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name ListPveSnapshots
+     * @summary A machine's snapshots
+     * @request GET:/pve-clusters/{id}/guests/{vmid}/snapshots
+     */
+    listPveSnapshots: (id: string, vmid: number, params: RequestParams = {}) =>
+      this.request<ListPveSnapshotsResponse, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/snapshots`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name ListPveStorageContent
+     * @summary Files on a storage: ISOs, container templates, backups, disks
+     * @request GET:/pve-clusters/{id}/nodes/{node}/storages/{storage}/content
+     */
+    listPveStorageContent: (
+      id: string,
+      node: string,
+      storage: string,
+      query?: {
+        content?:
+          | "iso"
+          | "vztmpl"
+          | "backup"
+          | "images"
+          | "rootdir"
+          | "import"
+          | "snippets"
+          | "";
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<PVEVolumesOutputBody, ErrorModel>({
+        path: `/pve-clusters/${id}/nodes/${node}/storages/${storage}/content`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name MigratePveGuest
+     * @summary Move a machine to another node
+     * @request POST:/pve-clusters/{id}/guests/{vmid}/migrate
+     */
+    migratePveGuest: (
+      id: string,
+      vmid: number,
+      data: MigratePveGuestRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/migrate`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name MovePveGuestFirewallRule
+     * @summary Move a firewall rule
+     * @request POST:/pve-clusters/{id}/guests/{vmid}/firewall/rules/{pos}/move
+     */
+    movePveGuestFirewallRule: (
+      id: string,
+      vmid: number,
+      pos: number,
+      data: MovePveGuestFirewallRuleRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<PVEFirewall, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/firewall/rules/${pos}/move`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description mode `vnc` = the VM's screen (noVNC; containers too), `term` = a text console: a container's shell, or a VM's serial port (`serial`, like serial0). Then connect a websocket to `/pve-clusters/{id}/console/connect?token=`. VNC carries raw RFB bytes both ways. term carries terminal bytes as binary frames; the browser sends `{type:"resize",cols,rows}` as text, the relay sends `ready`, `exit` and `error`.
+     *
+     * @tags Virtual machines
+     * @name OpenPveConsole
+     * @summary Open a console on a machine
+     * @request POST:/pve-clusters/{id}/guests/{vmid}/console
+     */
+    openPveConsole: (
+      id: string,
+      vmid: number,
+      data: OpenPveConsoleRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<PVEConsole, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/console`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name PowerPveGuest
+     * @summary Start, stop, shut down, reboot, suspend or resume a machine
+     * @request POST:/pve-clusters/{id}/guests/{vmid}/power
+     */
+    powerPveGuest: (
+      id: string,
+      vmid: number,
+      data: PVEPowerBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/power`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name RemovePveGuestHa
+     * @summary Take a machine out of high availability
+     * @request DELETE:/pve-clusters/{id}/guests/{vmid}/ha
+     */
+    removePveGuestHa: (id: string, vmid: number, params: RequestParams = {}) =>
+      this.request<PVEGuestDetail, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/ha`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Disks only grow. The filesystem inside still needs growing (cloud-init images do it on boot).
+     *
+     * @tags Virtual machines
+     * @name ResizePveGuestDisk
+     * @summary Grow a machine's disk
+     * @request POST:/pve-clusters/{id}/guests/{vmid}/resize
+     */
+    resizePveGuestDisk: (
+      id: string,
+      vmid: number,
+      data: ResizePveGuestDiskRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/resize`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Over this machine (Owner; it's replaced, so stop it first) or as a new one (Engineer).
+     *
+     * @tags Virtual machines
+     * @name RestorePveGuest
+     * @summary Restore a backup
+     * @request POST:/pve-clusters/{id}/guests/{vmid}/restore
+     */
+    restorePveGuest: (
+      id: string,
+      vmid: number,
+      data: RestorePveGuestRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/restore`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Everything since the snapshot is lost.
+     *
+     * @tags Virtual machines
+     * @name RollbackPveSnapshot
+     * @summary Go back to a snapshot
+     * @request POST:/pve-clusters/{id}/guests/{vmid}/snapshots/{name}/rollback
+     */
+    rollbackPveSnapshot: (
+      id: string,
+      vmid: number,
+      name: string,
+      data: RollbackPveSnapshotRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/snapshots/${name}/rollback`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description They apply on the next boot.
+     *
+     * @tags Virtual machines
+     * @name SetPveCloudInit
+     * @summary Change a VM's cloud-init settings
+     * @request PUT:/pve-clusters/{id}/guests/{vmid}/cloud-init
+     */
+    setPveCloudInit: (
+      id: string,
+      vmid: number,
+      data: PVECloudInitBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/cloud-init`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name SetPveClusterFavorite
+     * @summary Star or unstar a Proxmox cluster
+     * @request PUT:/pve-clusters/{id}/favorite
+     */
+    setPveClusterFavorite: (
+      id: string,
+      data: SetPveClusterFavoriteRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<PVECluster, ErrorModel>({
+        path: `/pve-clusters/${id}/favorite`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Sends Proxmox config keys as they are. A change that needs a restart shows under pending.
+     *
+     * @tags Virtual machines
+     * @name SetPveGuestConfig
+     * @summary Change a machine's hardware or options
+     * @request PUT:/pve-clusters/{id}/guests/{vmid}/config
+     */
+    setPveGuestConfig: (
+      id: string,
+      vmid: number,
+      data: PVEHardwareBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/config`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name SetPveGuestFirewallOptions
+     * @summary Turn a machine's firewall on or off, set its policies
+     * @request PUT:/pve-clusters/{id}/guests/{vmid}/firewall/options
+     */
+    setPveGuestFirewallOptions: (
+      id: string,
+      vmid: number,
+      data: PVEFirewallOptions,
+      params: RequestParams = {},
+    ) =>
+      this.request<PVEFirewall, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/firewall/options`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name SetPveGuestHa
+     * @summary Put a machine under high availability, or change how
+     * @request PUT:/pve-clusters/{id}/guests/{vmid}/ha
+     */
+    setPveGuestHa: (
+      id: string,
+      vmid: number,
+      data: PVEHABody,
+      params: RequestParams = {},
+    ) =>
+      this.request<PVEGuestDetail, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/ha`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Connects with the given settings without saving anything, and shows the certificate's fingerprint to pin.
+     *
+     * @tags Virtual machines
+     * @name TestPveConnection
+     * @summary Test Proxmox connection settings
+     * @request POST:/pve-clusters/test-connection
+     */
+    testPveConnection: (data: PVETestBody, params: RequestParams = {}) =>
+      this.request<PVETestOutputBody, ErrorModel>({
+        path: `/pve-clusters/test-connection`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name UnlinkPveGuest
+     * @summary Forget which server a machine is
+     * @request DELETE:/pve-clusters/{id}/guests/{vmid}/link
+     */
+    unlinkPveGuest: (id: string, vmid: number, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/link`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name UpdatePveCluster
+     * @summary Change a Proxmox cluster's connection
+     * @request PUT:/pve-clusters/{id}
+     */
+    updatePveCluster: (
+      id: string,
+      data: PVEClusterBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<PVECluster, ErrorModel>({
+        path: `/pve-clusters/${id}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Virtual machines
+     * @name UpdatePveGuestFirewallRule
+     * @summary Change a firewall rule
+     * @request PUT:/pve-clusters/{id}/guests/{vmid}/firewall/rules/{pos}
+     */
+    updatePveGuestFirewallRule: (
+      id: string,
+      vmid: number,
+      pos: number,
+      data: PVEFirewallRule,
+      params: RequestParams = {},
+    ) =>
+      this.request<PVEFirewall, ErrorModel>({
+        path: `/pve-clusters/${id}/guests/${vmid}/firewall/rules/${pos}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The request body is the file itself, streamed to the node. The answer comes once Proxmox has it; moving it into place follows as a background task.
+     *
+     * @tags Virtual machines
+     * @name UploadPveStorageFile
+     * @summary Upload an ISO or a container template
+     * @request PUT:/pve-clusters/{id}/nodes/{node}/storages/{storage}/upload
+     */
+    uploadPveStorageFile: (
+      id: string,
+      node: string,
+      storage: string,
+      data: File,
+      query?: {
+        content?: "iso" | "vztmpl";
+        /** @maxLength 200 */
+        filename?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/pve-clusters/${id}/nodes/${node}/storages/${storage}/upload`,
+        method: "PUT",
+        query: query,
+        body: data,
         format: "json",
         ...params,
       }),

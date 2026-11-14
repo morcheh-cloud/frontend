@@ -1,6 +1,7 @@
 import {
   Archive,
   Ban,
+  Camera,
   CircleAlert,
   CircleCheck,
   CircleDashed,
@@ -15,6 +16,7 @@ import {
   HardDriveUpload,
   Loader2,
   type LucideIcon,
+  MonitorCog,
   OctagonX,
   Package,
   PackageCheck,
@@ -26,6 +28,7 @@ import {
 } from "lucide-react"
 import {
   createSerializer,
+  parseAsInteger,
   parseAsString,
   parseAsStringLiteral,
   useQueryStates,
@@ -37,6 +40,7 @@ import type {
   ScheduleEnd,
   ScheduleEndView,
   ScheduleOptions,
+  SchedulePVE,
   ScheduleRef,
   ScheduleRun,
   ScheduleRunDest,
@@ -297,12 +301,37 @@ export const actionMeta: Record<
     hint: "Copy Docker volumes from a server to a storage as .tar.gz files and keep the newest few.",
     short: "Docker volumes to a storage",
   },
+  "pve-backup": {
+    label: "Back up machines",
+    icon: MonitorCog,
+    hint: "Back up Proxmox virtual machines and containers with vzdump, to a backup storage or a Proxmox Backup Server.",
+    short: "Proxmox VMs and containers (vzdump)",
+  },
+  "pve-snapshot": {
+    label: "Snapshot machines",
+    icon: Camera,
+    hint: "Take snapshots of Proxmox machines and keep the newest few, deleting older ones.",
+    short: "Rolling Proxmox snapshots",
+  },
 }
 
 export const packageModes: Record<"all" | "security" | "full", string> = {
   all: "Every update",
   security: "Security updates only",
   full: "Full upgrade (apt)",
+}
+
+export const pveModes: Record<"snapshot" | "suspend" | "stop", string> = {
+  snapshot: "Live (no downtime)",
+  suspend: "Paused briefly",
+  stop: "Shut down meanwhile",
+}
+
+export const pveCompress: Record<"zstd" | "lzo" | "gzip" | "0", string> = {
+  zstd: "zstd (fast, small)",
+  lzo: "lzo (fastest)",
+  gzip: "gzip",
+  "0": "None",
 }
 
 // The picker's groups, in order.
@@ -317,6 +346,7 @@ export const actionGroups: { label: string; actions: Action[] }[] = [
     label: "Containers",
     actions: ["docker-update", "docker-prune", "docker-volume-backup"],
   },
+  { label: "Virtual machines", actions: ["pve-backup", "pve-snapshot"] },
   { label: "Databases", actions: ["verify-backup"] },
 ]
 
@@ -345,6 +375,7 @@ const refWords: Record<ScheduleRef["kind"], string> = {
   script: "script",
   playbook: "playbook",
   database: "database",
+  cluster: "cluster",
 }
 
 export function refName(
@@ -439,6 +470,12 @@ export function jobSummary(s: Summarised): string {
       const what = n === 1 ? v?.volumes?.[0] : n ? `${n} volumes` : "Volumes"
       return `${what} of ${refName(s.refs, "server", v?.server_id)} → ${refName(s.refs, "storage", v?.storage_id)}`
     }
+    case "pve-backup":
+    case "pve-snapshot": {
+      const v = t.pve
+      const verb = s.action === "pve-backup" ? "Back up" : "Snapshot"
+      return `${verb} ${machinesText(v)} on ${refName(s.refs, "cluster", v?.cluster_id)}`
+    }
     case "package-upgrade": {
       const p = t.packages
       const what = p?.mode === "security" ? "Security updates" : "Upgrade"
@@ -448,6 +485,16 @@ export function jobSummary(s: Summarised): string {
     default:
       return flowText(s)
   }
+}
+
+// "every machine", "every machine but 2", "machine 101", "3 machines".
+export function machinesText(v: SchedulePVE | undefined) {
+  if (v?.all) {
+    const n = v.skip?.length ?? 0
+    return n ? `every machine but ${n}` : "every machine"
+  }
+  const n = v?.vmids?.length ?? 0
+  return n === 1 ? `machine ${v?.vmids?.[0]}` : `${n} machines`
 }
 
 export function hostOf(url: string | undefined) {
@@ -546,12 +593,17 @@ export const newCronjobParams = {
   ),
   server: parseAsString,
   serverName: parseAsString,
+  // pve-backup / pve-snapshot: the cluster and, optionally, one machine.
+  cluster: parseAsString,
+  vmid: parseAsInteger,
 }
 const newSerializer = createSerializer(newCronjobParams)
 export const newCronjobHref = (p: {
   action: Action
   server?: string
   serverName?: string
+  cluster?: string
+  vmid?: number
 }) => newSerializer("/cronjobs/new", p)
 
 const yesNo = (b: boolean | undefined) => (b ? "Yes" : "No")
@@ -789,6 +841,40 @@ export function taskFacts(
           value: v?.keep ? String(v.keep) : "All",
         },
         { label: "Stop containers meanwhile", value: yesNo(v?.stop) },
+        { label: "Carry on after a failure", value: yesNo(v?.keep_going) },
+      ]
+    }
+    case "pve-backup":
+    case "pve-snapshot": {
+      const v = t.pve
+      const machines = v?.all
+        ? v.skip?.length
+          ? `Every machine except ${v.skip.join(", ")}`
+          : "Every machine on the cluster"
+        : (v?.vmids ?? []).join(", ") || "—"
+      const common = [
+        { label: "Cluster", value: refName(s.refs, "cluster", v?.cluster_id) },
+        { label: "Machines", value: machines },
+      ]
+      if (s.action === "pve-snapshot") {
+        return [
+          ...common,
+          { label: "Names", value: `${v?.prefix || "auto"}_<date>_<time>` },
+          {
+            label: "Keep",
+            value: v?.keep ? `The newest ${v.keep} per machine` : "Every one",
+          },
+          { label: "With memory", value: yesNo(v?.vmstate) },
+          { label: "Carry on after a failure", value: yesNo(v?.keep_going) },
+        ]
+      }
+      return [
+        ...common,
+        { label: "Storage", value: v?.storage || "—" },
+        { label: "Mode", value: pveModes[v?.mode || "snapshot"] },
+        { label: "Compression", value: pveCompress[v?.compress || "zstd"] },
+        ...(v?.notes ? [{ label: "Note", value: v.notes }] : []),
+        { label: "Protected", value: yesNo(v?.protected) },
         { label: "Carry on after a failure", value: yesNo(v?.keep_going) },
       ]
     }

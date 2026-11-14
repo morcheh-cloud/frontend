@@ -34,6 +34,7 @@ import {
   storageItem,
   tasksItem,
   uptimeItem,
+  vmsItem,
 } from "./nav"
 import { type NavAlert, useNavAlerts } from "./problems"
 import { WithPathname } from "./with-pathname"
@@ -43,6 +44,7 @@ import { useWorkspace, WorkspaceAvatar } from "./workspace"
 const tabItems = [homeItem, serversItem, servicesItem, uptimeItem]
 const moreItems = [
   tasksItem,
+  vmsItem,
   networkMapItem,
   containersItem,
   databasesItem,

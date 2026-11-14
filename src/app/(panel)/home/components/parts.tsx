@@ -15,6 +15,7 @@ import {
   servicesItem,
   storageItem,
   uptimeItem,
+  vmsItem,
 } from "@/components/panel/nav"
 import { queueIntent } from "@/hooks/useIntent"
 import { cn } from "@/lib/utils"
@@ -26,6 +27,7 @@ export const kindItem: Record<Kind, { label: string; icon: LucideIcon }> = {
   storage: { label: "Storage", icon: storageItem.icon },
   dns: { label: "DNS server", icon: dnsItem.icon },
   proxy: { label: "Reverse proxy", icon: proxyItem.icon },
+  cluster: { label: "Proxmox cluster", icon: vmsItem.icon },
   cronjob: { label: "Cron job", icon: cronjobsItem.icon },
   application: { label: "Application", icon: applicationsItem.icon },
   monitor: { label: "Monitor", icon: uptimeItem.icon },
@@ -73,6 +75,24 @@ export function summaries(home: Home): Summary[] {
       total: home.serverTotal,
       caption: caption(t.servers, connected),
       alert: t.servers.bad + t.servers.warn,
+    },
+    {
+      key: "vms",
+      ...vmsItem,
+      tally: t.vms,
+      total: t.vms.total,
+      caption:
+        t.vms.total === 0
+          ? "None yet"
+          : [
+              plural(t.vms.total, "cluster"),
+              `${home.vmRunning} of ${plural(home.vmTotal, "machine")} running`,
+              t.vms.bad && `${t.vms.bad} down`,
+              t.vms.warn && `${t.vms.warn} with a node down`,
+            ]
+              .filter(Boolean)
+              .join(" · "),
+      alert: t.vms.bad + t.vms.warn,
     },
     {
       key: "databases",

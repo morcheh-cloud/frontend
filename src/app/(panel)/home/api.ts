@@ -17,6 +17,7 @@ import { keys, type ListQuery } from "@/app/(panel)/servers/api"
 import { statusMeta } from "@/app/(panel)/servers/components/meta"
 import { useApps } from "@/app/(panel)/services/api"
 import { monitorHref } from "@/app/(panel)/uptime/components/monitor-menu"
+import { clusterStatusMeta, vmsHref } from "@/app/(panel)/vms/components/meta"
 import { isActive, useJobList } from "@/components/jobs/api"
 import {
   alertRulesQuery,
@@ -32,6 +33,8 @@ import {
   problemStatuses,
   proxiesQuery,
   proxyBroken,
+  pveClusterBroken,
+  pveClustersQuery,
   STATUS_POLL,
   softwareBroken,
   softwareInstallsQuery,
@@ -43,6 +46,7 @@ import type {
   App,
   Database,
   Job,
+  PVECluster,
   Proxy as ReverseProxy,
   Schedule,
   Server,
@@ -60,6 +64,7 @@ export type Kind =
   | "storage"
   | "dns"
   | "proxy"
+  | "cluster"
   | "cronjob"
   | "application"
   | "monitor"
@@ -129,6 +134,7 @@ export function useHome() {
   const backups = useQuery(backupProblemsQuery(workspace?.id ?? ""))
   const dns = useQuery(dnsServersQuery)
   const proxies = useQuery(proxiesQuery)
+  const clusters = useQuery(pveClustersQuery)
   const cronjobs = useCronjobs(workspace?.id)
   const software = useQuery(softwareInstallsQuery(workspace?.id ?? ""))
   const monitors = useQuery(monitorsQuery(workspace?.id ?? ""))
@@ -203,6 +209,24 @@ export function useHome() {
         : p.status_message || proxyStatusMeta[p.status].hint,
       href: `/proxy/${p.id}`,
       tone: p.status === "stopped" || sites ? "warning" : "destructive",
+    })
+  }
+  for (const c of clusters.data?.items ?? []) {
+    if (!pveClusterBroken(c)) continue
+    const nodes = c.status === "online"
+    const down = c.node_count - c.nodes_online
+    issues.push({
+      key: `cluster:${c.id}`,
+      kind: "cluster",
+      name: c.name,
+      status: nodes
+        ? `${down} node${down === 1 ? "" : "s"} down`
+        : clusterStatusMeta[c.status].label,
+      detail: nodes
+        ? "Machines on it are unreachable until it's back."
+        : c.status_message || "Morche can't reach its API.",
+      href: vmsHref("/vms", { tab: "clusters" }),
+      tone: toneOf(c.status),
     })
   }
   for (const c of cronjobs.data ?? []) {
@@ -298,11 +322,21 @@ export function useHome() {
       storage: statusTally(storages.data?.items),
       dns: statusTally(dns.data?.items),
       proxy: proxyTally(proxies.data?.items),
+      vms: clusterTally(clusters.data?.items),
       cronjobs: cronTally(cronjobs.data),
       applications: softwareTally(software.data?.items),
       uptime: monitorTally(monitors.data),
     },
     serverTotal: facets.data?.total,
+    // Machines running across every cluster, for the summary line.
+    vmRunning: (clusters.data?.items ?? []).reduce(
+      (n, c) => n + c.running_count,
+      0,
+    ),
+    vmTotal: (clusters.data?.items ?? []).reduce(
+      (n, c) => n + c.guest_count,
+      0,
+    ),
     servers: {
       favorites: !noFavorites,
       items: (noFavorites ? first.data?.items : favorites.data?.items) ?? [],
@@ -363,6 +397,18 @@ function proxyTally(items: ReverseProxy[] | undefined): Tally {
     else if (!proxyBroken(p)) t.ok++
     else if (p.status === "stopped" || p.status === "online") t.warn++
     else t.bad++
+  }
+  return t
+}
+
+// A cluster with a node down still answers: it needs a look, not "down".
+function clusterTally(items: PVECluster[] | undefined): Tally {
+  const t = { ...emptyTally, total: items?.length ?? 0 }
+  for (const c of items ?? []) {
+    if (c.status === "unknown") t.idle++
+    else if (c.status !== "online") add(t, c.status)
+    else if (pveClusterBroken(c)) t.warn++
+    else t.ok++
   }
   return t
 }

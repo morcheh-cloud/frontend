@@ -17,6 +17,11 @@ import {
   ServerProxyRows,
   useServerProxyList,
 } from "@/app/(panel)/proxy/components/server-proxy"
+import {
+  ServerVmLink,
+  ServerVmRow,
+  useServerVm,
+} from "@/app/(panel)/vms/components/server-vm"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
@@ -62,6 +67,7 @@ function DesktopOverview() {
   const actions = useServerActions()
   const facts = useFacts(server, checking)
   const proxies = useServerProxyList(server.id)
+  const vm = useServerVm(server.id)
 
   return (
     <div className="@container">
@@ -94,6 +100,7 @@ function DesktopOverview() {
         </Card>
         <Card title="System">
           <Facts facts={facts.system} />
+          <ServerVmLink link={vm} />
           <ServerProxyLinks proxies={proxies} />
         </Card>
         <Card
@@ -221,6 +228,7 @@ function MobileOverview() {
   const stats = useServerStats(server)
   const hasNotes = useHasPinnedNotes()
   const proxies = useServerProxyList(server.id)
+  const vm = useServerVm(server.id)
   const metrics = useMetricsGlance(server)
 
   return (
@@ -318,6 +326,11 @@ function MobileOverview() {
       <Group title="Organization">
         <FactRows facts={facts.organization} />
       </Group>
+      {vm && (
+        <Group title="Runs on">
+          <ServerVmRow link={vm} />
+        </Group>
+      )}
       {proxies.length > 0 && (
         <Group title="Reverse proxy">
           <ServerProxyRows proxies={proxies} />

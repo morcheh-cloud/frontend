@@ -24,6 +24,7 @@ import {
   ListChecks,
   Logs,
   type LucideIcon,
+  MonitorCog,
   Network,
   Palette,
   RefreshCcwDot,
@@ -49,6 +50,12 @@ export const serversItem: NavItem = {
   href: "/servers",
   label: "Servers",
   icon: Server,
+}
+// Proxmox VE: VMs and LXC containers on the clusters linked to the workspace.
+export const vmsItem: NavItem = {
+  href: "/vms",
+  label: "Virtual machines",
+  icon: MonitorCog,
 }
 export const networkMapItem: NavItem = {
   href: "/network",
@@ -249,6 +256,7 @@ export const navGroups: NavGroup[] = [
     label: "Infrastructure",
     items: [
       serversItem,
+      vmsItem,
       networkMapItem,
       containersItem,
       databasesItem,

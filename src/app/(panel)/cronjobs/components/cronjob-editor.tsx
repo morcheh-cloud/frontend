@@ -113,6 +113,8 @@ type Prefill = {
   action: Action | null
   server: string | null
   serverName: string | null
+  cluster: string | null
+  vmid: number | null
 }
 
 const fresh = (p?: Prefill): Draft => ({
@@ -133,6 +135,11 @@ const fresh = (p?: Prefill): Draft => ({
     ...(p?.server && {
       servers: new Map([[p.server, p.serverName || "Server"]]),
       volServer: p.server,
+    }),
+    ...(p?.cluster && {
+      pveCluster: p.cluster,
+      pveAll: p.vmid == null,
+      pveVmids: p.vmid != null ? [p.vmid] : [],
     }),
   },
 })
@@ -191,6 +198,8 @@ const namePlaceholders: Record<Action, string> = {
   "docker-update": "Nightly container updates",
   "docker-prune": "Weekly Docker clean-up",
   "docker-volume-backup": "Nightly volume backups",
+  "pve-backup": "Nightly machine backups",
+  "pve-snapshot": "Hourly snapshots",
 }
 
 function pickerTitle(a: Action, role: Role) {

@@ -24,6 +24,7 @@ import {
   settingsSection,
 } from "@/app/(panel)/servers/[id]/components/sections"
 import { serversHref } from "@/app/(panel)/servers/components/use-filters"
+import { vmsHref } from "@/app/(panel)/vms/components/meta"
 import { atLeast } from "@/components/auth/level"
 import { guideForPath, guideHref, guides } from "@/components/help/guides"
 import { setTheme, type Theme } from "@/components/theme"
@@ -118,6 +119,24 @@ export function actions(
       href: "/servers",
       intent: "add-server",
       keywords: "new create ssh host",
+    },
+    {
+      key: "action:new-vm",
+      label: "New virtual machine or container",
+      icon: Plus,
+      tile: "brand",
+      href: "/vms/new",
+      keywords:
+        "create proxmox pve vm lxc container qemu kvm clone template cloud-init iso",
+    },
+    {
+      key: "action:add-pve-cluster",
+      label: "Add Proxmox cluster",
+      icon: Plus,
+      tile: "brand",
+      href: vmsHref("/vms", { tab: "clusters" }),
+      intent: "add-pve-cluster",
+      keywords: "new connect proxmox pve virtualization hypervisor node token",
     },
     {
       key: "action:add-database",

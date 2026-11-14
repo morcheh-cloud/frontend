@@ -93,6 +93,15 @@ export function dropJob(qc: QueryClient, id: string) {
 // What a finished job may have changed. Open files in an editor aren't
 // included: reloading one would replace what's being typed.
 export function refreshAfterJob(qc: QueryClient, job: Job) {
+  // Proxmox: the machines, their snapshots/backups and the storages; a new
+  // machine may also have become a server.
+  if (job.kind.startsWith("pve-")) {
+    qc.invalidateQueries({ queryKey: ["pve"] })
+    qc.invalidateQueries({ queryKey: ["pve-clusters"] })
+    if (job.kind === "pve-create")
+      qc.invalidateQueries({ queryKey: ["servers"] })
+    return
+  }
   if (job.kind === "ansible-run") {
     qc.invalidateQueries({ queryKey: ["ansible"] })
     return

@@ -7,6 +7,7 @@ import type {
   AlertRule,
   Database,
   DNSServer,
+  PVECluster,
   Proxy as ReverseProxy,
   Schedule,
   Server,
@@ -24,6 +25,7 @@ import {
   serversItem,
   storageItem,
   uptimeItem,
+  vmsItem,
 } from "./nav"
 import { useWorkspace } from "./workspace"
 
@@ -69,6 +71,21 @@ export const dnsServersQuery = queryOptions({
 // A DNS server Morche can't reach or log in to. Not yet checked = fine.
 export const dnsServerBroken = (s: Pick<DNSServer, "status">) =>
   s.status !== "online" && s.status !== "unknown"
+
+// Shared with /vms. The backend re-checks them (PVE_CHECK_INTERVAL).
+export const pveClustersQuery = queryOptions({
+  queryKey: ["pve-clusters"] as const,
+  queryFn: () => api.virtualMachines.listPveClusters(),
+  refetchInterval: STATUS_POLL,
+})
+
+// A Proxmox cluster Morche can't reach or log in to, or one with a node
+// down. Not yet checked = fine.
+export const pveClusterBroken = (
+  c: Pick<PVECluster, "status" | "node_count" | "nodes_online">,
+) =>
+  (c.status !== "online" && c.status !== "unknown") ||
+  (c.status === "online" && c.nodes_online < c.node_count)
 
 // Shared with /proxy. The backend re-checks them (PROXY_CHECK_INTERVAL).
 export const proxiesQuery = queryOptions({
@@ -219,6 +236,14 @@ export function useDNSProblems() {
   return data ?? 0
 }
 
+export function usePVEProblems() {
+  const { data } = useQuery({
+    ...pveClustersQuery,
+    select: (list) => list.items.filter(pveClusterBroken).length,
+  })
+  return data ?? 0
+}
+
 export function useProxyProblems() {
   const { data } = useQuery({
     ...proxiesQuery,
@@ -276,6 +301,7 @@ export function useNavAlerts() {
   const cronjobs = useCronjobProblems()
   const dns = useDNSProblems()
   const proxies = useProxyProblems()
+  const pve = usePVEProblems()
   const software = useSoftwareProblems()
   const uptime = useUptimeProblems()
   const firing = useAlertProblems()
@@ -284,6 +310,12 @@ export function useNavAlerts() {
     alerts.set(serversItem.href, {
       count: servers,
       label: `${plural(servers, "server", "servers")} not connected`,
+    })
+  }
+  if (pve > 0) {
+    alerts.set(vmsItem.href, {
+      count: pve,
+      label: `${plural(pve, "cluster", "clusters")} not connected or with a node down`,
     })
   }
   if (storages > 0) {

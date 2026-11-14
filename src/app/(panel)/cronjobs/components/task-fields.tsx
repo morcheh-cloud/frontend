@@ -61,6 +61,7 @@ import {
   refName,
   serviceVerbs,
 } from "./meta"
+import { PveSections } from "./pve-sections"
 
 type ServiceAction = ScheduleService["action"]
 
@@ -132,6 +133,21 @@ export type TaskDraft = {
   volKeep: string
   volStop: boolean
   volKeepGoing: boolean
+  // pve-backup / pve-snapshot: one cluster, every machine (minus pveSkip)
+  // or the ones in pveVmids.
+  pveCluster: string
+  pveAll: boolean
+  pveVmids: number[]
+  pveSkip: number[]
+  pveStorage: string
+  pveMode: "snapshot" | "suspend" | "stop"
+  pveCompress: "zstd" | "lzo" | "gzip" | "0"
+  pveNotes: string
+  pveProtected: boolean
+  pveKeep: string
+  pvePrefix: string
+  pveVmstate: boolean
+  pveKeepGoing: boolean
 }
 
 export type PackageMode = "all" | "security" | "full"
@@ -193,6 +209,19 @@ export const freshTask = (): TaskDraft => ({
   volKeep: "7",
   volStop: false,
   volKeepGoing: true,
+  pveCluster: "",
+  pveAll: true,
+  pveVmids: [],
+  pveSkip: [],
+  pveStorage: "",
+  pveMode: "snapshot",
+  pveCompress: "zstd",
+  pveNotes: "{{guestname}}",
+  pveProtected: false,
+  pveKeep: "24",
+  pvePrefix: "auto",
+  pveVmstate: false,
+  pveKeepGoing: true,
 })
 
 export function taskFromSaved(s: Schedule): TaskDraft {
@@ -299,6 +328,22 @@ export function taskFromSaved(s: Schedule): TaskDraft {
     d.volKeep = String(vb.keep ?? 0)
     d.volStop = !!vb.stop
     d.volKeepGoing = !!vb.keep_going
+  }
+  const pv = t.pve
+  if (pv) {
+    d.pveCluster = pv.cluster_id
+    d.pveAll = !!pv.all
+    d.pveVmids = pv.vmids ?? []
+    d.pveSkip = pv.skip ?? []
+    d.pveStorage = pv.storage ?? ""
+    d.pveMode = pv.mode || "snapshot"
+    d.pveCompress = pv.compress || "zstd"
+    d.pveNotes = pv.notes ?? ""
+    d.pveProtected = !!pv.protected
+    d.pveKeep = String(pv.keep ?? 0)
+    d.pvePrefix = pv.prefix ?? ""
+    d.pveVmstate = !!pv.vmstate
+    d.pveKeepGoing = !!pv.keep_going
   }
   const f = t.fetch
   if (f) {
@@ -464,6 +509,34 @@ export function toTask(action: Action, t: TaskDraft): ScheduleTask | undefined {
           keep_going: t.volKeepGoing,
         },
       }
+    case "pve-backup":
+      return {
+        pve: {
+          cluster_id: t.pveCluster,
+          all: t.pveAll,
+          vmids: t.pveAll ? [] : t.pveVmids,
+          skip: t.pveAll ? t.pveSkip : [],
+          storage: t.pveStorage,
+          mode: t.pveMode,
+          compress: t.pveCompress,
+          notes: t.pveNotes.trim(),
+          protected: t.pveProtected,
+          keep_going: t.pveKeepGoing,
+        },
+      }
+    case "pve-snapshot":
+      return {
+        pve: {
+          cluster_id: t.pveCluster,
+          all: t.pveAll,
+          vmids: t.pveAll ? [] : t.pveVmids,
+          skip: t.pveAll ? t.pveSkip : [],
+          prefix: t.pvePrefix.trim(),
+          keep: Number(t.pveKeep) || 0,
+          vmstate: t.pveVmstate,
+          keep_going: t.pveKeepGoing,
+        },
+      }
     case "fetch":
       return {
         fetch: {
@@ -509,6 +582,10 @@ export type TaskKey =
   | "keep"
   | "prune"
   | "older"
+  | "cluster"
+  | "machines"
+  | "prefix"
+  | "notes"
 
 export type TaskErrors = Partial<Record<TaskKey, string>>
 
@@ -629,6 +706,27 @@ export function checkTask(
     case "verify-backup":
       if (!t.databaseId) e.database = "Choose a database"
       break
+    case "pve-backup":
+    case "pve-snapshot": {
+      if (!t.pveCluster) e.cluster = "Choose a cluster"
+      if (!t.pveAll && t.pveVmids.length === 0)
+        e.machines = "Choose at least one machine"
+      else if (t.pveVmids.length > 500 || t.pveSkip.length > 500)
+        e.machines = "Up to 500 machines"
+      if (action === "pve-backup") {
+        if (!t.pveStorage) e.storage = "Choose where the backups go"
+        if (t.pveNotes.length > 200) e.notes = "Up to 200 characters"
+      } else {
+        if (!/^([A-Za-z][A-Za-z0-9_-]*)?$/.test(t.pvePrefix.trim()))
+          e.prefix = "Letters, digits, - and _, starting with a letter"
+        else if (t.pvePrefix.trim().length > 20)
+          e.prefix = "Up to 20 characters"
+        const k = Number(t.pveKeep)
+        if (!Number.isInteger(k) || k < 0 || k > 100)
+          e.keep = "A whole number from 0 to 100"
+      }
+      break
+    }
   }
   return e
 }
@@ -668,6 +766,15 @@ export function taskErrorKey(action: Action, field: string): TaskKey | null {
     ["networks", "prune"],
     ["build_cache", "prune"],
     ["older_than_hours", "older"],
+    ["cluster_id", "cluster"],
+    ["vmids", "machines"],
+    ["skip", "machines"],
+    ["all", "machines"],
+    ["prefix", "prefix"],
+    ["notes", "notes"],
+    ["mode", "storage"],
+    ["compress", "storage"],
+    ["vmstate", "machines"],
   ]
   for (const [prefix, key] of pairs) if (rest.startsWith(prefix)) return key
   const whole: Partial<Record<Action, TaskKey>> = {
@@ -682,6 +789,8 @@ export function taskErrorKey(action: Action, field: string): TaskKey | null {
     "docker-update": "servers",
     "docker-prune": "servers",
     "docker-volume-backup": "storage",
+    "pve-backup": "cluster",
+    "pve-snapshot": "cluster",
   }
   return whole[action] ?? null
 }
@@ -701,6 +810,8 @@ export const accessText: Record<Action, string> = {
   "docker-update": "Engineer on every server",
   "docker-prune": "Engineer on every server",
   "docker-volume-backup": "Engineer on the server and on the storage",
+  "pve-backup": "Engineer on the cluster's workspace",
+  "pve-snapshot": "Engineer on the cluster's workspace",
 }
 
 // ---- What it does ----
@@ -792,6 +903,8 @@ function ActionOption({
   )
 }
 
+export type TaskSectionProps = Props
+
 type Props = {
   action: Action
   t: TaskDraft
@@ -827,6 +940,9 @@ export function TaskSections(props: Props) {
       return <DockerPruneSections {...props} />
     case "docker-volume-backup":
       return <VolumeBackupSections {...props} />
+    case "pve-backup":
+    case "pve-snapshot":
+      return <PveSections {...props} />
   }
   return null
 }
@@ -859,7 +975,7 @@ function ServersSection({
   )
 }
 
-function Choice({
+export function Choice({
   id,
   value,
   onChange,
@@ -897,7 +1013,7 @@ function Choice({
   )
 }
 
-function NoneYet({
+export function NoneYet({
   text,
   href,
   label,

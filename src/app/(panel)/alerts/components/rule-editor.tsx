@@ -18,7 +18,7 @@ import {
 } from "@/app/(panel)/servers/components/server-checklist"
 import { ChannelPicker } from "@/app/(panel)/uptime/components/monitor-editor"
 import { Field } from "@/components/field"
-import { databasesQuery } from "@/components/panel/problems"
+import { databasesQuery, pveClustersQuery } from "@/components/panel/problems"
 import { useWorkspace } from "@/components/panel/workspace"
 import { ResponsiveDialog } from "@/components/responsive-dialog"
 import { Button } from "@/components/ui/button"
@@ -39,6 +39,7 @@ import {
   isContainerMetric,
   isDatabaseMetric,
   isPercent,
+  isPveMetric,
   isStateMetric,
   type Metric,
   metricOf,
@@ -47,6 +48,8 @@ import {
   type Op,
   type Preset,
   presets,
+  pveMetricOrder,
+  pvePresets,
   repeatChoices,
   repeatText,
   ruleSentence,
@@ -76,6 +79,7 @@ type Draft = {
   scope: Scope
   servers: Map<string, string>
   databases: Set<string>
+  clusters: Set<string>
   tags: string[]
   repeat: number
   notifyResolved: boolean
@@ -95,6 +99,8 @@ export type RuleStart = {
   container?: string
   server?: { id: string; name: string }
   database?: string
+  // A Proxmox cluster's id (its pages).
+  cluster?: string
 }
 
 function draftOf(rule?: AlertRule, start?: RuleStart): Draft {
@@ -114,6 +120,7 @@ function draftOf(rule?: AlertRule, start?: RuleStart): Draft {
       scope: rule.scope as Scope,
       servers: new Map(rule.server_ids.map((id) => [id, ""])),
       databases: new Set(rule.database_ids),
+      clusters: new Set(rule.cluster_ids ?? []),
       tags: rule.tags,
       repeat: rule.repeat_minutes,
       notifyResolved: rule.notify_resolved,
@@ -123,7 +130,9 @@ function draftOf(rule?: AlertRule, start?: RuleStart): Draft {
   }
   const p = start?.preset
   const metric =
-    p?.metric ?? start?.metric ?? (start?.database ? "db_down" : "cpu")
+    p?.metric ??
+    start?.metric ??
+    (start?.database ? "db_down" : start?.cluster ? "pve_node_down" : "cpu")
   const m = metrics[metric]
   return {
     name: p?.name ?? "",
@@ -139,11 +148,18 @@ function draftOf(rule?: AlertRule, start?: RuleStart): Draft {
     container: start?.container ?? "",
     forMinutes: String(p?.forMinutes ?? m.forMinutes),
     severity: p?.severity ?? "warning",
-    scope: start?.database ? "databases" : start?.server ? "servers" : "all",
+    scope: start?.database
+      ? "databases"
+      : start?.cluster
+        ? "clusters"
+        : start?.server
+          ? "servers"
+          : "all",
     servers: start?.server
       ? new Map([[start.server.id, start.server.name]])
       : new Map(),
     databases: new Set(start?.database ? [start.database] : []),
+    clusters: new Set(start?.cluster ? [start.cluster] : []),
     tags: [],
     repeat: 0,
     notifyResolved: true,
@@ -206,6 +222,8 @@ function check(d: Draft): Record<string, string> {
     e.server_ids = "Pick at least one server"
   if (d.scope === "databases" && d.databases.size === 0)
     e.database_ids = "Pick at least one database"
+  if (d.scope === "clusters" && d.clusters.size === 0)
+    e.cluster_ids = "Pick at least one cluster"
   if (d.scope === "tags" && d.tags.length === 0)
     e.tags = "Pick at least one tag"
   return e
@@ -237,6 +255,7 @@ function bodyOf(d: Draft, channels: string[]): AlertRuleBody {
     server_ids: d.scope === "servers" ? [...d.servers.keys()] : [],
     tags: d.scope === "tags" ? d.tags : [],
     database_ids: d.scope === "databases" ? [...d.databases] : [],
+    cluster_ids: d.scope === "clusters" ? [...d.clusters] : [],
     repeat_minutes: d.repeat,
     notify_resolved: d.notifyResolved,
     channel_ids: channels,
@@ -398,6 +417,7 @@ function RuleForm({
   const meta = metricOf(d.metric)
   const minutes = num(d.forMinutes)
   const onDatabases = isDatabaseMetric(d.metric)
+  const onClusters = isPveMetric(d.metric)
   const stateMetric = isStateMetric(d.metric)
 
   return (
@@ -415,7 +435,7 @@ function RuleForm({
       {fromPreset && (
         <Group title="Start from">
           <div className="flex flex-wrap gap-1.5">
-            {[...presets, ...containerPresets].map((p) => (
+            {[...presets, ...containerPresets, ...pvePresets].map((p) => (
               <button
                 key={p.key}
                 type="button"
@@ -445,6 +465,12 @@ function RuleForm({
         <MetricChoices
           legend="Databases"
           items={databaseMetricOrder}
+          value={d.metric}
+          onPick={pickMetric}
+        />
+        <MetricChoices
+          legend="Proxmox"
+          items={pveMetricOrder}
           value={d.metric}
           onPick={pickMetric}
         />
@@ -582,8 +608,21 @@ function RuleForm({
       </Group>
 
       <Group title="On">
-        {onDatabases ? (
+        {onClusters ? (
           <DatabaseScope
+            kind="cluster"
+            ws={ws}
+            workspaceName={workspace?.name}
+            all={d.scope === "all"}
+            onAll={(all) => set({ scope: all ? "all" : "clusters" })}
+            value={d.clusters}
+            onChange={(clusters) => set({ clusters })}
+            error={shown.cluster_ids}
+            phone={phone}
+          />
+        ) : onDatabases ? (
+          <DatabaseScope
+            kind="database"
             ws={ws}
             workspaceName={workspace?.name}
             all={d.scope === "all"}
@@ -899,7 +938,9 @@ function ContainerFilter({
 }
 
 // Every database of the workspace, or the ticked ones.
+// Every database / cluster of the workspace, or the ticked ones.
 function DatabaseScope({
+  kind,
   ws,
   workspaceName,
   all,
@@ -909,6 +950,7 @@ function DatabaseScope({
   error,
   phone,
 }: {
+  kind: "database" | "cluster"
   ws: string
   workspaceName?: string
   all: boolean
@@ -918,30 +960,49 @@ function DatabaseScope({
   error?: string
   phone: boolean
 }) {
-  const list = useQuery(databasesQuery)
+  const dbs = useQuery({ ...databasesQuery, enabled: kind === "database" })
+  const pve = useQuery({ ...pveClustersQuery, enabled: kind === "cluster" })
+  const list = kind === "cluster" ? pve : dbs
   const [q, setQ] = useState("")
-  const mine = (list.data?.items ?? [])
-    .filter((x) => x.workspace_id === ws)
-    .sort((a, b) => a.name.localeCompare(b.name))
+  const rows: { id: string; name: string; meta: string; paused?: boolean }[] =
+    kind === "cluster"
+      ? (pve.data?.items ?? [])
+          .filter((x) => x.workspace_id === ws)
+          .map((x) => ({
+            id: x.id,
+            name: x.name,
+            meta: x.cluster_name || x.url,
+          }))
+      : (dbs.data?.items ?? [])
+          .filter((x) => x.workspace_id === ws)
+          .map((x) => ({
+            id: x.id,
+            name: x.name,
+            meta: x.host,
+            paused: x.paused,
+          }))
+  const mine = rows.sort((a, b) => a.name.localeCompare(b.name))
+  const noun = kind === "cluster" ? "cluster" : "database"
   const needle = q.trim().toLowerCase()
   const items = needle
-    ? mine.filter((x) => `${x.name} ${x.host}`.toLowerCase().includes(needle))
+    ? mine.filter((x) => `${x.name} ${x.meta}`.toLowerCase().includes(needle))
     : mine
   return (
     <>
       <Segmented
-        label="Databases"
+        label={kind === "cluster" ? "Clusters" : "Databases"}
         items={[
-          { value: "all" as const, label: "Every database" },
-          { value: "databases" as const, label: "Chosen databases" },
+          { value: "all" as const, label: `Every ${noun}` },
+          { value: "databases" as const, label: `Chosen ${noun}s` },
         ]}
         value={all ? "all" : "databases"}
         onChange={(v) => onAll(v === "all")}
       />
       {all ? (
         <p className="text-caption text-muted-foreground">
-          Every database in {workspaceName ?? "this workspace"}, including ones
-          added later. Paused ones are skipped.
+          Every {kind === "cluster" ? "Proxmox cluster" : "database"} in{" "}
+          {workspaceName ?? "this workspace"}, including ones added later.
+          {kind === "cluster" ? "" : " Paused ones are skipped."}
         </p>
       ) : (
         <div className="flex flex-col gap-1.5">
@@ -956,20 +1017,20 @@ function DatabaseScope({
                 <SearchBox
                   value={q}
                   onChange={setQ}
-                  placeholder="Search databases"
-                  label="Search databases"
+                  placeholder={`Search ${noun}s`}
+                  label={`Search ${noun}s`}
                   className="w-full md:w-full"
                 />
               </div>
             )}
             <Checklist
               empty={
-                needle ? "No database matches." : "There are no databases yet."
+                needle ? `No ${noun} matches.` : `There are no ${noun}s yet.`
               }
               items={items.map((x) => ({
                 id: x.id,
                 label: x.name,
-                meta: x.host,
+                meta: x.meta,
                 status: x.paused ? "Paused" : undefined,
               }))}
               checked={(id) => value.has(id)}
@@ -990,7 +1051,7 @@ function DatabaseScope({
             )}
           >
             {error ??
-              `${value.size} ${value.size === 1 ? "database" : "databases"} ticked`}
+              `${value.size} ${value.size === 1 ? noun : `${noun}s`} ticked`}
           </p>
         </div>
       )}
@@ -1056,14 +1117,20 @@ function Preview({
   if (items.length === 0) {
     return (
       <Callout icon={<Info />}>
-        {isDatabaseMetric(metric)
-          ? "It covers no database yet. Add one under Databases, or tick some."
-          : "It covers no server yet. Pick servers, or a tag some servers have."}
+        {isPveMetric(metric)
+          ? "It covers no Proxmox cluster yet. Add one under Virtual machines, or tick some."
+          : isDatabaseMetric(metric)
+            ? "It covers no database yet. Add one under Databases, or tick some."
+            : "It covers no server yet. Pick servers, or a tag some servers have."}
       </Callout>
     )
   }
   const met = items.filter((i) => i.met).length
-  const noun = isDatabaseMetric(metric) ? "database" : "server"
+  const noun = isPveMetric(metric)
+    ? "cluster"
+    : isDatabaseMetric(metric)
+      ? "database"
+      : "server"
   if (metric === "service" || isContainerMetric(metric)) {
     return (
       <p className="text-body-sm text-muted-foreground">
@@ -1096,7 +1163,9 @@ function Preview({
           ·{" "}
           {noun === "server"
             ? "from each server's last sample"
-            : "from each database's last check"}
+            : noun === "cluster"
+              ? "from each cluster's last read"
+              : "from each database's last check"}
         </span>
       </p>
       <ul className="max-h-56 divide-y divide-border overflow-y-auto rounded-lg border border-border">

@@ -33,6 +33,7 @@ import { terminal } from "./terminal"
 import { terminalRecordings } from "./terminal-recordings"
 import { uptime } from "./uptime"
 import { users } from "./users"
+import { virtualMachines } from "./virtual-machines"
 
 // Each guide's sections, by the slug in components/help/guides.ts.
 export const content: Record<string, GuideSection[]> = {
@@ -58,6 +59,7 @@ export const content: Record<string, GuideSection[]> = {
   containers,
   packages,
   power,
+  "virtual-machines": virtualMachines,
   databases,
   dns,
   "reverse-proxy": reverseProxy,

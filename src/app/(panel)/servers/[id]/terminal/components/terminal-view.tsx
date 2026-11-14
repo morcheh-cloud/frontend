@@ -607,7 +607,7 @@ function cssVar(name: string) {
 }
 
 // The palette lives in globals.css; xterm needs plain colors.
-function readTheme(): ITheme {
+export function readTheme(): ITheme {
   const v = (name: string) => cssVar(`--term-${name}`)
   return {
     background: cssVar("--background"),

@@ -28,6 +28,8 @@ import {
   ListChecks,
   ListRestart,
   type LucideIcon,
+  MonitorCog,
+  MonitorUp,
   Package,
   PackageOpen,
   Play,
@@ -100,6 +102,8 @@ const icons: Record<string, LucideIcon> = {
   "log-archive-restore": ArchiveRestore,
   "log-archive-putaway": ArchiveX,
   "log-compact": Shrink,
+  "pve-task": MonitorCog,
+  "pve-create": MonitorUp,
 }
 
 // Which Containers page a Docker job's results are on.
@@ -243,6 +247,11 @@ export function placeHref(job: Job) {
     )
   }
   if (t?.auto_update) return `/containers/auto-update/${t.auto_update}`
+  // Proxmox: the machine's page, or the cluster's storage for an ISO.
+  if (t?.cluster_id)
+    return t.vmid
+      ? `/vms/${t.cluster_id}/${t.vmid}`
+      : `/vms?tab=storage&cluster=${t.cluster_id}`
   // Log archives: the kind's files, or its tables after a compaction.
   if (t?.dataset)
     return datasetHref(
@@ -283,6 +292,8 @@ export function placeHref(job: Job) {
 
 export function placeLabel(job: Job) {
   if (job.kind === "storage-scan") return "Open Insights"
+  if (job.target?.cluster_id)
+    return job.target.vmid ? "Open machine" : "Open storage"
   if (job.target?.auto_update) return "Open auto-update"
   if (job.target?.dataset)
     return job.kind === "log-compact" ? "Open logs" : "Open files"
@@ -320,7 +331,9 @@ export function canRetry(job: Job) {
     job.kind !== "schedule-run" &&
     job.kind !== "database-backup" &&
     job.kind !== "database-backup-restore" &&
-    !job.kind.startsWith("log-")
+    !job.kind.startsWith("log-") &&
+    // A Proxmox task already ran on the cluster: start it again from there.
+    !job.kind.startsWith("pve-")
   )
 }
 

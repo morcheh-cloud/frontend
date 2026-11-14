@@ -110,6 +110,14 @@ export const cronjobs: GuideSection[] = [
               "On servers with Docker or Podman, removes what nothing uses any more: unused images, build cache, stopped containers, unused networks and, if you ask, volumes. See Cleaning up Docker.",
             ],
             [
+              <UI key="pve-backup">Back up machines</UI>,
+              "Backs up Proxmox VMs and containers (every machine on a cluster, or chosen ones) with vzdump to a backup storage or a Proxmox Backup Server. See Backing up and snapshotting machines.",
+            ],
+            [
+              <UI key="pve-snapshot">Snapshot machines</UI>,
+              "Takes a snapshot of chosen Proxmox machines and removes the oldest ones it made beyond the number to keep.",
+            ],
+            [
               <UI key="verify">Verify backups</UI>,
               "Reads back the latest backup of a database (every plan, or one) on every storage it's kept on and compares its checksum. Nothing is restored.",
             ],
@@ -304,6 +312,64 @@ export const cronjobs: GuideSection[] = [
           ). Use this cron job when you want to choose the servers, the time or
           a stricter clean-up.
         </Tip>
+      </>
+    ),
+  },
+  {
+    id: "pve-backup",
+    title: "Backing up and snapshotting machines",
+    body: (
+      <>
+        <P>
+          <UI>Back up machines</UI> and <UI>Snapshot machines</UI> work on one
+          Proxmox cluster from{" "}
+          <See guide="virtual-machines">Virtual machines</See>. Pick{" "}
+          <UI>All of them</UI> (machines made later are included; tick the ones
+          to leave out) or <UI>Chosen ones</UI>. Templates are never included.
+          You need Engineer on the cluster.
+        </P>
+        <P>
+          A backup runs Proxmox's <C>vzdump</C> on each machine's node, one
+          machine after another, to a storage that takes backups. Pick the mode
+          (keep running, pause briefly, or stop), the compression and a note;{" "}
+          <C>{"{{guestname}}"}</C> and <C>{"{{vmid}}"}</C> are filled in. How
+          many backups are kept is the storage's own retention in Proxmox (
+          <UI>Datacenter › Storage › Backup Retention</UI>), or the Proxmox
+          Backup Server's prune settings.
+        </P>
+      </>
+    ),
+  },
+  {
+    id: "pve-snapshot",
+    title: "Snapshot rotation",
+    body: (
+      <>
+        <P>
+          <UI>Snapshot machines</UI> names each snapshot <C>prefix_date_time</C>{" "}
+          and, after taking it, deletes the oldest ones starting with the same
+          prefix beyond <UI>Keep</UI>. Snapshots you take by hand (another name)
+          are never touched.
+        </P>
+        <Recommended
+          rows={[
+            {
+              setting: "Schedule",
+              value: "Every 6 hours, keep 4",
+              why: "A day of quick go-backs without piling up snapshots that slow the disks.",
+            },
+            {
+              setting: "With memory",
+              value: "Off",
+              why: "Saving the RAM is slow and takes as much space as it; the disks are enough to go back.",
+            },
+            {
+              setting: "Backups too",
+              value: "Nightly Back up machines",
+              why: "Snapshots live on the same storage as the machine: lose it and they're gone too.",
+            },
+          ]}
+        />
       </>
     ),
   },

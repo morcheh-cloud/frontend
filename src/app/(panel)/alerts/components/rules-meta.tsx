@@ -8,12 +8,15 @@ import {
   DatabaseZap,
   Gauge,
   HardDrive,
+  HardDriveDownload,
   HeartCrack,
   Hourglass,
   type LucideIcon,
   MemoryStick,
+  MonitorStop,
   Repeat,
   RotateCcw,
+  ServerOff,
   ShieldAlert,
   Unplug,
 } from "lucide-react"
@@ -24,6 +27,7 @@ import {
   useQueryStates,
 } from "nuqs"
 
+import { vmsHref } from "@/app/(panel)/vms/components/meta"
 import type { AlertRule, AlertRuleBody, AlertRuleState } from "@/lib/services"
 
 // Alert rules on server metrics, services and databases: what each metric
@@ -33,8 +37,8 @@ import type { AlertRule, AlertRuleBody, AlertRuleState } from "@/lib/services"
 export type Metric = AlertRuleBody["metric"]
 export type Op = "above" | "below"
 export type Severity = "warning" | "critical"
-export type Scope = "all" | "servers" | "tags" | "databases"
-export type Target = "server" | "database"
+export type Scope = "all" | "servers" | "tags" | "databases" | "clusters"
+export type Target = "server" | "database" | "cluster"
 
 type MetricMeta = {
   label: string
@@ -162,6 +166,39 @@ export const metrics: Record<Metric, MetricMeta> = {
     step: 1,
     target: "server",
     state: true,
+  },
+  pve_node_down: {
+    label: "Node down",
+    icon: ServerOff,
+    unit: "",
+    hint: "A node of the Proxmox cluster is offline, or the cluster can't be reached at all.",
+    threshold: 0,
+    forMinutes: 2,
+    step: 1,
+    target: "cluster",
+    state: true,
+  },
+  pve_vm_stopped: {
+    label: "Machine stopped",
+    icon: MonitorStop,
+    unit: "",
+    hint: "A VM or container that was running stopped without anyone stopping it from Morche or Proxmox (a crash, an out-of-memory kill, a guest that shut itself down).",
+    threshold: 0,
+    forMinutes: 0,
+    step: 1,
+    target: "cluster",
+    state: true,
+  },
+  pve_storage_full: {
+    label: "Storage used",
+    icon: HardDriveDownload,
+    unit: "%",
+    hint: "The fullest storage of the cluster (disks, backups, ISOs). A full storage stops VMs that write to it.",
+    threshold: 85,
+    forMinutes: 10,
+    max: 100,
+    step: 1,
+    target: "cluster",
   },
   db_down: {
     label: "Unreachable",
@@ -292,6 +329,13 @@ export const metricOrder: Metric[] = [
   "service",
 ]
 
+// Proxmox metrics, listed apart in the editor.
+export const pveMetricOrder: Metric[] = [
+  "pve_node_down",
+  "pve_vm_stopped",
+  "pve_storage_full",
+]
+
 // Database metrics, listed apart in the editor.
 export const databaseMetricOrder: Metric[] = ["db_down", "db_health"]
 
@@ -318,6 +362,7 @@ export const isNet = (m: string) => m === "net_rx" || m === "net_tx"
 export const isStateMetric = (m: string) => !!metricOf(m).state
 export const targetOf = (m: string): Target => metricOf(m).target
 export const isDatabaseMetric = (m: string) => targetOf(m) === "database"
+export const isPveMetric = (m: string) => targetOf(m) === "cluster"
 
 // The rule's threshold in the editor's unit, and back.
 export const toFieldValue = (m: string, v: number) =>
@@ -348,6 +393,8 @@ export function conditionText(
 ) {
   if (r.metric === "offline" || r.metric === "db_down") return "unreachable"
   if (r.metric === "db_health") return "critical"
+  if (r.metric === "pve_node_down") return "has a node offline"
+  if (r.metric === "pve_vm_stopped") return "stopped on its own"
   if (r.metric === "service") return r.unit ? "stopped or failed" : "failed"
   if (r.metric === "container_down") return "down"
   if (r.metric === "container_unhealthy") return "unhealthy"
@@ -409,7 +456,13 @@ export function ruleSentence(
             : "A service"
           : isDatabaseMetric(r.metric)
             ? "Database"
-            : metricOf(r.metric).label
+            : r.metric === "pve_node_down"
+              ? "Cluster"
+              : r.metric === "pve_vm_stopped"
+                ? "A machine"
+                : r.metric === "pve_storage_full"
+                  ? "Cluster storage"
+                  : metricOf(r.metric).label
   const minutes = r.for_minutes
   return `${label} ${conditionText(r)}${minutes > 0 ? ` ${forText(minutes)}` : ""}`
 }
@@ -455,8 +508,14 @@ export function ruleCoversProject(
 export function scopeText(
   r: Pick<AlertRule, "scope" | "server_ids" | "tags" | "metric"> & {
     database_ids?: string[]
+    cluster_ids?: string[]
   },
 ) {
+  if (r.scope === "clusters") {
+    const n = r.cluster_ids?.length ?? 0
+    return `${n} Proxmox ${n === 1 ? "cluster" : "clusters"}`
+  }
+  if (isPveMetric(r.metric)) return "Every Proxmox cluster"
   if (r.scope === "databases") {
     const n = r.database_ids?.length ?? 0
     return `${n} ${n === 1 ? "database" : "databases"}`
@@ -487,6 +546,15 @@ export function targetHref(
   project?: string,
 ) {
   if (s.target_kind === "database") return `/databases/${s.target_id}`
+  if (s.target_kind === "pve") {
+    const tab =
+      metric === "pve_node_down"
+        ? "nodes"
+        : metric === "pve_storage_full"
+          ? "storage"
+          : undefined
+    return vmsHref("/vms", { tab, cluster: s.target_id })
+  }
   if (metric === "service") return `/servers/${s.target_id}/services`
   if (isContainerMetric(metric)) {
     const env = `?env=${encodeURIComponent(s.target_id)}`
@@ -689,3 +757,34 @@ export function useAlertsFilters() {
 }
 
 export const alertsHref = createSerializer(filters)
+
+// Ready-made Proxmox rules: the Virtual machines pages start from these.
+export const pvePresets: Preset[] = [
+  {
+    key: "pve-node-down",
+    name: "Proxmox node down",
+    metric: "pve_node_down",
+    op: "above",
+    threshold: 0,
+    forMinutes: 2,
+    severity: "critical",
+  },
+  {
+    key: "pve-vm-stopped",
+    name: "Machine stopped on its own",
+    metric: "pve_vm_stopped",
+    op: "above",
+    threshold: 0,
+    forMinutes: 0,
+    severity: "warning",
+  },
+  {
+    key: "pve-storage-full",
+    name: "Proxmox storage filling up",
+    metric: "pve_storage_full",
+    op: "above",
+    threshold: 85,
+    forMinutes: 10,
+    severity: "warning",
+  },
+]
