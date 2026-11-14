@@ -1,7 +1,9 @@
 "use client"
 
 import {
+  ArrowRight,
   ChevronRight,
+  Container,
   Download,
   ExternalLink,
   LayoutGrid,
@@ -37,6 +39,12 @@ import {
 import { Facts, Layer, LayerBody, LayerFooter, Section } from "./parts"
 import { useSoftwareCan } from "./permissions"
 import { useSoftwareActions } from "./software-actions"
+
+// Container apps (Portainer, Uptime Kuma…) are compose templates in
+// Containers now; the catalog points there.
+const templatesHref = "/containers/templates"
+const movedText =
+  "Portainer, Uptime Kuma, Grafana and other Docker apps are compose templates: deploy them as a project."
 
 // The categories in the order the catalog lists them: the busiest first.
 export function categoriesOf(items: Recipe[]) {
@@ -121,15 +129,26 @@ export function CatalogPanel({ phone }: { phone: boolean }) {
         <Empty
           icon={LayoutGrid}
           title="No application matches"
-          body="Try other words, or another category."
+          body="Try other words, or another category. Container apps are in Containers › Templates."
           action={
-            <Button
-              variant="outline"
-              className="h-11 md:h-9"
-              onClick={() => setFilters({ q: null, cat: null })}
-            >
-              Clear filters
-            </Button>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button
+                variant="outline"
+                className="h-11 md:h-9"
+                onClick={() => setFilters({ q: null, cat: null })}
+              >
+                Clear filters
+              </Button>
+              <Button
+                variant="outline"
+                className="h-11 md:h-9"
+                nativeButton={false}
+                render={<Link href={templatesHref} />}
+              >
+                <Container />
+                Container templates
+              </Button>
+            </div>
           }
         />
       ) : phone ? (
@@ -155,6 +174,25 @@ export function CatalogPanel({ phone }: { phone: boolean }) {
               </button>
             </li>
           ))}
+          <li>
+            <Link
+              href={templatesHref}
+              className="flex min-h-[4.5rem] w-full items-center gap-3 px-4 py-3 text-start outline-none active:bg-muted"
+            >
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand-strong">
+                <Container className="size-5" />
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-body font-medium">
+                  Container apps
+                </span>
+                <span className="line-clamp-2 text-caption text-muted-foreground">
+                  {movedText}
+                </span>
+              </span>
+              <ChevronRight className="size-4 shrink-0 text-ash" />
+            </Link>
+          </li>
         </ul>
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(17rem,1fr))] gap-3">
@@ -187,6 +225,31 @@ export function CatalogPanel({ phone }: { phone: boolean }) {
               </span>
             </button>
           ))}
+          <Link
+            href={templatesHref}
+            className="group flex flex-col gap-3 rounded-2xl border border-dashed border-mist p-5 text-start outline-none hover:border-brand hover:bg-brand-soft/30 focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <span className="flex items-start gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand-strong">
+                <Container className="size-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-medium">
+                  Container apps
+                </span>
+                <span className="font-label text-[11px] tracking-label text-ash uppercase">
+                  Moved to Containers
+                </span>
+              </span>
+            </span>
+            <span className="line-clamp-2 min-h-10 text-body-sm text-muted-foreground">
+              {movedText}
+            </span>
+            <span className="mt-auto flex items-center gap-1.5 text-caption font-medium text-brand">
+              Open templates
+              <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5 rtl:rotate-180" />
+            </span>
+          </Link>
         </div>
       )}
       <RecipeDetails

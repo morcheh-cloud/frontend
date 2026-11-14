@@ -24,14 +24,14 @@ export const applications: GuideSection[] = [
           <UI>Applications</UI> is a catalog of the infrastructure software a
           server needs, installed in a few taps: the basic tools, time sync,
           automatic security updates, swap, Docker, Podman or k3s, VPNs and
-          backup tools. Pick one, tick the servers, fill in a setting or two,
-          and Morche installs it over SSH on all of them, with each server's
-          output kept.
+          backup tools. Apps that run in containers (Portainer, Grafana, Uptime
+          Kuma…) live in <UI>Containers</UI> › <UI>Templates</UI>. Pick one,
+          tick the servers, fill in a setting or two, and Morche installs it
+          over SSH on all of them, with each server's output kept.
         </P>
         <P>It then keeps an eye on what it installed:</P>
         <List>
           <li>which version runs where, and whether a newer one is out;</li>
-          <li>whether a Docker app's containers are still running;</li>
           <li>
             which servers have system package updates waiting (security ones
             counted apart), and which need a reboot.
@@ -39,9 +39,8 @@ export const applications: GuideSection[] = [
         </List>
         <P>
           A check also finds software that was there before Morche (Docker,
-          nginx, PostgreSQL, a compose project you started by hand…), so the{" "}
-          <UI>Installed</UI> list shows the whole picture, not just what was
-          installed from here.
+          nginx, PostgreSQL…), so the <UI>Installed</UI> list shows the whole
+          picture, not just what was installed from here.
         </P>
         <P>
           The page has four tabs: <UI>Catalog</UI>, <UI>Installed</UI>,{" "}
@@ -68,13 +67,6 @@ export const applications: GuideSection[] = [
               "Package",
               "Installed with the server's package manager (apt, dnf, yum, zypper, apk or pacman).",
             ],
-            [
-              "Docker",
-              <>
-                A Docker Compose app in <C>/opt/morcheh/apps/&lt;id&gt;</C>.
-                Docker is installed first when the server doesn't have it.
-              </>,
-            ],
             ["Script", "The application's own shell scripts do the work."],
           ]}
         />
@@ -83,9 +75,9 @@ export const applications: GuideSection[] = [
           the addresses it answers on and where it is installed already.
         </P>
         <P>
-          The built-in catalog keeps to what a server itself needs; apps that
-          run on it (databases, monitoring dashboards, n8n…) are better started
-          from Portainer, or added as a custom recipe.
+          The built-in catalog keeps to what a server itself needs. Apps that
+          run on it in containers are compose templates in <UI>Containers</UI> ›{" "}
+          <UI>Templates</UI>; the last tile of the catalog leads there.
         </P>
         <Table
           head={["Group", "Applications"]}
@@ -94,11 +86,10 @@ export const applications: GuideSection[] = [
               "Base server",
               "Basic tools (htop, btop, ncdu, tmux, jq, rsync, dig…), Chrony, Automatic security updates, Swap file, QEMU guest agent",
             ],
-            ["Containers", "Docker, Podman, Portainer, Portainer Agent, k3s"],
+            ["Containers", "Docker, Podman, k3s"],
             ["Backup", "restic, rclone"],
             ["Networking", "WireGuard, Tailscale"],
             ["Security", "Certbot"],
-            ["Monitoring", "Node exporter"],
             ["Developer tools", "Git, Node.js, Python 3"],
           ]}
         />
@@ -108,21 +99,61 @@ export const applications: GuideSection[] = [
           <UI>Firewall</UI> on each server page), which install them too.
         </P>
         <P>
-          Some applications left the catalog (PostgreSQL, MariaDB, Redis,
-          Grafana, Prometheus, Uptime Kuma, n8n, Gitea, Vaultwarden, MinIO,
-          Dozzle, htop). Where one was installed before, it stays in{" "}
-          <UI>Installed</UI> and can still be managed, updated and removed; it
-          just can't be installed anywhere new.
+          Some applications left the catalog (htop is part of{" "}
+          <UI>Basic tools</UI> now). Where one was installed before, it stays in{" "}
+          <UI>Installed</UI> and can still be updated and removed; it just can't
+          be installed anywhere new.
         </P>
         <Tip>
           A few notes on the new ones: <UI>Swap file</UI> is resized by
           installing it again with another size. <UI>k3s</UI> starts a new
           cluster, or joins one when you give it the first server's address and
-          token; removing it deletes the cluster's data on that server.{" "}
-          <UI>Portainer Agent</UI> gives control of Docker to whoever reaches
-          its port, so let only your Portainer server in with the{" "}
-          <UI>Firewall</UI>.
+          token; removing it deletes the cluster's data on that server.
         </Tip>
+      </>
+    ),
+  },
+  {
+    id: "container-apps",
+    title: "Container apps moved to Containers",
+    body: (
+      <>
+        <P>
+          Applications used to install Docker apps too. Those are now compose
+          templates in <UI>Containers</UI> › <UI>Templates</UI>, deployed as a
+          project, with everything Containers gives a project: live numbers,
+          logs, production checks, updates, alerts, history and volume backups.
+        </P>
+        <Table
+          head={["Before", "Now"]}
+          rows={[
+            [
+              "Built-in Docker apps (Portainer, Grafana, Uptime Kuma, MariaDB, Vaultwarden…)",
+              "Built-in templates in Containers › Templates.",
+            ],
+            [
+              "Your workspace's own Docker recipes",
+              'Your workspace\'s templates, with the same compose file and settings as .env values (a name already taken gets " (Applications)").',
+            ],
+            [
+              "Docker apps installed from here",
+              "Still running, untouched. They show in Containers › Projects on that server; Find on the disk (or Add by path: /opt/morcheh/apps/<id>) lists them with their compose file.",
+            ],
+          ]}
+        />
+        <Steps>
+          {[
+            <>
+              <UI>Containers</UI> › <UI>Templates</UI>, pick the app and press{" "}
+              <UI>Deploy</UI>.
+            </>,
+            <>
+              Choose the environment (server), check the compose file and its
+              variables, then <UI>Create</UI>.
+            </>,
+          ]}
+        </Steps>
+        <See guide="containers" section="templates" />
       </>
     ),
   },
@@ -140,9 +171,9 @@ export const applications: GuideSection[] = [
             </>,
             <>
               Tick the servers. Each one is checked straight away: package
-              manager, Docker, free disk, ports already in use, what has to be
-              installed first. A server with a problem says why and can't be
-              picked until it's fixed.
+              manager, free disk, ports already in use, what has to be installed
+              first. A server with a problem says why and can't be picked until
+              it's fixed.
             </>,
             <>
               Fill in the settings (port, domain, passwords…). A password left
@@ -155,17 +186,14 @@ export const applications: GuideSection[] = [
             </>,
           ]}
         </Steps>
-        <Example title="Grafana on three servers">
-          Pick Grafana, tick the three servers, leave the port at 3000 and the
-          admin password empty. Morche installs Docker where it's missing, then
-          Grafana, with a different admin password on each server.{" "}
-          <UI>Installed</UI> › Grafana › <UI>Show passwords</UI> shows them.
+        <Example title="Docker on three servers">
+          Pick Docker, tick the three servers and press <UI>Install</UI>. Each
+          server's output shows live; one that already has Docker installed from
+          the distro keeps it.
         </Example>
         <P>
           <UI>Options</UI> holds <UI>Servers at a time</UI> and{" "}
-          <UI>Keep going when one server fails</UI> when you install on several,
-          and <UI>Start with empty data</UI> for a Docker app that was installed
-          on a server before and left its data behind.
+          <UI>Keep going when one server fails</UI> when you install on several.
         </P>
         <Recommended
           rows={[
@@ -177,7 +205,7 @@ export const applications: GuideSection[] = [
             {
               setting: "Servers at a time",
               value: "2–5",
-              why: "Heavy installs pull images and packages at once.",
+              why: "Heavy installs download packages at once.",
             },
           ]}
         />
@@ -194,33 +222,15 @@ export const applications: GuideSection[] = [
           state, and whether an update is waiting. Problems come first. Use the
           filter to see only <UI>Updates</UI> or <UI>Problems</UI>.
         </P>
-        <P>Open one to manage it:</P>
-        <List>
-          <li>
-            <UI>Overview</UI>: version, where it lives, its containers, the
-            settings it was installed with, the notes, and <UI>Open</UI> links
-            for its web pages.
-          </li>
-          <li>
-            <UI>Logs</UI> (Docker apps): the containers' recent logs.
-          </li>
-          <li>
-            <UI>Compose file</UI> (Docker apps): edit it; Docker checks it
-            before it is put in place, then the app restarts on it.
-          </li>
-          <li>
-            Start, stop, restart, update, roll back, uninstall from the menu.
-          </li>
-        </List>
+        <P>
+          Open one to see its version, the settings it was installed with, the
+          notes, <UI>Open</UI> links for its web pages and (Owners) the
+          passwords it was given. Update and uninstall are in its menu.
+        </P>
         <P>
           <UI>Forget</UI> only stops tracking it: nothing changes on the server,
           and the next check finds it again if it's still there.
         </P>
-        <Tip>
-          Uninstalling a Docker app keeps its data unless you turn on{" "}
-          <UI>Delete its data too</UI>, so a later install starts where it left
-          off.
-        </Tip>
       </>
     ),
   },
@@ -230,10 +240,9 @@ export const applications: GuideSection[] = [
     body: (
       <>
         <P>
-          <UI>Updates</UI> shows two things: applications with a newer version
-          (for Docker apps, a newer image under the same tag), and servers with
-          system packages to upgrade. Tick what you want and press{" "}
-          <UI>Update</UI>, or open a server to see its packages and press{" "}
+          <UI>Updates</UI> shows two things: applications with a newer version,
+          and servers with system packages to upgrade. Tick what you want and
+          press <UI>Update</UI>, or open a server to see its packages and press{" "}
           <UI>Upgrade all</UI> or <UI>Security only</UI>.
         </P>
         <P>
@@ -258,10 +267,6 @@ export const applications: GuideSection[] = [
             ],
           ]}
         />
-        <P>
-          Before a Docker app is updated, Morche keeps the images it ran on.{" "}
-          <UI>Roll back</UI> runs it on those again, until the next update.
-        </P>
         <Warn>
           A kernel or libc update may ask for a reboot: the server shows{" "}
           <UI>Reboot needed</UI>. Morche never reboots by itself; use Power on
@@ -283,9 +288,9 @@ export const applications: GuideSection[] = [
           background task.
         </P>
         <P>
-          A check reads the package manager's pending updates, Docker and its
-          compose projects, and asks each installed application for its version.
-          If it fails, the server's tab says why.
+          A check reads the package manager's pending updates and Docker's
+          version, and asks each installed application for its version. If it
+          fails, the server's tab says why.
         </P>
         <Tip>
           The backend's <C>SOFTWARE_CHECK_INTERVAL</C> sets how often checks
@@ -315,10 +320,10 @@ export const applications: GuideSection[] = [
     body: (
       <>
         <P>
-          Every install, update, roll back, uninstall and system upgrade is a
-          run, kept in <UI>Activity</UI>: who started it (or which cron job), on
-          which servers, and each server's full output. A run that is still
-          going can be stopped; servers not started yet are skipped.
+          Every install, update, uninstall and system upgrade is a run, kept in{" "}
+          <UI>Activity</UI>: who started it (or which cron job), on which
+          servers, and each server's full output. A run that is still going can
+          be stopped; servers not started yet are skipped.
         </P>
         <P>
           Runs also show in <UI>Tasks</UI> while they work.
@@ -396,10 +401,11 @@ export const applications: GuideSection[] = [
         <Steps>
           {[
             <>
-              <UI>How it installs</UI>: Docker app (a compose file), Package
-              (the package manager) or Script (your own install script).
-              Switching sets the other kind's parts aside, and switching back
-              brings them again.
+              <UI>How it installs</UI>: Package (the package manager) or Script
+              (your own install script). A container app belongs in{" "}
+              <UI>Containers</UI> › <UI>Templates</UI> instead. Switching sets
+              the other kind's parts aside, and switching back brings them
+              again.
             </>,
             <>
               <UI>About</UI>: name, summary and category; the id is made from
@@ -409,13 +415,13 @@ export const applications: GuideSection[] = [
               <UI>Install form</UI>: the questions asked at install. Quick
               buttons add a port, a password, a domain or a data folder; the
               variable name is made from the question. Copy <C>{"${NAME}"}</C>{" "}
-              from a question into the compose file or a script.
+              from a question into a script.
             </>,
             <>
-              The kind's own part (<UI>Compose file</UI>, <UI>Packages</UI> or{" "}
-              <UI>Scripts</UI>), then <UI>After installing</UI> (Open buttons
-              and notes) and <UI>Where it runs</UI> (what to install first,
-              which package managers).
+              The kind's own part (<UI>Packages</UI> or <UI>Scripts</UI>), then{" "}
+              <UI>After installing</UI> (Open buttons and notes) and{" "}
+              <UI>Where it runs</UI> (what to install first, which package
+              managers).
             </>,
           ]}
         </Steps>
@@ -425,28 +431,23 @@ export const applications: GuideSection[] = [
           form remembers which you used last. The same recipe in YAML:
         </P>
         <Code>
-          {`id: whoami
-name: Whoami
-summary: Answers with the request it got.
-kind: docker
+          {`id: mycli
+name: My CLI
+summary: Our command-line tool.
+kind: script
 category: Tools
-icon: globe
-requires: [docker]
+icon: terminal
 params:
-  - name: PORT
-    label: Port
-    type: port
-    default: "8081"
-links:
-  - label: Whoami
-    port: PORT
-compose: |
-  services:
-    whoami:
-      image: traefik/whoami:latest
-      restart: unless-stopped
-      ports:
-        - "\${PORT}:80"`}
+  - name: VERSION
+    label: Version
+    type: text
+    default: "1.4.0"
+version: mycli --version
+install: |
+  command -v curl >/dev/null 2>&1 || { pkg_refresh; pkg_install curl; }
+  curl -fsSL "https://example.com/mycli-\${VERSION}" -o /usr/local/bin/mycli
+  chmod +x /usr/local/bin/mycli
+uninstall: rm -f /usr/local/bin/mycli`}
         </Code>
         <Table
           head={["Field", "What it's for"]}
@@ -455,14 +456,14 @@ compose: |
               <C key="id">id</C>,
               "Short name: lowercase letters, digits, dashes.",
             ],
-            [<C key="kind">kind</C>, "package, docker or script."],
+            [<C key="kind">kind</C>, "package or script."],
             [
               <C key="look">icon / logo</C>,
               "icon = a lucide icon name (box, database, globe…). logo = a brand logo Morche ships (docker, redis, postgresql, grafana…; the editor's field list has them all), shown in place of the icon.",
             ],
             [
               <C key="params">params</C>,
-              "Values asked at install: ${NAME} in a compose file, environment variables in scripts. type: password is sealed; generate: password makes one.",
+              "Values asked at install, given to the scripts as environment variables. type: password is sealed; generate: password makes one.",
             ],
             [
               <C key="packages">packages</C>,
@@ -513,14 +514,8 @@ compose: |
         head={["Level", "Can"]}
         rows={[
           ["Viewer", "See the catalog and what is installed."],
-          [
-            "Operator",
-            "Start, stop, restart, read logs, check servers, see Activity.",
-          ],
-          [
-            "Engineer",
-            "Install, update, roll back, edit compose files, write recipes, stop runs.",
-          ],
+          ["Operator", "Check servers, see Activity."],
+          ["Engineer", "Install, update, write recipes, stop runs."],
           [
             "Owner",
             "Uninstall, and see the passwords an app was installed with.",
@@ -555,8 +550,10 @@ compose: |
           vendor script). Update it the same way it was installed.
         </li>
         <li>
-          <b>Stopped or Partly running.</b> A Docker app's containers aren't all
-          up. Open it › <UI>Logs</UI>, then <UI>Restart</UI>.
+          <b>A Docker app I installed here is gone from the list.</b> Container
+          apps moved to <UI>Containers</UI>: open <UI>Projects</UI> on that
+          server; <UI>Find on the disk</UI> (or <UI>Add by path</UI> with{" "}
+          <C>/opt/morcheh/apps/&lt;id&gt;</C>) lists it with its compose file.
         </li>
         <li>
           <b>Not found.</b> The last check couldn't find it on the server any

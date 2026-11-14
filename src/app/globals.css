@@ -326,6 +326,24 @@
   }
 }
 
+/* The dot that travels along a storage sync's line while it copies. */
+@keyframes sync-dot {
+  from {
+    inset-inline-start: 0;
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  to {
+    inset-inline-start: calc(100% - 6px);
+    opacity: 0;
+  }
+}
+
 /* Help: briefly tints the section a search result or link pointed at. */
 @keyframes help-flash {
   from {

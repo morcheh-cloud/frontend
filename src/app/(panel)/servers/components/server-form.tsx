@@ -47,24 +47,29 @@ type Values = {
   description: string
 }
 
-export type ServerFormDefaults = Pick<Values, "folder_id" | "tags">
+// A new server can start with some fields filled (folder and tags for "Add
+// another", name/address/user when it comes from a cloud provider's list).
+export type ServerFormDefaults = Pick<
+  Values,
+  "folder_id" | "tags" | "name" | "host" | "username" | "description"
+>
 
 function initialValues(
   server?: Server,
   defaults?: Partial<ServerFormDefaults>,
 ): Values {
   return {
-    name: server?.name ?? "",
-    host: server?.host ?? "",
+    name: server?.name ?? defaults?.name ?? "",
+    host: server?.host ?? defaults?.host ?? "",
     port: String(server?.port ?? 22),
-    username: server?.username ?? "root",
+    username: server?.username ?? defaults?.username ?? "root",
     auth_method: server?.auth_method ?? "password",
     password: "",
     private_key: "",
     passphrase: "",
     folder_id: server ? server.folder_id : (defaults?.folder_id ?? null),
     tags: server?.tags ?? defaults?.tags ?? [],
-    description: server?.description ?? "",
+    description: server?.description ?? defaults?.description ?? "",
   }
 }
 

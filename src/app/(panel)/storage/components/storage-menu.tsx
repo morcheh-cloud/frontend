@@ -2,6 +2,7 @@
 
 import {
   Activity,
+  ArrowRightLeft,
   Copy,
   KeyRound,
   KeySquare,
@@ -9,8 +10,10 @@ import {
   Star,
   StarOff,
   Trash2,
+  Truck,
   UsersRound,
 } from "lucide-react"
+import { useRouter } from "next/navigation"
 import type { ReactNode } from "react"
 
 import { StatusDot, statusMeta } from "@/app/(panel)/servers/components/meta"
@@ -20,6 +23,8 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import type { Storage } from "@/lib/services"
+import { newSyncHref } from "../syncs/components/meta"
+import { useSyncCan } from "../syncs/components/permissions"
 import { endpointLabel, ProtocolTile, providerLabel } from "./meta"
 import { useStorageCan } from "./permissions"
 import { useStorageActions } from "./storage-actions"
@@ -43,6 +48,8 @@ function useItems(
   const can = useStorageCan()
   const operator = can(storage, "operator")
   const owner = can(storage, "owner")
+  const router = useRouter()
+  const syncs = useSyncCan(storage.workspace_id)
   const primary: StorageItem[] = [
     ...(operator
       ? [
@@ -96,6 +103,24 @@ function useItems(
     })
   }
   const groups: StorageItem[][] = [primary]
+  if (syncs.edit && operator) {
+    groups.push([
+      {
+        key: "sync",
+        icon: <ArrowRightLeft />,
+        label: "Sync to another storage…",
+        onSelect: () =>
+          router.push(newSyncHref({ kind: "sync", source: storage.id })),
+      },
+      {
+        key: "migrate",
+        icon: <Truck />,
+        label: "Migrate to another storage…",
+        onSelect: () =>
+          router.push(newSyncHref({ kind: "migrate", source: storage.id })),
+      },
+    ])
+  }
   if (operator) {
     groups.push([
       {

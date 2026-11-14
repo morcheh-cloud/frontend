@@ -91,6 +91,7 @@ export function EndPicker({
   value,
   onPick,
   serversOnly = false,
+  storagesOnly = false,
   need,
   title,
   description,
@@ -102,6 +103,8 @@ export function EndPicker({
   onPick: (end: EndDraft) => void
   // Archive's folder and a download's destination must be a server.
   serversOnly?: boolean
+  // Storage syncs and migrations move data between storages only.
+  storagesOnly?: boolean
   // Overrides the access the role needs (an archive's folder: Engineer).
   need?: Level
   title?: string
@@ -125,6 +128,7 @@ export function EndPicker({
           role={role}
           value={value}
           serversOnly={serversOnly}
+          storagesOnly={storagesOnly}
           need={need}
           onCancel={() => onOpenChange(false)}
           onPick={(end) => {
@@ -141,6 +145,7 @@ function PickForm({
   role,
   value,
   serversOnly,
+  storagesOnly,
   need,
   onCancel,
   onPick,
@@ -148,6 +153,7 @@ function PickForm({
   role: Role
   value?: EndDraft
   serversOnly: boolean
+  storagesOnly: boolean
   need?: Level
   onCancel: () => void
   onPick: (end: EndDraft) => void
@@ -156,7 +162,9 @@ function PickForm({
   const { loading, error } = all
   const places = serversOnly
     ? all.places.filter((p) => p.kind === "server")
-    : all.places
+    : storagesOnly
+      ? all.places.filter((p) => p.kind === "storage")
+      : all.places
   const [chosen, setChosen] = useState<string | null>(
     value ? (value.server_id ?? value.storage_id ?? null) : null,
   )
@@ -211,7 +219,9 @@ function PickForm({
             <p className="p-3 text-body-sm text-muted-foreground">
               {serversOnly
                 ? "This workspace has no servers yet."
-                : "This workspace has no servers or storages yet."}
+                : storagesOnly
+                  ? "This workspace has no storages yet."
+                  : "This workspace has no servers or storages yet."}
             </p>
           ) : (
             <ul className="divide-y divide-border">

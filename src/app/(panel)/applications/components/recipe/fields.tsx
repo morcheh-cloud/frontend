@@ -4,7 +4,6 @@ import {
   ArrowDown,
   ArrowUp,
   Check,
-  Container,
   FileCode,
   Package,
   Trash2,
@@ -30,9 +29,9 @@ import {
 
 // ---- Kind ----
 
-const kindIcons = { docker: Container, package: Package, script: FileCode }
+const kindIcons = { package: Package, script: FileCode }
 
-// The three kinds as cards: the choice that shapes the rest of the form.
+// The kinds as cards: the choice that shapes the rest of the form.
 export function KindPicker({
   value,
   onChange,
@@ -46,9 +45,9 @@ export function KindPicker({
     <div
       role="radiogroup"
       aria-label="How it installs"
-      className={cn("grid gap-2", !phone && "grid-cols-3")}
+      className={cn("grid gap-2", !phone && "grid-cols-2")}
     >
-      {(["docker", "package", "script"] as const).map((k) => {
+      {(["package", "script"] as const).map((k) => {
         const Icon = kindIcons[k]
         return (
           <label

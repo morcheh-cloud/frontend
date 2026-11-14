@@ -744,6 +744,238 @@ https://assets.s3.amazonaws.com/img/logo.png  (AWS)`}</Code>
     ),
   },
   {
+    id: "migrate",
+    title: "Moving everything to another storage",
+    body: (
+      <>
+        <P>
+          A <UI>Migration</UI> copies a whole storage, or one folder of it, to
+          another storage once: from an old FTP account to S3, from AWS to your
+          own MinIO, from one bucket to another. Morche's own machine reads from
+          one side and writes to the other, so it works between any two kinds of
+          storage and nothing passes through your computer.
+        </P>
+        <Steps>
+          {[
+            <>
+              Open <UI>Storage</UI> › <UI>Migrations</UI> and press{" "}
+              <UI>New migration</UI>, or pick{" "}
+              <UI>Migrate to another storage…</UI> in a storage's ⋯ menu.
+            </>,
+            <>
+              Pick the <UI>Source</UI> and the <UI>Destination</UI>, each with a
+              folder (<C>/</C> = all of it; on S3 the first folder is the
+              bucket).
+            </>,
+            <>
+              Under <UI>Safety</UI>, keep <UI>Check every file</UI> on. To move
+              instead of copy, turn on <UI>Empty the source afterwards</UI>.
+            </>,
+            <>
+              Save, then press <UI>Test run</UI>: it lists what it would copy
+              without copying anything. When it looks right, press{" "}
+              <UI>Start</UI>.
+            </>,
+          ]}
+        </Steps>
+        <P>
+          The page shows the run going: files and bytes so far, speed and the
+          file it's on. You can leave; the run carries on in the background and
+          shows in <See guide="tasks" />. If it stops halfway (Morche restarted,
+          the network dropped), press <UI>Run again</UI>: files already there
+          with the same size are skipped.
+        </P>
+        <Warn>
+          <UI>Empty the source afterwards</UI> deletes from the source only the
+          files that were copied and then found on the destination with the same
+          size. If anything is missing or different, nothing is deleted and the
+          run says why. It needs Engineer access to the source.
+        </Warn>
+        <Example title="Leaving an FTP host for S3">
+          Source <C>Old hosting</C> folder <C>/public_html/uploads</C>,
+          destination <C>R2</C> folder <C>/site-media/uploads</C>, check every
+          file on, empty the source off. Once your site reads from R2, run it
+          once more to pick up late uploads, then remove the FTP storage.
+        </Example>
+      </>
+    ),
+  },
+  {
+    id: "sync",
+    title: "Keeping two storages in sync",
+    body: (
+      <>
+        <P>
+          A <UI>Sync</UI> keeps a folder on one storage up to date with a folder
+          on another, again and again: a second copy of your backups on another
+          provider, a public bucket fed from a private one, a NAS kept in step
+          with S3. Create one in <UI>Storage</UI> › <UI>Syncs</UI> ›{" "}
+          <UI>New sync</UI>, or from a storage's ⋯ menu ›{" "}
+          <UI>Sync to another storage…</UI>.
+        </P>
+        <Table
+          head={["Mode", "What happens on the destination"]}
+          rows={[
+            [
+              <UI key="u">Add and update</UI>,
+              "New and changed files are copied; nothing is ever deleted there. Safest, and the default.",
+            ],
+            [
+              <UI key="m">Mirror</UI>,
+              "It ends up exactly like the source: files gone from the source are deleted there too. Can't target a whole storage (/).",
+            ],
+          ]}
+        />
+        <Table
+          head={["Files already at the destination", "Means"]}
+          rows={[
+            [
+              <UI key="c">Changed files</UI>,
+              "Copy when the size or date differs (usual).",
+            ],
+            [
+              <UI key="o">Only missing files</UI>,
+              "Never overwrite anything already there.",
+            ],
+            [
+              <UI key="e">Everything</UI>,
+              "Copy every file every time. Slow; only to repair a copy.",
+            ],
+          ]}
+        />
+        <P>
+          <UI>Leave out</UI> takes one pattern per line, like <C>*.tmp</C>,{" "}
+          <C>.cache/</C> or <C>logs/*.gz</C>.
+        </P>
+        <P>
+          A sync runs with the access of whoever saved it last: Operator on the
+          source and Engineer on the destination. If that person loses access,
+          the sync stops and its page says why, with a <UI>Fix</UI> button.
+        </P>
+      </>
+    ),
+  },
+  {
+    id: "sync-timing",
+    title: "When a sync runs",
+    body: (
+      <>
+        <Table
+          head={["When", "Use it for"]}
+          rows={[
+            [
+              <UI key="h">By hand</UI>,
+              "One-off copies you start yourself with Run now.",
+            ],
+            [
+              <UI key="s">On a schedule</UI>,
+              "Set times in a time zone, like every night at 02:00. Same builder as cron jobs.",
+            ],
+            [
+              <UI key="i">Every few minutes</UI>,
+              "Background copying: it starts again a set time (5 minutes or more) after the last run ended, so runs never pile up.",
+            ],
+          ]}
+        />
+        <P>Two delays make a sync safer:</P>
+        <List>
+          <li>
+            <UI>Wait for new files to settle</UI>: a file changed less than this
+            many minutes ago is left for the next run, so a file still being
+            uploaded isn't copied half-written. The run counts them as{" "}
+            <UI>still settling</UI>.
+          </li>
+          <li>
+            <UI>Wait before deleting</UI> (mirror only): a file gone from the
+            source is kept on the destination for this many hours first. The
+            sync's page lists them under <UI>Deletions waiting</UI> with when
+            each goes; if the file comes back to the source in time, it's kept.
+            This gives you a window to undo an accidental delete.
+          </li>
+        </List>
+        <Recommended
+          rows={[
+            {
+              setting: "Backups to a second provider",
+              value: "Add and update, every night",
+              why: "The copy can't be wiped by a mistake on the source.",
+            },
+            {
+              setting: "Files people upload all day",
+              value: "Every 15 minutes, settle 5 minutes",
+              why: "Near-live, and never copies a file mid-upload.",
+            },
+            {
+              setting: "A mirror",
+              value: "Wait before deleting 24 hours",
+              why: "A day to notice and undo a delete on the source.",
+            },
+          ]}
+        />
+        <Tip>
+          A sync that has a problem, or whose last run failed, shows a red count
+          on <UI>Storage</UI> in the menu and on Home. A paused one doesn't.
+        </Tip>
+      </>
+    ),
+  },
+  {
+    id: "replication",
+    title: "MinIO replication",
+    body: (
+      <>
+        <P>
+          When both storages are MinIO, <UI>Who copies</UI> offers{" "}
+          <UI>MinIO replication</UI>: the source MinIO copies each change to the
+          other MinIO itself, usually within seconds. Nothing goes through
+          Morche, and it keeps working while Morche is down. Morche sets up the
+          rule (a remote target and a bucket replication rule on the source
+          bucket, with versioning turned on for both buckets) and shows MinIO's
+          own numbers.
+        </P>
+        <Table
+          head={["Setting", "Means"]}
+          rows={[
+            [
+              <UI key="e">Copy what's already there</UI>,
+              "Also copy objects that were in the bucket before the rule.",
+            ],
+            [
+              <UI key="d">Copy deletions</UI>,
+              "Deleting on the source deletes on the destination too.",
+            ],
+            [
+              <UI key="w">Wait for the copy</UI>,
+              "A write finishes only once the copy is made (slower writes, no lag).",
+            ],
+            [
+              <UI key="b">Speed limit</UI>,
+              "Mbit/s MinIO may use for copying; empty = no limit.",
+            ],
+            [
+              <UI key="a">Destination address for MinIO</UI>,
+              "Only when the source MinIO reaches the other one at a different address than Morche does (e.g. inside Docker).",
+            ],
+          ]}
+        />
+        <P>
+          The page shows what's <UI>Waiting</UI>, <UI>Copied</UI> and{" "}
+          <UI>Failed</UI>, the speed, and whether the destination is reachable.{" "}
+          <UI>Copy everything again</UI> asks MinIO to resync the whole bucket
+          (after the destination was emptied or rebuilt). Turning the sync off
+          pauses the rule; deleting the sync removes it.
+        </P>
+        <Warn>
+          Replication needs Owner access on both storages, keys allowed to
+          change bucket settings, and the same folder inside both buckets (
+          <C>/photos/2026</C> → <C>/backup/photos/2026</C> isn't possible; the
+          editor offers to fix it). Between other kinds of storage, use{" "}
+          <UI>Copied by Morche</UI>.
+        </Warn>
+      </>
+    ),
+  },
+  {
     id: "troubleshooting",
     title: "Troubleshooting",
     body: (
@@ -784,6 +1016,20 @@ https://assets.s3.amazonaws.com/img/logo.png  (AWS)`}</Code>
           Insights' <UI>Activity</UI> is empty: only transfers, cron job syncs
           and database backups count. Browsing, uploads and downloads in the
           file manager don't.
+        </li>
+        <li>
+          A sync says <UI>Partly done</UI>: some files failed. Open the run to
+          see each one and why, fix it, and run again; copied files are skipped.
+        </li>
+        <li>
+          Replication says <UI>Destination unreachable</UI>: the source MinIO
+          can't reach the other one. Set <UI>Destination address for MinIO</UI>{" "}
+          to an address the source machine can reach.
+        </li>
+        <li>
+          Replication says the rule isn't on the bucket any more: someone
+          removed it in MinIO. Open the sync's <UI>Edit</UI> and save to put it
+          back.
         </li>
       </List>
     ),

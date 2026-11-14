@@ -19,7 +19,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { useIsMobile } from "@/hooks/use-mobile"
-import { useIntent } from "@/hooks/useIntent"
+import { queueIntent, useIntent } from "@/hooks/useIntent"
 import { useOpen } from "@/hooks/useOpen"
 import { ApiError, fieldErrors } from "@/lib/api"
 import type { Folder, Server } from "@/lib/services"
@@ -51,7 +51,10 @@ import {
 type FolderDraft = { folder?: Folder; parentId: string | null }
 
 type Actions = {
-  addServer: (folderId?: string | null) => void
+  addServer: (
+    folderId?: string | null,
+    prefill?: Partial<ServerFormDefaults>,
+  ) => void
   editServer: (server: Server) => void
   check: (server: Pick<Server, "id" | "name">) => void
   trustHostKey: (server: Server) => void
@@ -80,13 +83,28 @@ export function useServerActions() {
 
 const errorToast = (error: Error) => toast.error(error.message)
 
+// "Add server" opened from another page with fields filled (a cloud server's
+// name and address): queue the values, then the intent, then navigate.
+let prefill: Partial<ServerFormDefaults> = {}
+
+export function queueAddServer(values: Partial<ServerFormDefaults>) {
+  prefill = values
+  queueIntent("add-server")
+}
+
+function takePrefill() {
+  const values = prefill
+  prefill = {}
+  return values
+}
+
 // Owns every dialog and sheet of the servers page, so the desktop table, the
 // phone list and the folder rail all trigger the same flows.
 export function ServerActionsProvider({ children }: { children: ReactNode }) {
   // Server form
   const [formOpen, setFormOpen] = useOpen("server-form")
   const [formServer, setFormServer] = useState<Server | undefined>()
-  const [formFolder, setFormFolder] = useState<string | null>(null)
+  const [formStart, setFormStart] = useState<Partial<ServerFormDefaults>>({})
   const [formKey, setFormKey] = useState(0)
 
   // Folder form
@@ -138,9 +156,9 @@ export function ServerActionsProvider({ children }: { children: ReactNode }) {
   }
 
   const actions: Actions = {
-    addServer: (folderId = null) => {
+    addServer: (folderId = null, prefill = {}) => {
       setFormServer(undefined)
-      setFormFolder(folderId)
+      setFormStart({ folder_id: folderId, ...prefill })
       setFormKey((k) => k + 1)
       setFormOpen(true)
     },
@@ -203,7 +221,7 @@ export function ServerActionsProvider({ children }: { children: ReactNode }) {
   }
 
   // "Add server" from the command palette, on any page.
-  useIntent("add-server", () => actions.addServer())
+  useIntent("add-server", () => actions.addServer(null, takePrefill()))
 
   const deleteCount = toDelete.servers.length
 
@@ -216,7 +234,7 @@ export function ServerActionsProvider({ children }: { children: ReactNode }) {
         open={formOpen}
         onOpenChange={setFormOpen}
         server={formServer}
-        defaultFolderId={formFolder}
+        start={formStart}
         onSaved={(saved, recheck, keepOpen) => {
           if (!keepOpen) setFormOpen(false)
           if (recheck) check(saved)
@@ -373,13 +391,13 @@ function ServerFormLayer({
   open,
   onOpenChange,
   server,
-  defaultFolderId,
+  start,
   onSaved,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   server?: Server
-  defaultFolderId: string | null
+  start: Partial<ServerFormDefaults>
   onSaved: (server: Server, recheck: boolean, keepOpen: boolean) => void
 }) {
   const isMobile = useIsMobile()
@@ -391,9 +409,7 @@ function ServerFormLayer({
   // so a batch of servers lands in the same place.
   const [addAnother, setAddAnother] = useState(false)
   const [round, setRound] = useState(0)
-  const [defaults, setDefaults] = useState<Partial<ServerFormDefaults>>({
-    folder_id: defaultFolderId,
-  })
+  const [defaults, setDefaults] = useState<Partial<ServerFormDefaults>>(start)
 
   function submit({ values, body, setErrors }: ServerFormSubmit) {
     const onError = (error: Error) => {

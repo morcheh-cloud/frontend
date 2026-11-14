@@ -41,7 +41,6 @@ type Actions = {
   installId: (recipeId: string, preset?: InstallPreset) => void
   manage: (i: SoftwareInstall) => void
   update: (targets: Target[]) => void
-  rollback: (t: Target) => void
   uninstall: (targets: Target[]) => void
   upgradeSystem: (servers: SystemTarget[], securityOnly?: boolean) => void
   forget: (i: SoftwareInstall) => void
@@ -69,7 +68,7 @@ const afterBack = (go?: () => void) => {
 }
 
 type Pending =
-  | { action: "update" | "uninstall" | "rollback"; targets: Target[] }
+  | { action: "update" | "uninstall"; targets: Target[] }
   | {
       action: "upgrade-system"
       servers: SystemTarget[]
@@ -136,7 +135,6 @@ export function SoftwareActionsProvider({ children }: { children: ReactNode }) {
       setManageOpen(true)
     },
     update: (targets) => ask({ action: "update", targets }),
-    rollback: (t) => ask({ action: "rollback", targets: [t] }),
     uninstall: (targets) => ask({ action: "uninstall", targets }),
     upgradeSystem: (servers, securityOnly) =>
       ask({ action: "upgrade-system", servers, securityOnly }),
@@ -268,7 +266,7 @@ const upgradeModes = [
 ] as const
 type UpgradeMode = (typeof upgradeModes)[number]["value"]
 
-// Asks before update, uninstall, roll back and system upgrade, with the
+// Asks before update, uninstall and system upgrade, with the
 // options each one has.
 function RunDialog({
   open,
@@ -302,7 +300,6 @@ function RunDialogBody({
   const jobs = useJobActions()
   const phone = useIsPhone()
   const start = useStartSoftwareRun()
-  const [removeData, setRemoveData] = useState(false)
   const [keepGoing, setKeepGoing] = useState(false)
   const [mode, setMode] = useState<UpgradeMode>(
     pending?.action === "upgrade-system" && pending.securityOnly
@@ -320,9 +317,6 @@ function RunDialogBody({
     pending.action === "upgrade-system"
       ? pending.servers.map((s) => s.server_id)
       : [...new Set(pending.targets.map((t) => t.server_id))]
-  const hasDocker =
-    pending.action !== "upgrade-system" &&
-    pending.targets.some((t) => t.kind === "docker")
   const many = servers.length > 1
 
   const title = titleOf(pending)
@@ -330,7 +324,6 @@ function RunDialogBody({
     install: "Install",
     update: "Update",
     uninstall: "Uninstall",
-    rollback: "Roll back",
     "upgrade-system": "Upgrade",
   }
 
@@ -351,7 +344,6 @@ function RunDialogBody({
 
   const go = async () => {
     const options = {
-      remove_data: action === "uninstall" && hasDocker ? removeData : undefined,
       stop_on_failure: many ? !keepGoing : undefined,
       security_only:
         action === "upgrade-system" ? mode === "security" : undefined,
@@ -408,7 +400,7 @@ function RunDialogBody({
       open={open}
       onOpenChange={onOpenChange}
       title={title}
-      description={descriptionOf(pending, hasDocker)}
+      description={descriptionOf(pending)}
       footer={footer}
       className="sm:max-w-lg"
     >
@@ -443,14 +435,6 @@ function RunDialogBody({
             </p>
           </div>
         )}
-        {action === "uninstall" && hasDocker && (
-          <SwitchRow
-            label="Delete its data too"
-            hint="Removes the Docker apps' volumes and folders. Off: they stay, and a new install picks them up."
-            checked={removeData}
-            onChange={setRemoveData}
-          />
-        )}
         {many && (
           <SwitchRow
             label="Keep going when one server fails"
@@ -476,18 +460,13 @@ function titleOf(p: Pending) {
     ? `${one.name} on ${one.server_name}`
     : `${p.targets.length} applications`
   if (p.action === "update") return `Update ${what}?`
-  if (p.action === "rollback") return `Roll back ${what}?`
   return `Uninstall ${what}?`
 }
 
-function descriptionOf(p: Pending, docker: boolean) {
+function descriptionOf(p: Pending) {
   switch (p.action) {
     case "update":
-      return docker
-        ? "Docker apps pull newer images and are recreated; the image they ran is kept, so you can roll back."
-        : "Installs the newest version from the package manager or the vendor."
-    case "rollback":
-      return "Goes back to the images it ran before its last update, and keeps them until you update again."
+      return "Installs the newest version from the package manager or the vendor."
     case "uninstall":
       return "Removes it from the server. Packages may leave their config files behind."
     case "upgrade-system":

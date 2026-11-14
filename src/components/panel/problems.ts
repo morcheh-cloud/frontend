@@ -5,6 +5,7 @@ import { queryOptions, useQuery } from "@tanstack/react-query"
 import { api } from "@/lib/api"
 import type {
   AlertRule,
+  CloudAccount,
   Database,
   DNSServer,
   PVECluster,
@@ -13,11 +14,13 @@ import type {
   Server,
   SoftwareInstall,
   Storage,
+  StorageSync,
   UptimeMonitor,
 } from "@/lib/services"
 import {
   alertsItem,
   applicationsItem,
+  cloudItem,
   cronjobsItem,
   databasesItem,
   dnsItem,
@@ -87,6 +90,17 @@ export const pveClusterBroken = (
   (c.status !== "online" && c.status !== "unknown") ||
   (c.status === "online" && c.nodes_online < c.node_count)
 
+// Shared with /cloud. The backend re-reads them (CLOUD_CHECK_INTERVAL).
+export const cloudAccountsQuery = queryOptions({
+  queryKey: ["cloud", "accounts"] as const,
+  queryFn: () => api.cloud.listCloudAccounts(),
+  refetchInterval: STATUS_POLL,
+})
+
+// A cloud account whose key was refused or whose API can't be reached.
+export const cloudAccountBroken = (c: Pick<CloudAccount, "status">) =>
+  c.status !== "online" && c.status !== "unknown"
+
 // Shared with /proxy. The backend re-checks them (PROXY_CHECK_INTERVAL).
 export const proxiesQuery = queryOptions({
   queryKey: ["proxies"] as const,
@@ -131,17 +145,30 @@ export const cronjobBroken = (
     (!!s.last_run &&
       ["failed", "partial", "interrupted"].includes(s.last_run.state)))
 
-// An application install that failed, went missing or whose containers
-// aren't running (the same "bad"/"warn" as its status on /applications).
-export const softwareBroken = (
-  i: Pick<SoftwareInstall, "status" | "kind" | "state">,
+// A storage sync or migration that can't run, or whose last real run (not a
+// test) didn't fully work. Paused ones don't count.
+export const storageSyncBroken = (
+  s: Pick<StorageSync, "paused" | "problem" | "last_run">,
 ) =>
-  i.status === "failed" ||
-  i.status === "missing" ||
-  (i.status === "installed" &&
-    i.kind === "docker" &&
-    !!i.state &&
-    i.state !== "running")
+  !s.paused &&
+  (!!s.problem ||
+    (!!s.last_run?.id &&
+      !s.last_run.dry_run &&
+      ["failed", "partial", "interrupted"].includes(s.last_run.state)))
+
+// Same key and request as useStorageSyncs() in storage/syncs/api.ts.
+export const storageSyncsQuery = (workspace: string) =>
+  queryOptions({
+    queryKey: ["storage-syncs", "list", workspace] as const,
+    queryFn: () => api.storageSyncs.listStorageSyncs(workspace),
+    enabled: !!workspace,
+    refetchInterval: STATUS_POLL,
+  })
+
+// An application install that failed or went missing (the same "bad" as
+// its status on /applications).
+export const softwareBroken = (i: Pick<SoftwareInstall, "status">) =>
+  i.status === "failed" || i.status === "missing"
 
 // Same key and request as useInstalls() in applications/api.ts.
 export const softwareInstallsQuery = (workspace: string) =>
@@ -228,10 +255,27 @@ export function useStorageProblems() {
   return data ?? 0
 }
 
+export function useStorageSyncProblems() {
+  const { workspace } = useWorkspace()
+  const { data } = useQuery({
+    ...storageSyncsQuery(workspace?.id ?? ""),
+    select: (list) => list.items.filter(storageSyncBroken).length,
+  })
+  return data ?? 0
+}
+
 export function useDNSProblems() {
   const { data } = useQuery({
     ...dnsServersQuery,
     select: (list) => list.items.filter(dnsServerBroken).length,
+  })
+  return data ?? 0
+}
+
+export function useCloudProblems() {
+  const { data } = useQuery({
+    ...cloudAccountsQuery,
+    select: (list) => list.items.filter(cloudAccountBroken).length,
   })
   return data ?? 0
 }
@@ -296,12 +340,14 @@ function useBackupProblems() {
 export function useNavAlerts() {
   const servers = useServerProblems()
   const storages = useStorageProblems()
+  const syncs = useStorageSyncProblems()
   const databases = useDatabaseProblems()
   const backups = useBackupProblems()
   const cronjobs = useCronjobProblems()
   const dns = useDNSProblems()
   const proxies = useProxyProblems()
   const pve = usePVEProblems()
+  const cloud = useCloudProblems()
   const software = useSoftwareProblems()
   const uptime = useUptimeProblems()
   const firing = useAlertProblems()
@@ -318,10 +364,22 @@ export function useNavAlerts() {
       label: `${plural(pve, "cluster", "clusters")} not connected or with a node down`,
     })
   }
-  if (storages > 0) {
+  if (cloud > 0) {
+    alerts.set(cloudItem.href, {
+      count: cloud,
+      label: `${plural(cloud, "cloud account", "cloud accounts")} not connected`,
+    })
+  }
+  if (storages + syncs > 0) {
     alerts.set(storageItem.href, {
-      count: storages,
-      label: `${plural(storages, "storage", "storages")} not connected`,
+      count: storages + syncs,
+      label: [
+        storages > 0 &&
+          `${plural(storages, "storage", "storages")} not connected`,
+        syncs > 0 && `${plural(syncs, "sync", "syncs")} need a look`,
+      ]
+        .filter(Boolean)
+        .join(", "),
     })
   }
   if (databases + backups > 0) {

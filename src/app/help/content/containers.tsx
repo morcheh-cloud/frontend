@@ -1069,22 +1069,85 @@ export const containers: GuideSection[] = [
     body: (
       <>
         <P>
-          <UI>Customization</UI> › <UI>Templates</UI> holds ready compose
-          projects: built-in ones (nginx, WordPress, databases…) and your
-          workspace's own. Filter by <UI>Built-in</UI> / <UI>Yours</UI> and by
-          category, open one to read its files, and <UI>Deploy</UI> opens{" "}
-          <UI>New project</UI> filled with it on the current environment.
+          <UI>Customization</UI> › <UI>Templates</UI> is an app store for your
+          servers: over 350 built-in compose projects, from WordPress, Ghost and
+          Nextcloud to Grafana, n8n, Gitea, Vaultwarden, Ollama, Immich and
+          Jellyfin, plus your workspace's own. The container apps that used to
+          be in <UI>Applications</UI> live here too.
         </P>
+        <Steps>
+          {[
+            <>
+              With nothing picked, the page opens on an overview:{" "}
+              <UI>Popular</UI>, then every category (AI, Productivity, Media,
+              Monitoring, Security…) with its best few. <UI>See all</UI> opens
+              the whole list.
+            </>,
+            <>
+              Or narrow it down: the chips under the bar pick a category, the
+              search looks through names, tags, descriptions and image names
+              (every word must match), and <UI>Built-in</UI> / <UI>Yours</UI>{" "}
+              split by source.
+            </>,
+            <>
+              Click a card to read it: what it runs, its website,{" "}
+              <UI>Before you start</UI> (values you must fill in, how many
+              passwords Morche makes) and its compose file and <C>.env</C>.
+            </>,
+            <>
+              <UI>Deploy</UI> opens <UI>New project</UI> filled with it on the
+              current environment. Change anything, then create it.
+            </>,
+          ]}
+        </Steps>
+        <P>
+          Passwords and keys are never shipped in a template: the <C>.env</C>{" "}
+          holds placeholders that get a fresh value for each new project, the
+          moment <UI>New project</UI> opens. Values only you know (a domain, an
+          API key, an admin email) sit under{" "}
+          <C># Fill these in before starting</C>, and optional ones under{" "}
+          <C># Optional settings</C>.
+        </P>
+        <Table
+          head={["Placeholder", "Becomes"]}
+          rows={[
+            [<C key="s">{"{{secret}}"}</C>, "32 letters and digits"],
+            [<C key="n">{"{{secret:16}}"}</C>, "that many letters and digits"],
+            [<C key="u">{"{{user}}"}</C>, "a random lowercase user name"],
+            [<C key="h">{"{{hex:32}}"}</C>, "that many hex digits (keys)"],
+            [
+              <C key="b">{"{{base64:32}}"}</C>,
+              "that many random bytes, base64",
+            ],
+            [<C key="o">{"{{host}}"}</C>, "the server's address"],
+          ]}
+        />
         <P>
           <UI>New template</UI> (workspace Engineer) takes a name, category,
-          description, the compose file and an optional <C>.env</C>. The compose
-          file must be valid YAML with a <C>services:</C> section.
+          description, the compose file and an optional <C>.env</C>; the compose
+          file must be valid YAML with a <C>services:</C> section. A built-in
+          one can't be changed, but <UI>Copy to edit</UI> makes it yours. In{" "}
+          <UI>New project</UI>, <UI>From a template</UI> opens the same catalog
+          with search and categories.
         </P>
         <Tip>
-          Put values people change (passwords, ports, domains) in the{" "}
-          <C>.env</C> as <C>{"${NAME}"}</C> placeholders, so a deploy only edits
-          that file.
+          Write placeholders in your own templates too: put{" "}
+          <C>{"DB_PASSWORD={{secret}}"}</C> in the <C>.env</C> and use{" "}
+          <C>{"${DB_PASSWORD}"}</C> in the compose file, so every project gets
+          its own password and a deploy only edits one file.
         </Tip>
+        <Warn>
+          Templates are a starting point, not a hardened setup: read the compose
+          file before starting it, keep admin ports off the internet (
+          <UI>Firewall</UI> or the reverse proxy) and pin image tags for
+          production. <UI>Portainer Agent</UI> gives control of Docker to
+          whoever reaches its port: let only your Portainer server in.
+        </Warn>
+        <P>
+          Many built-in templates are adapted from Coolify's service templates
+          (Apache-2.0); logos belong to their owners.
+        </P>
+        <See guide="applications" section="container-apps" />
       </>
     ),
   },

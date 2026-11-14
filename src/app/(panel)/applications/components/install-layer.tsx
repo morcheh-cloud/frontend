@@ -103,7 +103,6 @@ function InstallForm({
     () => new Map((preset?.servers ?? []).map((s) => [s.id, s.name])),
   )
   const [values, setValues] = useState(() => initialValues(recipe))
-  const [fresh, setFresh] = useState(false)
   const [keepGoing, setKeepGoing] = useState(true)
   const [parallel, setParallel] = useState("5")
   const [touched, setTouched] = useState(false)
@@ -149,7 +148,6 @@ function InstallForm({
         recipes: [recipe.id],
         params: given(params, values),
         options: {
-          fresh: recipe.kind === "docker" ? fresh : undefined,
           stop_on_failure: n > 1 ? !keepGoing : undefined,
           parallel:
             n > 1 && Number.isInteger(parallelN) && parallelN > 0
@@ -251,7 +249,7 @@ function InstallForm({
             {results.length > 0 && (
               <ul className="divide-y divide-border rounded-2xl border border-border">
                 {results.map((r) => (
-                  <PreflightRow key={r.server_id} r={r} recipe={recipe} />
+                  <PreflightRow key={r.server_id} r={r} />
                 ))}
               </ul>
             )}
@@ -280,17 +278,9 @@ function InstallForm({
           </Section>
         )}
 
-        {(recipe.kind === "docker" || n > 1) && (
+        {n > 1 && (
           <Section title="Options">
             <div className="flex flex-col gap-1">
-              {recipe.kind === "docker" && (
-                <SwitchRow
-                  label="Start with empty data"
-                  hint="Deletes the data an earlier install of it left on the server (volumes and its folder) first."
-                  checked={fresh}
-                  onChange={setFresh}
-                />
-              )}
               {n > 1 && (
                 <>
                   <SwitchRow
@@ -358,12 +348,11 @@ function given(params: RecipeParam[], values: Record<string, string>) {
   return out
 }
 
-function PreflightRow({ r, recipe }: { r: SoftwarePreflight; recipe: Recipe }) {
+function PreflightRow({ r }: { r: SoftwarePreflight }) {
   const facts = [
     r.pm,
     r.arch,
     r.free_mb !== undefined ? `${freeText(r.free_mb)} free` : "",
-    recipe.kind === "docker" && r.docker ? `Docker ${r.docker}` : "",
   ].filter(Boolean)
   return (
     <li className="flex gap-3 px-4 py-3 text-body-sm">

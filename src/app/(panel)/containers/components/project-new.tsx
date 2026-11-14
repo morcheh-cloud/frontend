@@ -24,7 +24,7 @@ import { useOpen } from "@/hooks/useOpen"
 import { fieldErrors } from "@/lib/api"
 import type { DockerFleetServer, DockerTemplate } from "@/lib/services"
 import { cn } from "@/lib/utils"
-import { Empty, ItemMenu, Segmented } from "../../servers/[id]/components/parts"
+import { Empty, Segmented } from "../../servers/[id]/components/parts"
 import { timeAgo } from "../../servers/components/meta"
 import {
   type GitForm,
@@ -50,6 +50,8 @@ import {
   readDraft,
   writeDraft,
 } from "./project-new-tools"
+import { envNeeds, fillTemplate, TemplateIcon } from "./template-meta"
+import { TemplatePicker } from "./template-picker"
 
 const NAME = /^[a-z0-9][a-z0-9_-]*$/
 
@@ -166,12 +168,15 @@ function ProjectForm({
   const check = useCheckProject()
   // What the form starts from; an unfinished form is kept in localStorage
   // under the server + template and comes back when the page opens again.
-  const initial = {
+  // A template's {{secret}}-style placeholders get their values once, here,
+  // so every project has its own passwords.
+  const [initial] = useState(() => ({
     name: from ? slugName(from.name) : "",
-    compose: from?.compose ?? "",
-    env: from?.env ?? "",
+    compose: from ? fillTemplate(from.compose, env.address) : "",
+    env: from ? fillTemplate(from.env, env.address) : "",
     start: true,
-  }
+  }))
+  const needs = from ? envNeeds(from.env) : undefined
   const key = draftKey(env.server_id, from?.id)
   const [restored, setRestored] = useState(() => readDraft(key))
   const [name, setName] = useState(restored?.name ?? initial.name)
@@ -280,8 +285,16 @@ function ProjectForm({
   }
   const asRun = looksLikeDockerRun(compose)
 
-  const pick = (t: DockerTemplate) =>
-    router.replace(newProjectHref(env.server_id, t.id))
+  const [pickerOpen, setPickerOpen] = useOpen("docker-template-picker")
+  const pick = (t: DockerTemplate) => {
+    setPickerOpen(false)
+    // After the picker's history entry is gone, or Back would undo the swap.
+    window.addEventListener(
+      "popstate",
+      () => router.replace(newProjectHref(env.server_id, t.id)),
+      { once: true },
+    )
+  }
 
   // The helper beside the editor: which tab shows, and where it sits (phones
   // scroll to it when a check ends).
@@ -322,24 +335,27 @@ function ProjectForm({
     </Button>
   )
   const templateMenu = templates.length > 0 && (
-    <ItemMenu
-      label="Start from a template"
-      trigger={
-        <Button variant="ghost" size={phone ? "sm" : "default"}>
+    <>
+      <Button
+        variant="ghost"
+        size={phone ? "sm" : "default"}
+        onClick={() => setPickerOpen(true)}
+      >
+        {from ? (
+          <TemplateIcon t={from} className="size-5 rounded-md border-0" />
+        ) : (
           <LayoutTemplate />
-          {from ? from.name : phone ? "Template" : "From a template"}
-        </Button>
-      }
-      groups={[
-        templates.map((t) => ({
-          key: t.id,
-          label: t.name,
-          icon: <LayoutTemplate />,
-          trailing: t.builtin ? undefined : "Yours",
-          onSelect: () => pick(t),
-        })),
-      ]}
-    />
+        )}
+        {from ? from.name : phone ? "Template" : "From a template"}
+      </Button>
+      <TemplatePicker
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        templates={templates}
+        current={from?.id}
+        onPick={pick}
+      />
+    </>
   )
 
   const nameField = (
@@ -419,8 +435,31 @@ function ProjectForm({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-border bg-subtle px-3 py-2 text-body-sm">
           <LayoutTemplate className="size-4 shrink-0 text-ash" />
           <span className="min-w-0 flex-1">
-            From the <span className="font-medium">{from.name}</span> template:
-            read it through and set real passwords in .env before starting.
+            From the <span className="font-medium">{from.name}</span> template.
+            {needs && needs.made > 0 && (
+              <> Its passwords and keys were made just for this project.</>
+            )}
+            {needs && needs.fill.length > 0 ? (
+              <>
+                {" "}
+                Fill in{" "}
+                {needs.fill.map((v, i) => (
+                  <span key={v}>
+                    {i > 0 && ", "}
+                    <button
+                      type="button"
+                      onClick={() => setFile("env")}
+                      className="font-mono text-caption text-brand hover:underline"
+                    >
+                      {v}
+                    </button>
+                  </span>
+                ))}{" "}
+                in .env before starting.
+              </>
+            ) : (
+              <> Read it through before starting.</>
+            )}
           </span>
         </div>
       )}

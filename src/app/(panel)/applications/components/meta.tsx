@@ -105,7 +105,6 @@ export const recipeIcons: Record<string, LucideIcon> = {
 
 const kindIcons: Record<Recipe["kind"], LucideIcon> = {
   package: Package,
-  docker: Container,
   script: FileCode,
 }
 
@@ -209,13 +208,11 @@ export function RecipeIcon({
 
 export const kindLabels: Record<Recipe["kind"], string> = {
   package: "Package",
-  docker: "Docker app",
   script: "Script",
 }
 
 export const kindHints: Record<Recipe["kind"], string> = {
   package: "Installed with the server's package manager (apt, dnf…).",
-  docker: "Runs in containers with Docker Compose, in /opt/morcheh/apps.",
   script: "Installed by a script from the vendor.",
 }
 
@@ -228,17 +225,10 @@ export const statusLabels: Record<SoftwareInstall["status"], string> = {
   missing: "Not found",
 }
 
-export const stateLabels: Record<string, string> = {
-  running: "Running",
-  stopped: "Stopped",
-  partial: "Partly running",
-}
-
 export const actionLabels: Record<RunAction, string> = {
   install: "Install",
   update: "Update",
   uninstall: "Uninstall",
-  rollback: "Roll back",
   "upgrade-system": "System upgrade",
 }
 
@@ -246,17 +236,13 @@ export const actionLabels: Record<RunAction, string> = {
 export function installTone(i: SoftwareInstall) {
   if (i.status === "failed" || i.status === "missing") return "bad"
   if (i.status !== "installed") return "busy"
-  if (i.kind === "docker" && i.state && i.state !== "running") return "warn"
   if (i.update_available) return "update"
   return "ok"
 }
 
 export function installText(i: SoftwareInstall) {
   if (i.status !== "installed") return statusLabels[i.status]
-  if (i.kind === "docker" && i.state && i.state !== "running")
-    return stateLabels[i.state] ?? i.state
   if (i.update_available) return "Update available"
-  if (i.kind === "docker") return "Running"
   return "Installed"
 }
 
@@ -273,7 +259,6 @@ export function InstallStatus({
       className={cn(
         "inline-flex items-center gap-1.5 text-body-sm whitespace-nowrap",
         tone === "bad" && "text-destructive",
-        tone === "warn" && "text-warning",
         tone === "busy" && "text-brand",
         tone === "update" && "text-brand",
         tone === "ok" && "text-muted-foreground",
@@ -285,7 +270,6 @@ export function InstallStatus({
         className={cn(
           "size-2 rounded-full",
           tone === "bad" && "bg-destructive",
-          tone === "warn" && "bg-warning",
           (tone === "busy" || tone === "update") && "bg-brand",
           tone === "busy" && "animate-pulse",
           tone === "ok" && "bg-success",

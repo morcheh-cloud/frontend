@@ -25,6 +25,9 @@ import { cn } from "@/lib/utils"
 import { Segmented } from "../../servers/[id]/components/parts"
 import { useWorkspaceCan } from "../../servers/components/permissions"
 import { useCheckingStorages, useStorages } from "../api"
+import { newSyncHref } from "../syncs/components/meta"
+import { useSyncCan } from "../syncs/components/permissions"
+import { SyncList, useSyncCounts } from "../syncs/components/sync-list"
 import { useStoragePageFilters } from "./filters"
 import { InsightsBody, InsightsControls } from "./insights/insights"
 import { endpointLabel, ProtocolTile, providerLabel } from "./meta"
@@ -39,10 +42,21 @@ const sorted = (items: Storage[]) =>
       Number(b.favorite) - Number(a.favorite) || a.name.localeCompare(b.name),
   )
 
-const tabItems = (count: number) => [
+const tabItems = (count: number, syncs: { sync: number; migrate: number }) => [
   { value: "insights" as const, label: "Insights" },
   { value: "storages" as const, label: `Storages · ${count}` },
+  {
+    value: "syncs" as const,
+    label: syncs.sync ? `Syncs · ${syncs.sync}` : "Syncs",
+  },
+  {
+    value: "migrations" as const,
+    label: syncs.migrate ? `Migrations · ${syncs.migrate}` : "Migrations",
+  },
 ]
+
+const syncKindOf = (tab: string) =>
+  tab === "syncs" ? "sync" : tab === "migrations" ? "migrate" : null
 
 export function StorageView() {
   const isPhone = useIsPhone()
@@ -57,6 +71,9 @@ function StorageDesktop() {
   const checking = useCheckingStorages()
   const items = sorted(list.data?.items ?? [])
   const [{ tab }, setFilters] = useStoragePageFilters()
+  const syncCounts = useSyncCounts()
+  const syncCan = useSyncCan()
+  const syncKind = syncKindOf(tab)
 
   return (
     <>
@@ -69,17 +86,32 @@ function StorageDesktop() {
                 label="Show"
                 value={tab}
                 onChange={(tab) => setFilters({ tab })}
-                items={tabItems(items.length)}
+                items={tabItems(items.length, syncCounts)}
               />
               {tab === "insights" && <InsightsControls phone={false} />}
             </>
           )}
-          {canAdd && (
-            <Button className="ms-auto" onClick={() => actions.addStorage()}>
-              <Plus />
-              Add storage
-            </Button>
-          )}
+          {syncKind
+            ? syncCan.edit &&
+              items.length > 0 && (
+                <Button
+                  className="ms-auto"
+                  render={<Link href={newSyncHref({ kind: syncKind })} />}
+                  nativeButton={false}
+                >
+                  <Plus />
+                  {syncKind === "sync" ? "New sync" : "New migration"}
+                </Button>
+              )
+            : canAdd && (
+                <Button
+                  className="ms-auto"
+                  onClick={() => actions.addStorage()}
+                >
+                  <Plus />
+                  Add storage
+                </Button>
+              )}
         </div>
         {list.isPending ? (
           <div className="overflow-hidden rounded-2xl border border-border">
@@ -103,6 +135,8 @@ function StorageDesktop() {
           <div className="rounded-2xl border border-border">
             <NoStorage onAdd={canAdd ? actions.addStorage : undefined} />
           </div>
+        ) : syncKind ? (
+          <SyncList kind={syncKind} phone={false} />
         ) : tab === "insights" ? (
           <InsightsBody phone={false} />
         ) : (
@@ -266,6 +300,9 @@ function StorageMobile() {
   const current = items.find((s) => s.id === sheetId) ?? last.current
   if (current) last.current = current
   const [{ tab }, setFilters] = useStoragePageFilters()
+  const syncCounts = useSyncCounts()
+  const syncCan = useSyncCan()
+  const syncKind = syncKindOf(tab)
 
   return (
     <>
@@ -276,28 +313,43 @@ function StorageMobile() {
           label="Storage guide"
           className="ms-auto"
         />
-        {canAdd && (
-          <Button
-            size="icon-lg"
-            aria-label="Add storage"
-            className="rounded-full"
-            onClick={() => actions.addStorage()}
-          >
-            <Plus className="size-5" />
-          </Button>
-        )}
+        {syncKind
+          ? syncCan.edit &&
+            items.length > 0 && (
+              <Button
+                size="icon-lg"
+                aria-label={syncKind === "sync" ? "New sync" : "New migration"}
+                className="rounded-full"
+                render={<Link href={newSyncHref({ kind: syncKind })} />}
+                nativeButton={false}
+              >
+                <Plus className="size-5" />
+              </Button>
+            )
+          : canAdd && (
+              <Button
+                size="icon-lg"
+                aria-label="Add storage"
+                className="rounded-full"
+                onClick={() => actions.addStorage()}
+              >
+                <Plus className="size-5" />
+              </Button>
+            )}
       </header>
 
       {items.length > 0 && (
-        <div className="flex flex-col gap-3 px-4 pt-4">
-          <Segmented
-            label="Show"
-            value={tab}
-            onChange={(tab) => setFilters({ tab })}
-            items={tabItems(items.length)}
-          />
+        <div className="flex flex-col gap-3 pt-4">
+          <div className="no-scrollbar overflow-x-auto px-4">
+            <Segmented
+              label="Show"
+              value={tab}
+              onChange={(tab) => setFilters({ tab })}
+              items={tabItems(items.length, syncCounts)}
+            />
+          </div>
           {tab === "insights" && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 px-4">
               <InsightsControls phone />
             </div>
           )}
@@ -322,6 +374,8 @@ function StorageMobile() {
           <Failed error={list.error} onRetry={() => list.refetch()} />
         ) : items.length === 0 ? (
           <NoStorage onAdd={canAdd ? actions.addStorage : undefined} />
+        ) : syncKind ? (
+          <SyncList kind={syncKind} phone />
         ) : tab === "insights" ? (
           <div className="border-t border-border">
             <InsightsBody phone />

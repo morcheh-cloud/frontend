@@ -38,6 +38,8 @@ import {
   STATUS_POLL,
   softwareBroken,
   softwareInstallsQuery,
+  storageSyncBroken,
+  storageSyncsQuery,
   storagesQuery,
 } from "@/components/panel/problems"
 import { useWorkspace } from "@/components/panel/workspace"
@@ -130,6 +132,7 @@ export function useHome() {
   const first = useServerList(firstServersQuery, noFavorites)
 
   const storages = useQuery(storagesQuery)
+  const syncs = useQuery(storageSyncsQuery(workspace?.id ?? ""))
   const databases = useQuery(databasesQuery)
   const backups = useQuery(backupProblemsQuery(workspace?.id ?? ""))
   const dns = useQuery(dnsServersQuery)
@@ -180,6 +183,28 @@ export function useHome() {
       detail: s.status_message,
       href: `/storage/${s.id}`,
       tone: toneOf(s.status),
+    })
+  }
+  for (const s of syncs.data?.items ?? []) {
+    if (!storageSyncBroken(s)) continue
+    issues.push({
+      key: `storage-sync:${s.id}`,
+      kind: "storage",
+      name: s.name,
+      status: s.problem
+        ? "Can't run"
+        : s.last_run.state === "partial"
+          ? "Partly done"
+          : s.last_run.state === "interrupted"
+            ? "Interrupted"
+            : "Failed",
+      detail:
+        s.problem ||
+        s.last_run.error ||
+        `${s.kind === "migrate" ? "Migration" : "Sync"} from ${s.source.name} to ${s.dest.name}`,
+      href: `/storage/syncs/${s.id}`,
+      tone:
+        s.problem || s.last_run.state === "failed" ? "destructive" : "warning",
     })
   }
   for (const s of dns.data?.items ?? []) {
@@ -244,22 +269,14 @@ export function useHome() {
   }
   for (const i of software.data?.items ?? []) {
     if (!softwareBroken(i)) continue
-    const bad = i.status === "failed" || i.status === "missing"
     issues.push({
       key: `application:${i.id}`,
       kind: "application",
       name: `${i.name} on ${i.server_name}`,
-      status:
-        i.status === "failed"
-          ? "Failed"
-          : i.status === "missing"
-            ? "Not found"
-            : i.state === "partial"
-              ? "Partly running"
-              : "Stopped",
-      detail: i.error || (bad ? "" : "Its containers aren't all running."),
+      status: i.status === "failed" ? "Failed" : "Not found",
+      detail: i.error || "",
       href: `/servers/${i.server_id}/applications`,
-      tone: bad ? "destructive" : "warning",
+      tone: "destructive",
     })
   }
   for (const m of monitors.data ?? []) {

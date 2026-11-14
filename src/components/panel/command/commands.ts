@@ -158,6 +158,24 @@ export function actions(
       keywords: "new create s3 ftp sftp webdav bucket",
     },
     {
+      key: "action:new-storage-sync",
+      label: "New storage sync",
+      icon: Plus,
+      tile: "brand",
+      href: "/storage/syncs/new?kind=sync",
+      keywords:
+        "create sync mirror copy replicate replication minio bucket storage schedule background",
+    },
+    {
+      key: "action:new-storage-migration",
+      label: "New storage migration",
+      icon: Plus,
+      tile: "brand",
+      href: "/storage/syncs/new?kind=migrate",
+      keywords:
+        "create migrate move copy transfer storage bucket s3 ftp webdav",
+    },
+    {
       key: "action:add-dns-server",
       label: "Add DNS server",
       icon: Plus,
@@ -165,6 +183,15 @@ export function actions(
       href: "/dns",
       intent: "add-dns-server",
       keywords: "new create technitium nameserver ns zone domain records",
+    },
+    {
+      key: "action:add-cloud-account",
+      label: "Add cloud account",
+      icon: Plus,
+      tile: "brand",
+      href: "/cloud",
+      intent: "add-cloud-account",
+      keywords: "new connect arvan arvancloud provider api key iaas vps",
     },
     {
       key: "action:add-proxy",

@@ -1,21 +1,11 @@
 "use client"
 
-import {
-  Copy,
-  Ellipsis,
-  ExternalLink,
-  Eye,
-  LoaderCircle,
-  RefreshCw,
-} from "lucide-react"
-import { useState } from "react"
+import { Copy, Ellipsis, ExternalLink, Eye, LoaderCircle } from "lucide-react"
 import { toast } from "sonner"
 
 import { Callout } from "@/app/(panel)/ansible/components/run-layer"
-import { YamlEditor } from "@/app/(panel)/ansible/components/yaml-editor"
 import {
   ItemMenu,
-  Segmented,
   SheetItems,
 } from "@/app/(panel)/servers/[id]/components/parts"
 import { useServer } from "@/app/(panel)/servers/api"
@@ -23,36 +13,20 @@ import { timeAgo } from "@/app/(panel)/servers/components/meta"
 import { BottomSheet } from "@/components/bottom-sheet"
 import { Markdown } from "@/components/markdown"
 import { Button } from "@/components/ui/button"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { SheetTitle } from "@/components/ui/sheet"
 import { useIsPhone } from "@/hooks/useIsPhone"
 import { useOpen } from "@/hooks/useOpen"
 import { ApiError } from "@/lib/api"
 import type { Recipe, SoftwareInstall } from "@/lib/services"
 import { cn } from "@/lib/utils"
-import {
-  installBusy,
-  useCompose,
-  useInstall,
-  useInstallLogs,
-  useRevealSecrets,
-  useSaveCompose,
-} from "../api"
+import { installBusy, useInstall, useRevealSecrets } from "../api"
 import { useInstallMenu } from "./install-menu"
 import { InstallStatus, kindLabels, linkHref, RecipeIcon } from "./meta"
 import { Facts, Layer, LayerBody, LayerFooter, Section } from "./parts"
 import { useSoftwareCan } from "./permissions"
 
-type Tab = "overview" | "logs" | "compose"
-
-// One application on one server: what it is, its links, logs and compose
-// file, and every action on it.
+// One application on one server: what it is, its links and settings, and
+// every action on it.
 export function ManageLayer({
   open,
   onOpenChange,
@@ -107,42 +81,15 @@ function ManageBody({
   gone: boolean
 }) {
   const phone = useIsPhone()
-  const can = useSoftwareCan(i.workspace_id)
-  const docker = i.kind === "docker" && i.status !== "missing"
-  const [tab, setTab] = useState<Tab>("overview")
-  const tabs = [
-    { value: "overview" as const, label: "Overview" },
-    ...(docker && can.operate(i)
-      ? [{ value: "logs" as const, label: "Logs" }]
-      : []),
-    ...(docker && i.origin === "morcheh" && can.compose(i)
-      ? [{ value: "compose" as const, label: "Compose file" }]
-      : []),
-  ]
-  const shown = tabs.some((t) => t.value === tab) ? tab : "overview"
 
   return (
     <>
-      {tabs.length > 1 && (
-        <div className="no-scrollbar shrink-0 overflow-x-auto border-b border-border px-4 py-2 md:px-6">
-          <Segmented
-            label="Show"
-            items={tabs}
-            value={shown}
-            onChange={setTab}
-          />
-        </div>
-      )}
       {gone ? (
         <LayerBody>
           <Callout title="Morche no longer tracks this application">
             It was uninstalled or forgotten.
           </Callout>
         </LayerBody>
-      ) : shown === "logs" ? (
-        <LogsTab install={i} />
-      ) : shown === "compose" ? (
-        <ComposeTab install={i} />
       ) : (
         <>
           <Overview install={i} recipe={recipe} />
@@ -165,10 +112,7 @@ function Actions({
   const all = groups.flat()
   if (all.length === 0) return null
   // The one action in sight: Update when there is one, else the first.
-  const main =
-    all.find((x) => x.key === "update" && i.update_available) ??
-    all.find((x) => x.key === "start") ??
-    null
+  const main = all.find((x) => x.key === "update" && i.update_available) ?? null
   const rest = groups
     .map((g) => g.filter((x) => x !== main))
     .filter((g) => g.length > 0)
@@ -215,7 +159,7 @@ function Actions({
           )}
           {rest
             .flat()
-            .filter((x) => ["restart", "stop", "update"].includes(x.key))
+            .filter((x) => x.key === "update")
             .map((x) => (
               <Button
                 key={x.key}
@@ -230,9 +174,7 @@ function Actions({
           <span className="ms-auto" />
           <ItemMenu
             label="More actions"
-            groups={rest.map((g) =>
-              g.filter((x) => !["restart", "stop", "update"].includes(x.key)),
-            )}
+            groups={rest.map((g) => g.filter((x) => x.key !== "update"))}
           />
         </>
       )}
@@ -319,60 +261,9 @@ function Overview({
             ...(i.checked_at
               ? [{ label: "Checked", value: timeAgo(i.checked_at) }]
               : []),
-            ...(i.dir
-              ? [
-                  {
-                    label: "Folder",
-                    value: (
-                      <span className="font-mono text-caption">{i.dir}</span>
-                    ),
-                  },
-                ]
-              : []),
-            ...(i.project
-              ? [
-                  {
-                    label: "Compose project",
-                    value: (
-                      <span className="font-mono text-caption">
-                        {i.project}
-                      </span>
-                    ),
-                  },
-                ]
-              : []),
           ]}
         />
       </Section>
-
-      {i.images.length > 0 && (
-        <Section title="Containers">
-          <ul className="divide-y divide-border rounded-2xl border border-border">
-            {i.images.map((im) => (
-              <li
-                key={`${im.service}-${im.image}`}
-                className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-body-sm"
-              >
-                <span className="font-medium">{im.service}</span>
-                <span className="min-w-0 flex-1 truncate font-mono text-caption text-muted-foreground">
-                  {im.image}
-                </span>
-                {im.update && (
-                  <span className="text-caption text-brand">Newer image</span>
-                )}
-                <span
-                  className={cn(
-                    "text-caption",
-                    im.state === "running" ? "text-success" : "text-warning",
-                  )}
-                >
-                  {im.state || "—"}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      )}
 
       {(shownParams.length > 0 || i.secret_params.length > 0) && (
         <Section title="Settings" aside="as installed">
@@ -462,198 +353,5 @@ function Secrets({
         </p>
       )}
     </div>
-  )
-}
-
-const lineChoices = [
-  { value: "100", label: "100" },
-  { value: "300", label: "300" },
-  { value: "1000", label: "1000" },
-] as const
-
-function LogsTab({ install: i }: { install: SoftwareInstall }) {
-  const [service, setService] = useState("")
-  const [lines, setLines] = useState<"100" | "300" | "1000">("300")
-  const logs = useInstallLogs(i.id, service, Number(lines), true)
-  const services = [...new Set(i.images.map((im) => im.service))]
-
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex shrink-0 flex-wrap items-center gap-2 px-4 py-3 md:px-6">
-        {services.length > 1 && (
-          <Select
-            value={service || "all"}
-            onValueChange={(v) =>
-              setService(!v || v === "all" ? "" : String(v))
-            }
-          >
-            <SelectTrigger className="w-44" aria-label="Container">
-              <SelectValue>
-                {(v: string) => (v === "all" ? "Every container" : v)}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Every container</SelectItem>
-              {services.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {s}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-        <Segmented
-          label="Lines"
-          items={lineChoices}
-          value={lines}
-          onChange={setLines}
-        />
-        <Button
-          variant="ghost"
-          size="icon"
-          className="ms-auto"
-          aria-label="Refresh"
-          disabled={logs.isFetching}
-          onClick={() => logs.refetch()}
-        >
-          <RefreshCw className={cn(logs.isFetching && "animate-spin")} />
-        </Button>
-      </div>
-      <div className="min-h-0 flex-1 overflow-auto border-t border-border bg-subtle">
-        {logs.isPending ? (
-          <p className="p-4 text-body-sm text-ash">Reading the logs…</p>
-        ) : logs.isError ? (
-          <p className="p-4 text-body-sm text-destructive">
-            {logs.error.message}
-          </p>
-        ) : logs.data ? (
-          <pre className="p-4 font-mono text-caption break-all whitespace-pre-wrap">
-            {logs.data}
-          </pre>
-        ) : (
-          <p className="p-4 text-body-sm text-ash">Nothing written yet.</p>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function ComposeTab({ install: i }: { install: SoftwareInstall }) {
-  const compose = useCompose(i.id, true)
-  const save = useSaveCompose(i.id)
-  const [draft, setDraft] = useState<string | null>(null)
-  const [conflict, setConflict] = useState(false)
-  const [refused, setRefused] = useState<string | null>(null)
-  const value = draft ?? compose.data?.content ?? ""
-  const dirty = draft !== null && draft !== compose.data?.content
-
-  const submit = (revision: string) => {
-    setRefused(null)
-    save.mutate(
-      { content: value, revision },
-      {
-        onSuccess: () => {
-          setDraft(null)
-          setConflict(false)
-          toast.success("Saved and applied")
-        },
-        onError: (e) => {
-          if (e instanceof ApiError && e.status === 409) setConflict(true)
-          else if (e instanceof ApiError && e.status === 422)
-            setRefused(e.message)
-          else toast.error(e.message)
-        },
-      },
-    )
-  }
-
-  if (compose.isPending)
-    return (
-      <LayerBody>
-        <p className="text-body-sm text-ash">Reading the compose file…</p>
-      </LayerBody>
-    )
-  if (compose.isError)
-    return (
-      <LayerBody>
-        <Callout warn title="Couldn't read the compose file">
-          {compose.error.message}
-        </Callout>
-      </LayerBody>
-    )
-
-  return (
-    <>
-      <div className="flex min-h-0 flex-1 flex-col">
-        {(conflict || refused) && (
-          <div className="shrink-0 px-4 pt-3 md:px-6">
-            {conflict ? (
-              <Callout
-                warn
-                title="It changed on the server since you opened it"
-                action={
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setDraft(null)
-                        setConflict(false)
-                        compose.refetch()
-                      }}
-                    >
-                      Load theirs
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={async () => {
-                        const r = await compose.refetch()
-                        if (r.data) submit(r.data.revision)
-                      }}
-                    >
-                      Overwrite
-                    </Button>
-                  </div>
-                }
-              />
-            ) : (
-              <Callout warn title="Docker refused it; nothing changed">
-                <span className="font-mono text-caption whitespace-pre-wrap">
-                  {refused}
-                </span>
-              </Callout>
-            )}
-          </div>
-        )}
-        <YamlEditor
-          kind="compose"
-          value={value}
-          onChange={setDraft}
-          className="min-h-0 flex-1"
-        />
-      </div>
-      <LayerFooter>
-        <p className="me-auto text-caption text-ash">
-          Checked by docker compose, then applied. The old file stays as
-          compose.yml.previous.
-        </p>
-        <Button
-          variant="ghost"
-          disabled={!dirty || save.isPending}
-          onClick={() => {
-            setDraft(null)
-            setRefused(null)
-          }}
-        >
-          Undo
-        </Button>
-        <Button
-          disabled={!dirty || save.isPending}
-          onClick={() => compose.data && submit(compose.data.revision)}
-        >
-          {save.isPending ? "Applying…" : "Save and apply"}
-        </Button>
-      </LayerFooter>
-    </>
   )
 }

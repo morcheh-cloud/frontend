@@ -129,6 +129,11 @@ export function refreshAfterJob(qc: QueryClient, job: Job) {
     qc.invalidateQueries({ queryKey: ["scripts"] })
     return
   }
+  // A storage sync or migration: its runs and state; it also wrote into the
+  // destination's folder (below).
+  if (job.kind === "storage-sync" || job.kind === "storage-migrate") {
+    qc.invalidateQueries({ queryKey: ["storage-syncs"] })
+  }
   // A cron job's sync also wrote into its destinations' folders (below).
   if (job.kind === "schedule-sync") {
     qc.invalidateQueries({ queryKey: ["cronjobs"] })

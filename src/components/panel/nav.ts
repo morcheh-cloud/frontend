@@ -7,6 +7,7 @@ import {
   CircleArrowUp,
   CircleHelp,
   CircleUser,
+  Cloud,
   Container,
   Database,
   Disc3,
@@ -56,6 +57,12 @@ export const vmsItem: NavItem = {
   href: "/vms",
   label: "Virtual machines",
   icon: MonitorCog,
+}
+// Servers at cloud providers (ArvanCloud…), read over each account's API key.
+export const cloudItem: NavItem = {
+  href: "/cloud",
+  label: "Cloud",
+  icon: Cloud,
 }
 export const networkMapItem: NavItem = {
   href: "/network",
@@ -257,6 +264,7 @@ export const navGroups: NavGroup[] = [
     items: [
       serversItem,
       vmsItem,
+      cloudItem,
       networkMapItem,
       containersItem,
       databasesItem,

@@ -27,10 +27,6 @@ export function useOpen(
   // stable by React, so this ref never needs to change.
   const closeRef = useRef<() => void>(() => setOpenState(false))
 
-  // `initialState` is a mount-only seed; capture it so the effect below depends
-  // only on `id` and never re-runs when a parent passes a new initial value.
-  const initialOpenRef = useRef(initialState)
-
   const setOpen = useCallback(
     (value: boolean) => {
       if (value) {
@@ -43,15 +39,18 @@ export function useOpen(
     [id],
   )
 
-  // Register an initially-open layer, and always clean the stack on unmount so
-  // a layer that disappears via navigation can't leave a dangling entry.
+  // Keep an open layer registered, and always clean the stack on unmount so a
+  // layer that disappears via navigation can't leave a dangling entry. It
+  // re-registers whenever effects re-run while the layer is open (StrictMode's
+  // mount/unmount/mount, a hidden page shown again): otherwise a layer opened
+  // during mount (e.g. by `useIntent` after navigating) is dropped from the
+  // stack and its Close does nothing. `manager.open` is idempotent and skips
+  // the history push when the current entry is already this layer's.
   useEffect(() => {
-    if (initialOpenRef.current) {
-      manager.open(id, closeRef.current)
-    }
+    if (open) manager.open(id, closeRef.current)
 
     return () => manager.drop(id)
-  }, [id])
+  }, [id, open])
 
   return [open, setOpen]
 }

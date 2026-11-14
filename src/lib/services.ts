@@ -34,6 +34,18 @@ export interface AddCronJobRequest {
   table: string;
 }
 
+export interface Address {
+  ip: string;
+  mac?: string;
+  network?: string;
+  public: boolean;
+  /**
+   * 4 or 6
+   * @format int64
+   */
+  version: number;
+}
+
 export interface AffectedOutputBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -2042,6 +2054,283 @@ export interface ClonePveGuestRequest {
   target?: string;
 }
 
+export interface CloudAccount {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Power and rename are allowed; off = view only */
+  allow_changes: boolean;
+  /** @format date-time */
+  created_at: string;
+  description: string;
+  favorite: boolean;
+  /** @format uuid */
+  id: string;
+  key_hint: string;
+  /** @format date-time */
+  last_checked_at?: string;
+  /** @format date-time */
+  last_online_at?: string;
+  /** @format int32 */
+  latency_ms?: number;
+  name: string;
+  provider: "arvan";
+  provider_label: string;
+  /** @format int32 */
+  running_count: number;
+  /** @format int32 */
+  server_count: number;
+  status:
+    | "unknown"
+    | "online"
+    | "unreachable"
+    | "auth_failed"
+    | "tls_error"
+    | "blocked"
+    | "error";
+  status_message: string;
+  /** @format date-time */
+  updated_at: string;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface CloudAccountBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Let people with access power servers on/off and rename them */
+  allow_changes?: boolean;
+  /**
+   * Blank on update keeps the saved key.
+   * @maxLength 300
+   */
+  api_key?: string;
+  /** @maxLength 500 */
+  description?: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  provider: "arvan";
+}
+
+export interface CloudAccountRead {
+  allow_changes: boolean;
+  /** @format uuid */
+  id: string;
+  message: string;
+  name: string;
+  problems: RegionProblem[];
+  provider: string;
+  regions: Region[];
+  status: string;
+}
+
+export interface CloudAccountsOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: CloudAccount[];
+}
+
+export interface CloudBackupSchedule {
+  id: string;
+  /**
+   * Backups it keeps at most
+   * @format int64
+   */
+  max: number;
+  name: string;
+  /** @format date-time */
+  next_at?: string;
+  region: string;
+  server_id?: string;
+  server_name?: string;
+  /**
+   * Backups kept
+   * @format int64
+   */
+  used: number;
+  zone: string;
+  zone_name: string;
+}
+
+export interface CloudFirewall {
+  /** Made by the provider; can't be changed */
+  builtin: boolean;
+  /** New servers get it unless told otherwise */
+  default: boolean;
+  id: string;
+  name: string;
+  region: string;
+  /** @format int64 */
+  rules: number;
+  zone: string;
+  zone_name: string;
+}
+
+export interface CloudLinked {
+  host: string;
+  /** @format uuid */
+  id: string;
+  name: string;
+  status: string;
+}
+
+export interface CloudNetwork {
+  id: string;
+  name: string;
+  region: string;
+  status: string;
+  /** Address ranges (CIDR) */
+  subnets: string[];
+}
+
+export interface CloudResourceProblem {
+  kind: "firewalls" | "networks" | "volumes" | "backups";
+  message: string;
+  region: string;
+  status: string;
+}
+
+export interface CloudResourcesOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  backups: CloudBackupSchedule[];
+  firewalls: CloudFirewall[];
+  /** The account's own private networks; the provider's shared public ones are left out */
+  networks: CloudNetwork[];
+  problems: CloudResourceProblem[];
+  /** @format date-time */
+  read_at: string;
+  /** False when the provider has no such lists in Morche yet */
+  supported: boolean;
+  volumes: CloudVolume[];
+}
+
+export interface CloudServer {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format uuid */
+  account_id: string;
+  account_name: string;
+  addresses: Address[];
+  backups: boolean;
+  /** @format int64 */
+  cpu: number;
+  /** @format date-time */
+  created_at?: string;
+  /** @format int64 */
+  disk_gb: number;
+  id: string;
+  image: string;
+  /** Morche servers at one of its addresses */
+  linked: CloudLinked[];
+  /** @format int64 */
+  memory_mb: number;
+  name: string;
+  os: string;
+  os_version: string;
+  plan: string;
+  provider: string;
+  /** The provider's own word for the state */
+  raw_state: string;
+  /** The provider's region code, part of the server's address in the API */
+  region: string;
+  region_name: string;
+  ssh_key?: string;
+  state:
+    | "running"
+    | "stopped"
+    | "archived"
+    | "building"
+    | "deleting"
+    | "error"
+    | "unknown";
+  /** What the provider is doing to it right now, if anything */
+  task?: string;
+  zone: string;
+  zone_name: string;
+}
+
+export interface CloudServersOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  accounts: CloudAccountRead[];
+  items: CloudServer[];
+  /** @format date-time */
+  read_at: string;
+}
+
+export interface CloudTestBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * When editing: the saved account, whose key a blank one stands for.
+   * @format uuid
+   */
+  account_id?: string;
+  /** @maxLength 300 */
+  api_key?: string;
+  provider: "arvan";
+}
+
+export interface CloudTestOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format int64 */
+  latency_ms: number;
+  message: string;
+  ok: boolean;
+  problems: RegionProblem[];
+  /** @format int64 */
+  regions: number;
+  /** @format int64 */
+  running: number;
+  /** @format int64 */
+  servers: number;
+  status: string;
+}
+
+export interface CloudVolume {
+  /** @format date-time */
+  created_at?: string;
+  id: string;
+  name: string;
+  region: string;
+  server_id?: string;
+  server_name?: string;
+  /** @format int64 */
+  size_gb: number;
+  status: string;
+  type: string;
+  zone: string;
+  zone_name: string;
+}
+
 export interface CommandLogEntry {
   /**
    * A URL to the JSON Schema for this object.
@@ -2183,17 +2472,6 @@ export interface CompactLogDatasetRequest {
    */
   $schema?: string;
   full: boolean;
-}
-
-export interface ComposeOutputBody {
-  /**
-   * A URL to the JSON Schema for this object.
-   * @format uri
-   */
-  $schema?: string;
-  content: string;
-  /** Send it back when saving: a change made since is refused (409) */
-  revision: string;
 }
 
 export interface CompressFilesRequest {
@@ -7193,13 +7471,19 @@ export interface DockerTemplate {
   created_by?: string;
   description: string;
   env: string;
+  /** A popular built-in template, listed first */
+  featured?: boolean;
   id: string;
-  /** Logo slug, for built-in templates */
+  /** Logo file under /apps/, for built-in templates (e.g. nginx or templates/ghost.svg) */
   logo?: string;
   name: string;
+  /** Search words, for built-in templates */
+  tags?: string[];
   /** @format date-time */
   updated_at?: string;
   updated_by?: string;
+  /** The app's own site, for built-in templates */
+  website?: string;
 }
 
 export interface DockerTemplateBody {
@@ -8983,6 +9267,11 @@ export interface JobPlace {
   server_id?: string;
   /** @format uuid */
   storage_id?: string;
+  /**
+   * The storage migration or sync it is a run of
+   * @format uuid
+   */
+  sync_id?: string;
   /**
    * The Proxmox guest it works on
    * @format int64
@@ -12122,6 +12411,15 @@ export interface PauseMonitorRequest {
   paused: boolean;
 }
 
+export interface PauseStorageSyncRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  paused: boolean;
+}
+
 export interface PeriodsOutBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -12331,6 +12629,15 @@ export interface PowerActionResult {
   boot_time: string;
   /** Delayed: it can still be cancelled */
   scheduled: boolean;
+}
+
+export interface PowerCloudServerRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  action: "on" | "off" | "reboot";
 }
 
 export interface PowerOverview {
@@ -13700,14 +14007,13 @@ export interface Recipe {
   also?: Record<string, string[]>;
   builtin: boolean;
   category: string;
-  compose?: string;
   description?: string;
   /** A lucide icon name for the panel */
   icon?: string;
   /** Short name: lowercase letters, digits and dashes */
   id: string;
   install?: string;
-  kind: "package" | "docker" | "script";
+  kind: "package" | "script";
   links?: RecipeLink[];
   /** A brand logo the panel ships (Simple Icons name, e.g. redis); shown in place of the icon when the panel has it */
   logo?: string;
@@ -13918,6 +14224,32 @@ export interface Redirects {
   strict_slash?: boolean;
 }
 
+export interface Region {
+  city: string;
+  code: string;
+  name: string;
+  state: string;
+}
+
+export interface RegionProblem {
+  message: string;
+  region: string;
+  status: string;
+}
+
+export interface RenameCloudServerRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * @minLength 1
+   * @maxLength 63
+   */
+  name: string;
+}
+
 export interface RenameDockerVolumeFileRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -13974,6 +14306,62 @@ export interface ReniceProcessesInputBody {
    * @minItems 1
    */
   targets: ProcessTarget[];
+}
+
+export interface ReplicationState {
+  /**
+   * Bytes per second right now
+   * @format double
+   */
+  bandwidth: number;
+  /** @format int64 */
+  bandwidth_limit?: number;
+  /**
+   * Bytes copied since the source MinIO started
+   * @format int64
+   */
+  bytes: number;
+  /**
+   * Seconds the destination was unreachable in all
+   * @format int64
+   */
+  downtime_seconds?: number;
+  enabled: boolean;
+  /**
+   * Objects that failed to copy
+   * @format int64
+   */
+  failed: number;
+  /** @format int64 */
+  failed_bytes: number;
+  /** @format int64 */
+  failed_last_hour: number;
+  /** @format date-time */
+  last_online?: string;
+  /** @format int64 */
+  latency_ms?: number;
+  /** The source MinIO reaches the destination */
+  online: boolean;
+  /**
+   * Objects waiting to be copied
+   * @format int64
+   */
+  pending: number;
+  /** @format int64 */
+  pending_bytes: number;
+  /**
+   * Objects copied since the source MinIO started
+   * @format int64
+   */
+  replicated: number;
+  resync?: ResyncState;
+  /** The rule is still on the source bucket */
+  rule_found: boolean;
+  /**
+   * Since when the numbers count
+   * @format int64
+   */
+  uptime_seconds?: number;
 }
 
 export interface ReportBucket {
@@ -14161,6 +14549,21 @@ export interface RestorePveGuestRequest {
   volid: string;
 }
 
+export interface ResyncState {
+  /** @format int64 */
+  bytes: number;
+  /** @format date-time */
+  ended?: string;
+  /** @format int64 */
+  failed: number;
+  object?: string;
+  /** @format int64 */
+  replicated: number;
+  /** @format date-time */
+  started?: string;
+  status: string;
+}
+
 export interface RevealSoftwareSecretsResponse {
   /**
    * A URL to the JSON Schema for this object.
@@ -14297,6 +14700,16 @@ export interface RunScheduleRequest {
   dry_run?: boolean;
 }
 
+export interface RunStorageSyncRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Only count what would be copied and deleted */
+  dry_run?: boolean;
+}
+
 export interface RunTask {
   action: string;
   handler: boolean;
@@ -14335,20 +14748,6 @@ export interface SaveCrontabRequest {
    * @maxLength 300
    */
   table: string;
-}
-
-export interface SaveSoftwareComposeRequest {
-  /**
-   * A URL to the JSON Schema for this object.
-   * @format uri
-   */
-  $schema?: string;
-  /**
-   * @minLength 1
-   * @maxLength 262144
-   */
-  content: string;
-  revision: string;
 }
 
 export interface Schedule {
@@ -14828,6 +15227,11 @@ export interface ScheduleRunDest {
   /** @format date-time */
   finished_at: string | null;
   folder?: string;
+  /**
+   * Deletions held back for now (delayed deletes)
+   * @format int64
+   */
+  held?: number;
   /** The server or storage was deleted */
   missing: boolean;
   /** The server's or storage's name; empty when it was deleted */
@@ -14864,6 +15268,11 @@ export interface ScheduleRunDest {
     | "skipped";
   /** @format uuid */
   storage_id?: string;
+  /**
+   * Files left for later because they changed too recently
+   * @format int64
+   */
+  waiting?: number;
 }
 
 export interface ScheduleRunLink {
@@ -16186,6 +16595,15 @@ export interface SetAlertRuleEnabledRequest {
   enabled: boolean;
 }
 
+export interface SetCloudAccountFavoriteRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  favorite: boolean;
+}
+
 export interface SetCommandLogSettingsRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -16540,42 +16958,26 @@ export interface SoftwareHost {
   upgradable: number;
 }
 
-export interface SoftwareImage {
-  image: string;
-  service: string;
-  /** The container's state: running, exited, restarting… */
-  state: string;
-  /** The registry has a newer image under the same tag */
-  update?: boolean;
-  version?: string;
-}
-
 export interface SoftwareInstall {
   /**
    * A URL to the JSON Schema for this object.
    * @format uri
    */
   $schema?: string;
-  can_rollback: boolean;
   /** @format date-time */
   checked_at: string | null;
-  dir?: string;
   error: string;
   /** @format uuid */
   id: string;
-  images: SoftwareImage[];
   /** @format date-time */
   installed_at: string | null;
-  kind: "package" | "docker" | "script";
+  kind: "package" | "script";
   latest: string;
   name: string;
   /** morcheh = installed from the panel; found = a scan found it */
   origin: "morcheh" | "found";
   /** The values it was installed with, without the secret ones */
   params: Record<string, string>;
-  /** Runs the version before its last update (rolled back) */
-  pinned: boolean;
-  project?: string;
   recipe_id: string;
   /** Names of the secret values kept for it (Owners can reveal them) */
   secret_params: string[];
@@ -16583,8 +16985,6 @@ export interface SoftwareInstall {
   server_id: string;
   server_name: string;
   server_status: string;
-  /** Docker apps: running, stopped or partial */
-  state: string;
   status:
     | "installing"
     | "installed"
@@ -16598,24 +16998,6 @@ export interface SoftwareInstall {
   version: string;
   /** @format uuid */
   workspace_id: string;
-}
-
-export interface SoftwareInstallActionRequest {
-  /**
-   * A URL to the JSON Schema for this object.
-   * @format uri
-   */
-  $schema?: string;
-  action: "start" | "stop" | "restart";
-}
-
-export interface SoftwareInstallLogsResponse {
-  /**
-   * A URL to the JSON Schema for this object.
-   * @format uri
-   */
-  $schema?: string;
-  text: string;
 }
 
 export interface SoftwarePackage {
@@ -16671,7 +17053,7 @@ export interface SoftwarePreflightResponse {
 }
 
 export interface SoftwareRun {
-  action: "install" | "update" | "uninstall" | "rollback" | "upgrade-system";
+  action: "install" | "update" | "uninstall" | "upgrade-system";
   /** @format date-time */
   created_at: string;
   created_by_name: string;
@@ -16710,7 +17092,7 @@ export interface SoftwareRunDetail {
    * @format uri
    */
   $schema?: string;
-  action: "install" | "update" | "uninstall" | "rollback" | "upgrade-system";
+  action: "install" | "update" | "uninstall" | "upgrade-system";
   /** @format date-time */
   created_at: string;
   created_by_name: string;
@@ -16749,8 +17131,6 @@ export interface SoftwareRunDetail {
 }
 
 export interface SoftwareRunOptions {
-  /** Install of a Docker app: delete data an earlier install left first */
-  fresh?: boolean;
   /** System upgrade: apt full-upgrade / dist-upgrade, which may remove packages */
   full?: boolean;
   /**
@@ -16760,8 +17140,6 @@ export interface SoftwareRunOptions {
    * @max 20
    */
   parallel?: number;
-  /** Uninstall of a Docker app: delete its volumes and folder too */
-  remove_data?: boolean;
   /** System upgrade: security updates only (apt, dnf, yum, zypper) */
   security_only?: boolean;
   /** Skip the servers not started yet once one fails. Default: on for updates, off for installs */
@@ -16891,12 +17269,12 @@ export interface StartSoftwareRunBody {
    * @format uri
    */
   $schema?: string;
-  action: "install" | "update" | "uninstall" | "rollback" | "upgrade-system";
+  action: "install" | "update" | "uninstall" | "upgrade-system";
   options?: SoftwareRunOptions;
   /** Install: the recipe's parameters. Empty generated ones are made for each server */
   params?: Record<string, string>;
   /**
-   * Install: exactly one. Update, uninstall, rollback: the applications ("system" = the server's packages); empty for update = every one with an update. Ignored by upgrade-system
+   * Install: exactly one. Update, uninstall: the applications ("system" = the server's packages); empty for update = every one with an update. Ignored by upgrade-system
    * @maxItems 100
    */
   recipes?: string[];
@@ -17366,6 +17744,391 @@ export interface StorageStatusEvent {
   status: string;
   /** @format uuid */
   storage_id: string;
+}
+
+export interface StorageSync {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format date-time */
+  created_at: string;
+  cron: string;
+  dest: StorageSyncEnd;
+  engine: "morche" | "replication";
+  /** Deletions waiting for their delay, oldest first (first 100) */
+  held: StorageSyncHeld[];
+  /** @format int64 */
+  held_count: number;
+  /** @format uuid */
+  id: string;
+  /** @format int64 */
+  interval_minutes: number;
+  kind: "migrate" | "sync";
+  last_run: StorageSyncRunBrief;
+  mode: "update" | "mirror";
+  name: string;
+  /** What replication set up on MinIO */
+  native: StorageSyncNative;
+  /** @format date-time */
+  next_run_at: string | null;
+  options: StorageSyncOptions;
+  paused: boolean;
+  /** Why replication isn't set up as saved */
+  problem: string;
+  /** Whose access runs use: the person who saved it last */
+  runs_as: string;
+  source: StorageSyncEnd;
+  timezone: string;
+  trigger: "manual" | "schedule" | "interval";
+  /** @format date-time */
+  updated_at: string;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface StorageSyncBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 200 */
+  cron?: string;
+  /**
+   * @minLength 1
+   * @maxLength 1024
+   */
+  dest_path: string;
+  /** @format uuid */
+  dest_storage_id: string;
+  engine?: "morche" | "replication";
+  /**
+   * @format int64
+   * @min 0
+   * @max 10080
+   */
+  interval_minutes?: number;
+  /** Ignored when saving changes */
+  kind: "migrate" | "sync";
+  mode?: "update" | "mirror";
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  options?: StorageSyncOptions;
+  paused?: boolean;
+  /**
+   * @minLength 1
+   * @maxLength 1024
+   */
+  source_path: string;
+  /** @format uuid */
+  source_storage_id: string;
+  /** @maxLength 64 */
+  timezone?: string;
+  trigger?: "manual" | "schedule" | "interval";
+}
+
+export interface StorageSyncEnd {
+  /** The storage was deleted */
+  missing: boolean;
+  name: string;
+  path: string;
+  protocol: string;
+  provider: string;
+  read_only: boolean;
+  /** @format uuid */
+  storage_id: string;
+}
+
+export interface StorageSyncHeld {
+  /**
+   * When it'll be deleted from the destination
+   * @format date-time
+   */
+  due: string;
+  path: string;
+  /**
+   * When it was first missing from the source
+   * @format date-time
+   */
+  since: string;
+}
+
+export interface StorageSyncListOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: StorageSync[];
+}
+
+export interface StorageSyncNative {
+  bucket: string;
+  endpoint: string;
+  prefix: string;
+  target_bucket: string;
+}
+
+export interface StorageSyncOptions {
+  /**
+   * Sync (mirror): delete from the destination only N hours after a file left the source
+   * @format int64
+   * @min 0
+   * @max 8760
+   */
+  delete_delay_hours?: number;
+  /** Migration: delete each file from the source once its copy checks out */
+  delete_source?: boolean;
+  /**
+   * Patterns left out
+   * @maxItems 100
+   */
+  excludes?: string[];
+  /** Files the destination already has: copy again when changed (default), always, or never */
+  existing?: "changed" | "all" | "missing";
+  /** Engine replication: how MinIO copies */
+  replication?: StorageSyncReplication;
+  /**
+   * Sync: leave files changed in the last N minutes for the next run
+   * @format int64
+   * @min 0
+   * @max 1440
+   */
+  settle_minutes?: number;
+  /** Migration: check every copy is there with the same size */
+  verify?: boolean;
+}
+
+export interface StorageSyncReplication {
+  /**
+   * Megabits per second, 0 = no limit
+   * @format int64
+   * @min 0
+   * @max 100000
+   */
+  bandwidth_mbps?: number;
+  /** Delete on the destination what's deleted on the source */
+  deletes?: boolean;
+  /** Copy what the bucket already holds, not only new writes */
+  existing?: boolean;
+  /** Write to the destination before the source answers (slower writes, never behind) */
+  sync?: boolean;
+  /**
+   * Where the source MinIO reaches the destination, when not at the address Morche uses
+   * @maxLength 500
+   */
+  target_endpoint?: string;
+}
+
+export interface StorageSyncReplicationOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Why the source MinIO couldn't be asked */
+  error: string;
+  state: ReplicationState;
+}
+
+export interface StorageSyncResult {
+  /**
+   * Bytes written
+   * @format int64
+   */
+  bytes: number;
+  /**
+   * Files written
+   * @format int64
+   */
+  copied: number;
+  /**
+   * Files and folders removed (mirror), or old snapshots
+   * @format int64
+   */
+  deleted: number;
+  /**
+   * Files that couldn't be copied
+   * @format int64
+   */
+  failed: number;
+  folder?: string;
+  /**
+   * Deletions held back for now (delayed deletes)
+   * @format int64
+   */
+  held?: number;
+  /** Migration: why the source wasn't emptied */
+  kept_source?: string;
+  problems?: string[];
+  /**
+   * Migration: files that couldn't be deleted from the source
+   * @format int64
+   */
+  remove_failed?: number;
+  /**
+   * Migration: files deleted from the source
+   * @format int64
+   */
+  removed?: number;
+  /**
+   * Files already up to date
+   * @format int64
+   */
+  skipped: number;
+  verify?: StorageSyncVerify;
+  /**
+   * Files left for later because they changed too recently
+   * @format int64
+   */
+  waiting?: number;
+}
+
+export interface StorageSyncRun {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format int64 */
+  bytes: number;
+  /** @format date-time */
+  created_at: string;
+  created_by_name: string;
+  dry_run: boolean;
+  error: string;
+  /** @format int64 */
+  files: number;
+  /** @format date-time */
+  finished_at: string | null;
+  /** @format uuid */
+  id: string;
+  /** @format uuid */
+  job_id: string | null;
+  phase: string;
+  /** While it runs */
+  progress: Progress;
+  result: StorageSyncResult;
+  /** @format date-time */
+  started_at: string | null;
+  state:
+    | "queued"
+    | "running"
+    | "succeeded"
+    | "partial"
+    | "failed"
+    | "canceled"
+    | "interrupted"
+    | "skipped";
+  /** @format uuid */
+  sync_id: string;
+  trigger: "manual" | "schedule" | "interval";
+}
+
+export interface StorageSyncRunBrief {
+  /** @format date-time */
+  at: string;
+  dry_run: boolean;
+  error: string;
+  /** @format date-time */
+  finished_at: string | null;
+  /** @format uuid */
+  id: string;
+  state: string;
+}
+
+export interface StorageSyncRunListOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: StorageSyncRun[];
+}
+
+export interface StorageSyncRunOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** The background job; null when the run was skipped */
+  job: Job;
+  /** null when an interval run was left for the next turn */
+  run: StorageSyncRun;
+}
+
+export interface StorageSyncUpdate {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 200 */
+  cron?: string;
+  /**
+   * @minLength 1
+   * @maxLength 1024
+   */
+  dest_path: string;
+  /** @format uuid */
+  dest_storage_id: string;
+  engine?: "morche" | "replication";
+  /**
+   * @format int64
+   * @min 0
+   * @max 10080
+   */
+  interval_minutes?: number;
+  /** Ignored when saving changes */
+  kind: "migrate" | "sync";
+  mode?: "update" | "mirror";
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  options?: StorageSyncOptions;
+  paused?: boolean;
+  /**
+   * updated_at as you loaded it; 409 when it changed since
+   * @format date-time
+   */
+  revision?: string;
+  /**
+   * @minLength 1
+   * @maxLength 1024
+   */
+  source_path: string;
+  /** @format uuid */
+  source_storage_id: string;
+  /** @maxLength 64 */
+  timezone?: string;
+  trigger?: "manual" | "schedule" | "interval";
+}
+
+export interface StorageSyncVerify {
+  /**
+   * Files compared
+   * @format int64
+   */
+  checked: number;
+  /**
+   * On the destination with another size
+   * @format int64
+   */
+  different: number;
+  /**
+   * Not on the destination
+   * @format int64
+   */
+  missing: number;
+  problems?: string[];
 }
 
 export interface StorageTestBody {
@@ -20362,6 +21125,268 @@ export class Api<
       this.request<PanelUser, ErrorModel>({
         path: `/auth/me`,
         method: "PATCH",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  cloud = {
+    /**
+     * @description Reads its servers again (read only).
+     *
+     * @tags Cloud
+     * @name CheckCloudAccount
+     * @summary Check a cloud account
+     * @request POST:/cloud-accounts/{id}/check
+     */
+    checkCloudAccount: (id: string, params: RequestParams = {}) =>
+      this.request<CloudAccount, ErrorModel>({
+        path: `/cloud-accounts/${id}/check`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Cloud
+     * @name CreateCloudAccount
+     * @summary Connect a cloud account
+     * @request POST:/cloud-accounts
+     */
+    createCloudAccount: (data: CloudAccountBody, params: RequestParams = {}) =>
+      this.request<CloudAccount, ErrorModel>({
+        path: `/cloud-accounts`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Morche forgets the account and its key. Nothing at the provider changes.
+     *
+     * @tags Cloud
+     * @name DeleteCloudAccount
+     * @summary Remove a cloud account
+     * @request DELETE:/cloud-accounts/{id}
+     */
+    deleteCloudAccount: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/cloud-accounts/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Cloud
+     * @name GetCloudAccount
+     * @summary Get a cloud account
+     * @request GET:/cloud-accounts/{id}
+     */
+    getCloudAccount: (id: string, params: RequestParams = {}) =>
+      this.request<CloudAccount, ErrorModel>({
+        path: `/cloud-accounts/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Read only. Kept for a minute unless fresh is set.
+     *
+     * @tags Cloud
+     * @name GetCloudAccountResources
+     * @summary List an account's firewalls, networks, disks and backup schedules
+     * @request GET:/cloud-accounts/{id}/resources
+     */
+    getCloudAccountResources: (
+      id: string,
+      query?: {
+        /** Read again from the provider instead of the minute-old copy */
+        fresh?: boolean;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<CloudResourcesOutputBody, ErrorModel>({
+        path: `/cloud-accounts/${id}/resources`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Cloud
+     * @name GetCloudServer
+     * @summary Get a cloud server
+     * @request GET:/cloud-accounts/{id}/servers/{region}/{server}
+     */
+    getCloudServer: (
+      id: string,
+      region: string,
+      server: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<CloudServer, ErrorModel>({
+        path: `/cloud-accounts/${id}/servers/${region}/${server}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Favourites first, then by name.
+     *
+     * @tags Cloud
+     * @name ListCloudAccounts
+     * @summary List cloud accounts
+     * @request GET:/cloud-accounts
+     */
+    listCloudAccounts: (params: RequestParams = {}) =>
+      this.request<CloudAccountsOutputBody, ErrorModel>({
+        path: `/cloud-accounts`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Every server of every cloud account in the workspace, read live (kept 20 seconds). A region or account that fails is reported, the rest still show.
+     *
+     * @tags Cloud
+     * @name ListCloudServers
+     * @summary List cloud servers
+     * @request GET:/cloud-servers
+     */
+    listCloudServers: (
+      query?: {
+        /** Only this account */
+        account?: string;
+        /** Skip the short cache */
+        fresh?: boolean;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<CloudServersOutputBody, ErrorModel>({
+        path: `/cloud-servers`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Needs the account's Allow changes. Answers the server as the provider reports it right after.
+     *
+     * @tags Cloud
+     * @name PowerCloudServer
+     * @summary Turn a cloud server on or off, or restart it
+     * @request POST:/cloud-accounts/{id}/servers/{region}/{server}/power
+     */
+    powerCloudServer: (
+      id: string,
+      region: string,
+      server: string,
+      data: PowerCloudServerRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<CloudServer, ErrorModel>({
+        path: `/cloud-accounts/${id}/servers/${region}/${server}/power`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Needs the account's Allow changes.
+     *
+     * @tags Cloud
+     * @name RenameCloudServer
+     * @summary Rename a cloud server
+     * @request POST:/cloud-accounts/{id}/servers/{region}/{server}/rename
+     */
+    renameCloudServer: (
+      id: string,
+      region: string,
+      server: string,
+      data: RenameCloudServerRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<CloudServer, ErrorModel>({
+        path: `/cloud-accounts/${id}/servers/${region}/${server}/rename`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Cloud
+     * @name SetCloudAccountFavorite
+     * @summary Star or unstar a cloud account
+     * @request PUT:/cloud-accounts/{id}/favorite
+     */
+    setCloudAccountFavorite: (
+      id: string,
+      data: SetCloudAccountFavoriteRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<CloudAccount, ErrorModel>({
+        path: `/cloud-accounts/${id}/favorite`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Lists the servers with the given key (read only) without saving anything.
+     *
+     * @tags Cloud
+     * @name TestCloudAccount
+     * @summary Test a cloud API key
+     * @request POST:/cloud-accounts/test-connection
+     */
+    testCloudAccount: (data: CloudTestBody, params: RequestParams = {}) =>
+      this.request<CloudTestOutputBody, ErrorModel>({
+        path: `/cloud-accounts/test-connection`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Cloud
+     * @name UpdateCloudAccount
+     * @summary Change a cloud account
+     * @request PUT:/cloud-accounts/{id}
+     */
+    updateCloudAccount: (
+      id: string,
+      data: CloudAccountBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<CloudAccount, ErrorModel>({
+        path: `/cloud-accounts/${id}`,
+        method: "PUT",
         body: data,
         type: ContentType.Json,
         format: "json",
@@ -30804,22 +31829,6 @@ export class Api<
      * No description
      *
      * @tags Applications
-     * @name GetSoftwareCompose
-     * @summary A Docker app's compose file
-     * @request GET:/software-installs/{id}/compose
-     */
-    getSoftwareCompose: (id: string, params: RequestParams = {}) =>
-      this.request<ComposeOutputBody, ErrorModel>({
-        path: `/software-installs/${id}/compose`,
-        method: "GET",
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Applications
      * @name GetSoftwareInstall
      * @summary One application on one server
      * @request GET:/software-installs/{id}
@@ -30959,28 +31968,6 @@ export class Api<
       }),
 
     /**
-     * @description Checked with docker compose config first (422 with its words when wrong); the old file stays as compose.yml.previous.
-     *
-     * @tags Applications
-     * @name SaveSoftwareCompose
-     * @summary Change a Docker app's compose file and apply it
-     * @request PUT:/software-installs/{id}/compose
-     */
-    saveSoftwareCompose: (
-      id: string,
-      data: SaveSoftwareComposeRequest,
-      params: RequestParams = {},
-    ) =>
-      this.request<ComposeOutputBody, ErrorModel>({
-        path: `/software-installs/${id}/compose`,
-        method: "PUT",
-        body: data,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
      * No description
      *
      * @tags Applications
@@ -31013,59 +32000,6 @@ export class Api<
       }),
 
     /**
-     * @description Operator. Answers the record after a fresh look at the app.
-     *
-     * @tags Applications
-     * @name SoftwareInstallAction
-     * @summary Start, stop or restart a Docker app
-     * @request POST:/software-installs/{id}/action
-     */
-    softwareInstallAction: (
-      id: string,
-      data: SoftwareInstallActionRequest,
-      params: RequestParams = {},
-    ) =>
-      this.request<SoftwareInstall, ErrorModel>({
-        path: `/software-installs/${id}/action`,
-        method: "POST",
-        body: data,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Applications
-     * @name SoftwareInstallLogs
-     * @summary The last lines a Docker app's containers wrote
-     * @request GET:/software-installs/{id}/logs
-     */
-    softwareInstallLogs: (
-      id: string,
-      query?: {
-        /**
-         * @format int64
-         * @min 10
-         * @max 5000
-         * @default 300
-         */
-        lines?: number;
-        /** One compose service; empty = all */
-        service?: string;
-      },
-      params: RequestParams = {},
-    ) =>
-      this.request<SoftwareInstallLogsResponse, ErrorModel>({
-        path: `/software-installs/${id}/logs`,
-        method: "GET",
-        query: query,
-        format: "json",
-        ...params,
-      }),
-
-    /**
      * @description Package manager, root, Docker, free space, busy ports and leftovers from an earlier install. Engineer on every server.
      *
      * @tags Applications
@@ -31087,7 +32021,7 @@ export class Api<
       }),
 
     /**
-     * @description Queues a background job. Install, update, rollback and system upgrades need Engineer on every server, uninstall needs Owner. All servers must be in one workspace.
+     * @description Queues a background job. Install, update and system upgrades need Engineer on every server, uninstall needs Owner. All servers must be in one workspace.
      *
      * @tags Applications
      * @name StartSoftwareRun
@@ -31388,6 +32322,245 @@ export class Api<
         path: `/sign-ins`,
         method: "GET",
         query: query,
+        format: "json",
+        ...params,
+      }),
+  };
+  storageSyncs = {
+    /**
+     * @description Files already copied stay; a migration that was deleting from the source stops between files.
+     *
+     * @tags Storage syncs
+     * @name CancelStorageSyncRun
+     * @summary Stop a run
+     * @request POST:/storage-sync-runs/{id}/cancel
+     */
+    cancelStorageSyncRun: (id: string, params: RequestParams = {}) =>
+      this.request<StorageSyncRun, ErrorModel>({
+        path: `/storage-sync-runs/${id}/cancel`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description You need Engineer on the workspace and the destination, and Operator on the source (Engineer when a migration empties it). MinIO replication needs Owner on both and is set up on the source MinIO at once (422 with its answer when it refuses). Runs act with your access, checked each time.
+     *
+     * @tags Storage syncs
+     * @name CreateStorageSync
+     * @summary Create a storage migration or sync
+     * @request POST:/workspaces/{id}/storage-syncs
+     */
+    createStorageSync: (
+      id: string,
+      data: StorageSyncBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<StorageSync, ErrorModel>({
+        path: `/workspaces/${id}/storage-syncs`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description A run going now is stopped; what it copied stays. A MinIO replication is removed from the source bucket (the copies stay).
+     *
+     * @tags Storage syncs
+     * @name DeleteStorageSync
+     * @summary Delete a storage migration or sync and its runs
+     * @request DELETE:/storage-syncs/{id}
+     */
+    deleteStorageSync: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/storage-syncs/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Storage syncs
+     * @name GetStorageSync
+     * @summary Get a storage migration or sync
+     * @request GET:/storage-syncs/{id}
+     */
+    getStorageSync: (id: string, params: RequestParams = {}) =>
+      this.request<StorageSync, ErrorModel>({
+        path: `/storage-syncs/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Asks the source MinIO. When it can't be asked, state is null and error says why.
+     *
+     * @tags Storage syncs
+     * @name GetStorageSyncReplication
+     * @summary How a MinIO replication is doing
+     * @request GET:/storage-syncs/{id}/replication
+     */
+    getStorageSyncReplication: (id: string, params: RequestParams = {}) =>
+      this.request<StorageSyncReplicationOutputBody, ErrorModel>({
+        path: `/storage-syncs/${id}/replication`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Storage syncs
+     * @name GetStorageSyncRun
+     * @summary Get a run of a migration or sync
+     * @request GET:/storage-sync-runs/{id}
+     */
+    getStorageSyncRun: (id: string, params: RequestParams = {}) =>
+      this.request<StorageSyncRun, ErrorModel>({
+        path: `/storage-sync-runs/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Storage syncs
+     * @name ListStorageSyncRuns
+     * @summary List a migration's or sync's runs, newest first
+     * @request GET:/storage-syncs/{id}/runs
+     */
+    listStorageSyncRuns: (
+      id: string,
+      query?: {
+        /**
+         * @format int64
+         * @min 1
+         * @max 200
+         * @default 50
+         */
+        limit?: number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<StorageSyncRunListOutputBody, ErrorModel>({
+        path: `/storage-syncs/${id}/runs`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Storage syncs
+     * @name ListStorageSyncs
+     * @summary List a workspace's storage migrations and syncs
+     * @request GET:/workspaces/{id}/storage-syncs
+     */
+    listStorageSyncs: (
+      id: string,
+      query?: {
+        /**
+         * Only those with this storage at either end
+         * @format uuid
+         */
+        storage_id?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<StorageSyncListOutputBody, ErrorModel>({
+        path: `/workspaces/${id}/storage-syncs`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description A run going now isn't stopped. A MinIO replication is turned off or on at the source. Resuming doesn't make up for runs missed while paused.
+     *
+     * @tags Storage syncs
+     * @name PauseStorageSync
+     * @summary Pause or resume a sync
+     * @request POST:/storage-syncs/{id}/pause
+     */
+    pauseStorageSync: (
+      id: string,
+      data: PauseStorageSyncRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<StorageSync, ErrorModel>({
+        path: `/storage-syncs/${id}/pause`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The source MinIO goes over every object and copies what the destination lacks, in the background. Its progress shows in the replication state.
+     *
+     * @tags Storage syncs
+     * @name ResyncStorageSyncReplication
+     * @summary Have MinIO copy what the bucket already holds
+     * @request POST:/storage-syncs/{id}/replication/resync
+     */
+    resyncStorageSyncReplication: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/storage-syncs/${id}/replication/resync`,
+        method: "POST",
+        ...params,
+      }),
+
+    /**
+     * @description Queues a background job, with the access of the person who saved it. dry_run counts what would change and changes nothing. 409 while a run is going; 422 for a MinIO replication (it copies by itself).
+     *
+     * @tags Storage syncs
+     * @name RunStorageSync
+     * @summary Run a migration or sync now
+     * @request POST:/storage-syncs/{id}/run
+     */
+    runStorageSync: (
+      id: string,
+      data: RunStorageSyncRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<StorageSyncRunOutputBody, ErrorModel>({
+        path: `/storage-syncs/${id}/run`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The whole thing is sent; its kind can't change. From now on it runs with your access. With revision, answers 409 when someone else saved in between.
+     *
+     * @tags Storage syncs
+     * @name UpdateStorageSync
+     * @summary Save changes to a storage migration or sync
+     * @request PUT:/storage-syncs/{id}
+     */
+    updateStorageSync: (
+      id: string,
+      data: StorageSyncUpdate,
+      params: RequestParams = {},
+    ) =>
+      this.request<StorageSync, ErrorModel>({
+        path: `/storage-syncs/${id}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),

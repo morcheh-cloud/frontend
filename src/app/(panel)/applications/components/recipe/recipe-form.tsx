@@ -14,7 +14,6 @@ import {
 import type { ReactNode } from "react"
 import { toast } from "sonner"
 
-import { YamlEditor } from "@/app/(panel)/ansible/components/yaml-editor"
 import { EditorCard } from "@/app/(panel)/proxy/[id]/hosts/components/editor-card"
 import { CodeEditor } from "@/app/(panel)/scripts/components/code-editor"
 import { Segmented } from "@/app/(panel)/servers/[id]/components/parts"
@@ -137,24 +136,13 @@ export function RecipeForm({
         <Section
           id="setup"
           phone={phone}
-          title={
-            kind === "docker"
-              ? "Compose file"
-              : kind === "package"
-                ? "Packages"
-                : "Scripts"
-          }
+          title={kind === "package" ? "Packages" : "Scripts"}
           hint={
-            kind === "docker"
-              ? "Kept in /opt/morcheh/apps/<id> on the server and started with Docker Compose."
-              : kind === "package"
-                ? "Installed with the server's package manager; Morche updates and removes them too."
-                : "Run as root, in order. Helpers: pkg_refresh, pkg_install <names>, and $PM (the package manager)."
+            kind === "package"
+              ? "Installed with the server's package manager; Morche updates and removes them too."
+              : "Run as root, in order. Helpers: pkg_refresh, pkg_install <names>, and $PM (the package manager)."
           }
         >
-          {kind === "docker" && (
-            <Compose draft={draft} problems={problems} onChange={onChange} />
-          )}
           {kind === "package" && (
             <Packages
               draft={draft}
@@ -306,7 +294,7 @@ function About({
       <div className={cn("flex gap-4", phone ? "flex-col" : "items-start")}>
         <div data-field="logo" className="shrink-0">
           <LookPicker
-            kind={draft.kind ?? "docker"}
+            kind={draft.kind ?? "package"}
             icon={draft.icon}
             logo={draft.logo}
             onChange={(look) => onChange(look)}
@@ -949,35 +937,6 @@ function VarChips({ names }: { names: string[] }) {
         </button>
       ))}
     </div>
-  )
-}
-
-function Compose({
-  draft,
-  problems,
-  onChange,
-}: {
-  draft: Draft
-  problems: Problems
-  onChange: (patch: Partial<Draft>) => void
-}) {
-  return (
-    <>
-      <VarChips names={draft.params.map((p) => p.name).filter(Boolean)} />
-      <CodeBox
-        path="compose"
-        label="docker-compose.yml"
-        problems={problems}
-        hint="Service names: lowercase letters, digits, dashes and _."
-      >
-        <YamlEditor
-          kind="compose"
-          height="auto"
-          value={draft.compose ?? ""}
-          onChange={(compose) => onChange({ compose })}
-        />
-      </CodeBox>
-    </>
   )
 }
 

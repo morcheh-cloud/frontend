@@ -30,7 +30,6 @@ export const fieldOrder = [
   "install",
   "update",
   "uninstall",
-  "compose",
 ] as const
 
 export const packageManagers = [
@@ -158,7 +157,6 @@ export function readDraft(text: string): Read {
       install: str(raw.install),
       update: str(raw.update),
       uninstall: str(raw.uninstall),
-      compose: str(raw.compose),
       extra,
     },
   }
@@ -194,7 +192,7 @@ export function recipeToYaml(r: Partial<Recipe> & { extra?: object }) {
 export const writeDraft = (d: Draft) => recipeToYaml(d)
 
 // True when the text has YAML comments, which a visual change would drop
-// (text inside a script or compose block isn't a comment).
+// (text inside a script block isn't a comment).
 export function hasComments(text: string) {
   const doc = parseDocument(text)
   if (doc.commentBefore || doc.comment) return true
@@ -216,7 +214,6 @@ export function hasComments(text: string) {
 const idRe = /^[a-z0-9][a-z0-9-]{0,62}$/
 const paramRe = /^[A-Z][A-Z0-9_]{0,62}$/
 const packageRe = /^[A-Za-z0-9][A-Za-z0-9._+:@-]*$/
-const serviceRe = /^[a-z0-9][a-z0-9_-]*$/
 const portRe = /^[0-9]{1,5}$/
 const logoRe = /^[a-z0-9]{1,40}$/
 const numberRe = /^-?[0-9]+(\.[0-9]+)?$/
@@ -262,24 +259,6 @@ function checkLists(
   }
 }
 
-function checkComposeText(text: string) {
-  if (!text.trim()) return "Write the compose file."
-  const problems = yamlProblems(text, "compose")
-  if (problems.length) return `It isn't valid YAML: ${problems[0].message}`
-  const services = (parseDocument(text).toJS() as { services?: unknown })
-    ?.services
-  if (
-    !services ||
-    typeof services !== "object" ||
-    !Object.keys(services).length
-  )
-    return "It has no services."
-  const badName = Object.keys(services).find((n) => !serviceRe.test(n))
-  if (badName)
-    return `Use lowercase letters, digits, dashes and underscores for service names (${badName}).`
-  return undefined
-}
-
 function checkValue(p: RecipeParam, v: string) {
   if (v.includes("\n")) return "Keep it to one line."
   if (p.type === "port") {
@@ -311,13 +290,6 @@ export function checkDraft(d: Draft, taken: string[] = []): Problems {
         out.packages = "Name at least one package."
       checkLists(out, "packages", d.packages)
       break
-    case "docker": {
-      if (Object.keys(d.also ?? {}).length)
-        out.also = "Only a package recipe has other package names."
-      const compose = checkComposeText(d.compose ?? "")
-      if (compose) out.compose = compose
-      break
-    }
     case "script":
       if (!d.install?.trim()) out.install = "Write the install script."
       if (!d.version_command?.trim())
@@ -325,7 +297,7 @@ export function checkDraft(d: Draft, taken: string[] = []): Problems {
           "Write a command that prints the version, so Morche can tell it's installed."
       break
     default:
-      out.kind = "Pick package, docker or script."
+      out.kind = "Pick package or script."
   }
   const badOs = d.os?.find(
     (o) => !(packageManagers as readonly string[]).includes(o),
@@ -381,7 +353,7 @@ export function toRecipe(d: Draft): Recipe {
     builtin: false,
     id: d.id?.trim() ?? "",
     name: d.name?.trim() ?? "",
-    kind: d.kind ?? "docker",
+    kind: d.kind ?? "package",
     summary: d.summary?.trim() ?? "",
     category: d.category?.trim() ?? "",
     params: d.params.length ? d.params : undefined,
@@ -433,7 +405,6 @@ export const varOf = (label: string) => {
 // The fields only one kind uses. Switching kind sets them aside, and
 // switching back brings them again.
 export const kindFields = {
-  docker: ["compose"],
   package: ["packages", "also", "version_command", "install", "update"],
   script: ["install", "update", "uninstall", "version_command"],
 } as const satisfies Record<Recipe["kind"], readonly (keyof Draft)[]>
@@ -444,25 +415,6 @@ export const allKindFields = [
 
 // What a new recipe starts with, per kind.
 export const starters: Record<Recipe["kind"], Draft> = {
-  docker: {
-    kind: "docker",
-    category: "Other",
-    requires: ["docker"],
-    params: [{ name: "PORT", label: "Port", type: "port", default: "8080" }],
-    links: [{ label: "Open", port: "PORT" }],
-    compose: `services:
-  app:
-    image: nginx:alpine
-    restart: unless-stopped
-    ports:
-      - "\${PORT}:80"
-    volumes:
-      - data:/data
-volumes:
-  data:
-`,
-    extra: {},
-  },
   package: {
     kind: "package",
     category: "System",

@@ -7,7 +7,7 @@ import { useWorkspace } from "@/components/panel/workspace"
 type ServerRef = { server_id: string; workspace_id: string }
 
 // What this person may do with applications. The backend decides; this only
-// hides what it would refuse. Install, update and roll back need Engineer on
+// hides what it would refuse. Install and update need Engineer on
 // every server, uninstall needs Owner: the sheets offer only those servers.
 export function useSoftwareCan(workspaceId?: string) {
   const { workspace } = useWorkspace()
@@ -29,7 +29,6 @@ export function useSoftwareCan(workspaceId?: string) {
     updateOn: (s: ServerRef) => atLeast(on(s), "engineer"),
     uninstallOn: (s: ServerRef) => atLeast(on(s), "owner"),
     operate: (s: ServerRef) => atLeast(on(s), "operator"),
-    compose: (s: ServerRef) => atLeast(on(s), "engineer"),
     reveal: (s: ServerRef) => atLeast(on(s), "owner"),
     forget: (s: ServerRef) => atLeast(on(s), "engineer"),
     scan: (s: ServerRef) => atLeast(on(s), "operator"),

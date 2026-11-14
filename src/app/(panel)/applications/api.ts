@@ -11,8 +11,6 @@ import {
 import { softwareInstallsQuery } from "@/components/panel/problems"
 import { ApiError, api } from "@/lib/api"
 import type {
-  InstallsOutputBody,
-  ListServerSoftwareResponse,
   Recipe,
   SoftwareInstall,
   SoftwarePreflightRequest,
@@ -33,9 +31,6 @@ export const softwareKeys = {
   runs: (ws: string, query: SoftwareRunsQuery) =>
     ["software", "runs", ws, query] as const,
   run: (id: string) => ["software", "run", id] as const,
-  compose: (id: string) => ["software", "compose", id] as const,
-  logs: (id: string, service: string, lines: number) =>
-    ["software", "logs", id, service, lines] as const,
 }
 
 const notFound = (count: number, error: Error) =>
@@ -92,21 +87,6 @@ export function useInstall(id: string | undefined) {
     refetchInterval: (q) =>
       q.state.data && installBusy(q.state.data) ? 3000 : 10_000,
   })
-}
-
-// Writes one install's fresh copy into every list that holds it.
-function putInstall(qc: QueryClient, i: SoftwareInstall) {
-  qc.setQueryData(softwareKeys.install(i.id), i)
-  const swap = <T extends { items: SoftwareInstall[] }>(d: T | undefined) =>
-    d && { ...d, items: d.items.map((x) => (x.id === i.id ? i : x)) }
-  qc.setQueriesData<InstallsOutputBody>(
-    { queryKey: ["software", "installs"] },
-    swap,
-  )
-  qc.setQueriesData<ListServerSoftwareResponse>(
-    { queryKey: ["software", "server"] },
-    swap,
-  )
 }
 
 const invalidateLists = (qc: QueryClient) => {
@@ -193,62 +173,6 @@ export function usePreflight(body: SoftwarePreflightRequest | null) {
 }
 
 // ---- One install ----
-
-export function useInstallAction() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: ({
-      id,
-      action,
-    }: {
-      id: string
-      action: "start" | "stop" | "restart"
-    }) => api.applications.softwareInstallAction(id, { action }),
-    onSuccess: (i) => putInstall(qc, i),
-  })
-}
-
-export function useInstallLogs(
-  id: string,
-  service: string,
-  lines: number,
-  enabled: boolean,
-) {
-  return useQuery({
-    queryKey: softwareKeys.logs(id, service, lines),
-    queryFn: () =>
-      api.applications.softwareInstallLogs(id, {
-        lines,
-        service: service || undefined,
-      }),
-    enabled,
-    select: (d) => d.text,
-    gcTime: 0,
-  })
-}
-
-export function useCompose(id: string, enabled: boolean) {
-  return useQuery({
-    queryKey: softwareKeys.compose(id),
-    queryFn: () => api.applications.getSoftwareCompose(id),
-    enabled,
-    refetchOnWindowFocus: false,
-    gcTime: 0,
-  })
-}
-
-export function useSaveCompose(id: string) {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (body: { content: string; revision: string }) =>
-      api.applications.saveSoftwareCompose(id, body),
-    onSuccess: (d) => {
-      qc.setQueryData(softwareKeys.compose(id), d)
-      qc.invalidateQueries({ queryKey: softwareKeys.install(id) })
-      invalidateLists(qc)
-    },
-  })
-}
 
 // Secrets are never cached: the values live only in the component that
 // asked, and the backend logs each reveal.

@@ -41,6 +41,7 @@ import {
   ShieldCheck,
   Shrink,
   Split,
+  Truck,
 } from "lucide-react"
 import { envHref, volumeHref } from "@/app/(panel)/containers/components/meta"
 import { backupsHref } from "@/app/(panel)/databases/[id]/components/backups/meta"
@@ -69,6 +70,8 @@ const icons: Record<string, LucideIcon> = {
   "schedule-sync": CalendarClock,
   "schedule-run": CalendarClock,
   "storage-scan": ChartPie,
+  "storage-sync": RefreshCcwDot,
+  "storage-migrate": Truck,
   "database-backup": DatabaseBackup,
   "database-backup-verify": ShieldCheck,
   "database-backup-restore": ArchiveRestore,
@@ -258,6 +261,10 @@ export function placeHref(job: Job) {
       t.dataset,
       job.kind === "log-compact" ? "policy" : "archives",
     )
+  // A storage sync or migration: its page, open at the run.
+  if (t?.sync_id) {
+    return `/storage/syncs/${t.sync_id}${t.run_id ? `?run=${t.run_id}` : ""}`
+  }
   if (t?.schedule_id) {
     return `/cronjobs/${t.schedule_id}${t.run_id ? `?run=${t.run_id}` : ""}`
   }
@@ -292,6 +299,8 @@ export function placeHref(job: Job) {
 
 export function placeLabel(job: Job) {
   if (job.kind === "storage-scan") return "Open Insights"
+  if (job.target?.sync_id)
+    return job.kind === "storage-migrate" ? "Open migration" : "Open sync"
   if (job.target?.cluster_id)
     return job.target.vmid ? "Open machine" : "Open storage"
   if (job.target?.auto_update) return "Open auto-update"
@@ -329,6 +338,8 @@ export function canRetry(job: Job) {
     job.kind !== "software-run" &&
     job.kind !== "schedule-sync" &&
     job.kind !== "schedule-run" &&
+    job.kind !== "storage-sync" &&
+    job.kind !== "storage-migrate" &&
     job.kind !== "database-backup" &&
     job.kind !== "database-backup-restore" &&
     !job.kind.startsWith("log-") &&

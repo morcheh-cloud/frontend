@@ -121,7 +121,7 @@ function Loader({ recordId, phone }: { recordId?: string; phone: boolean }) {
           id: `${base.id}-custom`,
           name: `${base.name} (custom)`,
         })
-      : starterText("docker")
+      : starterText("package")
   const ids = items.filter((r) => r.id !== saved?.id).map((r) => r.id)
   return (
     <Editor
@@ -258,11 +258,6 @@ function Editor({
       const v = own.includes(f) ? draft[f] : (stash[f] ?? starters[kind][f])
       if (v !== undefined) Object.assign(next, { [f]: v })
     }
-    const req = draft.requires ?? []
-    if (kind === "docker" && !req.includes("docker"))
-      next.requires = ["docker", ...req]
-    if (old === "docker" && req.length === 1 && req[0] === "docker")
-      next.requires = undefined
     setStash({ ...stash, ...keep })
     edit(writeDraft(next))
   }
@@ -518,7 +513,7 @@ function Editor({
       <div className="sticky top-[calc(3rem+1px)] z-20 flex min-h-14 flex-wrap items-center gap-3 border-b border-border bg-background px-6 py-2">
         <span className="flex min-w-0 items-center gap-3">
           <RecipeIcon
-            recipe={{ ...draft, kind: draft?.kind ?? "docker" }}
+            recipe={{ ...draft, kind: draft?.kind ?? "package" }}
             size="sm"
           />
           <span className="min-w-0">
@@ -654,7 +649,7 @@ const fields: [string, ReactNode][] = [
   ["name / summary", "What the catalog shows: the name and one line."],
   [
     "kind",
-    "docker (a compose file), package (the package manager) or script (your own install script).",
+    "package (the package manager) or script (your own install script). Container apps are Containers templates now.",
   ],
   [
     "category / icon",
@@ -671,7 +666,7 @@ const fields: [string, ReactNode][] = [
   ],
   [
     "params",
-    "What the install asks for. Each has name (UPPER_CASE), label, type (text, number, port, password, bool, select, path, domain, email), default, required, options, help; generate: password or hex fills it when left blank. They reach the scripts and the compose file as ${NAME}.",
+    "What the install asks for. Each has name (UPPER_CASE), label, type (text, number, port, password, bool, select, path, domain, email), default, required, options, help; generate: password or hex fills it when left blank. They reach the scripts as ${NAME}.",
   ],
   [
     "links",
@@ -693,10 +688,6 @@ const fields: [string, ReactNode][] = [
   [
     "install / update / uninstall",
     "Shell scripts (script kind; install and update also run for package kind when given). Helpers: pkg_refresh, pkg_install, $PM.",
-  ],
-  [
-    "compose",
-    "docker kind: the compose file. Morche keeps it in /opt/morcheh/apps/<id> on the server.",
   ],
 ]
 

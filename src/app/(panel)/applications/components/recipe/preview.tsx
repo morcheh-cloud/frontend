@@ -11,7 +11,7 @@ const HOST = "203.0.113.10"
 
 // What the catalog and the install form will look like, as it's typed.
 export function RecipePreview({ draft }: { draft: Draft }) {
-  const kind = draft.kind ?? "docker"
+  const kind = draft.kind ?? "package"
   return (
     <div className="flex flex-col gap-6">
       <Block title="In the catalog">
