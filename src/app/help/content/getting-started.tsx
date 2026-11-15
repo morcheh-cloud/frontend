@@ -99,7 +99,7 @@ export const gettingStarted: GuideSection[] = [
             news.
           </li>
           <li>
-            <UI>Uptime</UI> (monitors, worst first, with their last checks) and{" "}
+            <UI>Monitors</UI> (worst first, with their last checks) and{" "}
             <UI>Web traffic</UI> (requests in the last 30 minutes, server
             errors, busiest sites; only when the workspace has a reverse proxy).
           </li>

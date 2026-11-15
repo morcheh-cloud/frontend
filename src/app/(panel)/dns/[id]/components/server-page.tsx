@@ -87,7 +87,7 @@ export function ServerPageView() {
               ? "It was removed, or you don't have access to it."
               : query.error.message
           }
-          href="/dns"
+          href="/dns/servers"
           label="All DNS servers"
           onRetry={gone ? undefined : () => query.refetch()}
         />
@@ -117,7 +117,7 @@ function useZones(s: DNSServer) {
 
 function useRemoved() {
   const router = useRouter()
-  return () => router.replace("/dns")
+  return () => router.replace("/dns/servers")
 }
 
 function DesktopPage({ server: s }: { server: DNSServer }) {
@@ -457,7 +457,7 @@ function PhonePage({ server: s }: { server: DNSServer }) {
   const serverMenu = useServerMenu()
   const zoneMenu = useZoneMenu()
   const checking = useCheckingDnsServers().has(s.id)
-  const back = useBack("/dns")
+  const back = useBack("/dns/servers")
   const onRemoved = useRemoved()
   const z = useZones(s)
   const canNewZone = can(s, "engineer") && s.status === "online"

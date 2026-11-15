@@ -46,7 +46,7 @@ export function useMonitors() {
   return useQuery(monitorsQuery(workspace?.id ?? ""))
 }
 
-// Monitors tied to one server (its Uptime tab).
+// Monitors tied to one server (its Monitors tab).
 export function useServerMonitors(serverId: string) {
   return useQuery({
     queryKey: monitorKeys.server(serverId),

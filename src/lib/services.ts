@@ -266,6 +266,12 @@ export interface AlertRuleBody {
     | "service"
     | "db_down"
     | "db_health"
+    | "db_disk"
+    | "db_connections"
+    | "db_memory"
+    | "db_latency"
+    | "db_replication_lag"
+    | "db_backup_age"
     | "container_down"
     | "container_unhealthy"
     | "container_restarts"
@@ -304,7 +310,7 @@ export interface AlertRuleBody {
    */
   repeat_minutes?: number;
   /**
-   * databases = for db_down/db_health, which take all or databases; clusters = for pve_*, which take all or clusters
+   * databases = for db_* metrics, which take all or databases; clusters = for pve_*, which take all or clusters
    * @default "all"
    */
   scope?: "all" | "servers" | "tags" | "databases" | "clusters";
@@ -315,7 +321,7 @@ export interface AlertRuleBody {
   /** scope tags: servers with any of them */
   tags?: string[];
   /**
-   * Percent for cpu, iowait, memory, swap, disk and container_memory (of its limit); load per core; bytes per second for net_rx/net_tx; percent of one core for container_cpu; stops in 10 minutes for container_restarts; findings in the image's last scan for container_vulns_critical (critical) and container_vulns_high (high or critical); percent used for pve_storage_full; ignored for offline, service, db_down, db_health, container_down, container_unhealthy, docker_engine, pve_node_down and pve_vm_stopped
+   * Percent for cpu, iowait, memory, swap, disk and container_memory (of its limit); load per core; bytes per second for net_rx/net_tx; percent of one core for container_cpu; stops in 10 minutes for container_restarts; findings in the image's last scan for container_vulns_critical (critical) and container_vulns_high (high or critical); percent used for pve_storage_full; percent used for db_disk, db_connections (of the limit) and db_memory (Redis maxmemory); milliseconds for db_latency; seconds behind for db_replication_lag; hours since the last good backup for db_backup_age; ignored for offline, service, db_down, db_health, container_down, container_unhealthy, docker_engine, pve_node_down and pve_vm_stopped
    * @format double
    */
   threshold: number;

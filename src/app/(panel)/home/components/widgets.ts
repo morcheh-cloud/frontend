@@ -14,7 +14,7 @@ export const widgets = [
   { id: "servers", label: "Favorite servers" },
   { id: "services", label: "Services" },
   { id: "activity", label: "Activity" },
-  { id: "monitors", label: "Uptime monitors" },
+  { id: "monitors", label: "Monitors" },
   { id: "traffic", label: "Web traffic" },
   { id: "tasks", label: "Tasks" },
   { id: "upcoming", label: "Coming up" },

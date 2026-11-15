@@ -28,6 +28,8 @@ import { timeAgo } from "@/app/(panel)/servers/components/meta"
 import { BottomSheet } from "@/components/bottom-sheet"
 import { guideHref } from "@/components/help/guides"
 import { HelpButton } from "@/components/help/help-link"
+import { ansibleItem } from "@/components/panel/nav"
+import { SectionLinks } from "@/components/panel/section-links"
 import { useWorkspace } from "@/components/panel/workspace"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -129,27 +131,7 @@ function View({ phone }: { phone: boolean }) {
 }
 
 function Bar({ phone, action }: { phone: boolean; action?: ReactNode }) {
-  const can = useAnsibleCan()
   const [{ tab, q, show }, setFilters] = useAnsibleFilters()
-  const tabs = [
-    { value: "playbooks" as const, label: "Playbooks" },
-    { value: "modules" as const, label: "Modules" },
-    ...(can.runs ? [{ value: "runs" as const, label: "Runs" }] : []),
-  ]
-  const tabSwitch = tabs.length > 1 && (
-    <Segmented
-      label="Show"
-      items={tabs}
-      value={tab}
-      onChange={(t) =>
-        setFilters({
-          tab: t === "playbooks" ? null : t,
-          show: null,
-          cat: null,
-        })
-      }
-    />
-  )
   const searchLabel =
     tab === "runs"
       ? "Search runs"
@@ -183,9 +165,9 @@ function Bar({ phone, action }: { phone: boolean; action?: ReactNode }) {
     return (
       <div className="flex flex-col gap-3 px-4 pb-3">
         {search}
-        {(tabSwitch || showSwitch) && (
+        <SectionLinks item={ansibleItem} className="-mx-4" />
+        {showSwitch && (
           <div className="-mx-4 flex [scrollbar-width:none] gap-2 overflow-x-auto px-4">
-            {tabSwitch}
             {showSwitch}
           </div>
         )}
@@ -194,8 +176,6 @@ function Bar({ phone, action }: { phone: boolean; action?: ReactNode }) {
   }
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {tabSwitch}
-      {tabSwitch && <span className="mx-1 h-5 w-px bg-border" />}
       {search}
       {showSwitch}
       {action && <div className="ms-auto flex gap-2">{action}</div>}

@@ -4,14 +4,14 @@ import { Box, HeartPulse, Network, Plus, Radar, Workflow } from "lucide-react"
 import Link from "next/link"
 import type { ReactNode } from "react"
 
-import { useServerMonitors } from "@/app/(panel)/uptime/api"
-import { newMonitorHref } from "@/app/(panel)/uptime/components/meta"
-import { useUptimeCan } from "@/app/(panel)/uptime/components/permissions"
-import { UptimeActionsProvider } from "@/app/(panel)/uptime/components/uptime-actions"
+import { useServerMonitors } from "@/app/(panel)/monitoring/api"
+import { newMonitorHref } from "@/app/(panel)/monitoring/components/meta"
+import { useUptimeCan } from "@/app/(panel)/monitoring/components/permissions"
+import { UptimeActionsProvider } from "@/app/(panel)/monitoring/components/uptime-actions"
 import {
   MonitorRows,
   MonitorTable,
-} from "@/app/(panel)/uptime/components/uptime-view"
+} from "@/app/(panel)/monitoring/components/uptime-view"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { Server } from "@/lib/services"
@@ -21,7 +21,7 @@ import { SectionActions } from "../../components/section-actions"
 import { useServerPage } from "../../components/server-page"
 
 // Monitors tied to this server (checked from it, or about it). They live
-// under /uptime; adding one here starts with this server picked.
+// under /monitoring; adding one here starts with this server picked.
 export function ServerUptime() {
   return (
     <UptimeActionsProvider>
@@ -31,7 +31,7 @@ export function ServerUptime() {
 }
 
 const start = (s: Server, kind: string, port?: number) =>
-  newMonitorHref("/uptime/new", {
+  newMonitorHref("/monitoring/new", {
     server: s.id,
     kind,
     host: kind === "ping" || kind === "tcp" ? s.host : null,
@@ -64,7 +64,7 @@ function View() {
     <Button
       className={phone ? "h-11 flex-1" : undefined}
       render={
-        <Link href={newMonitorHref("/uptime/new", { server: server.id })} />
+        <Link href={newMonitorHref("/monitoring/new", { server: server.id })} />
       }
       nativeButton={false}
     >
@@ -147,8 +147,8 @@ function View() {
         className={cn("text-caption text-ash", phone ? "px-4" : "text-center")}
       >
         Every monitor, with its incidents and reports, is under{" "}
-        <Link href="/uptime" className="text-brand hover:underline">
-          Uptime
+        <Link href="/monitoring" className="text-brand hover:underline">
+          Monitoring
         </Link>
         .
       </p>

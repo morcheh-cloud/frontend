@@ -87,7 +87,7 @@ export function StoragePageView() {
     return <Loading />
   }
 
-  const onDeleted = () => router.replace("/storage")
+  const onDeleted = () => router.replace("/storage/list")
   return (
     <BucketActionsProvider storage={storage}>
       {isPhone ? (
@@ -220,7 +220,7 @@ function DesktopPage({ storage: s, checking, onDeleted }: PageProps) {
 }
 
 function PhonePage({ storage: s, checking, onDeleted }: PageProps) {
-  const back = useBack("/storage")
+  const back = useBack("/storage/list")
   const [sheetOpen, setSheetOpen] = useOpen("storage-page-sheet")
   const guide = guideForPath(`/storage/${s.id}`)
   const source = useStorageSource(s)
@@ -489,7 +489,7 @@ function Missing({
             Try again
           </Button>
         )}
-        <Link href="/storage" className={buttonVariants()}>
+        <Link href="/storage/list" className={buttonVariants()}>
           Back to storage
         </Link>
       </div>

@@ -10,11 +10,11 @@ import {
   cronjobsItem,
   databasesItem,
   dnsItem,
+  monitoringItem,
   proxyItem,
   serversItem,
   servicesItem,
   storageItem,
-  uptimeItem,
   vmsItem,
 } from "@/components/panel/nav"
 import { queueIntent } from "@/hooks/useIntent"
@@ -30,7 +30,7 @@ export const kindItem: Record<Kind, { label: string; icon: LucideIcon }> = {
   cluster: { label: "Proxmox cluster", icon: vmsItem.icon },
   cronjob: { label: "Cron job", icon: cronjobsItem.icon },
   application: { label: "Application", icon: applicationsItem.icon },
-  monitor: { label: "Monitor", icon: uptimeItem.icon },
+  monitor: { label: "Monitor", icon: monitoringItem.icon },
   alert: { label: "Alert", icon: alertsItem.icon },
 }
 
@@ -164,7 +164,7 @@ export function summaries(home: Home): Summary[] {
     },
     {
       key: "uptime",
-      ...uptimeItem,
+      ...monitoringItem,
       tally: t.uptime,
       total: t.uptime.total,
       caption: caption(t.uptime, { ok: "up", idle: "paused or new" }),
@@ -233,13 +233,13 @@ type AddAction = { label: string; href: string; intent?: string }
 
 const addActions: AddAction[] = [
   { label: "Server", href: "/servers", intent: "add-server" },
-  { label: "Database", href: "/databases", intent: "add-database" },
+  { label: "Database", href: "/databases/new" },
   { label: "Storage", href: "/storage", intent: "add-storage" },
   { label: "DNS server", href: "/dns", intent: "add-dns-server" },
   { label: "Reverse proxy", href: "/proxy", intent: "add-proxy" },
   { label: "Service", href: "/services", intent: "add-service" },
   { label: "Cron job", href: "/cronjobs/new" },
-  { label: "Monitor", href: "/uptime/new" },
+  { label: "Monitor", href: "/monitoring/new" },
   { label: "Script", href: "/scripts/new" },
 ]
 

@@ -119,7 +119,7 @@ function MonitorPage({ id }: { id: string }) {
             <Button
               variant="outline"
               className="h-11 w-full md:h-9 md:w-auto"
-              render={<Link href="/uptime" />}
+              render={<Link href="/monitoring" />}
               nativeButton={false}
             >
               Back to uptime
@@ -225,7 +225,7 @@ function DesktopHeader({ m }: { m: UptimeMonitor }) {
   const router = useRouter()
   const menu = useMonitorMenu(m, {
     onPage: true,
-    after: () => router.replace("/uptime"),
+    after: () => router.replace("/monitoring"),
   })
   const checking = a.checking === m.id
   return (
@@ -306,12 +306,12 @@ function HeaderButton({
 }
 
 function PhoneBar({ m }: { m: UptimeMonitor }) {
-  const back = useBack("/uptime")
+  const back = useBack("/monitoring")
   const router = useRouter()
   const [open, setOpen] = useOpen("monitor-page-sheet")
   const menu = useMonitorMenu(m, {
     onPage: true,
-    after: () => router.replace("/uptime"),
+    after: () => router.replace("/monitoring"),
   })
   return (
     <>

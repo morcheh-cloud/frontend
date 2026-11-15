@@ -35,9 +35,7 @@ export function AlertsTab() {
     <RuleActionsProvider
       phone={phone}
       canMute={operator}
-      activity={(r) =>
-        router.push(alertsHref("/alerts", { tab: "activity", rule: r.id }))
-      }
+      activity={(r) => router.push(alertsHref("activity", { rule: r.id }))}
     >
       <Content />
     </RuleActionsProvider>
@@ -124,7 +122,7 @@ function Content() {
             variant="ghost"
             size="sm"
             className="max-md:h-10"
-            render={<Link href={alertsHref("/alerts", { tab: "activity" })} />}
+            render={<Link href={alertsHref("activity")} />}
             nativeButton={false}
           >
             All activity

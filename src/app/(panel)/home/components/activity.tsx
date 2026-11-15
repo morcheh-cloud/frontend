@@ -13,9 +13,9 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
+import { monitorHref } from "@/app/(panel)/monitoring/components/monitor-menu"
 import { Segmented } from "@/app/(panel)/servers/[id]/components/parts"
 import { statusMeta, timeAgo } from "@/app/(panel)/servers/components/meta"
-import { monitorHref } from "@/app/(panel)/uptime/components/monitor-menu"
 import { isActive, useJobList } from "@/components/jobs/api"
 import { doneTitle, placeHref } from "@/components/jobs/meta"
 import { Button } from "@/components/ui/button"
@@ -98,7 +98,7 @@ export function useActivity(live: HomeLive): ActivityItem[] {
         ? `/servers/${e.server_id}/metrics`
         : e.database_id
           ? `/databases/${e.database_id}?tab=alerts`
-          : "/alerts?tab=activity",
+          : "/alerts/activity",
       problem: fired,
     })
   }

@@ -40,7 +40,7 @@ import {
   settingsFor,
 } from "./nav"
 import { NavEntry } from "./nav-entry"
-import { useNavAlerts } from "./problems"
+import { sectionAlert, useNavAlerts } from "./problems"
 import { WithPathname } from "./with-pathname"
 import { useWorkspace, WorkspaceAvatar } from "./workspace"
 
@@ -54,7 +54,9 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <WithPathname>
-        {(pathname) => <SidebarBody pathname={pathname} />}
+        {(pathname, search) => (
+          <SidebarBody pathname={pathname} search={search} />
+        )}
       </WithPathname>
 
       <SidebarFooter>
@@ -69,7 +71,13 @@ export function AppSidebar() {
 // Under /containers the sidebar shows the Containers menu instead (like
 // Arcane). "Main menu" goes back without leaving the page; the main menu's
 // Containers entry drills in again.
-function SidebarBody({ pathname }: { pathname: string }) {
+function SidebarBody({
+  pathname,
+  search,
+}: {
+  pathname: string
+  search: URLSearchParams
+}) {
   const settings = useSettingsItem()
   const alerts = useNavAlerts()
   // The page where "Main menu" was pressed: the main menu stays until the
@@ -101,7 +109,8 @@ function SidebarBody({ pathname }: { pathname: string }) {
                 key={item.href}
                 item={item}
                 pathname={pathname}
-                alert={alerts.get(item.href)}
+                search={search}
+                alert={sectionAlert(item, alerts)}
                 onClick={item === containersItem ? drill : undefined}
               />
             ))}
@@ -112,7 +121,9 @@ function SidebarBody({ pathname }: { pathname: string }) {
       <SidebarGroup className="mt-auto">
         <SidebarMenu>
           <NavEntry item={helpItem} pathname={pathname} />
-          {settings && <NavEntry item={settings} pathname={pathname} />}
+          {settings && (
+            <NavEntry item={settings} pathname={pathname} search={search} />
+          )}
         </SidebarMenu>
       </SidebarGroup>
     </SidebarContent>

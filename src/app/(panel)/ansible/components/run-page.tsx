@@ -76,7 +76,7 @@ export function RunFromRoute() {
 function RunPage({ id, phone }: { id: string; phone: boolean }) {
   const { run, error, live } = useLiveRun(id)
   usePageCrumbs([
-    { href: "/ansible?tab=runs", label: "Runs" },
+    { href: "/ansible/runs", label: "Runs" },
     { href: `/ansible/runs/${id}`, label: run?.playbook_name ?? "Run" },
   ])
   if (!run) {
@@ -96,7 +96,7 @@ function RunPage({ id, phone }: { id: string; phone: boolean }) {
             <Button
               variant="outline"
               className="h-11 w-full md:h-9 md:w-auto"
-              render={<Link href="/ansible?tab=runs" />}
+              render={<Link href="/ansible/runs" />}
               nativeButton={false}
             >
               All runs
@@ -156,7 +156,7 @@ function useRunItems(run: AnsibleRunDetail): {
             icon: <Trash2 />,
             destructive: true,
             onSelect: () =>
-              a.removeRun(run, () => router.replace("/ansible?tab=runs")),
+              a.removeRun(run, () => router.replace("/ansible/runs")),
           },
         ]
       : [],

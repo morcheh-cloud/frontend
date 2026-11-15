@@ -1,5 +1,31 @@
 import type { NextConfig } from "next"
 
+// Sections whose tabs became pages of their own (`?tab=x` → `/section/x`),
+// so old links, bookmarks and backend messages still land right.
+const tabPages = Object.entries({
+  "/storage": { storages: "list", syncs: "syncs", migrations: "migrations" },
+  "/vms": { nodes: "nodes", storage: "storage", clusters: "clusters" },
+  "/cloud": { servers: "servers" },
+  "/dns": { servers: "servers" },
+  "/applications": {
+    installed: "installed",
+    updates: "updates",
+    activity: "activity",
+  },
+  "/ansible": { modules: "modules", runs: "runs" },
+  "/scripts": { runs: "runs" },
+  "/monitoring": { incidents: "incidents" },
+  "/alerts": { channels: "channels", activity: "activity" },
+  "/recordings": { recordings: "list", "sign-ins": "sign-ins" },
+}).flatMap(([source, tabs]) =>
+  Object.entries(tabs).map(([tab, page]) => ({
+    source,
+    has: [{ type: "query" as const, key: "tab", value: tab }],
+    destination: `${source}/${page}`,
+    permanent: true,
+  })),
+)
+
 const nextConfig: NextConfig = {
   // A self-contained server in .next/standalone, for the Docker image.
   output: "standalone",
@@ -57,6 +83,23 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       { source: "/servers/network", destination: "/network", permanent: true },
+      { source: "/uptime", destination: "/monitoring", permanent: true },
+      {
+        source: "/uptime/:path*",
+        destination: "/monitoring/:path*",
+        permanent: true,
+      },
+      {
+        source: "/servers/:id/uptime",
+        destination: "/servers/:id/monitors",
+        permanent: true,
+      },
+      {
+        source: "/help/uptime",
+        destination: "/help/monitoring",
+        permanent: true,
+      },
+      ...tabPages,
     ]
   },
   turbopack: {

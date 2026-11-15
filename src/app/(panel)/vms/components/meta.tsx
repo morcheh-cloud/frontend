@@ -5,6 +5,7 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs"
+import { useRouteTab } from "@/hooks/useRouteTab"
 
 import type { PVECluster, PVEGuest, PVENode, PVEStorage } from "@/lib/services"
 import { cn } from "@/lib/utils"
@@ -188,8 +189,15 @@ export const showChoices = [
 ] as const
 export const kindChoices = ["all", "qemu", "lxc"] as const
 
+// The section's own pages (the sidebar's children of Virtual machines).
+export const vmsPages = {
+  machines: "/vms",
+  nodes: "/vms/nodes",
+  storage: "/vms/storage",
+  clusters: "/vms/clusters",
+} as const satisfies Record<(typeof pageTabs)[number], string>
+
 export const vmsParsers = {
-  tab: parseAsStringLiteral(pageTabs).withDefault("machines"),
   q: parseAsString.withDefault(""),
   show: parseAsStringLiteral(showChoices).withDefault("all"),
   kind: parseAsStringLiteral(kindChoices).withDefault("all"),
@@ -198,10 +206,16 @@ export const vmsParsers = {
 }
 
 export function useVmsFilters() {
-  return useQueryStates(vmsParsers, { history: "replace" })
+  const [f, set] = useQueryStates(vmsParsers, { history: "replace" })
+  const tab = useRouteTab(vmsPages)
+  return [{ ...f, tab }, set] as const
 }
 
-export const vmsHref = createSerializer(vmsParsers)
+const serializeVms = createSerializer(vmsParsers)
+export const vmsHref = (
+  tab: (typeof pageTabs)[number],
+  values: Partial<Record<keyof typeof vmsParsers, string | null>> = {},
+) => serializeVms(vmsPages[tab], values as Parameters<typeof serializeVms>[1])
 
 const newParsers = {
   cluster: parseAsString,

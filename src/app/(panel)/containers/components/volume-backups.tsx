@@ -173,7 +173,7 @@ export function BackupVolumeDialog({
             size="sm"
             className="max-md:h-11"
             nativeButton={false}
-            render={<Link href="/storage?tab=storages" />}
+            render={<Link href="/storage/list" />}
           >
             Open Storage
           </Button>

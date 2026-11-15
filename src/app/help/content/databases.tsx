@@ -4,6 +4,7 @@ import {
   Code,
   Example,
   type GuideSection,
+  Keys,
   List,
   P,
   Recommended,
@@ -70,33 +71,50 @@ export const databases: GuideSection[] = [
     title: "Adding a database",
     body: (
       <>
+        <P>
+          <UI>Add database</UI> opens its own page. Under <UI>Start from</UI>{" "}
+          pick <UI>Connect to one that runs</UI> for a database you already have
+          (the steps below), or{" "}
+          <A href="#deploy-container">Start a new one in a container</A> to have
+          Morche set one up on a server for you.
+        </P>
         <Steps>
           <P>
-            Open <UI>Databases</UI> (under Infrastructure) and press{" "}
-            <UI>Add database</UI>.
+            Open <UI>Databases</UI> (under Infrastructure), press{" "}
+            <UI>Add database</UI> and keep <UI>Connect to one that runs</UI>.
           </P>
           <P>
-            Pick the <UI>Engine</UI>. If you have a URL such as{" "}
-            <C>postgres://user:pass@host:5432/shop</C>, paste it into{" "}
-            <UI>Connection string</UI> and the fields fill in.
+            Pick the <UI>Engine</UI>, then <UI>By address</UI> or{" "}
+            <UI>Through a server</UI> (see below).
           </P>
           <P>
-            Choose <UI>How Morche reaches it</UI> (see below) and fill in the
-            address and <UI>Port</UI>.
-          </P>
-          <P>
-            Enter the <UI>Username</UI> and <UI>Password</UI> of a monitoring
-            login (see{" "}
+            Fill in <UI>Host</UI> and <UI>Port</UI> (empty = the engine's usual
+            port), then <UI>Username</UI> and <UI>Password</UI> (see{" "}
             <See guide="databases" section="login">
               A login for Morche
             </See>
-            ).
+            ). Have a URL such as <C>postgres://user:pass@host:5432/shop</C>?
+            Paste it into <UI>Host</UI> and every field fills in.
           </P>
           <P>
-            Pick how often to look under <UI>Check every</UI> and press{" "}
-            <UI>Add database</UI>. The first check runs straight away.
+            Press <UI>Test connection</UI> to see every step work, then{" "}
+            <UI>Add database</UI> (or <Keys>Ctrl+S</Keys>). The first check runs
+            straight away.
           </P>
         </Steps>
+        <P>
+          Everything else sits folded under <UI>More options</UI> with defaults
+          that fit most databases: the <UI>Name</UI> (empty = the database,
+          container or host name), <UI>Docker container</UI>,{" "}
+          <UI>Encryption (TLS)</UI>, <UI>Check every</UI> and notes. When a test
+          fails on encryption or a private address, it offers a one-click fix (
+          <UI>Try without encryption</UI>, <UI>Allow a private address</UI>).
+        </P>
+        <P>
+          To change a database later, open its menu and choose <UI>Edit</UI>:
+          the same page, with the saved values. A blank password keeps the saved
+          one.
+        </P>
         <List>
           <li>
             <UI>Through a server</UI>: Morche opens an SSH tunnel to one of your
@@ -107,13 +125,15 @@ export const databases: GuideSection[] = [
           </li>
           <li>
             <UI>Docker container</UI>: when the database runs in a container on
-            that server, enter its name or ID. Morche finds the container's
-            address; the port doesn't need to be published.
+            that server, tap it under{" "}
+            <UI>Database containers on this server</UI> (or enter its name or ID
+            under <UI>More options</UI>). Morche finds the container's address;
+            the port doesn't need to be published.
           </li>
           <li>
-            <UI>Direct address</UI>: for a managed database (RDS, Cloud SQL,
-            Azure…) or anything on a public IP or domain. Morche connects from
-            the panel itself.
+            <UI>By address</UI>: for a managed database (RDS, Cloud SQL, Azure…)
+            or anything on a public IP or domain. Morche connects from the panel
+            itself.
           </li>
         </List>
         <P>
@@ -130,6 +150,141 @@ export const databases: GuideSection[] = [
           <UI>Allow a private address</UI>. That stops a form from being used to
           poke at the panel's own network. For a database on your LAN, prefer{" "}
           <UI>Through a server</UI>.
+        </P>
+      </>
+    ),
+  },
+  {
+    id: "deploy-container",
+    title: "Starting a new database in a container",
+    body: (
+      <>
+        <P>
+          When you need a fresh database, Morche can start one on any of your
+          servers that runs Docker or Podman and add it to this list in one go.
+          It becomes an ordinary compose project you also see under{" "}
+          <See guide="containers" section="projects">
+            Containers › Projects
+          </See>
+          .
+        </P>
+        <Steps>
+          <P>
+            Press <UI>Add database</UI> and pick{" "}
+            <UI>Start a new one in a container</UI>.
+          </P>
+          <P>
+            Pick the <UI>Engine</UI> and its <UI>Version</UI> (SQL Server also
+            asks for the <UI>Edition</UI>).
+          </P>
+          <P>
+            Under <UI>Where it runs</UI>, pick the server. With many servers,
+            type into the search box (name, address, OS or Docker/Podman) and
+            press <Keys>Enter</Keys> to take the first match. Each row shows how
+            much memory is free; servers that can't take it (engine not
+            reachable, or you lack Engineer access) are listed apart with the
+            reason. Once picked, the list folds into a summary; <UI>Change</UI>{" "}
+            opens it again.
+          </P>
+          <P>
+            Give it a <UI>Name in Morche</UI>; the project and container name
+            follow it. Set the first database and the admin user where the
+            engine allows it.
+          </P>
+          <P>
+            Keep the generated <UI>Password</UI> or type your own (at least 12
+            characters, no spaces, quotes, <C>$</C> or <C>#</C>).
+          </P>
+          <P>
+            Pick who can reach it, a memory limit and how often Morche checks
+            it, then press <UI>Start</UI>.
+          </P>
+        </Steps>
+        <P>
+          Morche first checks the compose file and the port on the server, then
+          writes <C>docker-compose.yml</C> and <C>.env</C>, pulls the image,
+          starts the container and adds the database here, watched through SSH
+          inside the container. The page shows each step; if one fails it says
+          where it stopped and you can try again.
+        </P>
+        <Table
+          head={["Port on the server", "Who can reach it"]}
+          rows={[
+            [
+              "Not published",
+              "Only containers on its networks. Morche goes in through SSH. The safest choice.",
+            ],
+            [
+              "This server only",
+              "Programs on the server at 127.0.0.1, nothing from outside.",
+            ],
+            [
+              "Every address",
+              "Anyone who can reach the server. Close it with the firewall.",
+            ],
+          ]}
+        />
+        <Recommended
+          rows={[
+            {
+              setting: "Port on the server",
+              value: "Not published",
+              why: "Morche and your apps don't need it published",
+            },
+            {
+              setting: "Also join a network",
+              value: "Your app's network",
+              why: "The app reaches the database by its container name",
+            },
+            {
+              setting: "Memory limit",
+              value: "Set one on shared servers (SQL Server: 2 GB or more)",
+              why: "A busy database can't starve the other containers",
+            },
+          ]}
+        />
+        <Tip>
+          The password lives only in the project's <C>.env</C> on the server and
+          in Morche's encrypted copy for monitoring. Change it in the project's
+          Environment tab and then in the database's <UI>Edit</UI> page.
+        </Tip>
+        <Warn>
+          The data sits in a named Docker volume, kept when the container is
+          recreated or updated. Removing the project's volumes deletes it: set
+          up <A href="#backups">backups</A> before you rely on it.
+        </Warn>
+      </>
+    ),
+  },
+  {
+    id: "list",
+    title: "The list of databases",
+    body: (
+      <>
+        <P>
+          Each database is a card, the ones needing attention first. A red or
+          orange border means it's down or unhealthy; the line at the bottom
+          says why.
+        </P>
+        <List>
+          <li>
+            <UI>Size</UI> with how much it grew today, <UI>Connections</UI>{" "}
+            against its limit, and <UI>Response</UI> time (with the slow end,
+            p95).
+          </li>
+          <li>
+            <UI>Last 24 hours</UI>: the share of checks that worked, a response
+            time line, and a strip where each slot is green, orange or red.
+            Hover a slot to see that hour.
+          </li>
+          <li>
+            Where it runs: the server (and container), or the direct address.
+          </li>
+        </List>
+        <P>
+          The star keeps a favorite at the top; <UI>⋯</UI> has check, pause,
+          edit, credentials and remove. On a phone each row shows the same
+          numbers and a small strip; tap it to open, <UI>⋯</UI> for actions.
         </P>
       </>
     ),

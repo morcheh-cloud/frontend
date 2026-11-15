@@ -5,11 +5,13 @@ import {
   Cog,
   Container,
   Cpu,
+  DatabaseBackup,
   DatabaseZap,
   Gauge,
   HardDrive,
   HardDriveDownload,
   HeartCrack,
+  History,
   Hourglass,
   type LucideIcon,
   MemoryStick,
@@ -18,16 +20,14 @@ import {
   RotateCcw,
   ServerOff,
   ShieldAlert,
+  Timer,
   Unplug,
+  Users,
 } from "lucide-react"
-import {
-  createSerializer,
-  parseAsString,
-  parseAsStringLiteral,
-  useQueryStates,
-} from "nuqs"
+import { createSerializer, parseAsString, useQueryStates } from "nuqs"
 
 import { vmsHref } from "@/app/(panel)/vms/components/meta"
+import { useRouteTab } from "@/hooks/useRouteTab"
 import type { AlertRule, AlertRuleBody, AlertRuleState } from "@/lib/services"
 
 // Alert rules on server metrics, services and databases: what each metric
@@ -222,6 +222,69 @@ export const metrics: Record<Metric, MetricMeta> = {
     target: "database",
     state: true,
   },
+  db_disk: {
+    label: "Disk",
+    icon: HardDrive,
+    unit: "%",
+    hint: "How full the disk holding the database's files is. Read over the server's SSH, so a direct connection without a server can't be checked.",
+    threshold: 85,
+    forMinutes: 0,
+    max: 100,
+    step: 1,
+    target: "database",
+  },
+  db_connections: {
+    label: "Connections",
+    icon: Users,
+    unit: "% of the limit",
+    hint: "Open connections against the most the server allows (max_connections). At the limit new clients are refused.",
+    threshold: 80,
+    forMinutes: 5,
+    max: 100,
+    step: 1,
+    target: "database",
+  },
+  db_memory: {
+    label: "Memory (Redis)",
+    icon: MemoryStick,
+    unit: "% of maxmemory",
+    hint: "Redis only, with maxmemory set: at the limit it evicts keys or refuses writes.",
+    threshold: 90,
+    forMinutes: 5,
+    max: 100,
+    step: 1,
+    target: "database",
+  },
+  db_latency: {
+    label: "Response time",
+    icon: Timer,
+    unit: "ms",
+    hint: "How long a trivial query takes, measured at every check.",
+    threshold: 1000,
+    forMinutes: 5,
+    step: 50,
+    target: "database",
+  },
+  db_replication_lag: {
+    label: "Replication lag",
+    icon: History,
+    unit: "seconds",
+    hint: "How far a replica is behind its primary. Primaries and databases without replication are skipped.",
+    threshold: 60,
+    forMinutes: 5,
+    step: 5,
+    target: "database",
+  },
+  db_backup_age: {
+    label: "Last backup",
+    icon: DatabaseBackup,
+    unit: "hours ago",
+    hint: "Hours since the last good backup (a Morche backup plan or the engine's own records). Databases never backed up show on Health instead.",
+    threshold: 26,
+    forMinutes: 0,
+    step: 1,
+    target: "database",
+  },
   container_down: {
     label: "Container down",
     icon: Box,
@@ -337,7 +400,16 @@ export const pveMetricOrder: Metric[] = [
 ]
 
 // Database metrics, listed apart in the editor.
-export const databaseMetricOrder: Metric[] = ["db_down", "db_health"]
+export const databaseMetricOrder: Metric[] = [
+  "db_down",
+  "db_disk",
+  "db_connections",
+  "db_latency",
+  "db_replication_lag",
+  "db_backup_age",
+  "db_memory",
+  "db_health",
+]
 
 // Container metrics, listed apart too.
 export const containerMetricOrder: Metric[] = [
@@ -381,11 +453,25 @@ export function formatValue(m: string, v: number) {
     return `${v} ${v === 1 ? "stop" : "stops"} in 10 min`
   if (m === "container_vulns_critical") return `${v} critical`
   if (m === "container_vulns_high") return `${v} high or critical`
+  if (m === "db_connections")
+    return `${v.toFixed(v < 10 ? 1 : 0)}% of the limit`
+  if (m === "db_memory") return `${v.toFixed(v < 10 ? 1 : 0)}% of maxmemory`
+  if (m === "db_latency") return `${Math.round(v)} ms`
+  if (m === "db_replication_lag") return durationText(v)
+  if (m === "db_backup_age") return durationText(v * 3600)
   if (isNet(m)) {
     const mbit = (v * 8) / 1e6
     return `${mbit.toFixed(mbit < 10 ? 1 : 0)} Mbit/s`
   }
   return String(v)
+}
+
+// 45 s, 12 min, 3 h, 2 days.
+function durationText(sec: number) {
+  if (sec < 120) return `${Math.round(sec)} s`
+  if (sec < 7200) return `${Math.round(sec / 60)} min`
+  if (sec < 172800) return `${Math.round(sec / 3600)} h`
+  return `${Math.round(sec / 86400)} days`
 }
 
 export function conditionText(
@@ -405,6 +491,10 @@ export function conditionText(
       : "has a critical vulnerability"
   if (r.metric === "container_vulns_high")
     return `has more than ${r.threshold} high or critical vulnerabilities`
+  if (r.metric === "db_replication_lag")
+    return `${r.op === "below" ? "less" : "more"} than ${formatValue(r.metric, r.threshold)} behind`
+  if (r.metric === "db_backup_age")
+    return `not backed up for ${formatValue(r.metric, r.threshold)}`
   if (r.metric === "container_restarts")
     return `stopped more than ${r.threshold} ${r.threshold === 1 ? "time" : "times"} in 10 min`
   return `${r.op} ${formatValue(r.metric, r.threshold)}`
@@ -455,16 +545,26 @@ export function ruleSentence(
             ? `Service ${r.unit}`
             : "A service"
           : isDatabaseMetric(r.metric)
-            ? "Database"
+            ? (dbSentenceLabel[r.metric] ?? "Database")
             : r.metric === "pve_node_down"
               ? "Cluster"
               : r.metric === "pve_vm_stopped"
                 ? "A machine"
                 : r.metric === "pve_storage_full"
                   ? "Cluster storage"
-                  : metricOf(r.metric).label
+                  : r.metric === "load"
+                    ? "Load"
+                    : metricOf(r.metric).label
   const minutes = r.for_minutes
   return `${label} ${conditionText(r)}${minutes > 0 ? ` ${forText(minutes)}` : ""}`
+}
+
+const dbSentenceLabel: Partial<Record<string, string>> = {
+  db_disk: "Database disk",
+  db_connections: "Database connections",
+  db_memory: "Redis memory",
+  db_latency: "Database response time",
+  db_replication_lag: "Replica",
 }
 
 // What a container rule watches, like the backend's messages: "web in
@@ -536,6 +636,8 @@ export function stateValue(
   s: Pick<AlertRuleState, "value" | "detail">,
 ) {
   if (isStateMetric(r.metric)) return s.detail || conditionText(r)
+  if (isDatabaseMetric(r.metric))
+    return s.detail || formatValue(r.metric, s.value)
   return `${formatValue(r.metric, s.value)}${s.detail ? ` on ${s.detail}` : ""}`
 }
 
@@ -552,8 +654,8 @@ export function targetHref(
         ? "nodes"
         : metric === "pve_storage_full"
           ? "storage"
-          : undefined
-    return vmsHref("/vms", { tab, cluster: s.target_id })
+          : "machines"
+    return vmsHref(tab, { cluster: s.target_id })
   }
   if (metric === "service") return `/servers/${s.target_id}/services`
   if (isContainerMetric(metric)) {
@@ -634,6 +736,33 @@ export const presets: Preset[] = [
     severity: "warning",
   },
   {
+    key: "load",
+    name: "Server overloaded",
+    metric: "load",
+    op: "above",
+    threshold: 2,
+    forMinutes: 10,
+    severity: "warning",
+  },
+  {
+    key: "iowait",
+    name: "Disks too slow",
+    metric: "iowait",
+    op: "above",
+    threshold: 30,
+    forMinutes: 10,
+    severity: "warning",
+  },
+  {
+    key: "swap",
+    name: "Swapping heavily",
+    metric: "swap",
+    op: "above",
+    threshold: 50,
+    forMinutes: 15,
+    severity: "warning",
+  },
+  {
     key: "db-down",
     name: "Database unreachable",
     metric: "db_down",
@@ -641,6 +770,60 @@ export const presets: Preset[] = [
     threshold: 0,
     forMinutes: 2,
     severity: "critical",
+  },
+  {
+    key: "db-disk",
+    name: "Database disk almost full",
+    metric: "db_disk",
+    op: "above",
+    threshold: 85,
+    forMinutes: 0,
+    severity: "critical",
+  },
+  {
+    key: "db-connections",
+    name: "Connections running out",
+    metric: "db_connections",
+    op: "above",
+    threshold: 80,
+    forMinutes: 5,
+    severity: "warning",
+  },
+  {
+    key: "db-latency",
+    name: "Database slow to answer",
+    metric: "db_latency",
+    op: "above",
+    threshold: 1000,
+    forMinutes: 5,
+    severity: "warning",
+  },
+  {
+    key: "db-replication",
+    name: "Replica falling behind",
+    metric: "db_replication_lag",
+    op: "above",
+    threshold: 60,
+    forMinutes: 5,
+    severity: "warning",
+  },
+  {
+    key: "db-backup",
+    name: "No recent backup",
+    metric: "db_backup_age",
+    op: "above",
+    threshold: 26,
+    forMinutes: 0,
+    severity: "warning",
+  },
+  {
+    key: "db-memory",
+    name: "Redis memory almost full",
+    metric: "db_memory",
+    op: "above",
+    threshold: 90,
+    forMinutes: 5,
+    severity: "warning",
   },
   {
     key: "db-health",
@@ -745,18 +928,34 @@ export const byRuleState = (a: AlertRule, b: AlertRule) =>
 export const alertTabs = ["rules", "channels", "activity"] as const
 export type AlertTab = (typeof alertTabs)[number]
 
+// The section's own pages (the sidebar's children under Monitoring).
+export const alertsPages = {
+  rules: "/alerts",
+  channels: "/alerts/channels",
+  activity: "/alerts/activity",
+} as const satisfies Record<AlertTab, string>
+
 const filters = {
-  tab: parseAsStringLiteral(alertTabs).withDefault("rules"),
   q: parseAsString.withDefault(""),
   // Activity of one rule only.
   rule: parseAsString.withDefault(""),
 }
 
 export function useAlertsFilters() {
-  return useQueryStates(filters, { history: "replace" })
+  const [f, set] = useQueryStates(filters, { history: "replace" })
+  const tab = useRouteTab(alertsPages)
+  return [{ ...f, tab }, set] as const
 }
 
-export const alertsHref = createSerializer(filters)
+const serializeAlerts = createSerializer(filters)
+export const alertsHref = (
+  tab: AlertTab,
+  values: Partial<Record<keyof typeof filters, string | null>> = {},
+) =>
+  serializeAlerts(
+    alertsPages[tab],
+    values as Parameters<typeof serializeAlerts>[1],
+  )
 
 // Ready-made Proxmox rules: the Virtual machines pages start from these.
 export const pvePresets: Preset[] = [

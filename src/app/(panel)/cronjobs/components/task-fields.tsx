@@ -1991,7 +1991,7 @@ function VolumeBackupSections({ t, set, errors, phone, ws }: Props) {
             ) : places.length === 0 ? (
               <NoneYet
                 text="No storage to write to in this workspace yet."
-                href="/storage?tab=storages"
+                href="/storage/list"
                 label="Add a storage"
               />
             ) : (

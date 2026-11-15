@@ -3,7 +3,7 @@ import { Suspense } from "react"
 import { UptimeActionsProvider } from "./components/uptime-actions"
 
 // Every confirmation, shared by the list, a monitor's page and the editor.
-export default function UptimeLayout({ children }: LayoutProps<"/uptime">) {
+export default function UptimeLayout({ children }: LayoutProps<"/monitoring">) {
   return (
     <Suspense>
       <UptimeActionsProvider>{children}</UptimeActionsProvider>

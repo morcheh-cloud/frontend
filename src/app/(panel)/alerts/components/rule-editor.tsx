@@ -6,6 +6,7 @@ import { type ReactNode, useEffect, useState } from "react"
 import { toast } from "sonner"
 
 import { Callout } from "@/app/(panel)/cronjobs/components/editor-parts"
+import { ChannelPicker } from "@/app/(panel)/monitoring/components/monitor-editor"
 import {
   SearchBox,
   Segmented,
@@ -16,7 +17,6 @@ import {
   Checklist,
   ServerChecklist,
 } from "@/app/(panel)/servers/components/server-checklist"
-import { ChannelPicker } from "@/app/(panel)/uptime/components/monitor-editor"
 import { Field } from "@/components/field"
 import { databasesQuery, pveClustersQuery } from "@/components/panel/problems"
 import { useWorkspace } from "@/components/panel/workspace"

@@ -1,39 +1,55 @@
 "use client"
 
-import { CloudOff, Ellipsis, HardDrive, Lock, Plus, Star } from "lucide-react"
+import {
+  CloudOff,
+  Ellipsis,
+  HardDrive,
+  Lock,
+  Plus,
+  RefreshCw,
+  SearchX,
+  Star,
+} from "lucide-react"
 import Link from "next/link"
 import { type ReactNode, useRef, useState } from "react"
-
+import { MiniStrip } from "@/app/(panel)/databases/components/database-cards"
 import {
-  StatusDot,
-  statusMeta,
-  timeAgo,
-} from "@/app/(panel)/servers/components/meta"
+  SearchBox,
+  Segmented,
+} from "@/app/(panel)/servers/[id]/components/parts"
+import { StatusDot, statusMeta } from "@/app/(panel)/servers/components/meta"
 import { guideHref } from "@/components/help/guides"
 import { HelpButton } from "@/components/help/help-link"
+import { storageItem } from "@/components/panel/nav"
+import { SectionLinks } from "@/components/panel/section-links"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useIsPhone } from "@/hooks/useIsPhone"
 import { useOpen } from "@/hooks/useOpen"
+import { formatSize } from "@/lib/format"
 import type { Storage } from "@/lib/services"
 import { cn } from "@/lib/utils"
-import { Segmented } from "../../servers/[id]/components/parts"
 import { useWorkspaceCan } from "../../servers/components/permissions"
 import { useCheckingStorages, useStorages } from "../api"
 import { newSyncHref } from "../syncs/components/meta"
 import { useSyncCan } from "../syncs/components/permissions"
 import { SyncList, useSyncCounts } from "../syncs/components/sync-list"
-import { useStoragePageFilters } from "./filters"
+import {
+  type StoragePage,
+  storagePages,
+  useStorageListFilters,
+  useStoragePage,
+} from "./filters"
 import { InsightsBody, InsightsControls } from "./insights/insights"
 import { endpointLabel, ProtocolTile, providerLabel } from "./meta"
-import { useStorageCan } from "./permissions"
 import { useStorageActions } from "./storage-actions"
-import { StorageMenuItems, StorageSheet } from "./storage-menu"
+import {
+  isProblem,
+  StorageCards,
+  StorageCardsSkeleton,
+  useStorageDay,
+} from "./storage-cards"
+import { StorageSheet } from "./storage-menu"
 
 // Favorites first, then by name.
 const sorted = (items: Storage[]) =>
@@ -42,21 +58,15 @@ const sorted = (items: Storage[]) =>
       Number(b.favorite) - Number(a.favorite) || a.name.localeCompare(b.name),
   )
 
-const tabItems = (count: number, syncs: { sync: number; migrate: number }) => [
-  { value: "insights" as const, label: "Insights" },
-  { value: "storages" as const, label: `Storages · ${count}` },
-  {
-    value: "syncs" as const,
-    label: syncs.sync ? `Syncs · ${syncs.sync}` : "Syncs",
-  },
-  {
-    value: "migrations" as const,
-    label: syncs.migrate ? `Migrations · ${syncs.migrate}` : "Migrations",
-  },
-]
-
-const syncKindOf = (tab: string) =>
+const syncKindOf = (tab: StoragePage) =>
   tab === "syncs" ? "sync" : tab === "migrations" ? "migrate" : null
+
+const pageTitles: Record<StoragePage, string> = {
+  insights: "Storage",
+  storages: "Storages",
+  syncs: "Syncs",
+  migrations: "Migrations",
+}
 
 export function StorageView() {
   const isPhone = useIsPhone()
@@ -70,211 +80,207 @@ function StorageDesktop() {
   const list = useStorages()
   const checking = useCheckingStorages()
   const items = sorted(list.data?.items ?? [])
-  const [{ tab }, setFilters] = useStoragePageFilters()
-  const syncCounts = useSyncCounts()
+  const tab = useStoragePage()
   const syncCan = useSyncCan()
   const syncKind = syncKindOf(tab)
 
+  const addButton = canAdd && (
+    <Button className="h-9" onClick={() => actions.addStorage()}>
+      <Plus />
+      Add storage
+    </Button>
+  )
+
+  let body: ReactNode
+  if (list.isPending) {
+    body = <StorageCardsSkeleton />
+  } else if (list.isError && !list.data) {
+    body = (
+      <div className="rounded-2xl border border-border">
+        <Failed error={list.error} onRetry={() => list.refetch()} />
+      </div>
+    )
+  } else if (items.length === 0) {
+    body = (
+      <div className="rounded-2xl border border-border">
+        <NoStorage onAdd={canAdd ? actions.addStorage : undefined} />
+      </div>
+    )
+  } else if (syncKind) {
+    body = (
+      <SyncList
+        kind={syncKind}
+        phone={false}
+        action={
+          syncCan.edit && (
+            <Button
+              className="h-9"
+              render={<Link href={newSyncHref({ kind: syncKind })} />}
+              nativeButton={false}
+            >
+              <Plus />
+              {syncKind === "sync" ? "New sync" : "New migration"}
+            </Button>
+          )
+        }
+      />
+    )
+  } else if (tab === "insights") {
+    body = (
+      <>
+        <div className="flex min-h-9 flex-wrap items-center gap-3">
+          <InsightsControls phone={false} />
+          {addButton && <span className="ms-auto">{addButton}</span>}
+        </div>
+        <InsightsBody phone={false} />
+      </>
+    )
+  } else {
+    body = (
+      <StoragesList
+        items={items}
+        checking={checking}
+        refreshing={list.isFetching}
+        onRefresh={() => list.refetch()}
+        action={addButton}
+      />
+    )
+  }
+
   return (
     <>
-      <h1 className="sr-only">Storage</h1>
-      <div className="flex flex-col gap-4 px-6 pt-5 pb-24">
-        <div className="flex min-h-9 flex-wrap items-center gap-3">
-          {items.length > 0 && (
-            <>
-              <Segmented
-                label="Show"
-                value={tab}
-                onChange={(tab) => setFilters({ tab })}
-                items={tabItems(items.length, syncCounts)}
-              />
-              {tab === "insights" && <InsightsControls phone={false} />}
-            </>
-          )}
-          {syncKind
-            ? syncCan.edit &&
-              items.length > 0 && (
-                <Button
-                  className="ms-auto"
-                  render={<Link href={newSyncHref({ kind: syncKind })} />}
-                  nativeButton={false}
-                >
-                  <Plus />
-                  {syncKind === "sync" ? "New sync" : "New migration"}
-                </Button>
-              )
-            : canAdd && (
-                <Button
-                  className="ms-auto"
-                  onClick={() => actions.addStorage()}
-                >
-                  <Plus />
-                  Add storage
-                </Button>
-              )}
-        </div>
-        {list.isPending ? (
-          <div className="overflow-hidden rounded-2xl border border-border">
-            {Array.from({ length: 4 }, (_, i) => (
-              <div
-                // biome-ignore lint/suspicious/noArrayIndexKey: static placeholders
-                key={i}
-                className="flex h-14 items-center gap-3 border-b border-border px-4 last:border-b-0"
-              >
-                <Skeleton className="size-8 rounded-lg" />
-                <Skeleton className="h-4 w-40" />
-                <Skeleton className="ms-auto h-4 w-56" />
-              </div>
-            ))}
-          </div>
-        ) : list.isError && !list.data ? (
-          <div className="rounded-2xl border border-border">
-            <Failed error={list.error} onRetry={() => list.refetch()} />
-          </div>
-        ) : items.length === 0 ? (
-          <div className="rounded-2xl border border-border">
-            <NoStorage onAdd={canAdd ? actions.addStorage : undefined} />
-          </div>
-        ) : syncKind ? (
-          <SyncList kind={syncKind} phone={false} />
-        ) : tab === "insights" ? (
-          <InsightsBody phone={false} />
-        ) : (
-          <div className="@container overflow-x-auto rounded-2xl border border-border">
-            <table className="w-full text-body-sm">
-              <thead className="border-b border-border bg-subtle text-caption text-muted-foreground">
-                <tr>
-                  <th scope="col" className="w-10 ps-3">
-                    <span className="sr-only">Favorite</span>
-                  </th>
-                  <Th>Name</Th>
-                  <Th>Type</Th>
-                  <Th>Address</Th>
-                  <Th>Status</Th>
-                  <Th className="hidden @4xl:table-cell">Checked</Th>
-                  <th scope="col" className="w-12">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {items.map((s) => (
-                  <Row key={s.id} storage={s} checking={checking.has(s.id)} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      <h1 className="sr-only">{pageTitles[tab]}</h1>
+      <div className="flex flex-col gap-4 px-6 pt-5 pb-24">{body}</div>
     </>
   )
 }
 
-function Th({
-  children,
-  className,
-}: {
-  children: ReactNode
-  className?: string
-}) {
-  return (
-    <th
-      scope="col"
-      className={cn("h-10 px-3 text-start font-medium", className)}
-    >
-      {children}
-    </th>
+// Which storages a list shows: the `show` choice, then the search.
+function useShownStorages(items: Storage[]) {
+  const [{ q, show }, setFilters] = useStorageListFilters()
+  const look = items.filter(isProblem)
+  const favorites = items.filter((s) => s.favorite)
+  const current =
+    show === "problems" || show === "favorites" ? show : ("all" as const)
+  const words = q.trim().toLowerCase()
+  const shown = (
+    current === "problems" ? look : current === "favorites" ? favorites : items
+  ).filter(
+    (s) =>
+      !words ||
+      [s.name, s.description, providerLabel(s), endpointLabel(s)].some((t) =>
+        t.toLowerCase().includes(words),
+      ),
   )
+  const choices = [
+    { value: "all" as const, label: `All · ${items.length}` },
+    { value: "problems" as const, label: `Needs a look · ${look.length}` },
+    ...(favorites.length
+      ? [
+          {
+            value: "favorites" as const,
+            label: `Favorites · ${favorites.length}`,
+          },
+        ]
+      : []),
+  ]
+  const empty = (
+    <Empty
+      icon={<SearchX />}
+      title={
+        current === "problems" && !words
+          ? "Nothing needs a look"
+          : "Nothing matches"
+      }
+      text={
+        current === "problems" && !words
+          ? "Every storage answered its last check."
+          : "Try another search, or show all storages."
+      }
+      bordered
+      action={
+        <Button
+          variant="outline"
+          onClick={() => setFilters({ q: null, show: null })}
+        >
+          Show all
+        </Button>
+      }
+    />
+  )
+  return {
+    q,
+    current,
+    look,
+    shown,
+    choices,
+    empty,
+    setShow: (v: "all" | "problems" | "favorites") =>
+      setFilters({ show: v === "all" ? null : v }),
+    setQ: (v: string) => setFilters({ q: v || null }),
+  }
 }
 
-function Row({
-  storage: s,
+// /storage/list on desktop: one toolbar row (which ones, search, a short
+// summary, Refresh, Add) above the cards.
+function StoragesList({
+  items,
   checking,
+  refreshing,
+  onRefresh,
+  action,
 }: {
-  storage: Storage
-  checking: boolean
+  items: Storage[]
+  checking: Set<string | undefined>
+  refreshing: boolean
+  onRefresh: () => void
+  action: ReactNode
 }) {
-  const actions = useStorageActions()
-  const can = useStorageCan()
+  const f = useShownStorages(items)
+  const online = items.filter((s) => s.status === "online").length
   return (
-    <tr className="group/row h-14 hover:bg-subtle">
-      <td className="ps-3">
-        <button
-          type="button"
-          aria-label={s.favorite ? "Remove from favorites" : "Add to favorites"}
-          aria-pressed={s.favorite}
-          disabled={!can(s, "operator")}
-          onClick={() => actions.toggleFavorite(s)}
-          className={cn(
-            "flex size-7 items-center justify-center rounded-lg text-ash enabled:hover:bg-muted enabled:hover:text-foreground",
-            !s.favorite &&
-              "opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100",
-          )}
-        >
-          <Star
-            className={cn("size-4", s.favorite && "fill-brand text-brand")}
-          />
-        </button>
-      </td>
-      <td className="max-w-72 px-3">
-        <Link
-          href={`/storage/${s.id}`}
-          className="flex items-center gap-3 outline-none hover:text-brand focus-visible:text-brand"
-        >
-          <ProtocolTile protocol={s.protocol} className="size-7 rounded-md" />
-          <span className="min-w-0">
-            <span className="block truncate font-medium">{s.name}</span>
-            {s.description && (
-              <span className="block truncate text-caption text-ash">
-                {s.description}
-              </span>
-            )}
+    <>
+      <div className="@container flex items-center gap-2">
+        <Segmented
+          label="Show"
+          items={f.choices}
+          value={f.current}
+          onChange={f.setShow}
+        />
+        <span className="mx-1 h-5 w-px shrink-0 bg-border" />
+        <SearchBox
+          value={f.q}
+          onChange={f.setQ}
+          placeholder="Search name, provider or address"
+          label="Search storages"
+          className="min-w-0 flex-1 md:max-w-72 md:min-w-36"
+        />
+        <div className="ms-auto flex shrink-0 items-center gap-2">
+          <span className="me-2 hidden text-caption whitespace-nowrap text-muted-foreground @3xl:inline">
+            {f.look.length
+              ? `${f.look.length} of ${items.length} need a look`
+              : `${online} of ${items.length} online`}
           </span>
-        </Link>
-      </td>
-      <td className="px-3 whitespace-nowrap">
-        <span className="flex items-center gap-2">
-          {providerLabel(s)}
-          {s.read_only && <ReadOnlyBadge />}
-        </span>
-      </td>
-      <td className="max-w-80 truncate px-3 font-mono text-caption text-muted-foreground">
-        {endpointLabel(s)}
-      </td>
-      <td className="px-3 whitespace-nowrap">
-        <span
-          className="flex items-center gap-2"
-          title={s.status === "online" ? s.detail : s.status_message}
-        >
-          <StatusDot status={s.status} checking={checking} />
-          {checking ? "Checking…" : statusMeta[s.status].label}
-          {!checking && s.status === "online" && s.latency_ms != null && (
-            <span className="text-muted-foreground">{s.latency_ms} ms</span>
-          )}
-        </span>
-      </td>
-      <td className="hidden px-3 whitespace-nowrap text-muted-foreground @4xl:table-cell">
-        {timeAgo(s.last_checked_at)}
-      </td>
-      <td className="pe-3">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={`${s.name} actions`}
-              />
-            }
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-9"
+            aria-label="Refresh"
+            title="Refresh"
+            disabled={refreshing}
+            onClick={onRefresh}
           >
-            <Ellipsis />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-56">
-            <StorageMenuItems storage={s} checking={checking} />
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </td>
-    </tr>
+            <RefreshCw className={cn(refreshing && "animate-spin")} />
+          </Button>
+          {action}
+        </div>
+      </div>
+      {f.shown.length ? (
+        <StorageCards items={f.shown} checking={checking} />
+      ) : (
+        f.empty
+      )}
+    </>
   )
 }
 
@@ -299,15 +305,16 @@ function StorageMobile() {
   const last = useRef<Storage | null>(null)
   const current = items.find((s) => s.id === sheetId) ?? last.current
   if (current) last.current = current
-  const [{ tab }, setFilters] = useStoragePageFilters()
+  const tab = useStoragePage()
   const syncCounts = useSyncCounts()
   const syncCan = useSyncCan()
   const syncKind = syncKindOf(tab)
+  const day = useStorageDay()
 
   return (
     <>
       <header className="flex items-center gap-1 px-4 pt-[max(--spacing(5),env(safe-area-inset-top))]">
-        <h1 className="text-heading font-light">Storage</h1>
+        <h1 className="text-heading font-light">{pageTitles[tab]}</h1>
         <HelpButton
           href={guideHref("storage")}
           label="Storage guide"
@@ -340,14 +347,14 @@ function StorageMobile() {
 
       {items.length > 0 && (
         <div className="flex flex-col gap-3 pt-4">
-          <div className="no-scrollbar overflow-x-auto px-4">
-            <Segmented
-              label="Show"
-              value={tab}
-              onChange={(tab) => setFilters({ tab })}
-              items={tabItems(items.length, syncCounts)}
-            />
-          </div>
+          <SectionLinks
+            item={storageItem}
+            counts={{
+              [storagePages.storages]: items.length,
+              [storagePages.syncs]: syncCounts.sync,
+              [storagePages.migrations]: syncCounts.migrate,
+            }}
+          />
           {tab === "insights" && (
             <div className="flex items-center gap-2 px-4">
               <InsightsControls phone />
@@ -409,13 +416,27 @@ function StorageMobile() {
                         {endpointLabel(s)}
                       </span>
                     </span>
+                    {day.byId.get(s.id) && (
+                      <MiniStrip
+                        states={day.byId.get(s.id)?.strip ?? []}
+                        label={`${s.name}: checks over the last 24 hours`}
+                        className="mt-1.5 max-w-48"
+                      />
+                    )}
                   </span>
-                  {s.favorite && (
-                    <Star
-                      aria-label="Favorite"
-                      className="size-4 shrink-0 fill-brand text-brand"
-                    />
-                  )}
+                  <span className="flex shrink-0 flex-col items-end gap-1">
+                    {s.favorite && (
+                      <Star
+                        aria-label="Favorite"
+                        className="size-4 fill-brand text-brand"
+                      />
+                    )}
+                    {day.byId.get(s.id)?.usage && (
+                      <span className="text-caption text-ash tabular-nums">
+                        {formatSize(day.byId.get(s.id)?.usage?.used_bytes ?? 0)}
+                      </span>
+                    )}
+                  </span>
                 </Link>
                 <button
                   type="button"
@@ -486,14 +507,21 @@ function Empty({
   title,
   text,
   action,
+  bordered,
 }: {
   icon: ReactNode
   title: string
   text: string
   action?: ReactNode
+  bordered?: boolean
 }) {
   return (
-    <div className="flex flex-col items-center px-6 py-16 text-center md:py-20">
+    <div
+      className={cn(
+        "flex flex-col items-center px-6 py-16 text-center md:py-20",
+        bordered && "rounded-2xl border border-border",
+      )}
+    >
       <span className="mb-4 flex size-11 items-center justify-center rounded-lg bg-brand-soft text-brand [&_svg]:size-5">
         {icon}
       </span>

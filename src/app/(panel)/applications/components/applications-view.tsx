@@ -15,6 +15,8 @@ import {
 } from "@/app/(panel)/servers/[id]/components/parts"
 import { guideHref } from "@/components/help/guides"
 import { HelpButton } from "@/components/help/help-link"
+import { applicationsItem } from "@/components/panel/nav"
+import { SectionLinks } from "@/components/panel/section-links"
 import { useWorkspace } from "@/components/panel/workspace"
 import { Button } from "@/components/ui/button"
 import { useIsPhone } from "@/hooks/useIsPhone"
@@ -29,12 +31,12 @@ import {
   sortInstalls,
 } from "./installed"
 import {
+  applicationsPages,
   installProblem,
   matchInstall,
   runShowLabels,
   showLabels,
   type Tab,
-  tabLabels,
   useApplicationsFilters,
 } from "./meta"
 import { useSoftwareCan } from "./permissions"
@@ -133,20 +135,6 @@ function View({ phone }: { phone: boolean }) {
   )
 }
 
-function Count({ n, tone }: { n: number; tone?: "brand" }) {
-  if (!n) return null
-  return (
-    <span
-      className={cn(
-        "ms-1.5 text-caption",
-        tone === "brand" ? "text-brand" : "text-ash",
-      )}
-    >
-      {n}
-    </span>
-  )
-}
-
 function Bar({
   phone,
   tab,
@@ -156,42 +144,11 @@ function Bar({
   tab: Tab
   action?: ReactNode
 }) {
-  const can = useSoftwareCan()
   const { workspace } = useWorkspace()
   const installs = useInstalls(workspace?.id)
   const [{ q, show, runs }, setFilters] = useApplicationsFilters()
   const items = installs.data?.items ?? []
   const hosts = installs.data?.hosts ?? []
-  const counts: Partial<Record<Tab, ReactNode>> = {
-    installed: <Count n={items.length} />,
-    updates: <Count n={updateCount(items, hosts)} tone="brand" />,
-  }
-  const shown = (["catalog", "installed", "updates", "activity"] as const)
-    .filter((t) => t !== "activity" || can.runs)
-    .map((t) => ({
-      value: t,
-      label: (
-        <>
-          {tabLabels[t]}
-          {counts[t]}
-        </>
-      ),
-    }))
-  const tabSwitch = (
-    <Segmented
-      label="Show"
-      items={shown}
-      value={tab}
-      onChange={(t) =>
-        setFilters({
-          tab: t === "catalog" ? null : t,
-          show: null,
-          runs: null,
-          cat: null,
-        })
-      }
-    />
-  )
   const searchLabel = {
     catalog: "Search applications",
     installed: "Search installed",
@@ -233,17 +190,24 @@ function Bar({
     return (
       <div className="flex flex-col gap-3 px-4 pb-3">
         {search}
-        <div className="-mx-4 flex [scrollbar-width:none] gap-2 overflow-x-auto px-4">
-          {tabSwitch}
-          {filter}
-        </div>
+        <SectionLinks
+          item={applicationsItem}
+          counts={{
+            [applicationsPages.installed]: items.length,
+            [applicationsPages.updates]: updateCount(items, hosts),
+          }}
+          className="-mx-4"
+        />
+        {filter && (
+          <div className="-mx-4 flex [scrollbar-width:none] gap-2 overflow-x-auto px-4">
+            {filter}
+          </div>
+        )}
       </div>
     )
   }
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {tabSwitch}
-      <span className="mx-1 h-5 w-px bg-border" />
       {search}
       {filter}
       {action && <div className="ms-auto flex gap-2">{action}</div>}

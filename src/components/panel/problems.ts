@@ -24,10 +24,11 @@ import {
   cronjobsItem,
   databasesItem,
   dnsItem,
+  monitoringItem,
+  type NavItem,
   proxyItem,
   serversItem,
   storageItem,
-  uptimeItem,
   vmsItem,
 } from "./nav"
 import { useWorkspace } from "./workspace"
@@ -188,7 +189,7 @@ export function useSoftwareProblems() {
   return data ?? 0
 }
 
-// Every uptime monitor in the workspace, as /uptime lists them.
+// Every uptime monitor in the workspace, as /monitoring lists them.
 export const monitorsQuery = (workspace: string) =>
   queryOptions({
     queryKey: ["monitors", "list", workspace] as const,
@@ -414,7 +415,7 @@ export function useNavAlerts() {
     })
   }
   if (uptime > 0) {
-    alerts.set(uptimeItem.href, {
+    alerts.set(monitoringItem.href, {
       count: uptime,
       label: `${plural(uptime, "monitor", "monitors")} down`,
     })
@@ -432,4 +433,22 @@ export function useNavAlerts() {
     })
   }
   return alerts
+}
+
+// A section's red count in the sidebar: its own plus those of sub-pages on
+// other paths (Monitoring also counts the firing alerts of /alerts).
+export function sectionAlert(
+  item: NavItem,
+  alerts: Map<string, NavAlert>,
+): NavAlert | undefined {
+  const paths = new Set([
+    item.href,
+    ...(item.children ?? []).map((c) => c.href.split("?")[0]),
+  ])
+  const found = [...paths].flatMap((p) => alerts.get(p) ?? [])
+  if (found.length < 2) return found[0]
+  return {
+    count: found.reduce((n, a) => n + a.count, 0),
+    label: found.map((a) => a.label).join(", "),
+  }
 }

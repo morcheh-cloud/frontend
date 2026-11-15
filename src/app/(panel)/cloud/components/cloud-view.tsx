@@ -22,7 +22,6 @@ import {
   type Note,
   Notices,
   SearchBox,
-  Segmented,
   SheetItems,
 } from "@/app/(panel)/servers/[id]/components/parts"
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
@@ -42,6 +41,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { useIsPhone } from "@/hooks/useIsPhone"
 import { useOpen } from "@/hooks/useOpen"
+import { useRouteTab } from "@/hooks/useRouteTab"
 import type {
   CloudAccount,
   CloudAccountRead,
@@ -84,8 +84,13 @@ const stateLabels: Record<StateFilter, string> = {
   other: "Other",
 }
 
+// The section's own pages (the sidebar's children of Cloud).
+export const cloudPages = {
+  accounts: "/cloud",
+  servers: "/cloud/servers",
+} as const satisfies Record<(typeof tabs)[number], string>
+
 export const cloudFilters = {
-  tab: parseAsStringLiteral(tabs).withDefault("accounts"),
   q: parseAsString.withDefault(""),
   account: parseAsString.withDefault(""),
   state: parseAsStringLiteral(states).withDefault("all"),
@@ -107,7 +112,8 @@ function useData() {
   const all = sortAccounts(accounts.data?.items ?? [])
   const servers = useCloudServers(all.length > 0)
   const [filters, setFilters] = useFilters()
-  const { tab, q, state } = filters
+  const tab = useRouteTab(cloudPages)
+  const { q, state } = filters
   // A filter on an account that's gone shows everything.
   const account = all.some((a) => a.id === filters.account)
     ? filters.account
@@ -257,15 +263,6 @@ function CloudDesktop() {
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-3">
-            <Segmented
-              label="Show"
-              value={d.tab}
-              onChange={(tab) => d.setFilters({ tab })}
-              items={[
-                { value: "accounts", label: `Accounts · ${d.all.length}` },
-                { value: "servers", label: `Servers · ${d.serverCount}` },
-              ]}
-            />
             <SearchBox
               value={d.q}
               onChange={(q) => d.setFilters({ q: q || null })}
@@ -715,18 +712,19 @@ function CloudMobile() {
               className="no-scrollbar flex gap-2 overflow-x-auto px-4"
             >
               {tabs.map((t) => (
-                <button
+                <Link
                   key={t}
-                  type="button"
+                  href={cloudPages[t]}
+                  replace
+                  scroll={false}
                   aria-current={d.tab === t ? "page" : undefined}
-                  onClick={() => d.setFilters({ tab: t })}
                   className={chipClass}
                 >
                   {t === "servers" ? "Servers" : "Accounts"}
                   <span className="tabular-nums opacity-70">
                     {t === "servers" ? d.serverCount : d.all.length}
                   </span>
-                </button>
+                </Link>
               ))}
               {d.tab === "servers" && (
                 <>

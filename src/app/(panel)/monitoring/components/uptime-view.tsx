@@ -24,12 +24,16 @@ import { timeAgo } from "@/app/(panel)/servers/components/meta"
 import { BottomSheet } from "@/components/bottom-sheet"
 import { guideHref } from "@/components/help/guides"
 import { HelpButton } from "@/components/help/help-link"
+import { monitoringItem } from "@/components/panel/nav"
+import { SectionLinks } from "@/components/panel/section-links"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useIsPhone } from "@/hooks/useIsPhone"
 import { useOpen } from "@/hooks/useOpen"
 import type { UptimeMonitor } from "@/lib/services"
 import { cn } from "@/lib/utils"
+import { QuickAlerts } from "../../alerts/components/quick-alerts"
+import { RuleActionsProvider } from "../../alerts/components/rule-actions"
 import { useIncidents, useMonitors } from "../api"
 import { IncidentList } from "./incidents"
 import { LocationDots } from "./location-report"
@@ -47,6 +51,7 @@ import {
   stateMeta,
   stateOf,
   targetText,
+  uptimePages,
   uptimeText,
   useUptimeFilters,
 } from "./meta"
@@ -57,7 +62,11 @@ import { useUptimeActions } from "./uptime-actions"
 export function UptimeView() {
   const phone = useIsPhone()
   if (phone === null) return null
-  return <View phone={phone} />
+  return (
+    <RuleActionsProvider phone={phone}>
+      <View phone={phone} />
+    </RuleActionsProvider>
+  )
 }
 
 export function searchMonitors(items: UptimeMonitor[], q: string) {
@@ -84,15 +93,15 @@ function View({ phone }: { phone: boolean }) {
   const all = [...(list.data ?? [])].sort(byState)
   const searched = searchMonitors(all, needle)
   const items = searched.filter((m) => matchesShow(m, show))
-  const create = () => router.push("/uptime/new")
+  const create = () => router.push("/monitoring/new")
   const openCount = openIncidents.data?.length ?? 0
 
   const header = phone ? (
     <header className="flex items-center gap-1 px-4 pt-[max(--spacing(5),env(safe-area-inset-top))]">
-      <h1 className="text-heading font-light">Uptime</h1>
+      <h1 className="text-heading font-light">Monitoring</h1>
       <HelpButton
-        href={guideHref("uptime")}
-        label="Uptime guide"
+        href={guideHref("monitoring")}
+        label="Monitoring guide"
         className="ms-auto"
       />
       {can.edit && (
@@ -170,11 +179,17 @@ function View({ phone }: { phone: boolean }) {
           phone ? "pt-4" : "gap-4 px-6 pt-5",
         )}
       >
+        {phone && (
+          <SectionLinks
+            item={monitoringItem}
+            counts={{ [uptimePages.incidents]: openCount }}
+            className="pb-3"
+          />
+        )}
         {(all.length > 0 || tab === "incidents") && (
           <Bar
             phone={phone}
             items={searched}
-            openIncidents={openCount}
             action={
               can.edit && (
                 <Button onClick={create}>
@@ -186,6 +201,9 @@ function View({ phone }: { phone: boolean }) {
           />
         )}
         {body}
+        {tab === "monitors" && (
+          <QuickAlerts phone={phone} className={phone ? "mt-8" : "mt-4"} />
+        )}
       </div>
     </>
   )
@@ -194,12 +212,10 @@ function View({ phone }: { phone: boolean }) {
 function Bar({
   phone,
   items,
-  openIncidents,
   action,
 }: {
   phone: boolean
   items: UptimeMonitor[]
-  openIncidents: number
   action?: ReactNode
 }) {
   const [{ tab, q, show, open }, setFilters] = useUptimeFilters()
@@ -210,29 +226,6 @@ function Bar({
       .filter((s) => count(s) > 0 || show === s)
       .map((s) => ({ value: s, label: `${stateMeta[s].label} ${count(s)}` })),
   ]
-  const tabs = (
-    <Segmented
-      label="View"
-      items={[
-        { value: "monitors" as const, label: "Monitors" },
-        {
-          value: "incidents" as const,
-          label: (
-            <span className="flex items-center gap-1.5">
-              Incidents
-              {openIncidents > 0 && (
-                <span className="rounded-full bg-destructive px-1.5 text-caption font-medium text-white tabular-nums">
-                  {openIncidents}
-                </span>
-              )}
-            </span>
-          ),
-        },
-      ]}
-      value={tab}
-      onChange={(t) => setFilters({ tab: t === "monitors" ? null : t })}
-    />
-  )
   const search = tab === "monitors" && (
     <SearchBox
       value={q}
@@ -266,7 +259,6 @@ function Bar({
       <div className="flex flex-col gap-3 px-4 pb-3">
         {search}
         <div className="-mx-4 flex [scrollbar-width:none] gap-2 overflow-x-auto px-4">
-          {tabs}
           {filter}
         </div>
       </div>
@@ -274,7 +266,6 @@ function Bar({
   }
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {tabs}
       {search}
       {filter}
       {action && <div className="ms-auto flex gap-2">{action}</div>}

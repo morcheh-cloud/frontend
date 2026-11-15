@@ -15,6 +15,7 @@ import { files } from "./files"
 import { firewall } from "./firewall"
 import { gettingStarted } from "./getting-started"
 import { logRetention } from "./log-retention"
+import { monitoring } from "./monitoring"
 import { networkMap } from "./network-map"
 import { packages } from "./packages"
 import { ports } from "./ports"
@@ -32,7 +33,6 @@ import { storage } from "./storage"
 import { tasks } from "./tasks"
 import { terminal } from "./terminal"
 import { terminalRecordings } from "./terminal-recordings"
-import { uptime } from "./uptime"
 import { users } from "./users"
 import { virtualMachines } from "./virtual-machines"
 
@@ -46,7 +46,7 @@ export const content: Record<string, GuideSection[]> = {
   "server-notes": serverNotes,
   "command-log": commandLog,
   "terminal-recordings": terminalRecordings,
-  uptime,
+  monitoring,
   alerts,
   terminal,
   files,

@@ -1,13 +1,15 @@
 "use client"
 
 import {
+  Boxes,
+  ChevronDown,
   CircleCheck,
   CircleMinus,
   CircleX,
-  ClipboardPaste,
   Copy,
   Loader2,
   PlugZap,
+  SlidersHorizontal,
   TriangleAlert,
 } from "lucide-react"
 import {
@@ -19,6 +21,11 @@ import {
 } from "react"
 import { toast } from "sonner"
 
+import {
+  useDockerContainers,
+  useDockerFleet,
+} from "@/app/(panel)/containers/api"
+import { Section } from "@/app/(panel)/cronjobs/components/editor-parts"
 import { useServers } from "@/app/(panel)/servers/api"
 import { Field, Segmented } from "@/app/(panel)/servers/components/fields"
 import { SecretInput } from "@/components/secret-input"
@@ -51,7 +58,9 @@ import {
   type Engine,
   EngineTile,
   engineMeta,
+  engineName,
   engines,
+  imageEngine,
   parseConnectionString,
   statusMeta,
 } from "./meta"
@@ -149,20 +158,52 @@ function toBody(
   }
 }
 
+// Fields kept under "More options": an error on one opens it.
+const advancedFields = [
+  "name",
+  "container",
+  "tls",
+  "ca_cert",
+  "allow_internal",
+  "interval_seconds",
+  "description",
+]
+
+// The name a database gets when none is typed: its database, container or
+// host, else the engine (and server).
+function autoName(v: Values, serverName?: string) {
+  const engine = engineMeta[v.engine].label.split(" / ")[0]
+  if (v.dbname.trim() && v.engine !== "redis") return v.dbname.trim()
+  if (v.mode === "server" && v.container) return v.container
+  const host = v.host.trim()
+  if (host && host !== "127.0.0.1" && host !== "localhost") {
+    return /^[\d.]+$/.test(host) || host.includes(":")
+      ? host
+      : host.split(".")[0]
+  }
+  return v.mode === "server" && serverName
+    ? `${engine} on ${serverName}`
+    : engine
+}
+
 export type DatabaseFormSubmit = {
   body: DatabaseBody
   setErrors: (errors: Record<string, string>) => void
 }
 
-// Desktop puts the test in the sheet's footer; the phone sheet keeps it
-// inline after the credentials.
+// The page lays these out: desktop puts the test in the title bar and its
+// result in the side column, phones keep both after the credentials.
 export type DatabaseFormParts = {
-  kind: ReactNode
   connection: ReactNode
   auth: ReactNode
   options: ReactNode
   testButton: ReactNode
   testResult: ReactNode
+  testing: boolean
+  dirty: boolean
+  engine: Engine
+  flavor?: string
+  summary: [label: string, value: ReactNode, mono?: boolean][]
 }
 
 const intervals = [
@@ -178,13 +219,15 @@ export function DatabaseForm({
   database,
   serverId,
   onSubmit,
+  phone,
   className,
   children,
 }: {
   formId: string
   database?: Database
-  // Opened from a server's tab: that server, through SSH, fixed.
+  // Opened from a server's tab: that server, picked to start with.
   serverId?: string
+  phone: boolean
   onSubmit: (submit: DatabaseFormSubmit) => void
   className?: string
   children: (parts: DatabaseFormParts) => ReactNode
@@ -192,26 +235,25 @@ export function DatabaseForm({
   const can = useCanAddDatabase()
   // Editing keeps whatever the database already uses.
   const canDirect = !!database || can.direct
-  const [values, setValues] = useState(() =>
-    initialValues(database, serverId, canDirect),
-  )
+  const [start] = useState(() => initialValues(database, serverId, canDirect))
+  const [values, setValues] = useState(start)
+  const [flavor, setFlavor] = useState(database?.flavor || undefined)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [tested, setTested] = useState<DatabaseTest | null>(null)
-  const [pasted, setPasted] = useState("")
-  const [pasteNote, setPasteNote] = useState<string | null>(null)
+  const [showMore, setShowMore] = useState(false)
   const test = useTestDatabase()
   const reveal = useRevealDatabaseCredentials(database?.id)
-  const nameRef = useRef<HTMLInputElement>(null)
+  const hostRef = useRef<HTMLInputElement>(null)
   const direct = values.mode === "direct"
   const outbound = useOutboundIp(direct)
   const servers = useServers({ limit: 500 })
   const meta = engineMeta[values.engine]
-  const lockedServer = !!serverId && !database
+  const dirty = JSON.stringify(values) !== JSON.stringify(start)
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: on mount only
   useEffect(() => {
-    if (!database && matchMedia("(pointer: fine)").matches) {
-      nameRef.current?.focus()
+    if (!database && direct && matchMedia("(pointer: fine)").matches) {
+      hostRef.current?.focus()
     }
   }, [])
 
@@ -225,6 +267,7 @@ export function DatabaseForm({
 
   // A new engine brings its own port and admin user, unless one was typed.
   function pickEngine(engine: Engine) {
+    setFlavor(undefined)
     setValues((v) => ({
       ...v,
       engine,
@@ -248,14 +291,11 @@ export function DatabaseForm({
     setTested(null)
   }
 
-  // Fills the form from a pasted URL or ADO string, then forgets the text:
-  // it usually holds the password.
+  // A connection string pasted into Host fills every field, then the text is
+  // gone: it usually holds the password.
   function fill(raw: string) {
     const p = parseConnectionString(raw)
-    if (!p) {
-      setPasteNote("Not a connection string Morche can read.")
-      return
-    }
+    if (!p) return false
     setValues((v) => ({
       ...v,
       engine: p.engine,
@@ -266,17 +306,16 @@ export function DatabaseForm({
       password: p.password ?? v.password,
       dbname: p.dbname ?? v.dbname,
       tls: p.tls ?? v.tls,
-      name: v.name || p.dbname || p.host.split(".")[0] || "",
     }))
-    setPasted("")
-    setPasteNote(`Filled in from the ${engineMeta[p.engine].label} string.`)
+    setFlavor(undefined)
     setErrors({})
     setTested(null)
+    toast.success(`Filled in from the ${engineMeta[p.engine].label} address`)
+    return true
   }
 
   function validate() {
     const e: Record<string, string> = {}
-    if (!values.name.trim()) e.name = "Give the database a name"
     if (direct && !values.host.trim()) {
       e.host = "Enter an IP address or domain"
     }
@@ -304,28 +343,48 @@ export function DatabaseForm({
       e.ca_cert = "Paste a PEM certificate (-----BEGIN CERTIFICATE-----…)"
     }
     setErrors(e)
-    return Object.keys(e).length === 0
+    const ok = Object.keys(e).length === 0
+    if (!ok) {
+      requestAnimationFrame(() =>
+        document
+          .querySelector(`#${CSS.escape(formId)} [aria-invalid=true]`)
+          ?.scrollIntoView({ block: "center", behavior: "smooth" }),
+      )
+    }
+    return ok
   }
+
+  const server = servers.data?.items.find((s) => s.id === values.server_id)
+  const fallbackName = autoName(values, server?.name)
+  const named = { ...values, name: values.name.trim() || fallbackName }
 
   function submit(event: FormEvent) {
     event.preventDefault()
     if (!validate()) return
     onSubmit({
-      body: toBody(values, can.allowInternal, database?.favorite),
+      body: toBody(named, can.allowInternal, database?.favorite),
       setErrors,
     })
   }
 
-  function runTest() {
+  function runTest(v: Values = values) {
     if (!validate()) return
     setTested(null)
     test.mutate(
-      { ...connection(values, can.allowInternal), database_id: database?.id },
+      { ...connection(v, can.allowInternal), database_id: database?.id },
       {
         onSuccess: setTested,
         onError: (error) => setErrors((e) => ({ ...e, ...fieldErrors(error) })),
       },
     )
+  }
+
+  // One-click fixes offered by a failed test, for settings kept under
+  // "More options".
+  function retryWith(patch: Partial<Values>) {
+    const next = { ...values, ...patch }
+    setValues(next)
+    runTest(next)
   }
 
   const serverOptions = (servers.data?.items ?? [])
@@ -334,8 +393,12 @@ export function DatabaseForm({
     )
     .map((s) => ({ value: s.id, label: s.name, detail: s.host }))
 
-  const kind = (
-    <Section title="Engine">
+  const connectionPart = (
+    <Section
+      title="Connection"
+      hint="Which database it is and where Morche finds it."
+      phone={phone}
+    >
       <div
         role="radiogroup"
         aria-label="Engine"
@@ -364,152 +427,92 @@ export function DatabaseForm({
           </button>
         ))}
       </div>
-      {!database && (
-        <Field
-          label="Connection string"
-          error={pasteNote?.startsWith("Not") ? pasteNote : undefined}
-          hint={
-            pasteNote ??
-            "Optional. Paste a URL like postgres://user:pass@host:5432/db and the fields fill in."
-          }
-        >
-          {(f) => (
-            <div className="flex gap-2">
-              <Input
-                {...f}
-                value={pasted}
-                onChange={(e) => {
-                  setPasted(e.target.value)
-                  setPasteNote(null)
-                }}
-                onPaste={(e) => {
-                  const text = e.clipboardData.getData("text")
-                  if (parseConnectionString(text)) {
-                    e.preventDefault()
-                    fill(text)
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault()
-                    fill(pasted)
-                  }
-                }}
-                placeholder="postgres://… · mysql://… · Server=…;"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-                autoComplete="off"
-                className="font-mono"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                className="max-md:h-11"
-                disabled={!pasted.trim()}
-                onClick={() => fill(pasted)}
-              >
-                <ClipboardPaste />
-                Fill
-              </Button>
-            </div>
-          )}
-        </Field>
-      )}
-    </Section>
-  )
-
-  const connectionPart = (
-    <Section title="Connection">
-      <Field label="Name" error={errors.name}>
-        {(f) => (
-          <Input
-            {...f}
-            ref={nameRef}
-            value={values.name}
-            onChange={(e) => set("name", e.target.value)}
-            placeholder="Shop database"
-            autoComplete="off"
-            maxLength={64}
-            enterKeyHint="next"
+      {canDirect && (
+        <div className="flex flex-col gap-1.5">
+          <Segmented
+            label="How Morche reaches it"
+            value={values.mode}
+            onChange={pickMode}
+            options={[
+              { value: "direct", label: "By address" },
+              { value: "server", label: "Through a server" },
+            ]}
           />
-        )}
-      </Field>
-      {!lockedServer && canDirect && (
-        <Segmented
-          label="How Morche reaches it"
-          value={values.mode}
-          onChange={pickMode}
-          options={[
-            { value: "server", label: "Through a server" },
-            { value: "direct", label: "Direct address" },
-          ]}
-        />
+          <p className="text-caption text-muted-foreground">
+            {direct
+              ? "Any IP or domain Morche can reach, like a managed database."
+              : "Over SSH to one of your servers, so the port stays closed to the internet."}
+          </p>
+        </div>
       )}
-      <p className="-mt-2 text-caption text-muted-foreground">
-        {direct
-          ? "Morche connects straight to a public IP or domain, e.g. a managed database."
-          : "Morche opens an SSH tunnel to one of your servers and connects from there, so the port stays closed to the internet."}
-      </p>
       {!direct && (
         <>
-          {!lockedServer && (
-            <Field label="Server" error={errors.server_id}>
-              {(f) => (
-                <ServerSelect
-                  id={f.id}
-                  value={values.server_id}
-                  onChange={(id) => set("server_id", id)}
-                  options={serverOptions}
-                  loading={servers.isPending}
-                />
-              )}
-            </Field>
-          )}
-          <Field
-            label="Docker container"
-            error={errors.container}
-            hint="Name or ID, when the database runs in a container. Empty = on the server itself."
-          >
+          <Field label="Server" error={errors.server_id}>
             {(f) => (
-              <Input
-                {...f}
-                value={values.container}
-                onChange={(e) => set("container", e.target.value.trim())}
-                placeholder="Not in a container"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-                autoComplete="off"
-                enterKeyHint="next"
-                className="font-mono"
+              <ServerSelect
+                id={f.id}
+                value={values.server_id}
+                onChange={(id) => set("server_id", id)}
+                options={serverOptions}
+                loading={servers.isPending}
               />
             )}
           </Field>
+          {values.server_id && (
+            <ContainerPicks
+              serverId={values.server_id}
+              value={values.container}
+              onPick={(c, found) => {
+                const off = c.name === values.container
+                setValues((v) => ({
+                  ...v,
+                  container: off ? "" : c.name,
+                  engine: found.engine,
+                  username:
+                    found.engine !== v.engine &&
+                    (!v.username || v.username === engineMeta[v.engine].user)
+                      ? engineMeta[found.engine].user
+                      : v.username,
+                }))
+                setFlavor(off ? undefined : found.flavor)
+                setErrors(({ container: _, ...rest }) => rest)
+                setTested(null)
+              }}
+            />
+          )}
         </>
       )}
-      <div className="grid grid-cols-[minmax(0,1fr)_6rem] gap-3">
+      <div className="grid grid-cols-[minmax(0,1fr)_6.5rem] gap-3">
         <Field
-          label={direct ? "Host" : "Address on the server"}
+          label={direct ? "Host" : "Host on the server"}
           error={errors.host}
           hint={
             direct
-              ? undefined
+              ? database
+                ? undefined
+                : "Or paste a connection string (postgres://…) to fill everything."
               : values.container
-                ? "Empty = the container's own address."
-                : "Empty = 127.0.0.1. Another host the server can reach works too."
+                ? `Empty = the container ${values.container}.`
+                : "Empty = 127.0.0.1, the server itself."
           }
         >
           {(f) => (
             <Input
               {...f}
+              ref={hostRef}
               value={values.host}
               onChange={(e) => set("host", e.target.value.trim())}
+              onBlur={(e) => {
+                if (/:\/\/|=/.test(e.target.value)) fill(e.target.value)
+              }}
+              onPaste={(e) => {
+                if (fill(e.clipboardData.getData("text"))) e.preventDefault()
+              }}
               placeholder={
                 direct
                   ? "db.example.com"
                   : values.container
-                    ? "Container"
+                    ? values.container
                     : "127.0.0.1"
               }
               inputMode="url"
@@ -537,126 +540,67 @@ export function DatabaseForm({
           )}
         </Field>
       </div>
-      {direct && (
-        <OutboundIp ip={outbound.data?.ip} loading={outbound.isPending} />
-      )}
-      {direct && can.allowInternal && (
-        <CheckRow
-          checked={values.allow_internal}
-          onChange={(on) => set("allow_internal", on)}
-          label="Allow a private address"
-          text="10.x, 192.168.x, localhost and the like are refused by default, so nobody can probe Morche's own network."
-        />
-      )}
-      <div className="flex flex-col gap-1.5">
-        <span className="text-body-sm font-medium">Encryption (TLS)</span>
-        <Segmented
-          label="Encryption"
-          value={values.tls}
-          onChange={(v) => set("tls", v)}
-          options={[
-            { value: "disable", label: "Off" },
-            { value: "require", label: "Encrypted" },
-            { value: "verify", label: "Verified" },
-          ]}
-        />
-        <p
-          className={cn(
-            "flex items-start gap-1.5 text-caption",
-            direct && values.tls === "disable"
-              ? "text-warning"
-              : "text-muted-foreground",
-          )}
-        >
-          {direct && values.tls === "disable" && (
-            <TriangleAlert className="mt-px size-3.5 shrink-0" />
-          )}
-          {values.tls === "disable"
-            ? direct
-              ? "The password and data cross the internet unencrypted."
-              : "Fine here: the traffic already rides the SSH tunnel."
-            : values.tls === "require"
-              ? "Encrypted, without checking who answers. Enough for most managed databases."
-              : "Encrypted and the certificate must be valid for this host."}
-        </p>
-      </div>
-      {values.tls === "verify" && (
-        <Field
-          label="CA certificate"
-          error={errors.ca_cert}
-          hint="PEM. Empty = the system's trusted CAs. Providers offer theirs for download."
-        >
-          {(f) => (
-            <Textarea
-              {...f}
-              value={values.ca_cert}
-              onChange={(e) => set("ca_cert", e.target.value)}
-              placeholder="-----BEGIN CERTIFICATE-----"
-              spellCheck={false}
-              className="min-h-24 font-mono text-caption"
-            />
-          )}
-        </Field>
-      )}
     </Section>
   )
 
   const saved = database?.has_password && !values.clear_password
   const auth = (
-    <Section title="Credentials">
-      <Field
-        label="Username"
-        error={errors.username}
-        hint={
-          values.engine === "redis"
-            ? "Only with ACL users (Redis 6+). Empty = the default user."
-            : values.engine === "mongodb"
-              ? "Empty when authentication is off."
-              : "A read-only monitoring user is enough for everything except stopping sessions."
-        }
-      >
-        {(f) => (
-          <Input
-            {...f}
-            value={values.username}
-            onChange={(e) => set("username", e.target.value)}
-            placeholder={meta.user || "default"}
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            autoComplete="off"
-            enterKeyHint="next"
-            className="font-mono"
-          />
-        )}
-      </Field>
-      <Field
-        label="Password"
-        error={errors.password}
-        hint={
-          saved
-            ? "Saved and encrypted. Leave blank to keep it."
-            : "Stored encrypted."
-        }
-      >
-        {(f) => (
-          <SecretInput
-            {...f}
-            value={values.password}
-            onChange={(e) => {
-              set("password", e.target.value)
-              if (e.target.value) set("clear_password", false)
-            }}
-            placeholder={saved ? "••••••••" : undefined}
-            autoComplete="new-password"
-            load={
-              saved
-                ? () => reveal.mutateAsync().then((c) => c.password)
+    <Section
+      title="Sign in"
+      hint="The login Morche uses. Stored encrypted."
+      phone={phone}
+    >
+      <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
+        <Field
+          label="Username"
+          error={errors.username}
+          hint={
+            values.engine === "redis"
+              ? "Only with ACL users. Empty = default."
+              : values.engine === "mongodb"
+                ? "Empty when sign-in is off."
                 : undefined
-            }
-          />
-        )}
-      </Field>
+          }
+        >
+          {(f) => (
+            <Input
+              {...f}
+              value={values.username}
+              onChange={(e) => set("username", e.target.value)}
+              placeholder={meta.user || "default"}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              autoComplete="off"
+              enterKeyHint="next"
+              className="font-mono"
+            />
+          )}
+        </Field>
+        <Field
+          label="Password"
+          error={errors.password}
+          hint={saved ? "Leave blank to keep the saved one." : undefined}
+        >
+          {(f) => (
+            <SecretInput
+              {...f}
+              value={values.password}
+              onChange={(e) => {
+                set("password", e.target.value)
+                if (e.target.value) set("clear_password", false)
+              }}
+              placeholder={saved ? "••••••••" : undefined}
+              autoComplete="new-password"
+              load={
+                saved
+                  ? () => reveal.mutateAsync().then((c) => c.password)
+                  : undefined
+              }
+            />
+          )}
+        </Field>
+      </div>
       {database?.has_password && !values.password && (
         <CheckRow
           checked={values.clear_password}
@@ -664,7 +608,11 @@ export function DatabaseForm({
           label="Forget the saved password"
         />
       )}
-      <Field label={meta.dbLabel} error={errors.dbname} hint={meta.dbHint}>
+      <Field
+        label={`${meta.dbLabel} (optional)`}
+        error={errors.dbname}
+        hint={meta.dbHint}
+      >
         {(f) => (
           <Input
             {...f}
@@ -683,7 +631,7 @@ export function DatabaseForm({
             autoCorrect="off"
             spellCheck={false}
             autoComplete="off"
-            enterKeyHint="next"
+            enterKeyHint="done"
             className="font-mono"
           />
         )}
@@ -694,36 +642,177 @@ export function DatabaseForm({
   const intervalOptions = intervals.some((i) => i.value === values.interval)
     ? intervals
     : [...intervals, { value: values.interval, label: `${values.interval} s` }]
+  const intervalLabel =
+    intervals.find((i) => i.value === values.interval)?.label ??
+    `${values.interval} s`
+  const tlsLabel = { disable: "Off", require: "Encrypted", verify: "Verified" }
+  // A refused field under "More options" opens it.
+  const moreOpen =
+    showMore || advancedFields.some((k) => errors[k] !== undefined)
+  const moreSummary = [
+    `Name ${values.name.trim() || fallbackName}`,
+    { disable: "No encryption", require: "Encrypted", verify: "Verified TLS" }[
+      values.tls
+    ],
+    !direct && values.container ? `Container ${values.container}` : null,
+    `Checked every ${intervalLabel}`,
+  ]
+    .filter(Boolean)
+    .join(" · ")
+
   const options = (
-    <Section title="Monitoring">
-      <div className="flex flex-col gap-1.5">
-        <span className="text-body-sm font-medium">Check every</span>
-        <Segmented
-          label="Check every"
-          value={String(values.interval)}
-          onChange={(v) => set("interval", Number(v))}
-          options={intervalOptions.map((i) => ({
-            value: String(i.value),
-            label: i.label,
-          }))}
+    <Section
+      title="More options"
+      hint="Name, encryption and checks. The defaults fit most databases."
+      phone={phone}
+    >
+      <button
+        type="button"
+        aria-expanded={moreOpen}
+        onClick={() => setShowMore(!moreOpen)}
+        className="flex min-h-11 w-full min-w-0 items-center gap-3 rounded-lg border border-border bg-subtle px-3 py-2 text-start outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+      >
+        <SlidersHorizontal className="size-4 shrink-0 text-muted-foreground" />
+        <span className="min-w-0 flex-1 truncate text-body-sm text-muted-foreground">
+          {moreOpen ? "Hide options" : moreSummary}
+        </span>
+        <ChevronDown
+          className={cn(
+            "size-4 shrink-0 text-ash transition-transform",
+            moreOpen && "rotate-180",
+          )}
         />
-        <p className="text-caption text-muted-foreground">
-          Each check runs a few light queries. A busy production database is
-          fine at 1 min.
-        </p>
-      </div>
-      <Field label="Notes" error={errors.description}>
-        {(f) => (
-          <Textarea
-            {...f}
-            value={values.description}
-            onChange={(e) => set("description", e.target.value)}
-            placeholder="What it serves, who to call…"
-            maxLength={500}
-            className="min-h-20"
-          />
-        )}
-      </Field>
+      </button>
+      {moreOpen && (
+        <>
+          <Field
+            label="Name"
+            error={errors.name}
+            hint="How it shows in Morche. Empty = the name shown here."
+          >
+            {(f) => (
+              <Input
+                {...f}
+                value={values.name}
+                onChange={(e) => set("name", e.target.value)}
+                placeholder={fallbackName}
+                autoComplete="off"
+                maxLength={64}
+              />
+            )}
+          </Field>
+          {!direct && (
+            <Field
+              label="Docker container"
+              error={errors.container}
+              hint="Name or ID, when it runs in a container. Empty = on the server itself."
+            >
+              {(f) => (
+                <Input
+                  {...f}
+                  value={values.container}
+                  onChange={(e) => set("container", e.target.value.trim())}
+                  placeholder="Not in a container"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  autoComplete="off"
+                  className="font-mono"
+                />
+              )}
+            </Field>
+          )}
+          <div className="flex flex-col gap-1.5">
+            <span className="text-body-sm font-medium">Encryption (TLS)</span>
+            <Segmented
+              label="Encryption"
+              value={values.tls}
+              onChange={(v) => set("tls", v)}
+              options={[
+                { value: "disable", label: "Off" },
+                { value: "require", label: "Encrypted" },
+                { value: "verify", label: "Verified" },
+              ]}
+            />
+            <p
+              className={cn(
+                "flex items-start gap-1.5 text-caption",
+                direct && values.tls === "disable"
+                  ? "text-warning"
+                  : "text-muted-foreground",
+              )}
+            >
+              {direct && values.tls === "disable" && (
+                <TriangleAlert className="mt-px size-3.5 shrink-0" />
+              )}
+              {values.tls === "disable"
+                ? direct
+                  ? "The password and data cross the network unencrypted."
+                  : "Fine here: the traffic already rides the SSH tunnel."
+                : values.tls === "require"
+                  ? "Encrypted, without checking who answers. Enough for most managed databases."
+                  : "Encrypted and the certificate must be valid for this host."}
+            </p>
+          </div>
+          {values.tls === "verify" && (
+            <Field
+              label="CA certificate"
+              error={errors.ca_cert}
+              hint="PEM. Empty = the system's trusted CAs. Providers offer theirs for download."
+            >
+              {(f) => (
+                <Textarea
+                  {...f}
+                  value={values.ca_cert}
+                  onChange={(e) => set("ca_cert", e.target.value)}
+                  placeholder="-----BEGIN CERTIFICATE-----"
+                  spellCheck={false}
+                  className="min-h-24 font-mono text-caption"
+                />
+              )}
+            </Field>
+          )}
+          {direct && can.allowInternal && (
+            <CheckRow
+              checked={values.allow_internal}
+              onChange={(on) => set("allow_internal", on)}
+              label="Allow a private address"
+              text="10.x, 192.168.x, localhost and the like are refused by default, so nobody can probe Morche's own network."
+            />
+          )}
+          {direct && (
+            <OutboundIp ip={outbound.data?.ip} loading={outbound.isPending} />
+          )}
+          <div className="flex flex-col gap-1.5">
+            <span className="text-body-sm font-medium">Check every</span>
+            <Segmented
+              label="Check every"
+              value={String(values.interval)}
+              onChange={(v) => set("interval", Number(v))}
+              options={intervalOptions.map((i) => ({
+                value: String(i.value),
+                label: i.label,
+              }))}
+            />
+            <p className="text-caption text-muted-foreground">
+              Each check runs a few light queries. A busy production database is
+              fine at 1 min.
+            </p>
+          </div>
+          <Field label="Notes" error={errors.description}>
+            {(f) => (
+              <Textarea
+                {...f}
+                value={values.description}
+                onChange={(e) => set("description", e.target.value)}
+                placeholder="What it serves, who to call…"
+                maxLength={500}
+                className="min-h-20"
+              />
+            )}
+          </Field>
+        </>
+      )}
     </Section>
   )
 
@@ -732,7 +821,7 @@ export function DatabaseForm({
       type="button"
       variant="outline"
       className="max-md:h-11"
-      onClick={runTest}
+      onClick={() => runTest()}
       disabled={test.isPending}
     >
       {test.isPending ? <Loader2 className="animate-spin" /> : <PlugZap />}
@@ -744,25 +833,156 @@ export function DatabaseForm({
     test.isError && !Object.keys(fieldErrors(test.error)).length
       ? test.error.message
       : null
+  const fixes: { label: string; patch: Partial<Values> }[] = []
+  if (tested?.status === "tls_error" && values.tls !== "disable") {
+    fixes.push({ label: "Try without encryption", patch: { tls: "disable" } })
+  }
+  if (
+    tested?.status === "blocked" &&
+    direct &&
+    can.allowInternal &&
+    !values.allow_internal
+  ) {
+    fixes.push({
+      label: "Allow a private address",
+      patch: { allow_internal: true },
+    })
+  }
   const testResult = tested ? (
-    <TestResult result={tested} />
+    <TestResult
+      result={tested}
+      fixes={fixes.map((x) => ({
+        label: x.label,
+        run: () => retryWith(x.patch),
+      }))}
+    />
   ) : testError ? (
     <p role="alert" className="text-caption text-destructive">
       {testError}
     </p>
   ) : null
 
+  const summary: DatabaseFormParts["summary"] = [
+    ["Engine", engineName({ engine: values.engine, flavor: flavor ?? "" })],
+    ["Name", named.name],
+    [
+      "Reached",
+      direct
+        ? "Directly"
+        : server
+          ? `Through ${server.name}`
+          : "Through a server",
+    ],
+    [
+      "Address",
+      direct
+        ? values.host
+          ? `${values.host}:${values.port || meta.port}`
+          : ""
+        : values.container
+          ? `${values.container}:${values.port || meta.port}`
+          : `${values.host || "127.0.0.1"}:${values.port || meta.port}`,
+      true,
+    ],
+    [
+      "Signs in as",
+      values.username.trim() || (meta.user ? "" : "default"),
+      true,
+    ],
+    ["Encryption", tlsLabel[values.tls]],
+    ["Checked every", intervalLabel],
+  ]
+
   return (
     <form id={formId} onSubmit={submit} noValidate className={className}>
       {children({
-        kind,
         connection: connectionPart,
         auth,
         options,
         testButton,
         testResult,
+        testing: test.isPending,
+        dirty,
+        engine: values.engine,
+        flavor,
+        summary,
       })}
     </form>
+  )
+}
+
+// The server's containers that run a database image, one tap away from the
+// "Docker container" field. Shown only when the server has a working engine.
+function ContainerPicks({
+  serverId,
+  value,
+  onPick,
+}: {
+  serverId: string
+  value: string
+  onPick: (
+    container: { name: string; project?: string },
+    found: NonNullable<ReturnType<typeof imageEngine>>,
+  ) => void
+}) {
+  const fleet = useDockerFleet()
+  const ready =
+    fleet.data?.servers.find((s) => s.server_id === serverId)?.state === "ready"
+  const containers = useDockerContainers(serverId, ready)
+  if (!ready) return null
+  const found = (containers.data ?? []).flatMap((c) => {
+    const e = imageEngine(c.image)
+    return e ? [{ c, e }] : []
+  })
+  if (containers.isPending) {
+    return (
+      <p className="-mt-2 flex items-center gap-1.5 text-caption text-ash">
+        <Loader2 className="size-3.5 animate-spin" />
+        Looking for database containers on this server…
+      </p>
+    )
+  }
+  if (!found.length) return null
+  return (
+    <div className="-mt-1 flex flex-col gap-2">
+      <span className="flex items-center gap-1.5 text-caption text-muted-foreground">
+        <Boxes className="size-3.5" />
+        Database containers on this server
+      </span>
+      <div className="flex flex-wrap gap-1.5">
+        {found.map(({ c, e }) => {
+          const on = c.name === value
+          return (
+            <button
+              key={c.id}
+              type="button"
+              aria-pressed={on}
+              onClick={() => onPick(c, e)}
+              className={cn(
+                "inline-flex h-10 max-w-full min-w-0 items-center gap-2 rounded-full border ps-1.5 pe-3 text-start text-body-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50 md:h-9",
+                on
+                  ? "border-brand/30 bg-brand-soft text-brand-strong"
+                  : "border-mist hover:bg-muted",
+              )}
+            >
+              <EngineTile
+                engine={e.engine}
+                flavor={e.flavor}
+                className="size-6 rounded-full border-0 bg-card text-[9px]"
+              />
+              <span className="min-w-0 truncate font-mono text-caption">
+                {c.name}
+              </span>
+              {c.state !== "running" && (
+                <span className="shrink-0 text-caption text-ash">
+                  {c.state}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
@@ -867,17 +1087,6 @@ function OutboundIp({ ip, loading }: { ip?: string; loading: boolean }) {
   )
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="flex flex-col gap-4">
-      <h3 className="font-label text-caption tracking-label text-ash uppercase">
-        {title}
-      </h3>
-      {children}
-    </section>
-  )
-}
-
 function CheckRow({
   checked,
   onChange,
@@ -918,7 +1127,13 @@ const stepIcon = {
 
 // Each step of the connection (DNS, TCP, TLS, sign-in, permissions), so a
 // failure says exactly where it stopped.
-function TestResult({ result }: { result: DatabaseTest }) {
+function TestResult({
+  result,
+  fixes,
+}: {
+  result: DatabaseTest
+  fixes: { label: string; run: () => void }[]
+}) {
   const online = result.status === "online"
   return (
     <div
@@ -961,6 +1176,22 @@ function TestResult({ result }: { result: DatabaseTest }) {
       )}
       {!online && result.message && !result.steps.length && (
         <span className="text-muted-foreground">{result.message}</span>
+      )}
+      {fixes.length > 0 && (
+        <div className="flex flex-wrap gap-2 pt-1">
+          {fixes.map((x) => (
+            <Button
+              key={x.label}
+              type="button"
+              variant="outline"
+              size="sm"
+              className="max-md:h-11"
+              onClick={x.run}
+            >
+              {x.label}
+            </Button>
+          ))}
+        </div>
       )}
     </div>
   )

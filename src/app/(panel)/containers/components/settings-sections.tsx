@@ -13,8 +13,8 @@ import { Switch } from "@/components/ui/switch"
 import { formatSize } from "@/lib/format"
 import type { DockerAutoPrune } from "@/lib/services"
 import { useChannels } from "../../alerts/api"
+import { ChannelPicker } from "../../monitoring/components/monitor-editor"
 import { timeAgo } from "../../servers/components/meta"
-import { ChannelPicker } from "../../uptime/components/monitor-editor"
 import { useDockerActions } from "./docker-actions"
 import { ChoiceChip } from "./kit"
 import {
@@ -436,7 +436,7 @@ function NotificationsSection({ ctl }: { ctl: Ctl }) {
     <Group
       id="notifications"
       description="Messages to the workspace's alert channels when something needs a look, so nobody has to keep the Updates and Security pages open."
-      link={{ href: "/alerts?tab=channels", label: "Alerts" }}
+      link={{ href: "/alerts/channels", label: "Alerts" }}
     >
       <Row
         label="New image updates"

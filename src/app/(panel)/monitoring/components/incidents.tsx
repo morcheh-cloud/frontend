@@ -16,7 +16,7 @@ import { useUptimeCan } from "./permissions"
 import { useUptimeActions } from "./uptime-actions"
 
 // Incidents as a list: going on first, each with how long it lasted, its
-// cause and who's on it. Used by /uptime's Incidents tab and a monitor page.
+// cause and who's on it. Used by /monitoring's Incidents tab and a monitor page.
 export function IncidentList({
   phone,
   query,

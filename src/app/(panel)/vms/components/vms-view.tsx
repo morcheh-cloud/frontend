@@ -19,11 +19,11 @@ import {
   Empty,
   type Item,
   SearchBox,
-  Segmented,
 } from "@/app/(panel)/servers/[id]/components/parts"
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
 import { guideHref } from "@/components/help/guides"
 import { HelpButton } from "@/components/help/help-link"
+import { vmsItem } from "@/components/panel/nav"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useIsPhone } from "@/hooks/useIsPhone"
@@ -69,6 +69,7 @@ import {
   storageActive,
   useVmsFilters,
   vmHref,
+  vmsHref,
 } from "./meta"
 import { ClusterProblems, CpuUsage, Usage } from "./parts"
 import { useCanAddCluster, useCanCreateVm, useVmCan } from "./permissions"
@@ -118,6 +119,7 @@ function dedupeStorages(list: PVEStorage[]) {
 
 function useData() {
   const [f, setFilters] = useVmsFilters()
+  const router = useRouter()
   const clusters = useClusters()
   const guests = useGuests()
   const infra = useInfrastructure()
@@ -222,6 +224,11 @@ function useData() {
   return {
     f,
     setFilters,
+    // Opens another of the section's pages, keeping the cluster filter.
+    go: (
+      tab: PageTab,
+      values: { cluster?: string | null; node?: string | null } = {},
+    ) => router.push(vmsHref(tab, { cluster: f.cluster || null, ...values })),
     clusters,
     guests,
     infra,
@@ -305,36 +312,23 @@ function Vms({ phone }: { phone: boolean }) {
       : []
 
   const tab = d.f.tab
-  const tabs = phone ? (
-    <nav aria-label="Show" className="flex gap-2">
+  // Phones have no sidebar: the section's pages show as chips here.
+  const tabs = phone && (
+    <nav aria-label={vmsItem.label} className="flex gap-2">
       {(Object.keys(tabLabels) as PageTab[]).map((t) => (
-        <button
+        <Link
           key={t}
-          type="button"
+          href={vmsHref(t, { cluster: d.f.cluster || null })}
+          replace
+          scroll={false}
           aria-current={tab === t ? "page" : undefined}
-          onClick={() => d.setFilters({ tab: t })}
           className={chipClass}
         >
           {tabLabels[t]}
           <span className="tabular-nums opacity-70">{d.counts[t]}</span>
-        </button>
+        </Link>
       ))}
     </nav>
-  ) : (
-    <Segmented
-      label="Show"
-      value={tab}
-      onChange={(t) => d.setFilters({ tab: t })}
-      items={(Object.keys(tabLabels) as PageTab[]).map((t) => ({
-        value: t,
-        label: (
-          <>
-            {tabLabels[t]}
-            <span className="ms-1.5 text-ash tabular-nums">{d.counts[t]}</span>
-          </>
-        ),
-      }))}
-    />
   )
 
   const clusterChip = d.many && tab !== "clusters" && (
@@ -786,8 +780,7 @@ function Nodes({
           label: "Show its machines",
           icon: <Monitor />,
           onSelect: () =>
-            d.setFilters({
-              tab: "machines",
+            d.go("machines", {
               cluster: d.many ? n.cluster_id : null,
               node: n.node,
             }),
@@ -797,8 +790,7 @@ function Nodes({
           label: "Show its storage",
           icon: <HardDrive />,
           onSelect: () =>
-            d.setFilters({
-              tab: "storage",
+            d.go("storage", {
               cluster: d.many ? n.cluster_id : null,
               node: n.node,
             }),
@@ -928,8 +920,7 @@ function Nodes({
                     type="button"
                     className="hover:underline"
                     onClick={() =>
-                      d.setFilters({
-                        tab: "machines",
+                      d.go("machines", {
                         cluster: d.many ? n.cluster_id : null,
                         node: n.node,
                       })
@@ -1112,7 +1103,7 @@ function Clusters({ d, phone }: { d: Data; phone: boolean }) {
   const menu = useClusterMenu()
   if (d.shownClusters.length === 0) return <NoMatch onReset={d.reset} />
   const open = (c: PVECluster) =>
-    d.setFilters({ tab: "machines", cluster: c.id, node: null })
+    d.go("machines", { cluster: c.id, node: null })
 
   if (phone) {
     return (

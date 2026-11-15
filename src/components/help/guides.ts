@@ -556,6 +556,9 @@ export const guides: GuideMeta[] = [
     ],
     routes: [
       "/vms",
+      "/vms/nodes#nodes-storage",
+      "/vms/storage#nodes-storage",
+      "/vms/clusters#connect",
       "/vms/new#new-machine",
       "/vms/*/*/console#console",
       "/vms/*/*/hardware#hardware",
@@ -616,7 +619,13 @@ export const guides: GuideMeta[] = [
       "restore",
       "retention",
     ],
-    routes: ["/databases", "/databases/*", "/servers/*/databases"],
+    routes: [
+      "/databases",
+      "/databases/new#add",
+      "/databases/*/edit#add",
+      "/databases/*",
+      "/servers/*/databases",
+    ],
   },
   {
     slug: "service-launcher",
@@ -689,6 +698,9 @@ export const guides: GuideMeta[] = [
     ],
     routes: [
       "/applications",
+      "/applications/installed#installed",
+      "/applications/updates#updates",
+      "/applications/activity#activity",
       "/applications/runs/*",
       "/applications/recipes/*#custom",
       "/servers/*/applications#server-tab",
@@ -723,7 +735,13 @@ export const guides: GuideMeta[] = [
       "builder",
       "handler",
     ],
-    routes: ["/ansible", "/ansible/playbooks/*", "/ansible/runs/*"],
+    routes: [
+      "/ansible",
+      "/ansible/modules#modules",
+      "/ansible/runs#results",
+      "/ansible/playbooks/*",
+      "/ansible/runs/*",
+    ],
   },
   {
     slug: "cronjobs",
@@ -772,13 +790,14 @@ export const guides: GuideMeta[] = [
     routes: ["/cronjobs", "/cronjobs/*", "/cronjobs/*/edit"],
   },
   {
-    slug: "uptime",
-    title: "Uptime",
+    slug: "monitoring",
+    title: "Monitoring",
     summary:
       "Watch websites, ports, certificates, DNS, databases, queues, containers and your own jobs, and know the moment one stops answering.",
     icon: HeartPulse,
     group: "Infrastructure",
     keywords: [
+      "monitoring",
       "locations",
       "regions",
       "multi-location",
@@ -809,7 +828,12 @@ export const guides: GuideMeta[] = [
       "response time",
       "uptime kuma",
     ],
-    routes: ["/uptime", "/uptime/*", "/uptime/*/edit", "/servers/*/uptime"],
+    routes: [
+      "/monitoring",
+      "/monitoring/*",
+      "/monitoring/*/edit",
+      "/servers/*/monitors",
+    ],
   },
   {
     slug: "alerts",
@@ -850,7 +874,11 @@ export const guides: GuideMeta[] = [
       "service failed",
       "database down",
     ],
-    routes: ["/alerts"],
+    routes: [
+      "/alerts#rules",
+      "/alerts/channels#add",
+      "/alerts/activity#manage",
+    ],
   },
   {
     slug: "command-log",
@@ -950,7 +978,7 @@ export const guides: GuideMeta[] = [
       "network",
       "backup schedule",
     ],
-    routes: ["/cloud", "/cloud/*#account-page"],
+    routes: ["/cloud", "/cloud/servers#servers", "/cloud/*#account-page"],
   },
   {
     slug: "dns",
@@ -1275,7 +1303,10 @@ export const guides: GuideMeta[] = [
       "delete delay",
     ],
     routes: [
-      "/storage",
+      "/storage#insights",
+      "/storage/list#list",
+      "/storage/syncs#sync",
+      "/storage/migrations#migrate",
       "/storage/syncs/new#sync",
       "/storage/syncs/*#sync",
       "/storage/syncs/*/edit#sync",
@@ -1357,6 +1388,7 @@ export const guides: GuideMeta[] = [
     ],
     routes: [
       "/settings",
+      "/recordings/sign-ins#sign-ins",
       "/settings/members",
       "/settings/members/*/access#grants",
       "/settings/groups",
@@ -1421,12 +1453,17 @@ function matches(pattern: string, pathname: string) {
 }
 
 // The guide for a page, and the link into it, if it has one.
+// A route spelled out wins over one with `*` (/recordings/sign-ins is the
+// access guide's, though /recordings/* is the replays').
 export function guideForPath(pathname: string) {
-  for (const guide of guides) {
-    for (const route of guide.routes) {
-      const [pattern, anchor] = route.split("#")
-      if (matches(pattern, pathname)) {
-        return { guide, href: guideHref(guide.slug, anchor) }
+  for (const exact of [true, false]) {
+    for (const guide of guides) {
+      for (const route of guide.routes) {
+        const [pattern, anchor] = route.split("#")
+        if (pattern.includes("*") === exact) continue
+        if (matches(pattern, pathname)) {
+          return { guide, href: guideHref(guide.slug, anchor) }
+        }
       }
     }
   }

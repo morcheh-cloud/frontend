@@ -127,13 +127,13 @@ const namePlaceholders: Partial<Record<Kind, string>> = {
   push: "Nightly backup",
 }
 
-// /uptime/[id]/edit reads its id from the route.
+// /monitoring/[id]/edit reads its id from the route.
 export function MonitorEditorFromRoute() {
   const { id } = useParams<{ id: string }>()
   return <MonitorEditor id={id} />
 }
 
-// /uptime/new (?kind=, ?server=, ?from= to copy one) and /uptime/[id]/edit.
+// /monitoring/new (?kind=, ?server=, ?from= to copy one) and /monitoring/[id]/edit.
 export function MonitorEditor({ id }: { id?: string }) {
   const phone = useIsPhone()
   const params = useSearchParams()
@@ -158,7 +158,7 @@ export function MonitorEditor({ id }: { id?: string }) {
             <Button
               variant="outline"
               className="h-11 w-full md:h-9 md:w-auto"
-              render={<Link href="/uptime" />}
+              render={<Link href="/monitoring" />}
               nativeButton={false}
             >
               Back to uptime
@@ -210,7 +210,7 @@ function Editor({
   const can = useUptimeCan(ws)
   const access = useAccess()
   const router = useRouter()
-  const home = saved ? monitorHref(saved.id) : "/uptime"
+  const home = saved ? monitorHref(saved.id) : "/monitoring"
   const back = useBack(home)
 
   const [draft, setDraft] = useState<Draft>(start)
@@ -234,7 +234,7 @@ function Editor({
           { href: monitorHref(saved.id), label: saved.name },
           { href: `${monitorHref(saved.id)}/edit`, label: "Edit" },
         ]
-      : [{ href: "/uptime/new", label: "New monitor" }],
+      : [{ href: "/monitoring/new", label: "New monitor" }],
   )
 
   useEffect(() => {
@@ -609,7 +609,7 @@ function Editor({
       {!onServer(k) && (
         <Section
           title="Related server"
-          hint="Optional: shows this monitor on that server's Uptime tab."
+          hint="Optional: shows this monitor on that server's Monitors tab."
           phone={phone}
         >
           <Field label="Server" error={errors.server_id}>

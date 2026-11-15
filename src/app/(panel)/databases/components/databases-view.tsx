@@ -6,7 +6,6 @@ import {
   Plus,
   RefreshCw,
   SearchX,
-  Server as ServerIcon,
   Star,
   TriangleAlert,
 } from "lucide-react"
@@ -18,16 +17,10 @@ import {
   SearchBox,
   Segmented,
 } from "@/app/(panel)/servers/[id]/components/parts"
-import { useServers } from "@/app/(panel)/servers/api"
-import { timeAgo } from "@/app/(panel)/servers/components/meta"
 import { guideHref } from "@/components/help/guides"
 import { HelpButton } from "@/components/help/help-link"
+import { formatMs } from "@/components/insights/format"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useIsPhone } from "@/hooks/useIsPhone"
 import { useOpen } from "@/hooks/useOpen"
@@ -36,7 +29,15 @@ import type { Database, Server } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { useCheckingDatabases, useDatabases } from "../api"
 import { useDatabaseActions } from "./database-actions"
-import { DatabaseMenuItems, DatabaseSheet } from "./database-menu"
+import {
+  CardsSkeleton,
+  DatabaseCards,
+  MiniStrip,
+  noteOf,
+  toneOf,
+  useDayHistory,
+} from "./database-cards"
+import { DatabaseSheet } from "./database-menu"
 import {
   DatabaseInsightsBody,
   DatabaseInsightsControls,
@@ -44,16 +45,13 @@ import {
 import {
   byState,
   EngineTile,
-  endpointLabel,
   engineName,
   HealthDot,
   needsLook,
-  problems,
   stateOf,
-  statusMeta,
   useDatabasesFilters,
 } from "./meta"
-import { useCanAddDatabase, useDatabaseCan } from "./permissions"
+import { useCanAddDatabase } from "./permissions"
 
 // The list of databases: every one this person can see (the Databases page),
 // or those reached through one server (its Databases tab). Worst first.
@@ -140,7 +138,7 @@ function List({ server, phone }: { server?: Server; phone: boolean }) {
 
   let body: ReactNode
   if (list.isPending) {
-    body = phone ? <PhoneSkeleton /> : <DesktopSkeleton />
+    body = phone ? <PhoneSkeleton /> : <CardsSkeleton />
   } else if (list.isError && !list.data) {
     body = (
       <Empty
@@ -198,7 +196,7 @@ function List({ server, phone }: { server?: Server; phone: boolean }) {
     body = phone ? (
       <PhoneList items={items} checking={checking} />
     ) : (
-      <Table items={items} checking={checking} showServer={!server} />
+      <DatabaseCards items={items} checking={checking} showServer={!server} />
     )
   }
 
@@ -282,210 +280,6 @@ function List({ server, phone }: { server?: Server; phone: boolean }) {
   )
 }
 
-function Th({
-  children,
-  className,
-}: {
-  children: ReactNode
-  className?: string
-}) {
-  return (
-    <th
-      scope="col"
-      className={cn("h-10 px-3 text-start font-medium", className)}
-    >
-      {children}
-    </th>
-  )
-}
-
-function Table({
-  items,
-  checking,
-  showServer,
-}: {
-  items: Database[]
-  checking: Set<string | undefined>
-  showServer: boolean
-}) {
-  // Server names for "through <server>"; the list is cached by every
-  // servers page anyway.
-  const servers = useServers({ limit: 500 })
-  const names = new Map(
-    (servers.data?.items ?? []).map((s) => [s.id, s.name] as const),
-  )
-  return (
-    <div className="@container overflow-x-auto rounded-2xl border border-border">
-      <table className="w-full text-body-sm">
-        <thead className="border-b border-border bg-subtle text-caption text-muted-foreground">
-          <tr>
-            <th scope="col" className="w-10 ps-3">
-              <span className="sr-only">Favorite</span>
-            </th>
-            <Th>Name</Th>
-            <Th>State</Th>
-            <Th className="text-end">Size</Th>
-            <Th className="text-end">Connections</Th>
-            <Th className="hidden text-end @3xl:table-cell">Latency</Th>
-            <Th className="hidden @4xl:table-cell">Address</Th>
-            <Th className="hidden @5xl:table-cell">Checked</Th>
-            <th scope="col" className="w-12">
-              <span className="sr-only">Actions</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border">
-          {items.map((d) => (
-            <Row
-              key={d.id}
-              database={d}
-              checking={checking.has(d.id)}
-              serverName={
-                showServer && d.server_id ? names.get(d.server_id) : undefined
-              }
-            />
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-function Row({
-  database: d,
-  checking,
-  serverName,
-}: {
-  database: Database
-  checking: boolean
-  serverName?: string
-}) {
-  const actions = useDatabaseActions()
-  const can = useDatabaseCan()
-  const state = stateOf(d)
-  const issues = problems(d)
-  const down = !d.paused && d.status !== "online" && d.status !== "unknown"
-  const note = down
-    ? d.status_message || statusMeta[d.status].hint
-    : !d.paused && issues.length
-      ? issues
-          .slice(0, 2)
-          .map((c) => c.title)
-          .join(" · ") + (issues.length > 2 ? ` +${issues.length - 2}` : "")
-      : ""
-  return (
-    <tr className="group/row h-14 hover:bg-subtle">
-      <td className="ps-3">
-        <button
-          type="button"
-          aria-label={d.favorite ? "Remove from favorites" : "Add to favorites"}
-          aria-pressed={d.favorite}
-          disabled={!can(d, "operator")}
-          onClick={() => actions.toggleFavorite(d)}
-          className={cn(
-            "flex size-7 items-center justify-center rounded-lg text-ash enabled:hover:bg-muted enabled:hover:text-foreground",
-            !d.favorite &&
-              "opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100",
-          )}
-        >
-          <Star
-            className={cn("size-4", d.favorite && "fill-brand text-brand")}
-          />
-        </button>
-      </td>
-      <td className="max-w-72 px-3">
-        <Link
-          href={`/databases/${d.id}`}
-          className="flex items-center gap-3 outline-none hover:text-brand focus-visible:text-brand"
-        >
-          <EngineTile
-            engine={d.engine}
-            flavor={d.flavor}
-            className="size-7 rounded-md"
-          />
-          <span className="min-w-0">
-            <span className="block truncate font-medium">{d.name}</span>
-            <span className="block truncate text-caption text-ash">
-              {engineName(d)}
-              {d.version && ` ${d.version}`}
-              {d.role && d.role !== "standalone" && ` · ${d.role}`}
-            </span>
-          </span>
-        </Link>
-      </td>
-      <td className="max-w-80 px-3">
-        <span className="flex items-center gap-2 whitespace-nowrap">
-          <HealthDot database={d} checking={checking} />
-          {checking ? "Checking…" : state.label}
-        </span>
-        {note && (
-          <span
-            title={note}
-            className="block truncate ps-4 text-caption text-muted-foreground"
-          >
-            {note}
-          </span>
-        )}
-      </td>
-      <td className="px-3 text-end whitespace-nowrap tabular-nums">
-        {d.size_bytes != null ? formatSize(d.size_bytes) : "—"}
-      </td>
-      <td className="px-3 text-end whitespace-nowrap tabular-nums">
-        {d.connections != null ? (
-          <>
-            {d.connections}
-            {d.max_connections != null && (
-              <span className="text-muted-foreground">
-                {" "}
-                / {d.max_connections}
-              </span>
-            )}
-          </>
-        ) : (
-          "—"
-        )}
-      </td>
-      <td className="hidden px-3 text-end whitespace-nowrap text-muted-foreground tabular-nums @3xl:table-cell">
-        {d.status === "online" && d.latency_ms != null
-          ? `${d.latency_ms} ms`
-          : "—"}
-      </td>
-      <td className="hidden max-w-72 px-3 @4xl:table-cell">
-        <span className="block truncate font-mono text-caption text-muted-foreground">
-          {endpointLabel(d)}
-        </span>
-        {serverName && (
-          <span className="flex items-center gap-1 truncate text-caption text-ash">
-            <ServerIcon className="size-3 shrink-0" />
-            through {serverName}
-          </span>
-        )}
-      </td>
-      <td className="hidden px-3 whitespace-nowrap text-muted-foreground @5xl:table-cell">
-        {d.paused ? "Paused" : timeAgo(d.last_checked_at)}
-      </td>
-      <td className="pe-3">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={`${d.name} actions`}
-              />
-            }
-          >
-            <Ellipsis />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-56">
-            <DatabaseMenuItems database={d} checking={checking} />
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </td>
-    </tr>
-  )
-}
-
 function PhoneList({
   items,
   checking,
@@ -500,13 +294,23 @@ function PhoneList({
   const current = items.find((d) => d.id === sheetId) ?? last.current
   if (current) last.current = current
 
+  const day = useDayHistory()
   return (
     <>
       <ul className="divide-y divide-border border-y border-border">
         {items.map((d) => {
-          const issue = problems(d)[0]
-          const down =
-            !d.paused && d.status !== "online" && d.status !== "unknown"
+          const tone = toneOf(d)
+          const note = noteOf(d)
+          const history = day.byId.get(d.id)
+          const online = d.status === "online" && !d.paused
+          const facts = [
+            d.paused ? "Paused" : !online ? stateOf(d).label : null,
+            d.size_bytes != null && formatSize(d.size_bytes),
+            online &&
+              d.connections != null &&
+              `${d.connections}${d.max_connections ? `/${d.max_connections}` : ""} conn`,
+            online && d.latency_ms != null && formatMs(d.latency_ms),
+          ].filter(Boolean)
           return (
             <li key={d.id} className="flex items-center">
               <Link
@@ -518,34 +322,46 @@ function PhoneList({
                   flavor={d.flavor}
                   className="size-10"
                 />
-                <span className="min-w-0 flex-1">
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className="flex items-center gap-2">
                     <span className="truncate text-body font-medium">
                       {d.name}
                     </span>
                     <HealthDot database={d} checking={checking.has(d.id)} />
                     <span className="sr-only">{stateOf(d).label}</span>
+                    {d.favorite && (
+                      <Star
+                        aria-label="Favorite"
+                        className="size-3.5 shrink-0 fill-brand text-brand"
+                      />
+                    )}
                   </span>
-                  <span className="block truncate text-body-sm text-muted-foreground">
-                    {down
-                      ? stateOf(d).label
-                      : !d.paused && issue
-                        ? issue.title
-                        : [
-                            engineName(d),
-                            d.size_bytes != null && formatSize(d.size_bytes),
-                            d.paused && "Paused",
-                          ]
-                            .filter(Boolean)
-                            .join(" · ")}
+                  <span
+                    className={cn(
+                      "block truncate text-body-sm",
+                      note
+                        ? tone === "destructive"
+                          ? "text-destructive"
+                          : "text-warning"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {note ||
+                      `${engineName(d)}${d.version ? ` ${d.version}` : ""}`}
                   </span>
+                  {(facts.length > 0 || history) && (
+                    <span className="flex items-center gap-3 text-caption text-ash tabular-nums">
+                      <span className="shrink-0">{facts.join(" · ")}</span>
+                      {history && (
+                        <MiniStrip
+                          states={history.strip}
+                          label={`${d.name}: checks over the last 24 hours`}
+                          className="min-w-12 flex-1"
+                        />
+                      )}
+                    </span>
+                  )}
                 </span>
-                {d.favorite && (
-                  <Star
-                    aria-label="Favorite"
-                    className="size-4 shrink-0 fill-brand text-brand"
-                  />
-                )}
               </Link>
               <button
                 type="button"
@@ -571,24 +387,6 @@ function PhoneList({
         />
       )}
     </>
-  )
-}
-
-function DesktopSkeleton() {
-  return (
-    <div className="overflow-hidden rounded-2xl border border-border">
-      {Array.from({ length: 4 }, (_, i) => (
-        <div
-          // biome-ignore lint/suspicious/noArrayIndexKey: static placeholders
-          key={i}
-          className="flex h-14 items-center gap-3 border-b border-border px-4 last:border-b-0"
-        >
-          <Skeleton className="size-7 rounded-md" />
-          <Skeleton className="h-4 w-40" />
-          <Skeleton className="ms-auto h-4 w-56" />
-        </div>
-      ))}
-    </div>
   )
 }
 

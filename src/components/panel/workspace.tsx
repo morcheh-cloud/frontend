@@ -70,9 +70,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       // What's on screen belongs to the workspace we just left.
       queryClient.resetQueries({ predicate: scoped })
       const { pathname } = window.location
+      // A page of one server/database/storage belongs to the old workspace:
+      // go back to its list (the section's own list pages stay put).
+      const lists = ["/storage/list", "/storage/syncs", "/storage/migrations"]
       for (const root of ["/servers", "/databases", "/storage"]) {
-        if (pathname === root || pathname.startsWith(`${root}/`)) {
-          router.push(root)
+        if (pathname.startsWith(`${root}/`) && !lists.includes(pathname)) {
+          router.push(root === "/storage" ? "/storage/list" : root)
         }
       }
     },

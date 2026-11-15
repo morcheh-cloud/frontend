@@ -127,7 +127,7 @@ function AlertsBody({
             phone ? undefined : (
               <Button
                 variant="ghost"
-                render={<Link href={alertsHref("/alerts", {})} />}
+                render={<Link href={alertsHref("rules")} />}
                 nativeButton={false}
               >
                 All alert rules

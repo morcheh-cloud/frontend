@@ -11,7 +11,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs"
+import { parseAsString, useQueryStates } from "nuqs"
 import { useRef, useState } from "react"
 
 import {
@@ -20,7 +20,6 @@ import {
   ItemMenu,
   Notices,
   SearchBox,
-  Segmented,
 } from "@/app/(panel)/servers/[id]/components/parts"
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
 import { guideHref } from "@/components/help/guides"
@@ -29,6 +28,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useIsPhone } from "@/hooks/useIsPhone"
 import { useOpen } from "@/hooks/useOpen"
+import { useRouteTab } from "@/hooks/useRouteTab"
 import type { DNSServer, DNSZoneCopy, DNSZoneGroup } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import {
@@ -60,8 +60,13 @@ import { useCanAddDns, useDnsCan } from "./permissions"
 
 const tabs = ["zones", "servers"] as const
 
+// The section's own pages (the sidebar's children of DNS).
+export const dnsPages = {
+  zones: "/dns",
+  servers: "/dns/servers",
+} as const satisfies Record<(typeof tabs)[number], string>
+
 export const dnsFilters = {
-  tab: parseAsStringLiteral(tabs).withDefault("zones"),
   q: parseAsString.withDefault(""),
 }
 
@@ -89,7 +94,8 @@ function groupState(g: DNSZoneGroup): {
 function useData() {
   const servers = useDnsServers()
   const zones = useZonesEverywhere()
-  const [{ tab, q }, setFilters] = useFilters()
+  const [{ q }, setFilters] = useFilters()
+  const tab = useRouteTab(dnsPages)
   const all = sortServers(servers.data?.items ?? [])
   const byId = new Map(all.map((s) => [s.id, s]))
   const needle = q.trim().toLowerCase()
@@ -151,15 +157,6 @@ function DnsDesktop() {
       ) : (
         <>
           <div className="flex items-center gap-3">
-            <Segmented
-              label="Show"
-              value={d.tab}
-              onChange={(tab) => d.setFilters({ tab })}
-              items={[
-                { value: "zones", label: `Zones · ${d.zoneCount}` },
-                { value: "servers", label: `Servers · ${d.all.length}` },
-              ]}
-            />
             <SearchBox
               value={d.q}
               onChange={(q) => d.setFilters({ q: q || null })}
@@ -634,18 +631,19 @@ function DnsMobile() {
             />
             <nav aria-label="Show" className="flex gap-2">
               {tabs.map((t) => (
-                <button
+                <Link
                   key={t}
-                  type="button"
+                  href={dnsPages[t]}
+                  replace
+                  scroll={false}
                   aria-current={d.tab === t ? "page" : undefined}
-                  onClick={() => d.setFilters({ tab: t })}
                   className={chipClass}
                 >
                   {t === "zones" ? "Zones" : "Servers"}
                   <span className="tabular-nums opacity-70">
                     {t === "zones" ? d.zoneCount : d.all.length}
                   </span>
-                </button>
+                </Link>
               ))}
             </nav>
           </div>

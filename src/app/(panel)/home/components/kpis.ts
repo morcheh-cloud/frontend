@@ -119,7 +119,7 @@ function monitorsKpi(home: Home, live: HomeLive): Kpi {
       key: "monitors",
       label: "Uptime",
       icon: HeartPulse,
-      href: "/uptime/new",
+      href: "/monitoring/new",
       value: "—",
       sub: "Add a monitor to watch a website",
     }
@@ -131,7 +131,7 @@ function monitorsKpi(home: Home, live: HomeLive): Kpi {
     key: "monitors",
     label: "Uptime",
     icon: HeartPulse,
-    href: "/uptime",
+    href: "/monitoring",
     value: live.monitorsPending ? null : avg === null ? "—" : uptime(avg),
     sub: tally
       ? `${tally.ok} up${tally.bad ? ` · ${tally.bad} down` : ""}${

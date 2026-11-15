@@ -1,5 +1,4 @@
 import {
-  Activity,
   Bell,
   BellRing,
   Boxes,
@@ -17,7 +16,6 @@ import {
   HardDrive,
   HeartPulse,
   House,
-  KeyRound,
   Layers,
   LayoutDashboard,
   LayoutGrid,
@@ -40,12 +38,25 @@ import {
   Workflow,
 } from "lucide-react"
 
-export type NavLink = { href: string; label: string }
+// A sub-page link. Every child is a page of its own (a route, never a tab of
+// its parent's page; phones list them with `SectionLinks`). `href` may still
+// carry a query: the link is then current when the URL has those values.
+// `also` = more paths that belong to it (`*` = any one segment), e.g. a
+// sync's own page under Syncs. `crumb` names it in the breadcrumb when it
+// differs from the sidebar label.
+export type NavLink = {
+  href: string
+  label: string
+  also?: string[]
+  crumb?: string
+}
 export type NavItem = NavLink & { icon: LucideIcon; children?: NavLink[] }
 export type NavGroup = { label?: string; items: NavItem[] }
 
-// The panel's seven sections. A section with children expands in the sidebar;
-// its first child is the section's own page. Only /home has a page so far.
+// The panel's sections. A section gets children only when its parts are
+// separate things (Ansible: playbooks, modules, runs), never for tabs that
+// just filter or view one list (proxy hosts vs redirections). Its first
+// child is the section's own page; each other child has its own route.
 export const homeItem: NavItem = { href: "/home", label: "Home", icon: House }
 export const serversItem: NavItem = {
   href: "/servers",
@@ -57,12 +68,22 @@ export const vmsItem: NavItem = {
   href: "/vms",
   label: "Virtual machines",
   icon: MonitorCog,
+  children: [
+    { href: "/vms", label: "Machines" },
+    { href: "/vms/nodes", label: "Nodes" },
+    { href: "/vms/storage", label: "Storage" },
+    { href: "/vms/clusters", label: "Clusters" },
+  ],
 }
 // Servers at cloud providers (ArvanCloud…), read over each account's API key.
 export const cloudItem: NavItem = {
   href: "/cloud",
   label: "Cloud",
   icon: Cloud,
+  children: [
+    { href: "/cloud", label: "Accounts", also: ["/cloud/*"] },
+    { href: "/cloud/servers", label: "Servers" },
+  ],
 }
 export const networkMapItem: NavItem = {
   href: "/network",
@@ -150,11 +171,21 @@ export const storageItem: NavItem = {
   href: "/storage",
   label: "Storage",
   icon: HardDrive,
+  children: [
+    { href: "/storage", label: "Insights" },
+    { href: "/storage/list", label: "Storages", also: ["/storage/*"] },
+    { href: "/storage/syncs", label: "Syncs" },
+    { href: "/storage/migrations", label: "Migrations" },
+  ],
 }
 export const dnsItem: NavItem = {
   href: "/dns",
   label: "DNS",
   icon: Globe,
+  children: [
+    { href: "/dns", label: "Zones" },
+    { href: "/dns/servers", label: "Servers", also: ["/dns/*"] },
+  ],
 }
 export const proxyItem: NavItem = {
   href: "/proxy",
@@ -180,55 +211,76 @@ export const applicationsItem: NavItem = {
   href: "/applications",
   label: "Applications",
   icon: LayoutGrid,
+  children: [
+    {
+      href: "/applications",
+      label: "Catalog",
+      also: ["/applications/recipes"],
+    },
+    { href: "/applications/installed", label: "Installed" },
+    { href: "/applications/updates", label: "Updates" },
+    {
+      href: "/applications/activity",
+      label: "Activity",
+      also: ["/applications/runs"],
+    },
+  ],
 }
 export const ansibleItem: NavItem = {
   href: "/ansible",
   label: "Ansible",
   icon: Workflow,
+  children: [
+    { href: "/ansible", label: "Playbooks", also: ["/ansible/playbooks"] },
+    { href: "/ansible/modules", label: "Modules" },
+    { href: "/ansible/runs", label: "Runs" },
+  ],
 }
 export const scriptsItem: NavItem = {
   href: "/scripts",
   label: "Scripts",
   icon: FileCode,
+  children: [
+    { href: "/scripts", label: "Scripts" },
+    { href: "/scripts/runs", label: "Runs" },
+  ],
 }
 export const cronjobsItem: NavItem = {
   href: "/cronjobs",
   label: "Cron jobs",
   icon: CalendarClock,
 }
+// Uptime monitors (websites, ports, certificates, queues…), their incidents,
+// and the alert rules + channels (the /alerts pages sit under it).
 export const monitoringItem: NavItem = {
   href: "/monitoring",
   label: "Monitoring",
-  icon: Activity,
+  icon: HeartPulse,
   children: [
-    { href: "/monitoring", label: "Overview" },
-    { href: "/monitoring/metrics", label: "Metrics" },
-    { href: "/monitoring/logs", label: "Logs" },
+    { href: "/monitoring", label: "Uptime" },
+    { href: "/monitoring/incidents", label: "Incidents" },
+    { href: "/alerts", label: "Alert rules" },
+    { href: "/alerts/channels", label: "Channels", crumb: "Alert channels" },
+    { href: "/alerts/activity", label: "Alert activity" },
   ],
 }
-// Uptime checks: its own section (not under Monitoring).
-export const uptimeItem: NavItem = {
-  href: "/uptime",
-  label: "Uptime",
-  icon: HeartPulse,
-}
-// Where notifications go (email, Telegram, Slack…), shared by every feature
-// that sends one.
+// Alert rules and where notifications go (email, Telegram, Slack…). In the
+// sidebar it sits under Monitoring; phones list it on its own.
 export const alertsItem: NavItem = {
   href: "/alerts",
   label: "Alerts",
   icon: Bell,
 }
-// Every command Morche ran on a server, and terminal replays.
+// Every command Morche ran on a server, terminal replays and sign-ins.
 export const recordingsItem: NavItem = {
   href: "/recordings",
   label: "Audit log",
   icon: ScrollText,
-}
-export const keysItem: NavItem = {
-  href: "/keys",
-  label: "SSH Keys",
-  icon: KeyRound,
+  children: [
+    { href: "/recordings", label: "Commands" },
+    { href: "/recordings/list", label: "Recordings" },
+    { href: "/recordings/sign-ins", label: "Sign-ins" },
+  ],
 }
 export const settingsItem: NavItem = {
   href: "/settings",
@@ -258,35 +310,29 @@ export const helpItem: NavItem = {
 
 // Sidebar order. Help and Settings sit apart, pinned to the bottom.
 export const navGroups: NavGroup[] = [
-  { label: "Platform", items: [homeItem, tasksItem] },
+  { label: "Platform", items: [homeItem, servicesItem, tasksItem] },
   {
     label: "Infrastructure",
     items: [
       serversItem,
       vmsItem,
       cloudItem,
-      networkMapItem,
       containersItem,
       databasesItem,
       storageItem,
-      dnsItem,
-      proxyItem,
-      servicesItem,
-      applicationsItem,
-      ansibleItem,
-      scriptsItem,
-      cronjobsItem,
-      keysItem,
     ],
   },
+  { label: "Network", items: [networkMapItem, dnsItem, proxyItem] },
   {
-    label: "Observability",
-    items: [uptimeItem, monitoringItem, alertsItem, recordingsItem],
+    label: "Automation",
+    items: [applicationsItem, ansibleItem, scriptsItem, cronjobsItem],
   },
+  { label: "Observability", items: [monitoringItem, recordingsItem] },
 ]
 
 const allItems = [
   ...navGroups.flatMap((g) => g.items),
+  alertsItem,
   helpItem,
   settingsItem,
   accountItem,
@@ -304,25 +350,83 @@ export function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
-// The child that owns the current page: the longest matching href, so
-// /monitoring/metrics selects "Metrics" and not the "Overview" at /monitoring.
-export function currentChild(pathname: string, children: NavLink[]) {
+const pathOf = (href: string) => href.split("?")[0]
+
+// Whether `pathname` is `pattern` or below it; `*` stands for one segment.
+function under(pathname: string, pattern: string) {
+  if (!pattern.includes("*")) return isActive(pathname, pattern)
+  const have = pathname.split("/")
+  const want = pattern.split("/")
+  return (
+    have.length >= want.length &&
+    want.every((w, i) => w === "*" || w === have[i])
+  )
+}
+
+// How well a link fits the page (-1 = not at all): the longer the matching
+// path the better, and a link whose query matches beats a plain one on the
+// same path.
+function fit(pathname: string, search: URLSearchParams, link: NavLink) {
+  const [path, query] = link.href.split("?")
+  let best = -1
+  if (isActive(pathname, path)) best = queryFit(path, query, search)
+  for (const pattern of link.also ?? []) {
+    const [p, q] = pattern.split("?")
+    if (under(pathname, p)) best = Math.max(best, queryFit(p, q, search))
+  }
+  return best
+}
+
+function queryFit(
+  path: string,
+  query: string | undefined,
+  search: URLSearchParams,
+) {
+  const want = [...new URLSearchParams(query ?? "")]
+  if (!want.every(([k, v]) => search.get(k) === v)) return -1
+  return path.length * 10 + want.length
+}
+
+// Whether the page belongs to the link, ignoring its query.
+export function inLink(pathname: string, link: NavLink) {
+  return (
+    isActive(pathname, pathOf(link.href)) ||
+    !!link.also?.some((p) => under(pathname, pathOf(p)))
+  )
+}
+
+// The child that owns the current page: the best fit, so
+// /containers/projects/x selects "Projects" and not the Dashboard.
+export function currentChild(
+  pathname: string,
+  children: NavLink[],
+  search = new URLSearchParams(),
+) {
   let current: string | undefined
+  let best = -1
   for (const child of children) {
-    if (
-      isActive(pathname, child.href) &&
-      child.href.length > (current?.length ?? 0)
-    ) {
+    const score = fit(pathname, search, child)
+    if (score > best) {
+      best = score
       current = child.href
     }
   }
   return current
 }
 
+// Whether the page is inside a section (its own page or any sub-page).
+export function inSection(pathname: string, item: NavItem) {
+  return (
+    isActive(pathname, item.href) ||
+    !!item.children?.some((c) => inLink(pathname, c))
+  )
+}
+
 // Where the page sits in the nav: its section, then the sub-page when it is
-// not the section's own page.
+// on another path than the section's own page (tabs are left to the page).
 export function breadcrumbFor(pathname: string): NavLink[] {
-  const section = allItems.find((item) => isActive(pathname, item.href))
+  // Sidebar sections first, so /alerts reads Monitoring › Alerts.
+  const section = allItems.find((item) => inSection(pathname, item))
   if (!section) return []
   if (section === containersItem) {
     const page = dockerPageFor(pathname)
@@ -333,6 +437,9 @@ export function breadcrumbFor(pathname: string): NavLink[] {
   const child = section.children?.find(
     (c) => c.href === currentChild(pathname, section.children ?? []),
   )
-  if (!child || child.href === section.href) return [section]
-  return [section, child]
+  if (!child || pathOf(child.href) === section.href) return [section]
+  return [
+    section,
+    { href: pathOf(child.href), label: child.crumb ?? child.label },
+  ]
 }

@@ -17,13 +17,14 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
-import { currentChild, isActive, type NavItem } from "./nav"
+import { currentChild, inSection, type NavItem } from "./nav"
 import type { NavAlert } from "./problems"
 
 // One sidebar entry: a link, or a section that folds out its sub-pages.
 export function NavEntry({
   item,
   pathname,
+  search,
   alert,
   active: forced,
   current: forcedChild,
@@ -31,6 +32,7 @@ export function NavEntry({
 }: {
   item: NavItem
   pathname: string
+  search?: URLSearchParams
   alert?: NavAlert
   // Set when the menu decides what's current itself (the Containers menu,
   // where every page sits under /containers).
@@ -39,16 +41,13 @@ export function NavEntry({
   onClick?: () => void
 }) {
   const Icon = item.icon
-  const active =
-    forced ??
-    (isActive(pathname, item.href) ||
-      !!item.children?.some((c) => isActive(pathname, c.href)))
+  const active = forced ?? inSection(pathname, item)
 
   if (item.children) {
     return (
       <NavSection
         item={item}
-        current={forcedChild ?? currentChild(pathname, item.children)}
+        current={forcedChild ?? currentChild(pathname, item.children, search)}
         active={active}
         alert={alert}
       />

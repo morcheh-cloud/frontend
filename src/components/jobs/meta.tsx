@@ -254,7 +254,7 @@ export function placeHref(job: Job) {
   if (t?.cluster_id)
     return t.vmid
       ? `/vms/${t.cluster_id}/${t.vmid}`
-      : `/vms?tab=storage&cluster=${t.cluster_id}`
+      : `/vms/storage?cluster=${t.cluster_id}`
   // Log archives: the kind's files, or its tables after a compaction.
   if (t?.dataset)
     return datasetHref(
@@ -274,13 +274,13 @@ export function placeHref(job: Job) {
   if (job.kind === "software-scan") {
     return t?.server_id
       ? `/servers/${t.server_id}/applications`
-      : "/applications?tab=installed"
+      : "/applications/installed"
   }
   if (t?.run_id && job.kind === "script-run") {
     return `/scripts/runs/${t.run_id}`
   }
   if (t?.run_id) return `/ansible/runs/${t.run_id}`
-  if (job.kind === "storage-scan") return "/storage?tab=insights"
+  if (job.kind === "storage-scan") return "/storage"
   if (job.kind.startsWith("package-") && job.refs[0])
     return `/servers/${job.refs[0]}/packages`
   if (job.kind.startsWith("proxy-") && job.refs[0])

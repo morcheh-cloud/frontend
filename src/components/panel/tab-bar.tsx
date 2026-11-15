@@ -23,7 +23,6 @@ import {
   helpItem,
   homeItem,
   isActive,
-  keysItem,
   monitoringItem,
   type NavItem,
   networkMapItem,
@@ -34,7 +33,6 @@ import {
   servicesItem,
   storageItem,
   tasksItem,
-  uptimeItem,
   vmsItem,
 } from "./nav"
 import { type NavAlert, useNavAlerts } from "./problems"
@@ -42,25 +40,23 @@ import { WithPathname } from "./with-pathname"
 import { useWorkspace, WorkspaceAvatar } from "./workspace"
 
 // A native tab bar fits four tabs plus "More"; the rest live in a sheet.
-const tabItems = [homeItem, serversItem, servicesItem, uptimeItem]
+const tabItems = [homeItem, serversItem, servicesItem, monitoringItem]
 const moreItems = [
   tasksItem,
   vmsItem,
   cloudItem,
-  networkMapItem,
   containersItem,
   databasesItem,
   storageItem,
+  networkMapItem,
   dnsItem,
   proxyItem,
   applicationsItem,
   ansibleItem,
   scriptsItem,
   cronjobsItem,
-  monitoringItem,
   alertsItem,
   recordingsItem,
-  keysItem,
 ]
 
 const tabClass =

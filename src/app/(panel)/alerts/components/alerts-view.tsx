@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { type ReactNode, useDeferredValue, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Callout } from "@/app/(panel)/cronjobs/components/editor-parts"
@@ -29,7 +30,6 @@ import {
   type Item,
   ItemMenu,
   SearchBox,
-  Segmented,
   SheetItems,
 } from "@/app/(panel)/servers/[id]/components/parts"
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
@@ -38,6 +38,8 @@ import { atLeast } from "@/components/auth/level"
 import { BottomSheet } from "@/components/bottom-sheet"
 import { guideHref } from "@/components/help/guides"
 import { HelpButton } from "@/components/help/help-link"
+import { monitoringItem } from "@/components/panel/nav"
+import { SectionLinks } from "@/components/panel/section-links"
 import { useWorkspace } from "@/components/panel/workspace"
 import { ConfirmDialog, ResponsiveDialog } from "@/components/responsive-dialog"
 import { Button } from "@/components/ui/button"
@@ -65,11 +67,13 @@ import {
   channelTarget,
 } from "./meta"
 import { MutesNotice } from "./mutes"
+import { QuickAlerts } from "./quick-alerts"
 import { RuleActionsProvider, useRuleActions } from "./rule-actions"
 import { FiringNotice, RulesList } from "./rules-list"
 import {
+  alertsHref,
+  alertsPages,
   byRuleState,
-  presets,
   ruleSentence,
   ruleState,
   scopeText,
@@ -83,11 +87,11 @@ export function AlertsView() {
 }
 
 function Shell({ phone }: { phone: boolean }) {
-  const [, setFilters] = useAlertsFilters()
+  const router = useRouter()
   return (
     <RuleActionsProvider
       phone={phone}
-      activity={(r) => setFilters({ tab: "activity", rule: r.id, q: null })}
+      activity={(r) => router.push(alertsHref("activity", { rule: r.id }))}
     >
       <View phone={phone} />
     </RuleActionsProvider>
@@ -102,6 +106,7 @@ function View({ phone }: { phone: boolean }) {
   const ws = workspace?.id ?? ""
   const owner = atLeast(access.workspaceLevel(ws), "owner")
   const [{ tab, q, rule }, setFilters] = useAlertsFilters()
+  const router = useRouter()
   const ruleActions = useRuleActions()
   const rules = useAlertRules()
   const list = useChannels()
@@ -147,7 +152,7 @@ function View({ phone }: { phone: boolean }) {
         query={rules}
         q={q}
         noChannels={list.isSuccess && items.length === 0}
-        toChannels={() => setFilters({ tab: "channels", q: null })}
+        toChannels={() => router.push(alertsHref("channels"))}
       />
     )
   } else if (tab === "activity") {
@@ -212,42 +217,6 @@ function View({ phone }: { phone: boolean }) {
           )
         : null
 
-  const pill = (n: number) =>
-    n > 0 && (
-      <span className="rounded-full bg-destructive px-1.5 text-caption font-medium text-white tabular-nums">
-        {n}
-      </span>
-    )
-  const tabs = (
-    <Segmented
-      label="View"
-      items={[
-        {
-          value: "rules" as const,
-          label: (
-            <span className="flex items-center gap-1.5">
-              Rules
-              {pill(firing)}
-            </span>
-          ),
-        },
-        {
-          value: "channels" as const,
-          label: (
-            <span className="flex items-center gap-1.5">
-              Channels
-              {pill(failing)}
-            </span>
-          ),
-        },
-        { value: "activity" as const, label: "Activity" },
-      ]}
-      value={tab}
-      onChange={(t) =>
-        setFilters({ tab: t === "rules" ? null : t, q: null, rule: null })
-      }
-    />
-  )
   const search = tab === "rules" && allRules.length > 0 && (
     <SearchBox
       value={q}
@@ -299,17 +268,21 @@ function View({ phone }: { phone: boolean }) {
       >
         {phone ? (
           <div className="flex flex-col gap-3 px-4">
-            <div className="-mx-4 flex [scrollbar-width:none] gap-2 overflow-x-auto px-4">
-              {tabs}
-            </div>
+            <SectionLinks
+              item={monitoringItem}
+              counts={{
+                [alertsPages.rules]: firing,
+                [alertsPages.channels]: failing,
+              }}
+              className="-mx-4"
+            />
             {search}
             {caption && (
               <p className="text-caption text-muted-foreground">{caption}</p>
             )}
           </div>
-        ) : (
+        ) : search || caption || canMute || action ? (
           <div className="flex flex-wrap items-center gap-2">
-            {tabs}
             {search}
             {caption && (
               <span className="px-1 text-caption text-muted-foreground">
@@ -336,7 +309,7 @@ function View({ phone }: { phone: boolean }) {
               </Button>
             )}
           </div>
-        )}
+        ) : null}
         {body}
       </div>
 
@@ -418,35 +391,30 @@ function RulesBody({
   const all = [...(query.data ?? [])].sort(byRuleState)
   if (all.length === 0) {
     return (
-      <Empty
-        icon={Siren}
-        title="No alert rules yet"
-        body={
-          a.can
-            ? "Get told when a server is unreachable, a disk fills up, a service fails, a database can't be reached, or CPU, memory, load or traffic stay high for a while. Start from one of these, or make your own."
-            : "Someone with Engineer access to the workspace adds rules: alerts when a server is unreachable, a disk fills up, a service fails or a database is down."
-        }
-        action={
-          a.can && (
-            <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:flex-wrap md:justify-center">
-              {presets.map((p) => (
-                <Button
-                  key={p.key}
-                  variant="outline"
-                  className="h-11 md:h-9"
-                  onClick={() => a.create({ preset: p })}
-                >
-                  {p.name}
-                </Button>
-              ))}
-              <Button className="h-11 md:h-9" onClick={() => a.create()}>
+      <>
+        <Empty
+          icon={Siren}
+          title="No alert rules yet"
+          className="md:py-10"
+          body={
+            a.can
+              ? "Get told when a server is unreachable, a disk or a database fills up, a service fails, a replica falls behind or backups stop. Start from one below, or make your own."
+              : "Someone with Engineer access to the workspace adds rules: alerts when a server is unreachable, a disk fills up, a service fails or a database is down."
+          }
+          action={
+            a.can && (
+              <Button
+                className="h-11 w-full md:h-9 md:w-auto"
+                onClick={() => a.create()}
+              >
                 <Plus />
                 New rule
               </Button>
-            </div>
-          )
-        }
-      />
+            )
+          }
+        />
+        <QuickAlerts phone={phone} />
+      </>
     )
   }
   const shown = needle
@@ -496,13 +464,13 @@ function RulesBody({
       )}
       <div className={phone ? "px-4" : undefined}>
         <Callout icon={<Activity />}>
-          Websites, ports, certificates and other checks are uptime monitors:
-          each one alerts through its own channels.{" "}
+          Websites, ports, certificates and other checks are monitors: each one
+          alerts through its own channels.{" "}
           <Link
-            href="/uptime"
+            href="/monitoring"
             className="font-medium text-foreground underline underline-offset-2"
           >
-            Open Uptime
+            Open Monitoring
           </Link>
         </Callout>
       </div>

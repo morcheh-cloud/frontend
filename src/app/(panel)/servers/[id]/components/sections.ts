@@ -239,8 +239,8 @@ export const sectionGroups: SectionGroup[] = [
     label: "Monitoring",
     sections: [
       {
-        slug: "uptime",
-        label: "Uptime",
+        slug: "monitors",
+        label: "Monitors",
         icon: HeartPulse,
         summary: "Monitors that watch this server and what runs on it.",
         ready: true,

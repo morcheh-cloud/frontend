@@ -49,7 +49,12 @@ export function PanelHeader() {
 }
 
 function Crumbs({ pathname }: { pathname: string }) {
-  const crumbs = [...breadcrumbFor(pathname), ...useExtraCrumbs()]
+  const nav = breadcrumbFor(pathname)
+  // A page's own crumbs may repeat one the nav already gives (Runs).
+  const extra = useExtraCrumbs().filter(
+    (c) => !nav.some((n) => n.href === c.href),
+  )
+  const crumbs = [...nav, ...extra]
   return (
     <Breadcrumb>
       <BreadcrumbList>

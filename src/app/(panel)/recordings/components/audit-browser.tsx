@@ -1,16 +1,21 @@
 "use client"
 
-import { History, LogIn, MonitorPlay } from "lucide-react"
+import { History, MonitorPlay } from "lucide-react"
 
 import { Segmented } from "@/app/(panel)/servers/[id]/components/parts"
-import { clearedFilters, useCommandFilters } from "./command-meta"
+import { recordingsItem } from "@/components/panel/nav"
+import { SectionLinks } from "@/components/panel/section-links"
+import { useRouteTab } from "@/hooks/useRouteTab"
+import { auditPages, clearedFilters, useCommandFilters } from "./command-meta"
 import { CommandsBrowser } from "./commands-browser"
 import { RecordingsBrowser } from "./recordings-browser"
 import { SignInsBrowser } from "./sign-ins-browser"
 
-// The audit log of a workspace (/recordings) or one server (its tab):
-// Commands (every command Morche ran), Recordings (terminal replays) and,
-// panel-wide only, Sign-ins (who signed in to the panel, from where).
+// The audit log of a workspace or one server (its tab): Commands (every
+// command Morche ran), Recordings (terminal replays) and, panel-wide only,
+// Sign-ins (who signed in to the panel, from where). Panel-wide each is its
+// own page (`auditPages`, the sidebar's children); a server's tab switches
+// them in the URL.
 export function AuditBrowser({
   workspace,
   serverId,
@@ -23,9 +28,16 @@ export function AuditBrowser({
   phone: boolean
 }) {
   const [filters, setFilters] = useCommandFilters()
+  const page = useRouteTab(auditPages)
   // Sign-ins belong to the panel, not to a server.
-  const tab = serverId && filters.tab === "sign-ins" ? "commands" : filters.tab
-  const tabs = (
+  const tab = !serverId
+    ? page
+    : filters.tab === "sign-ins"
+      ? "commands"
+      : filters.tab
+  const tabs = !serverId ? (
+    phone && <SectionLinks item={recordingsItem} className="-mx-4" />
+  ) : (
     <Segmented
       label="Audit log"
       items={[
@@ -47,19 +59,6 @@ export function AuditBrowser({
             </span>
           ),
         },
-        ...(serverId
-          ? []
-          : [
-              {
-                value: "sign-ins" as const,
-                label: (
-                  <span className="flex items-center gap-1.5">
-                    <LogIn className="size-4 max-sm:hidden" />
-                    Sign-ins
-                  </span>
-                ),
-              },
-            ]),
       ]}
       value={tab}
       onChange={(t) =>

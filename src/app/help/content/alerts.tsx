@@ -36,7 +36,7 @@ export const alerts: GuideSection[] = [
             <UI>Channels</UI>: the places a message goes: a Telegram or Bale
             group, a Slack or Teams channel, a phone push, an email list or your
             own webhook. Set up once per workspace, then picked by rules and
-            uptime monitors. <See guide="uptime" section="alerts" />
+            uptime monitors. <See guide="monitoring" section="alerts" />
           </li>
           <li>
             <UI>Activity</UI>: every alert the rules sent, and when each went
@@ -45,8 +45,8 @@ export const alerts: GuideSection[] = [
         </List>
         <P>
           Websites, ports, certificates and other outside checks are{" "}
-          <UI>Uptime</UI> monitors, not rules: each one alerts through the
-          channels ticked on it. <See guide="uptime" section="alerts" />
+          <UI>Monitoring</UI> monitors, not rules: each one alerts through the
+          channels ticked on it. <See guide="monitoring" section="alerts" />
         </P>
       </>
     ),
@@ -191,11 +191,44 @@ export const alerts: GuideSection[] = [
     body: (
       <>
         <P>
-          Under <UI>Watch</UI> › <UI>Databases</UI> two measures watch the
-          databases Morche monitors: <UI>Unreachable</UI> (Morche can't connect)
-          and <UI>Health</UI> (one of its health checks turned critical:
-          connections, replication lag, disk…). <UI>On</UI> then picks{" "}
+          Under <UI>Watch</UI> › <UI>Databases</UI> these measures watch the
+          databases Morche monitors. <UI>On</UI> then picks{" "}
           <UI>Every database</UI> (new ones too) or <UI>Chosen databases</UI>.
+        </P>
+        <List>
+          <li>
+            <UI>Unreachable</UI>: Morche can't connect.
+          </li>
+          <li>
+            <UI>Disk</UI>: how full the disk under the database is (%).
+          </li>
+          <li>
+            <UI>Connections</UI>: connections in use, as a share of the server's
+            limit.
+          </li>
+          <li>
+            <UI>Response time</UI>: how long a simple query takes (ms).
+          </li>
+          <li>
+            <UI>Replication lag</UI>: how far a replica is behind (seconds).
+          </li>
+          <li>
+            <UI>Last backup</UI>: hours since the newest backup.
+          </li>
+          <li>
+            <UI>Memory</UI>: Redis memory as a share of <C>maxmemory</C>.
+          </li>
+          <li>
+            <UI>Health</UI>: any of its health checks turned critical.
+          </li>
+        </List>
+        <P>
+          A database that doesn't report a measure (no replication, no{" "}
+          <C>maxmemory</C>, an engine that can't tell its disk) is simply
+          skipped by that rule; the editor's <UI>Right now</UI> list says{" "}
+          <C>No number to compare yet</C> for it. The Monitoring page's{" "}
+          <UI>Get alerted</UI> box starts each of these with a sensible limit.{" "}
+          <See guide="monitoring" section="quick-alerts" />
         </P>
         <P>
           A database's own page has an <UI>Alerts</UI> tab: the rules that watch
@@ -208,6 +241,16 @@ export const alerts: GuideSection[] = [
               setting: <C>Database unreachable</C>,
               value: "2 min, critical",
               why: "Apps stop working; someone should hear about it at once.",
+            },
+            {
+              setting: <C>Database disk almost full</C>,
+              value: "85%, critical",
+              why: "A full disk stops writes; leaves time to grow it.",
+            },
+            {
+              setting: <C>No recent backup</C>,
+              value: "26 hours",
+              why: "A daily plan plus some slack: fires when one is missed.",
             },
             {
               setting: <C>Database critical</C>,
@@ -524,7 +567,7 @@ export const alerts: GuideSection[] = [
   "event": "down",
   "title": "Shop API is down",
   "text": "Connection refused",
-  "url": "https://morcheh.example.com/uptime/…",
+  "url": "https://morcheh.example.com/monitoring/…",
   "at": "2026-11-10T08:15:00Z",
   "fields": { "Check": "Website or API", "Target": "https://shop.example.com/health" },
   "monitor_id": "…",

@@ -81,7 +81,7 @@ export function PveSections({
             ) : mine.length === 0 ? (
               <NoneYet
                 text="No Proxmox cluster in this workspace that you can manage (Engineer)."
-                href="/vms?tab=clusters"
+                href="/vms/clusters"
                 label="Add a cluster"
               />
             ) : (

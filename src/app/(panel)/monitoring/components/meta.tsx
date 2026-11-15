@@ -34,6 +34,7 @@ import {
 } from "nuqs"
 
 import { engineMeta } from "@/app/(panel)/databases/components/meta"
+import { useRouteTab } from "@/hooks/useRouteTab"
 import { API_URL } from "@/lib/api"
 import type { Beat, MonitorBody, UptimeMonitor } from "@/lib/services"
 import { cn } from "@/lib/utils"
@@ -425,27 +426,32 @@ export function certDaysLeft(iso?: string | null) {
   return Math.floor((new Date(iso).getTime() - Date.now()) / 86_400_000)
 }
 
-// ---- URL state of /uptime ----
+// ---- URL state of /monitoring ----
 
 export const uptimeTabs = ["monitors", "incidents"] as const
 export type UptimeTab = (typeof uptimeTabs)[number]
 export const shows = ["all", "down", "degraded", "up", "paused"] as const
 export type Show = (typeof shows)[number]
 
+// The section's own pages (the sidebar's first children of Monitoring).
+export const uptimePages = {
+  monitors: "/monitoring",
+  incidents: "/monitoring/incidents",
+} as const satisfies Record<UptimeTab, string>
+
 const filters = {
-  tab: parseAsStringLiteral(uptimeTabs).withDefault("monitors"),
   q: parseAsString.withDefault(""),
   show: parseAsStringLiteral(shows).withDefault("all"),
   open: parseAsStringLiteral(["open", "all"] as const).withDefault("open"),
 }
 
 export function useUptimeFilters() {
-  return useQueryStates(filters, { history: "replace" })
+  const [f, set] = useQueryStates(filters, { history: "replace" })
+  const tab = useRouteTab(uptimePages)
+  return [{ ...f, tab }, set] as const
 }
 
-export const uptimeHref = createSerializer(filters)
-
-// /uptime/new: copy an existing monitor, or start tied to a server.
+// /monitoring/new: copy an existing monitor, or start tied to a server.
 export const newMonitorHref = createSerializer({
   from: parseAsString,
   server: parseAsString,

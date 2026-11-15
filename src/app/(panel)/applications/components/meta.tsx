@@ -46,8 +46,8 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs"
-
 import { softwareBroken } from "@/components/panel/problems"
+import { useRouteTab } from "@/hooks/useRouteTab"
 import type {
   Recipe,
   RecipeLink,
@@ -342,8 +342,15 @@ export const runShowLabels: Record<(typeof runShows)[number], string> = {
   succeeded: "Succeeded",
 }
 
+// The section's own pages (the sidebar's children of Applications).
+export const applicationsPages = {
+  catalog: "/applications",
+  installed: "/applications/installed",
+  updates: "/applications/updates",
+  activity: "/applications/activity",
+} as const satisfies Record<Tab, string>
+
 const filters = {
-  tab: parseAsStringLiteral(tabs).withDefault("catalog"),
   q: parseAsString.withDefault(""),
   cat: parseAsString.withDefault(""),
   show: parseAsStringLiteral(shows).withDefault("all"),
@@ -351,10 +358,17 @@ const filters = {
 }
 
 export function useApplicationsFilters() {
-  return useQueryStates(filters, { history: "replace" })
+  const [f, set] = useQueryStates(filters, { history: "replace" })
+  const tab = useRouteTab(applicationsPages)
+  return [{ ...f, tab }, set] as const
 }
 
-export const applicationsHref = createSerializer(filters)
+const serialize = createSerializer(filters)
+export const applicationsHref = (
+  tab: Tab,
+  values: Partial<Record<keyof typeof filters, string | null>> = {},
+) =>
+  serialize(applicationsPages[tab], values as Parameters<typeof serialize>[1])
 
 export const runHref = (id: string) => `/applications/runs/${id}`
 export const recipeHref = (recordId: string) =>

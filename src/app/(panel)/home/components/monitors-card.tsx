@@ -8,15 +8,15 @@ import {
   stateMeta,
   stateOf,
   uptimeText,
-} from "@/app/(panel)/uptime/components/meta"
-import { monitorHref } from "@/app/(panel)/uptime/components/monitor-menu"
+} from "@/app/(panel)/monitoring/components/meta"
+import { monitorHref } from "@/app/(panel)/monitoring/components/monitor-menu"
 import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import type { HomeLive } from "../live"
 import { Blank, Card, CardLink } from "./card"
 
-// Websites and services watched by Uptime, worst first, with their last
+// Websites and services watched by Monitoring, worst first, with their last
 // checks as bars.
 export function MonitorsCard({
   live,
@@ -29,10 +29,10 @@ export function MonitorsCard({
   const up = all.filter((m) => stateOf(m) === "up").length
   return (
     <Card
-      title="Uptime"
+      title="Monitors"
       caption={all.length ? `${up} of ${all.length} up` : undefined}
       className={className}
-      action={<CardLink href="/uptime">View all</CardLink>}
+      action={<CardLink href="/monitoring">View all</CardLink>}
     >
       {live.monitorsPending ? (
         <div className="flex flex-col gap-3 p-5">
@@ -46,7 +46,7 @@ export function MonitorsCard({
           text="Watch a website, port or service and hear about it when it goes down."
           action={
             <Link
-              href="/uptime/new"
+              href="/monitoring/new"
               className={buttonVariants({ variant: "outline", size: "sm" })}
             >
               New monitor

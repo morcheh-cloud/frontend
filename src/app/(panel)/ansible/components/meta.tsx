@@ -13,6 +13,7 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs"
+import { useRouteTab } from "@/hooks/useRouteTab"
 
 import type { AnsibleRun, HostStats, TaskResult } from "@/lib/services"
 import { cn } from "@/lib/utils"
@@ -214,18 +215,24 @@ export function duration(from?: string, to?: string) {
 const tabs = ["playbooks", "modules", "runs"] as const
 const runShows = ["all", "running", "failed", "succeeded"] as const
 
+// The section's own pages (the sidebar's children of Ansible).
+export const ansiblePages = {
+  playbooks: "/ansible",
+  modules: "/ansible/modules",
+  runs: "/ansible/runs",
+} as const satisfies Record<(typeof tabs)[number], string>
+
 const filters = {
-  tab: parseAsStringLiteral(tabs).withDefault("playbooks"),
   q: parseAsString.withDefault(""),
   show: parseAsStringLiteral(runShows).withDefault("all"),
   cat: parseAsString.withDefault(""),
 }
 
 export function useAnsibleFilters() {
-  return useQueryStates(filters, { history: "replace" })
+  const [f, set] = useQueryStates(filters, { history: "replace" })
+  const tab = useRouteTab(ansiblePages)
+  return [{ ...f, tab }, set] as const
 }
-
-export const ansibleHref = createSerializer(filters)
 
 // /ansible/playbooks/new?module=… starts the playbook with that module.
 const newPlaybookParams = { module: parseAsString.withDefault("") }

@@ -134,7 +134,7 @@ export function actions(
       label: "Add Proxmox cluster",
       icon: Plus,
       tile: "brand",
-      href: vmsHref("/vms", { tab: "clusters" }),
+      href: vmsHref("clusters"),
       intent: "add-pve-cluster",
       keywords: "new connect proxmox pve virtualization hypervisor node token",
     },
@@ -143,10 +143,9 @@ export function actions(
       label: "Add database",
       icon: Plus,
       tile: "brand",
-      href: "/databases",
-      intent: "add-database",
+      href: "/databases/new",
       keywords:
-        "new create monitor postgres postgresql mysql mariadb sql server mssql redis mongodb",
+        "new create deploy container docker monitor postgres postgresql mysql mariadb sql server mssql redis mongodb",
     },
     {
       key: "action:add-storage",
@@ -222,10 +221,10 @@ export function actions(
     },
     {
       key: "action:add-monitor",
-      label: "New uptime monitor",
+      label: "New monitor",
       icon: Plus,
       tile: "brand",
-      href: "/uptime/new",
+      href: "/monitoring/new",
       keywords:
         "uptime monitor check http website ping tcp port dns certificate database queue heartbeat push alert",
     },
@@ -271,7 +270,7 @@ export function actions(
       label: "Update applications and servers",
       icon: ArrowUpCircle,
       tile: "brand",
-      href: applicationsHref("/applications", { tab: "updates" }),
+      href: applicationsHref("updates"),
       keywords: "upgrade apt dnf packages security patch software docker image",
     },
     {

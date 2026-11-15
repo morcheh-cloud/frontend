@@ -314,7 +314,7 @@ function RecipePicker({
           <p className="text-body-sm text-muted-foreground">
             No application matches.{" "}
             <Link
-              href={applicationsHref("/applications", {})}
+              href={applicationsHref("catalog")}
               className="text-brand hover:underline"
             >
               Open the catalog

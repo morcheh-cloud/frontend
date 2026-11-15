@@ -42,7 +42,7 @@ import { applicationsHref } from "./meta"
 import { useSoftwareCan } from "./permissions"
 import { useSoftwareActions } from "./software-actions"
 
-const ACTIVITY = applicationsHref("/applications", { tab: "activity" })
+const ACTIVITY = applicationsHref("activity")
 
 export function SoftwareRunFromRoute() {
   const { id } = useParams<{ id: string }>()

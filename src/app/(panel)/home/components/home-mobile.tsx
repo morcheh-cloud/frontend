@@ -3,7 +3,13 @@
 import { ChevronRight, Plus, RefreshCw, SlidersHorizontal } from "lucide-react"
 import Link from "next/link"
 import type { ReactNode } from "react"
-
+import {
+  byState,
+  stateMeta,
+  stateOf,
+  uptimeText,
+} from "@/app/(panel)/monitoring/components/meta"
+import { monitorHref } from "@/app/(panel)/monitoring/components/monitor-menu"
 import { afterClose } from "@/app/(panel)/servers/[id]/components/parts"
 import type { ServerModel } from "@/app/(panel)/servers/components/insights/model"
 import {
@@ -18,13 +24,6 @@ import {
   appsHref,
   safeHref,
 } from "@/app/(panel)/services/components/meta"
-import {
-  byState,
-  stateMeta,
-  stateOf,
-  uptimeText,
-} from "@/app/(panel)/uptime/components/meta"
-import { monitorHref } from "@/app/(panel)/uptime/components/monitor-menu"
 import { BottomSheet, SheetAction } from "@/components/bottom-sheet"
 import { guideHref } from "@/components/help/guides"
 import { HelpButton } from "@/components/help/help-link"
@@ -334,7 +333,7 @@ function Monitors({ live }: { live: HomeLive }) {
   if (all.length === 0) return null
   const up = all.filter((m) => stateOf(m) === "up").length
   return (
-    <Group title={`Uptime · ${up} of ${all.length} up`} more="/uptime">
+    <Group title={`Monitors · ${up} of ${all.length} up`} more="/monitoring">
       {all.slice(0, 4).map((m) => {
         const state = stateMeta[stateOf(m)]
         return (

@@ -1,6 +1,11 @@
 import { Loader2 } from "lucide-react"
 import Image from "next/image"
-import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs"
+import {
+  createSerializer,
+  parseAsString,
+  parseAsStringLiteral,
+  useQueryStates,
+} from "nuqs"
 
 import { insightRanges } from "@/components/insights/format"
 import type { Database, DatabaseCheck } from "@/lib/services"
@@ -433,3 +438,50 @@ function parseAdo(text: string): Parsed | null {
     tls: mysql ? sslMode(p) : sqlServerTls(p),
   }
 }
+
+// Which engine a container image runs ("postgres:17", "bitnami/mariadb",
+// "mcr.microsoft.com/mssql/server"), so a server's database containers can
+// be offered when adding one. Null = not a database image Morche watches.
+export function imageEngine(
+  image: string,
+): { engine: Engine; flavor?: string } | null {
+  const name = image
+    .split("@")[0]
+    .replace(/:[^/]*$/, "")
+    .toLowerCase()
+  const last = name.split("/").pop() ?? ""
+  if (/postgres|postgis|timescale|pgvector|supabase\/postgres/.test(name))
+    return { engine: "postgres" }
+  if (last === "mariadb" || name.includes("mariadb"))
+    return { engine: "mysql", flavor: "mariadb" }
+  if (last === "mysql" || last === "percona-server" || name.includes("mysql"))
+    return { engine: "mysql" }
+  if (name.includes("mssql") || name.includes("azure-sql-edge"))
+    return { engine: "mssql" }
+  if (last === "mongo" || name.includes("mongodb")) return { engine: "mongodb" }
+  if (/^(redis|valkey|keydb|redis-stack(-server)?)$/.test(last))
+    return { engine: "redis" }
+  return null
+}
+
+// ---- /databases/new ----
+
+// Connect to a database that already runs, or start one in a container.
+export const addSources = ["connect", "container"] as const
+export type AddSource = (typeof addSources)[number]
+
+const addParams = {
+  source: parseAsStringLiteral(addSources).withDefault("connect"),
+  server: parseAsString.withDefault(""),
+  engine: parseAsString.withDefault(""),
+}
+
+export function useAddDatabaseParams() {
+  return useQueryStates(addParams, { history: "replace" })
+}
+
+export const newDatabaseHref = (
+  options: { source?: AddSource; server?: string; engine?: string } = {},
+) => createSerializer(addParams)("/databases/new", options)
+
+export const editDatabaseHref = (id: string) => `/databases/${id}/edit`

@@ -5,6 +5,8 @@ import {
   CloudOff,
   Ellipsis,
   Hourglass,
+  RefreshCw,
+  SearchX,
   ShieldCheck,
   Timer,
   Trash2,
@@ -18,6 +20,8 @@ import { RunStateBadge } from "@/app/(panel)/cronjobs/components/meta"
 import {
   Facts,
   ItemMenu,
+  SearchBox,
+  Segmented,
   SheetItems,
 } from "@/app/(panel)/servers/[id]/components/parts"
 import { BottomSheet } from "@/components/bottom-sheet"
@@ -27,6 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useOpen } from "@/hooks/useOpen"
 import type { StorageSync } from "@/lib/services"
 import { cn } from "@/lib/utils"
+import { useStorageListFilters } from "../../components/filters"
 import { useStorageSyncs } from "../api"
 import { Flow, LiveProgress } from "./flow"
 import {
@@ -68,13 +73,22 @@ export function useSyncCounts() {
   }
 }
 
-export function SyncList({ kind, phone }: { kind: SyncKind; phone: boolean }) {
+export function SyncList({
+  kind,
+  phone,
+  action,
+}: {
+  kind: SyncKind
+  phone: boolean
+  // Desktop: the primary button at the end of the toolbar row.
+  action?: ReactNode
+}) {
   const { workspace } = useWorkspace()
   const list = useStorageSyncs(workspace?.id)
   const can = useSyncCan()
   const items = sorted((list.data ?? []).filter((s) => s.kind === kind))
+  const [{ q, show }, setFilters] = useStorageListFilters()
 
-  if (list.isPending) return <Placeholder phone={phone} />
   if (list.isError && !list.data) {
     return (
       <Blank
@@ -90,15 +104,130 @@ export function SyncList({ kind, phone }: { kind: SyncKind; phone: boolean }) {
       />
     )
   }
-  if (items.length === 0)
+  if (!list.isPending && items.length === 0)
     return <NoSyncs kind={kind} phone={phone} can={can.edit} />
-  if (phone) return <SyncRows items={items} />
+  if (phone)
+    return list.isPending ? <Placeholder phone /> : <SyncRows items={items} />
+
+  const tone = (s: StorageSync) => syncState(s).tone
+  const groups = {
+    all: items,
+    problems: items.filter((s) => ["problem", "warning"].includes(tone(s))),
+    running: items.filter((s) => tone(s) === "running"),
+    paused: items.filter((s) => tone(s) === "paused"),
+  }
+  const current: keyof typeof groups =
+    show === "problems" || show === "running" || show === "paused"
+      ? show
+      : "all"
+  const choices = [
+    { value: "all" as const, label: `All · ${items.length}` },
+    {
+      value: "problems" as const,
+      label: `Needs a look · ${groups.problems.length}`,
+    },
+    {
+      value: "running" as const,
+      label: `Running · ${groups.running.length}`,
+    },
+    ...(groups.paused.length
+      ? [
+          {
+            value: "paused" as const,
+            label: `Paused · ${groups.paused.length}`,
+          },
+        ]
+      : []),
+  ]
+  const words = q.trim().toLowerCase()
+  const shown = groups[current].filter(
+    (s) =>
+      !words ||
+      [s.name, s.source.name, s.source.path, s.dest.name, s.dest.path].some(
+        (t) => t?.toLowerCase().includes(words),
+      ),
+  )
+  const plural = kindMeta[kind].plural.toLowerCase()
+  const summary = groups.problems.length
+    ? `${groups.problems.length} of ${items.length} need a look`
+    : groups.running.length
+      ? `${groups.running.length} running now`
+      : "Nothing needs a look"
+
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,28rem),1fr))] gap-4">
-      {items.map((s) => (
-        <SyncCard key={s.id} sync={s} />
-      ))}
-    </div>
+    <>
+      <div className="@container flex items-center gap-2">
+        <Segmented
+          label="Show"
+          items={choices}
+          value={current}
+          onChange={(v) => setFilters({ show: v === "all" ? null : v })}
+        />
+        <span className="mx-1 h-5 w-px shrink-0 bg-border" />
+        <SearchBox
+          value={q}
+          onChange={(v) => setFilters({ q: v || null })}
+          placeholder="Search name, source or destination"
+          label={`Search ${plural}`}
+          className="min-w-0 flex-1 md:max-w-72 md:min-w-36"
+        />
+        <div className="ms-auto flex shrink-0 items-center gap-2">
+          {!list.isPending && (
+            <span className="me-2 hidden text-caption whitespace-nowrap text-muted-foreground @4xl:inline">
+              {summary}
+            </span>
+          )}
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-9"
+            aria-label="Refresh"
+            title="Refresh"
+            disabled={list.isFetching}
+            onClick={() => list.refetch()}
+          >
+            <RefreshCw className={cn(list.isFetching && "animate-spin")} />
+          </Button>
+          {action}
+        </div>
+      </div>
+      {list.isPending ? (
+        <Placeholder phone={false} />
+      ) : shown.length ? (
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,28rem),1fr))] gap-4">
+          {shown.map((s) => (
+            <SyncCard key={s.id} sync={s} />
+          ))}
+        </div>
+      ) : (
+        <Blank
+          phone={false}
+          icon={<SearchX />}
+          title={
+            current === "all" || words
+              ? "Nothing matches"
+              : current === "problems"
+                ? "Nothing needs a look"
+                : current === "running"
+                  ? "Nothing is running"
+                  : "Nothing is paused"
+          }
+          text={
+            words
+              ? `Try another search, or show all ${plural}.`
+              : `Every one of your ${plural} is listed under All.`
+          }
+          action={
+            <Button
+              variant="outline"
+              onClick={() => setFilters({ q: null, show: null })}
+            >
+              Show all
+            </Button>
+          }
+        />
+      )}
+    </>
   )
 }
 

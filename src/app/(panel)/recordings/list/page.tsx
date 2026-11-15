@@ -1,19 +1,19 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
 
-import { UptimeView } from "./components/uptime-view"
+import { RecordingsView } from "../components/recordings-view"
 
 export const metadata: Metadata = {
-  title: "Uptime",
+  title: "Terminal recordings",
 }
 
 // Waits on data loaded in the browser: skip instant-navigation checks.
 export const instant = false
 
-export default function UptimePage() {
+export default function RecordingListPage() {
   return (
     <Suspense>
-      <UptimeView />
+      <RecordingsView />
     </Suspense>
   )
 }

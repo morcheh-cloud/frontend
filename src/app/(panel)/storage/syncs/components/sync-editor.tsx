@@ -14,7 +14,6 @@ import { useParams, useRouter } from "next/navigation"
 import { useQueryStates } from "nuqs"
 import { type ReactNode, useEffect, useState } from "react"
 import { toast } from "sonner"
-
 import {
   AddButton,
   Callout,
@@ -37,6 +36,7 @@ import {
   toBuilder,
 } from "@/app/(panel)/servers/[id]/cron/components/schedule"
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
+import { syncListHref } from "@/app/(panel)/storage/components/filters"
 import { useAuth } from "@/components/auth/auth"
 import {
   AsideCard,
@@ -319,7 +319,7 @@ export function SyncEditor({ id }: { id?: string }) {
             <Button
               variant="outline"
               className="h-11 w-full md:h-9 md:w-auto"
-              render={<Link href="/storage?tab=syncs" />}
+              render={<Link href="/storage/syncs" />}
               nativeButton={false}
             >
               Back to syncs
@@ -357,7 +357,7 @@ function Editor({
     saved ? fromSaved(saved) : fresh(prefill),
   )
   const kind = draft.kind
-  const listHref = `/storage?tab=${kind === "migrate" ? "migrations" : "syncs"}`
+  const listHref = syncListHref(kind)
   const home = saved ? syncHref(saved.id) : listHref
   const back = useBack(home)
   const [revision, setRevision] = useState(saved?.updated_at)

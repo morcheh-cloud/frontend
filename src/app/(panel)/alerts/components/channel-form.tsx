@@ -8,8 +8,8 @@ import {
   Callout,
   ToggleRow,
 } from "@/app/(panel)/cronjobs/components/editor-parts"
+import { Pick } from "@/app/(panel)/monitoring/components/monitor-fields"
 import { Segmented } from "@/app/(panel)/servers/[id]/components/parts"
-import { Pick } from "@/app/(panel)/uptime/components/monitor-fields"
 import { Field } from "@/components/field"
 import { ResponsiveDialog } from "@/components/responsive-dialog"
 import { SecretInput } from "@/components/secret-input"

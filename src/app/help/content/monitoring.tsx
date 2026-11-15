@@ -14,14 +14,14 @@ import {
   Warn,
 } from "../components/prose"
 
-export const uptime: GuideSection[] = [
+export const monitoring: GuideSection[] = [
   {
     id: "what",
     title: "What it does",
     body: (
       <>
         <P>
-          <UI>Uptime</UI> keeps checking the things your users depend on and
+          <UI>Monitoring</UI> keeps checking the things your users depend on and
           tells you the moment one stops answering: websites and APIs, open
           ports, certificates, DNS records, mail servers, databases, message
           queues, containers, systemd units and your own scripts. Each check is
@@ -36,12 +36,15 @@ export const uptime: GuideSection[] = [
         </P>
         <List>
           <li>
-            <UI>Uptime</UI> in the sidebar (phone: the <UI>Uptime</UI> tab) =
-            every monitor in the workspace, worst first, and the{" "}
-            <UI>Incidents</UI> tab.
+            <UI>Monitoring</UI> in the sidebar (phone: the <UI>Monitoring</UI>{" "}
+            tab) = every monitor in the workspace, worst first, and the{" "}
+            <UI>Incidents</UI> tab. Under the list, <UI>Get alerted</UI> starts
+            alert rules for servers, databases, containers and machines in one
+            press. <See guide="monitoring" section="quick-alerts" />
           </li>
           <li>
-            A server's <UI>Uptime</UI> tab = the monitors linked to that server.
+            A server's <UI>Monitors</UI> tab = the monitors linked to that
+            server.
           </li>
           <li>
             <UI>Home</UI> shows a tally of your monitors and lists the ones that
@@ -63,8 +66,8 @@ export const uptime: GuideSection[] = [
         <Steps>
           {[
             <>
-              Open <UI>Uptime</UI> and press <UI>New monitor</UI> (phone: the{" "}
-              <UI>+</UI> button).
+              Open <UI>Monitoring</UI> and press <UI>New monitor</UI> (phone:
+              the <UI>+</UI> button).
             </>,
             <>
               Under <UI>What to watch</UI>, pick the kind: a website, a port, a
@@ -86,9 +89,9 @@ export const uptime: GuideSection[] = [
           ]}
         </Steps>
         <Tip>
-          From a server's <UI>Uptime</UI> tab, an empty list offers quick starts
-          (ping the server, watch its SSH port, a systemd service, a container)
-          with the server already filled in.
+          From a server's <UI>Monitors</UI> tab, an empty list offers quick
+          starts (ping the server, watch its SSH port, a systemd service, a
+          container) with the server already filled in.
         </Tip>
         <P>
           <UI>Duplicate</UI> in a monitor's menu opens the form with a copy of
@@ -191,7 +194,7 @@ export const uptime: GuideSection[] = [
           Containers, systemd units and commands always run on one server, so
           they take exactly one location: the server they run on. With more than
           one location, see{" "}
-          <See guide="uptime" section="locations">
+          <See guide="monitoring" section="locations">
             Checking from several locations
           </See>
           .
@@ -203,7 +206,7 @@ export const uptime: GuideSection[] = [
         </P>
         <P>
           <UI>Related server</UI> only links the monitor to a server: it then
-          shows on that server's <UI>Uptime</UI> tab. It doesn't change where
+          shows on that server's <UI>Monitors</UI> tab. It doesn't change where
           the check runs.
         </P>
         <Tip>Checking from a server needs Engineer access on that server.</Tip>
@@ -396,6 +399,66 @@ export const uptime: GuideSection[] = [
     ),
   },
   {
+    id: "quick-alerts",
+    title: "Get alerted: ready-made alerts",
+    body: (
+      <>
+        <P>
+          A monitor checks something from the outside. Many problems show up
+          inside first: a disk or a database filling up, connections running
+          out, a replica falling behind, backups that stopped. The{" "}
+          <UI>Get alerted</UI> box under the monitor list starts an alert rule
+          for each of these in one press.
+        </P>
+        <Steps>
+          {[
+            <>
+              Pick a group: <UI>Servers</UI>, <UI>Databases</UI>,{" "}
+              <UI>Websites</UI>, <UI>Containers</UI> or{" "}
+              <UI>Virtual machines</UI>. The number beside a group = how many of
+              its alerts are already on.
+            </>,
+            <>
+              Press a tile. The rule editor opens with a sensible limit, how
+              long it must last and the severity filled in.
+            </>,
+            <>
+              Choose what it covers (every server or database, or chosen ones)
+              and the channels, then <UI>Save</UI>.
+            </>,
+          ]}
+        </Steps>
+        <P>
+          A tile says <UI>On · 2 rules</UI> once rules watch that measure, and{" "}
+          <UI>Firing</UI> in red while one is firing. Pressing it again adds
+          another rule (say, a stricter one for production databases). Tiles in{" "}
+          <UI>Websites</UI> start a monitor instead (website down, certificate
+          running out, a scheduled job that didn't call in, a closed port, a
+          changed DNS record, a mail server).
+        </P>
+        <Table
+          head={["Alert", "Starts with"]}
+          rows={[
+            ["Database disk almost full", "Above 85%, critical"],
+            ["Connections running out", "Above 80% of the limit for 5 min"],
+            ["Database slow to answer", "Above 1 s for 5 min"],
+            ["Replica falling behind", "More than 60 s behind for 5 min"],
+            ["No recent backup", "None for 26 hours"],
+            ["Redis memory almost full", "Above 90% of maxmemory for 5 min"],
+            ["Server overloaded", "Load above 2 per core for 10 min"],
+            ["Disks too slow", "I/O wait above 30% for 10 min"],
+            ["Swapping heavily", "Swap above 50% for 15 min"],
+          ]}
+        />
+        <Tip>
+          With no alert channel yet the box says so: rules still show and count
+          in the menu, but nothing is sent until a channel exists.{" "}
+          <See guide="alerts" section="add" />
+        </Tip>
+      </>
+    ),
+  },
+  {
     id: "push",
     title: "Push monitors (heartbeats)",
     body: (
@@ -485,7 +548,7 @@ export const uptime: GuideSection[] = [
       <>
         <P>
           An incident starts when a monitor goes down and ends when it comes
-          back. The <UI>Incidents</UI> tab on <UI>Uptime</UI> lists what is{" "}
+          back. The <UI>Incidents</UI> tab on <UI>Monitoring</UI> lists what is{" "}
           <UI>Going on</UI> and the <UI>History</UI>; each monitor's page has
           its own.
         </P>

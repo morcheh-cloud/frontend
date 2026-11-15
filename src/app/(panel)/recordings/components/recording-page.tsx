@@ -83,7 +83,7 @@ function RecordingPage({ id, phone }: { id: string; phone: boolean }) {
             <Button
               variant="outline"
               className="h-11 w-full md:h-9 md:w-auto"
-              render={<Link href="/recordings?tab=recordings" />}
+              render={<Link href="/recordings/list" />}
               nativeButton={false}
             >
               All recordings
@@ -98,10 +98,8 @@ function RecordingPage({ id, phone }: { id: string; phone: boolean }) {
 
 function Recording({ r, phone }: { r: TerminalRecording; phone: boolean }) {
   const router = useRouter()
-  const back = useBackOr("/recordings?tab=recordings")
-  const menu = useRecordingMenu(r, () =>
-    router.replace("/recordings?tab=recordings"),
-  )
+  const back = useBackOr("/recordings/list")
+  const menu = useRecordingMenu(r, () => router.replace("/recordings/list"))
   // A live recording is loaded as far as it has got; Reload fetches more.
   const [loads, setLoads] = useState(0)
   const version = r.live ? `live-${loads}` : `done-${r.ended_at ?? ""}`

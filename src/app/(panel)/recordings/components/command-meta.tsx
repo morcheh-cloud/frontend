@@ -115,6 +115,14 @@ export const signInPeriods = ["24h", "7d", "30d"] as const
 export const auditTabs = ["commands", "recordings", "sign-ins"] as const
 export type AuditTab = (typeof auditTabs)[number]
 
+// The workspace audit log's pages (the sidebar's children of Audit log).
+// A server's tab keeps them as `tab` in the URL instead.
+export const auditPages = {
+  commands: "/recordings",
+  recordings: "/recordings/list",
+  "sign-ins": "/recordings/sign-ins",
+} as const satisfies Record<AuditTab, string>
+
 const parsers = {
   tab: parseAsStringLiteral(auditTabs).withDefault("commands"),
   q: parseAsString.withDefault(""),
@@ -173,7 +181,7 @@ export function commandsHref(
   return serialize(base, f)
 }
 
-// A link into the Sign-ins tab of /recordings.
+// A link into the audit log's Sign-ins page.
 export function signInsHref(
   f: Partial<{
     q: string
@@ -182,7 +190,7 @@ export function signInsHref(
     fresh: boolean
   }> = {},
 ) {
-  return serialize("/recordings", { ...f, tab: "sign-ins" })
+  return serialize(auditPages["sign-ins"], f)
 }
 
 type Values = ReturnType<typeof useCommandFilters>[0]

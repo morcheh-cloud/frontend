@@ -576,7 +576,7 @@ function Alerts({
           <Callout tone="info" icon={Bell}>
             <p>No notification channels yet.</p>
             <Link
-              href={alertsHref("/alerts", { tab: "channels" })}
+              href={alertsHref("channels")}
               className="text-brand hover:underline"
             >
               Add one under Alerts

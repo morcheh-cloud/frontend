@@ -470,7 +470,7 @@ export const access: GuideSection[] = [
       <>
         <P>
           Every sign-in, wrong password, sign-out and ended session is kept in
-          the <A href="/recordings?tab=sign-ins">Audit log</A> under{" "}
+          the <A href="/recordings/sign-ins">Audit log</A> under{" "}
           <UI>Sign-ins</UI>, with the account, device and address. Admins see
           every account; everyone else sees only their own. Your last few are
           also on <A href="/account#sign-ins">Account</A>.
@@ -538,7 +538,7 @@ export const access: GuideSection[] = [
             <>
               Under <UI>Send to</UI>, tick the channels to use (up to 20, from
               any workspace). Channels are made under{" "}
-              <A href="/alerts?tab=channels">Alerts › Channels</A>; see{" "}
+              <A href="/alerts/channels">Alerts › Channels</A>; see{" "}
               <See guide="alerts" />.
             </>,
             <>

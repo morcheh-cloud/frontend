@@ -63,7 +63,7 @@ function RunPage({ id, phone }: { id: string; phone: boolean }) {
   const query = useScriptRun(id)
   const run = query.data
   usePageCrumbs([
-    { href: "/scripts?tab=runs", label: "Runs" },
+    { href: "/scripts/runs", label: "Runs" },
     { href: `/scripts/runs/${id}`, label: run?.name ?? "Run" },
   ])
   if (query.isPending) return <Loading phone={phone} />
@@ -84,7 +84,7 @@ function RunPage({ id, phone }: { id: string; phone: boolean }) {
             <Button
               variant="outline"
               className="h-11 w-full md:h-9 md:w-auto"
-              render={<Link href="/scripts?tab=runs" />}
+              render={<Link href="/scripts/runs" />}
               nativeButton={false}
             >
               Back to runs
@@ -172,7 +172,7 @@ function useRunItems(run: ScriptRunDetail) {
             icon: <Trash2 />,
             destructive: true,
             onSelect: () =>
-              a.removeRun(run.id, () => router.replace("/scripts?tab=runs")),
+              a.removeRun(run.id, () => router.replace("/scripts/runs")),
           },
         ]
       : [],

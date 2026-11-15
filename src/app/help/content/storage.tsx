@@ -78,6 +78,48 @@ export const storage: GuideSection[] = [
     ),
   },
   {
+    id: "list",
+    title: "The storage list",
+    body: (
+      <>
+        <P>
+          <UI>Storage</UI> › <UI>Storages</UI> shows each storage as a card with
+          its last 24 hours at a glance:
+        </P>
+        <Table
+          head={["On the card", "Means"]}
+          rows={[
+            [
+              <UI key="u">Used</UI>,
+              "Space the files take, from the last measurement, with the change over 24 hours (or the file count). Not measured = press Measure on Insights.",
+            ],
+            [
+              <UI key="r">Response</UI>,
+              "How long the last check took to sign in, with the slowest 5% (p95) of the day under it.",
+            ],
+            [
+              <UI key="m">Moved · 24 h</UI>,
+              "Data moved by file transfers, cron job syncs and database backups that used it today, with the runs (and failures).",
+            ],
+            [
+              "The strip",
+              "One block per hour: green answered every check, red failed some. Hover a block for its numbers.",
+            ],
+          ]}
+        />
+        <P>
+          The row above the cards picks which ones show: <UI>All</UI>,{" "}
+          <UI>Needs a look</UI> (unreachable, refused sign-in, changed host key)
+          or <UI>Favorites</UI>, and searches by name, provider or address. The
+          same row on <UI>Syncs</UI> and <UI>Migrations</UI> filters by{" "}
+          <UI>Needs a look</UI>, <UI>Running</UI> and <UI>Paused</UI> and
+          searches the source and destination too. Both stay in the address, so
+          a filtered list can be shared as a link.
+        </P>
+      </>
+    ),
+  },
+  {
     id: "add",
     title: "Adding a storage",
     body: (

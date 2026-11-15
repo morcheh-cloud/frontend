@@ -3,12 +3,12 @@
 import { useQuery } from "@tanstack/react-query"
 
 import { useAlertEvents } from "@/app/(panel)/alerts/api"
+import { useIncidents } from "@/app/(panel)/monitoring/api"
 import { useFleetHosts, useProxyTraffic } from "@/app/(panel)/proxy/api"
 import { sumTraffic } from "@/app/(panel)/proxy/components/live"
 import { hostName } from "@/app/(panel)/proxy/components/meta"
 import { useServerInsights } from "@/app/(panel)/servers/api"
 import { buildModel } from "@/app/(panel)/servers/components/insights/model"
-import { useIncidents } from "@/app/(panel)/uptime/api"
 import {
   alertRulesQuery,
   monitorsQuery,

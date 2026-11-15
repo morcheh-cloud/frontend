@@ -1,10 +1,6 @@
-import {
-  createSerializer,
-  parseAsString,
-  parseAsStringLiteral,
-  useQueryStates,
-} from "nuqs"
+import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs"
 
+import { useRouteTab } from "@/hooks/useRouteTab"
 import type { Script } from "@/lib/services"
 
 export type Interpreter = Script["interpreter"]
@@ -53,17 +49,22 @@ export function exitText(code: number | undefined, timedOut?: boolean) {
 const tabs = ["scripts", "runs"] as const
 const runShows = ["all", "running", "failed", "succeeded"] as const
 
+// The section's own pages (the sidebar's children of Scripts).
+export const scriptsPages = {
+  scripts: "/scripts",
+  runs: "/scripts/runs",
+} as const satisfies Record<(typeof tabs)[number], string>
+
 const filters = {
-  tab: parseAsStringLiteral(tabs).withDefault("scripts"),
   q: parseAsString.withDefault(""),
   show: parseAsStringLiteral(runShows).withDefault("all"),
 }
 
 export function useScriptsFilters() {
-  return useQueryStates(filters, { history: "replace" })
+  const [f, set] = useQueryStates(filters, { history: "replace" })
+  const tab = useRouteTab(scriptsPages)
+  return [{ ...f, tab }, set] as const
 }
-
-export const scriptsHref = createSerializer(filters)
 
 // ---- Starter scripts ----
 

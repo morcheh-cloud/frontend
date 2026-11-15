@@ -19,7 +19,7 @@ import { newMonitorHref, pushUrl } from "./meta"
 import { useUptimeCan } from "./permissions"
 import { useUptimeActions } from "./uptime-actions"
 
-export const monitorHref = (id: string) => `/uptime/${id}`
+export const monitorHref = (id: string) => `/monitoring/${id}`
 
 // A monitor's actions, for the list's ⋯ menu, its phone sheet and the
 // monitor page's menu.
@@ -85,14 +85,14 @@ export function useMonitorMenu(
               key: "edit",
               label: "Edit",
               icon: <Pencil />,
-              onSelect: () => router.push(`/uptime/${m.id}/edit`),
+              onSelect: () => router.push(`/monitoring/${m.id}/edit`),
             },
             {
               key: "duplicate",
               label: "Duplicate",
               icon: <Copy />,
               onSelect: () =>
-                router.push(newMonitorHref("/uptime/new", { from: m.id })),
+                router.push(newMonitorHref("/monitoring/new", { from: m.id })),
             },
           ]
         : []),

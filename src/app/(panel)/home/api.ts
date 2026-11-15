@@ -9,6 +9,7 @@ import { useCronjobs } from "@/app/(panel)/cronjobs/api"
 import { backupsHref } from "@/app/(panel)/databases/[id]/components/backups/meta"
 import { statusMeta as dbStatusMeta } from "@/app/(panel)/databases/components/meta"
 import { dnsStatusMeta } from "@/app/(panel)/dns/components/meta"
+import { monitorHref } from "@/app/(panel)/monitoring/components/monitor-menu"
 import {
   needsSetup,
   proxyStatusMeta,
@@ -16,7 +17,6 @@ import {
 import { keys, type ListQuery } from "@/app/(panel)/servers/api"
 import { statusMeta } from "@/app/(panel)/servers/components/meta"
 import { useApps } from "@/app/(panel)/services/api"
-import { monitorHref } from "@/app/(panel)/uptime/components/monitor-menu"
 import { clusterStatusMeta, vmsHref } from "@/app/(panel)/vms/components/meta"
 import { isActive, useJobList } from "@/components/jobs/api"
 import {
@@ -250,7 +250,7 @@ export function useHome() {
       detail: nodes
         ? "Machines on it are unreachable until it's back."
         : c.status_message || "Morche can't reach its API.",
-      href: vmsHref("/vms", { tab: "clusters" }),
+      href: vmsHref("clusters"),
       tone: toneOf(c.status),
     })
   }

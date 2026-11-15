@@ -632,11 +632,14 @@ export function StatusStrip({
   tooltip,
   label,
   className,
+  compact,
 }: {
   states: StripState[]
   tooltip: (i: number) => ReactNode
   label: string
   className?: string
+  // A thin strip (16px) for dense cards.
+  compact?: boolean
 }) {
   const [ref, width] = useWidth()
   const n = states.length
@@ -650,7 +653,10 @@ export function StatusStrip({
       <div
         role="img"
         aria-label={label}
-        className="flex h-7 touch-pan-y items-stretch gap-px rounded-md outline-none select-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        className={cn(
+          "flex touch-pan-y items-stretch gap-px rounded-md outline-none select-none focus-visible:ring-3 focus-visible:ring-ring/50",
+          compact ? "h-4" : "h-7",
+        )}
         {...bind}
       >
         {states.map((s, i) => (
@@ -666,7 +672,11 @@ export function StatusStrip({
         ))}
       </div>
       {hover !== null && width > 0 && (
-        <Tooltip x={((hover + 0.5) / n) * width} width={width} top={36}>
+        <Tooltip
+          x={((hover + 0.5) / n) * width}
+          width={width}
+          top={compact ? 24 : 36}
+        >
           {tooltip(hover)}
         </Tooltip>
       )}

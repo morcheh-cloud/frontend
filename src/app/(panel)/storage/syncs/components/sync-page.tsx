@@ -20,7 +20,6 @@ import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { parseAsString, useQueryState } from "nuqs"
 import { type ReactNode, useRef } from "react"
-
 import {
   duration,
   formatInZone,
@@ -32,6 +31,7 @@ import {
   SheetItems,
 } from "@/app/(panel)/servers/[id]/components/parts"
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
+import { syncListHref } from "@/app/(panel)/storage/components/filters"
 import { BottomSheet } from "@/components/bottom-sheet"
 import { guideHref } from "@/components/help/guides"
 import { HelpButton } from "@/components/help/help-link"
@@ -83,8 +83,7 @@ import {
 import { useSyncCan } from "./permissions"
 import { useSyncActions, useSyncMenu } from "./sync-actions"
 
-const listHref = (s: Pick<StorageSync, "kind">) =>
-  `/storage?tab=${s.kind === "migrate" ? "migrations" : "syncs"}`
+const listHref = (s: Pick<StorageSync, "kind">) => syncListHref(s.kind)
 
 // /storage/syncs/[id] reads its id from the route.
 export function SyncPageFromRoute() {
@@ -114,7 +113,7 @@ export function SyncPage({ id }: { id: string }) {
             <Button
               variant="outline"
               className="h-11 w-full md:h-9 md:w-auto"
-              render={<Link href="/storage?tab=syncs" />}
+              render={<Link href="/storage/syncs" />}
               nativeButton={false}
             >
               Back to syncs

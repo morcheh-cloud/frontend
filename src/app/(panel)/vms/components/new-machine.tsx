@@ -194,7 +194,7 @@ export function NewMachine() {
           action={
             <Button
               variant="outline"
-              render={<Link href="/vms?tab=clusters" />}
+              render={<Link href="/vms/clusters" />}
               nativeButton={false}
             >
               Go to clusters
