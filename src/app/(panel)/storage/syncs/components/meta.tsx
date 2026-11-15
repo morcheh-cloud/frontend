@@ -1,9 +1,11 @@
 import {
   ArrowRight,
   CalendarClock,
+  Eye,
   Hand,
   type LucideIcon,
   RefreshCw,
+  Server,
   Timer,
   Truck,
   Zap,
@@ -16,6 +18,7 @@ import type {
   StorageSync,
   StorageSyncEnd,
   StorageSyncRun,
+  StorageSyncWatch,
 } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import {
@@ -44,7 +47,7 @@ export const kindMeta: Record<
     label: "Sync",
     plural: "Syncs",
     icon: RefreshCw,
-    text: "Keeps a folder on another storage up to date, by hand, on a schedule or every few minutes.",
+    text: "Keeps a folder on another storage up to date: by hand, on a schedule, every few minutes, or (from a server) as soon as it changes.",
   },
 }
 
@@ -94,9 +97,35 @@ export const triggerMeta: Record<
   interval: {
     label: "Every few minutes",
     icon: Timer,
-    text: "In the background: starts again a set time after the last run ended.",
+    text: "In the background: starts again a set time after the last run ended (every minute at the most often).",
+  },
+  watch: {
+    label: "As soon as it changes",
+    icon: Eye,
+    text: "Follows a server's folder and copies each change a few seconds after it's written.",
   },
 }
+
+export type WatchState = StorageSyncWatch["state"]
+
+export const watchStateMeta: Record<WatchState, { label: string; tone: Tone }> =
+  {
+    starting: { label: "Connecting", tone: "running" },
+    watching: { label: "Watching", tone: "ok" },
+    reconnecting: { label: "Reconnecting", tone: "warning" },
+    failed: { label: "Not watching", tone: "problem" },
+    missing: { label: "Needs inotify-tools", tone: "problem" },
+    limit: { label: "Too many folders", tone: "problem" },
+    paused: { label: "Paused", tone: "paused" },
+  }
+
+// The generated type says the watch is always there; it's null unless the
+// trigger is watch.
+export const watchOf = (s: StorageSync): StorageSyncWatch | null =>
+  s.trigger === "watch" ? (s.watch ?? null) : null
+
+export const fromServer = (e: Pick<StorageSyncEnd, "kind">) =>
+  e.kind === "server"
 
 export const existingMeta: Record<
   "changed" | "all" | "missing",
@@ -131,6 +160,7 @@ export function triggerText(
 ) {
   if (s.trigger === "schedule") return cronText(s.cron)
   if (s.trigger === "interval") return everyText(s.interval_minutes)
+  if (s.trigger === "watch") return "As soon as it changes"
   return "By hand"
 }
 
@@ -143,7 +173,7 @@ export function everyText(minutes: number) {
     const h = minutes / 60
     return h === 1 ? "Every hour" : `Every ${h} hours`
   }
-  return `Every ${minutes} minutes`
+  return minutes === 1 ? "Every minute" : `Every ${minutes} minutes`
 }
 
 export const isRunning = (s: StorageSync) =>
@@ -161,6 +191,11 @@ export function syncState(s: StorageSync): { tone: Tone; label: string } {
     }
   }
   if (s.paused) return { tone: "paused", label: "Paused" }
+  const w = watchOf(s)
+  if (w && w.state !== "watching") {
+    const m = watchStateMeta[w.state]
+    if (m.tone === "problem" || m.tone === "warning") return m
+  }
   const last = s.last_run?.id && !s.last_run.dry_run ? s.last_run : null
   if (last?.state === "failed")
     return { tone: "problem", label: "Last run failed" }
@@ -168,6 +203,7 @@ export function syncState(s: StorageSync): { tone: Tone; label: string } {
     return { tone: "warning", label: "Last run partly done" }
   }
   if (isReplication(s)) return { tone: "ok", label: "Replicating" }
+  if (w) return watchStateMeta[w.state]
   if (last?.state === "succeeded") {
     return {
       tone: "ok",
@@ -223,6 +259,13 @@ export function StateLabel({
 // "Next in 3 hours" / "Ran 5 minutes ago" — the one line about timing.
 export function timingText(s: StorageSync) {
   if (isReplication(s)) return s.paused ? "Turned off at the source" : "Live"
+  const w = watchOf(s)
+  if (w && !s.paused) {
+    if (w.queued > 0)
+      return `${w.queued} ${w.queued === 1 ? "change" : "changes"} waiting`
+    if (w.last_push_at) return `Copied ${timeAgo(w.last_push_at).toLowerCase()}`
+    if (w.state === "watching") return "Nothing changed yet"
+  }
   if (isRunning(s)) return `Started ${timeAgo(s.last_run.at).toLowerCase()}`
   const parts: string[] = []
   if (s.last_run?.id) {
@@ -252,10 +295,22 @@ export function EndBadge({
 }) {
   return (
     <span className={cn("flex min-w-0 items-center gap-3", className)}>
-      <ProtocolTile
-        protocol={asProtocol(end.protocol)}
-        className={size === "lg" ? "size-11 rounded-xl" : "size-9"}
-      />
+      {fromServer(end) ? (
+        <span
+          title="Server"
+          className={cn(
+            "flex shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-strong",
+            size === "lg" ? "size-11 rounded-xl" : "size-9",
+          )}
+        >
+          <Server className="size-4" strokeWidth={1.75} />
+        </span>
+      ) : (
+        <ProtocolTile
+          protocol={asProtocol(end.protocol)}
+          className={size === "lg" ? "size-11 rounded-xl" : "size-9"}
+        />
+      )}
       <span className="min-w-0">
         <span
           className={cn(
@@ -264,7 +319,11 @@ export function EndBadge({
             end.missing && "text-destructive",
           )}
         >
-          {end.missing ? "Removed storage" : end.name}
+          {end.missing
+            ? fromServer(end)
+              ? "Removed server"
+              : "Removed storage"
+            : end.name}
         </span>
         <span className="block truncate font-mono text-caption text-muted-foreground">
           {end.path}
@@ -296,6 +355,7 @@ export function runSummary(r: StorageSyncRun) {
 const newParams = {
   kind: parseAsStringLiteral(["migrate", "sync"] as const),
   source: parseAsString,
+  server: parseAsString,
   dest: parseAsString,
 }
 
@@ -306,6 +366,7 @@ const newSerializer = createSerializer(newParams)
 export const newSyncHref = (q: {
   kind: SyncKind
   source?: string | null
+  server?: string | null
   dest?: string | null
 }) => newSerializer("/storage/syncs/new", q)
 

@@ -53,8 +53,8 @@ import {
   ContainerBar,
   CPU_FLOOR,
   memoryShare,
+  PortLink,
   pct,
-  portLabel,
   rate,
   Spark,
   shareTone,
@@ -274,6 +274,7 @@ export function ProjectsView({
             p={p}
             s={s}
             href={projectHref(id, p.name)}
+            address={env.address}
             menu={<ItemMenu groups={actions.menu(p)} label="Project actions" />}
           />
         ))}
@@ -410,11 +411,13 @@ function ProjectCard({
   p,
   s,
   href,
+  address,
   menu,
 }: {
   p: DockerProject
   s?: DockerProjectStats
   href: string
+  address?: string
   menu: ReactNode
 }) {
   const meta = projectStateMeta[p.state]
@@ -571,12 +574,12 @@ function ProjectCard({
       {(ports.length > 0 || (live && s)) && (
         <div className="-mt-1 flex flex-wrap items-center gap-1.5 text-caption">
           {ports.slice(0, 3).map((x) => (
-            <span
+            <PortLink
               key={`${x.ip}|${x.public}|${x.private}|${x.proto}`}
-              className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground"
-            >
-              {portLabel(x)}
-            </span>
+              p={x}
+              address={address}
+              className="relative z-10 rounded-md bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground"
+            />
           ))}
           {ports.length > 3 && (
             <span className="text-ash">+{ports.length - 3}</span>
@@ -586,8 +589,9 @@ function ProjectCard({
               className="ms-auto inline-flex items-center gap-1 text-muted-foreground tabular-nums"
               title="Network: received / sent"
             >
-              <Network className="size-3.5 text-ash" />↓ {rate(s.net_rx_rate)} ↑{" "}
-              {rate(s.net_tx_rate)}
+              <Network className="size-3.5 text-ash" />
+              <span className="w-20">↓ {rate(s.net_rx_rate)}</span>
+              <span className="w-20">↑ {rate(s.net_tx_rate)}</span>
             </span>
           )}
         </div>

@@ -57,7 +57,6 @@ import {
   useSaveChannel,
   useTestChannel,
 } from "../api"
-import { ChannelFormLayer } from "./channel-form"
 import { AlertEventList } from "./events-list"
 import {
   ChannelIcon,
@@ -65,6 +64,8 @@ import {
   channelBroken,
   channelLabel,
   channelTarget,
+  editChannelHref,
+  newChannelHref,
 } from "./meta"
 import { MutesNotice } from "./mutes"
 import { QuickAlerts } from "./quick-alerts"
@@ -112,15 +113,18 @@ function View({ phone }: { phone: boolean }) {
   const list = useChannels()
   const items = list.data ?? []
 
-  const [formOpen, setFormOpen] = useOpen("channel-form")
   const [logOpen, setLogOpen] = useOpen("channel-log")
   const [deleteOpen, setDeleteOpen] = useOpen("channel-delete")
   const [picked, setPicked] = useState<NotifyChannel>()
   const remove = useDeleteChannel()
 
   const open = (layer: Layer, c?: NotifyChannel) => {
+    // Add and edit are pages of their own.
+    if (layer === "form") {
+      router.push(c ? editChannelHref(c.id) : newChannelHref())
+      return
+    }
     setPicked(c)
-    if (layer === "form") setFormOpen(true)
     if (layer === "log") setLogOpen(true)
     if (layer === "delete") setDeleteOpen(true)
   }
@@ -152,7 +156,7 @@ function View({ phone }: { phone: boolean }) {
         query={rules}
         q={q}
         noChannels={list.isSuccess && items.length === 0}
-        toChannels={() => router.push(alertsHref("channels"))}
+        toChannels={() => router.push(newChannelHref())}
       />
     )
   } else if (tab === "activity") {
@@ -313,14 +317,6 @@ function View({ phone }: { phone: boolean }) {
         {body}
       </div>
 
-      <ChannelFormLayer
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        channel={picked ? current : undefined}
-        workspaceId={ws}
-        admin={access.admin}
-        phone={phone}
-      />
       <LogLayer channel={current} open={logOpen} onOpenChange={setLogOpen} />
       <ConfirmDialog
         open={deleteOpen}

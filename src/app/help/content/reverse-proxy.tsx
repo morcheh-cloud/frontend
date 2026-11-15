@@ -72,8 +72,9 @@ export const reverseProxy: GuideSection[] = [
           <UI>Reverse proxy</UI> opens on <UI>Proxy hosts</UI>: one card per
           site with its domain (and its other names), where it goes (
           <UI>Passes to</UI>, <UI>Redirects to</UI>…), https, its four live
-          numbers and a column per minute (5xx in red). A turned-off site has a
-          dashed border. Click a card to edit it; <UI>⋯</UI> turns it off,
+          numbers and a column per minute (5xx in red; point at a column for
+          that minute's requests, 4xx, 5xx and bytes sent). A turned-off site
+          has a dashed border. Click a card to edit it; <UI>⋯</UI> turns it off,
           copies its domain or deletes it. The other tabs hold{" "}
           <UI>Redirections</UI>, <UI>Streams</UI> and <UI>404 hosts</UI>; each
           tab's count is in its label.

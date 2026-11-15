@@ -6438,6 +6438,18 @@ export interface DockerProjectHistory {
   step: number;
 }
 
+export interface DockerProjectLiveStat {
+  id: string;
+  name: string;
+  service: string;
+  stats: DockerStats;
+}
+
+export interface DockerProjectLiveStats {
+  /** Running containers that have sent a reading */
+  containers: DockerProjectLiveStat[];
+}
+
 export interface DockerProjectLogBatch {
   lines: DockerProjectLogLine[];
 }
@@ -13979,6 +13991,21 @@ export interface PushOutputBody {
   ok: boolean;
 }
 
+export interface RaiseStorageSyncWatchLimitRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * 0 = enough for this folder, at least 524288
+   * @format int64
+   * @min 0
+   * @max 16777216
+   */
+  limit?: number;
+}
+
 export interface RateLimit {
   /**
    * Connections one visitor may hold open at once; 0 = no limit
@@ -17896,7 +17923,10 @@ export interface StorageSync {
   held_count: number;
   /** @format uuid */
   id: string;
-  /** @format int64 */
+  /**
+   * Interval: minutes between runs. Watch: minutes between full checks (0 = only after reconnecting)
+   * @format int64
+   */
   interval_minutes: number;
   kind: "migrate" | "sync";
   last_run: StorageSyncRunBrief;
@@ -17914,9 +17944,11 @@ export interface StorageSync {
   runs_as: string;
   source: StorageSyncEnd;
   timezone: string;
-  trigger: "manual" | "schedule" | "interval";
+  trigger: "manual" | "schedule" | "interval" | "watch";
   /** @format date-time */
   updated_at: string;
+  /** Watch: what the watcher is doing now; null for other triggers */
+  watch: StorageSyncWatch;
   /** @format uuid */
   workspace_id: string;
 }
@@ -17958,22 +17990,29 @@ export interface StorageSyncBody {
    * @maxLength 1024
    */
   source_path: string;
-  /** @format uuid */
-  source_storage_id: string;
+  /** a server's folder (over SFTP) */
+  source_server_id?: string;
+  /** The source storage, or */
+  source_storage_id?: string;
   /** @maxLength 64 */
   timezone?: string;
-  trigger?: "manual" | "schedule" | "interval";
+  /** watch = copy each change as it happens (a server's folder only) */
+  trigger?: "manual" | "schedule" | "interval" | "watch";
 }
 
 export interface StorageSyncEnd {
-  /** The storage was deleted */
+  kind: "storage" | "server";
+  /** The storage or server was deleted */
   missing: boolean;
   name: string;
   path: string;
+  /** "server" for a server's folder */
   protocol: string;
   provider: string;
   read_only: boolean;
-  /** @format uuid */
+  /** Empty for a storage */
+  server_id: string;
+  /** Empty for a server's folder */
   storage_id: string;
 }
 
@@ -18035,6 +18074,13 @@ export interface StorageSyncOptions {
   settle_minutes?: number;
   /** Migration: check every copy is there with the same size */
   verify?: boolean;
+  /**
+   * Watch: wait until nothing changed for N seconds before copying (default 5)
+   * @format int64
+   * @min 0
+   * @max 600
+   */
+  watch_delay_seconds?: number;
 }
 
 export interface StorageSyncReplication {
@@ -18160,7 +18206,7 @@ export interface StorageSyncRun {
     | "skipped";
   /** @format uuid */
   sync_id: string;
-  trigger: "manual" | "schedule" | "interval";
+  trigger: "manual" | "schedule" | "interval" | "watch";
 }
 
 export interface StorageSyncRunBrief {
@@ -18238,11 +18284,14 @@ export interface StorageSyncUpdate {
    * @maxLength 1024
    */
   source_path: string;
-  /** @format uuid */
-  source_storage_id: string;
+  /** a server's folder (over SFTP) */
+  source_server_id?: string;
+  /** The source storage, or */
+  source_storage_id?: string;
   /** @maxLength 64 */
   timezone?: string;
-  trigger?: "manual" | "schedule" | "interval";
+  /** watch = copy each change as it happens (a server's folder only) */
+  trigger?: "manual" | "schedule" | "interval" | "watch";
 }
 
 export interface StorageSyncVerify {
@@ -18262,6 +18311,73 @@ export interface StorageSyncVerify {
    */
   missing: number;
   problems?: string[];
+}
+
+export interface StorageSyncWatch {
+  /** @format int64 */
+  bytes: number;
+  copying: boolean;
+  /** @format int64 */
+  deleted: number;
+  /** @format int64 */
+  failed: number;
+  /**
+   * Folders under the source, each one watched
+   * @format int64
+   */
+  folders: number;
+  /** @format date-time */
+  last_event_at: string | null;
+  /**
+   * When changes were last copied
+   * @format date-time
+   */
+  last_push_at: string | null;
+  /**
+   * The server's fs.inotify.max_user_watches; 0 = unknown
+   * @format int64
+   */
+  limit: number;
+  /** Why it isn't watching */
+  message: string;
+  /**
+   * Files copied since Morche started watching
+   * @format int64
+   */
+  pushed: number;
+  /**
+   * Changes waiting to be copied
+   * @format int64
+   */
+  queued: number;
+  /** Newest first, the last 30 */
+  recent: StorageSyncWatchChange[];
+  /**
+   * Watching since
+   * @format date-time
+   */
+  since: string | null;
+  /** missing = inotify-tools isn't on the server; limit = more folders than the server lets one user watch */
+  state:
+    | "starting"
+    | "watching"
+    | "reconnecting"
+    | "failed"
+    | "missing"
+    | "limit"
+    | "paused";
+}
+
+export interface StorageSyncWatchChange {
+  action: "copied" | "deleted" | "failed";
+  /** @format date-time */
+  at: string;
+  /** @format int64 */
+  bytes?: number;
+  error?: string;
+  folder?: boolean;
+  /** Relative to the source folder */
+  path: string;
 }
 
 export interface StorageTestBody {
@@ -25028,6 +25144,47 @@ export class Api<
         path: `/servers/${id}/docker/projects/${project}/logs/stream`,
         method: "GET",
         query: query,
+        ...params,
+      }),
+
+    /**
+     * @description Server-sent events: `stats` about once a second with the latest reading of each running container (CPU, memory, network, disk); `end` when every one of them stopped, or the stream failed. A container started later isn't picked up: connect again.
+     *
+     * @tags Containers
+     * @name StreamDockerProjectStats
+     * @summary Live resource use of a project's containers
+     * @request GET:/servers/{id}/docker/projects/{project}/stats/stream
+     */
+    streamDockerProjectStats: (
+      id: string,
+      project: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<
+        (
+          | {
+              data: DockerStreamEnd;
+              /** The event name. */
+              event: "end";
+              /** The event ID. */
+              id?: number | string;
+              /** The retry time in milliseconds. */
+              retry?: number;
+            }
+          | {
+              data: DockerProjectLiveStats;
+              /** The event name. */
+              event: "stats";
+              /** The event ID. */
+              id?: number | string;
+              /** The retry time in milliseconds. */
+              retry?: number;
+            }
+        )[],
+        ErrorModel
+      >({
+        path: `/servers/${id}/docker/projects/${project}/stats/stream`,
+        method: "GET",
         ...params,
       }),
 
@@ -32648,6 +32805,11 @@ export class Api<
       id: string,
       query?: {
         /**
+         * Only those copying from this server
+         * @format uuid
+         */
+        server_id?: string;
+        /**
          * Only those with this storage at either end
          * @format uuid
          */
@@ -32681,6 +32843,44 @@ export class Api<
         method: "POST",
         body: data,
         type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Sets fs.inotify.max_user_watches on the source server now and in /etc/sysctl.d/90-morcheh-inotify.conf, then watches again. Needs Engineer on the server and root or sudo without a password. Each watched folder takes about 1 KB of kernel memory.
+     *
+     * @tags Storage syncs
+     * @name RaiseStorageSyncWatchLimit
+     * @summary Let the server watch more folders
+     * @request POST:/storage-syncs/{id}/watch/raise-limit
+     */
+    raiseStorageSyncWatchLimit: (
+      id: string,
+      data: RaiseStorageSyncWatchLimitRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<StorageSync, ErrorModel>({
+        path: `/storage-syncs/${id}/watch/raise-limit`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Drops the watch session (or the wait before the next try) and connects again, which also runs a full catch-up.
+     *
+     * @tags Storage syncs
+     * @name RestartStorageSyncWatch
+     * @summary Start watching a server's folder over
+     * @request POST:/storage-syncs/{id}/watch/restart
+     */
+    restartStorageSyncWatch: (id: string, params: RequestParams = {}) =>
+      this.request<StorageSync, ErrorModel>({
+        path: `/storage-syncs/${id}/watch/restart`,
+        method: "POST",
         format: "json",
         ...params,
       }),

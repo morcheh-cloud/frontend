@@ -32,7 +32,6 @@ import { cn } from "@/lib/utils"
 import { useAlertRules, useChannels } from "../api"
 import { useRuleActions } from "./rule-actions"
 import {
-  alertsHref,
   containerPresets,
   isDatabaseMetric,
   metricOf,
@@ -234,7 +233,7 @@ export function QuickAlerts({
       <span>
         No alert channels yet: rules will show up but send nothing.{" "}
         <Link
-          href={alertsHref("channels")}
+          href="/alerts/channels/new"
           className="font-medium text-foreground underline underline-offset-2"
         >
           Add a channel

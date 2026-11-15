@@ -162,3 +162,8 @@ export const channelBroken = (c: NotifyChannel) =>
   (!c.last_sent_at ||
     (!!c.last_error_at &&
       new Date(c.last_error_at) >= new Date(c.last_sent_at)))
+
+// The channel editor's pages: a new one may start on a kind.
+export const newChannelHref = (kind?: ChannelKind) =>
+  kind ? `/alerts/channels/new?kind=${kind}` : "/alerts/channels/new"
+export const editChannelHref = (id: string) => `/alerts/channels/${id}/edit`

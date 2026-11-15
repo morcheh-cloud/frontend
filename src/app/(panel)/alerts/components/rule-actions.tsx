@@ -1,6 +1,7 @@
 "use client"
 
 import { BellOff, History, Pencil, Power, Trash2 } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { createContext, type ReactNode, useContext, useState } from "react"
 import { toast } from "sonner"
 
@@ -13,9 +14,10 @@ import { useOpen } from "@/hooks/useOpen"
 import type { AlertRule } from "@/lib/services"
 import { useAlertRules, useDeleteAlertRule, useToggleAlertRule } from "../api"
 import { MuteDialog, type MuteStart } from "./mutes"
-import { RuleEditorLayer, type RuleStart } from "./rule-editor"
+import { editRuleHref, newRuleHref, type RuleStart } from "./rule-links"
 
-// Every layer for alert rules, shared by /alerts and a server's Metrics tab.
+// Every action on alert rules, shared by /alerts and a server's Metrics tab.
+// Adding and editing are pages (/alerts/rules/new, /alerts/rules/[id]/edit).
 
 type Ctx = {
   // Engineer on the workspace: add, edit, turn on/off, delete.
@@ -52,6 +54,7 @@ export function RuleActionsProvider({
   canMute?: boolean
   children: ReactNode
 }) {
+  const router = useRouter()
   const { workspace } = useWorkspace()
   const access = useAccess()
   const level = access.workspaceLevel(workspace?.id ?? "")
@@ -60,12 +63,10 @@ export function RuleActionsProvider({
   const toggleRule = useToggleAlertRule()
   const deleteRule = useDeleteAlertRule()
 
-  const [editorOpen, setEditorOpen] = useOpen("alert-rule-editor")
   const [deleteOpen, setDeleteOpen] = useOpen("alert-rule-delete")
   const [muteOpen, setMuteOpen] = useOpen("alert-mute")
   const [muteStart, setMuteStart] = useState<MuteStart>()
   const [picked, setPicked] = useState<AlertRule>()
-  const [start, setStart] = useState<RuleStart>()
   // The layers read the fresh copy (the list polls).
   const current =
     (picked && rules.data?.find((r) => r.id === picked.id)) ?? picked
@@ -78,16 +79,8 @@ export function RuleActionsProvider({
       setMuteStart(s)
       setMuteOpen(true)
     },
-    create: (s) => {
-      setPicked(undefined)
-      setStart(s)
-      setEditorOpen(true)
-    },
-    edit: (r) => {
-      setPicked(r)
-      setStart(undefined)
-      setEditorOpen(true)
-    },
+    create: (s) => router.push(newRuleHref(s)),
+    edit: (r) => router.push(editRuleHref(r.id)),
     toggle: (r) =>
       toggleRule.mutate(
         { id: r.id, enabled: !r.enabled },
@@ -106,13 +99,6 @@ export function RuleActionsProvider({
   return (
     <RuleContext.Provider value={ctx}>
       {children}
-      <RuleEditorLayer
-        open={editorOpen}
-        onOpenChange={setEditorOpen}
-        rule={picked ? current : undefined}
-        start={start}
-        phone={phone}
-      />
       <MuteDialog
         open={muteOpen}
         onOpenChange={setMuteOpen}

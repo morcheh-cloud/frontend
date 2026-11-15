@@ -8,6 +8,7 @@ import {
   TextCursorInput,
 } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { type ReactNode, useRef } from "react"
 
 import { BottomSheet } from "@/components/bottom-sheet"
@@ -94,6 +95,7 @@ function Body({
   phone?: boolean
 }) {
   const a = useCloudActions()
+  const router = useRouter()
   const c = a.serverCan(s)
   const choices = c.power ? powerChoices(s) : []
   const address = mainAddress(s)
@@ -219,7 +221,14 @@ function Body({
               <li key={l.id}>
                 <Link
                   href={`/servers/${l.id}`}
-                  onClick={() => onOpenChange(false)}
+                  onClick={(e) => {
+                    // A modified click opens a new tab; leave it alone.
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return
+                    // Closing pops this layer's history entry, which would
+                    // undo a navigation made first: close, then go.
+                    e.preventDefault()
+                    then(() => router.push(`/servers/${l.id}`))
+                  }}
                   className="flex items-center gap-3 rounded-2xl border border-border px-4 py-3 outline-none hover:bg-subtle focus-visible:ring-3 focus-visible:ring-ring/50"
                 >
                   <ServerCog className="size-4 shrink-0 text-ash" />

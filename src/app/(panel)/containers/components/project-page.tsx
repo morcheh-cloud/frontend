@@ -216,6 +216,7 @@ function Project({
       body = (
         <ProjectContainers
           serverId={id}
+          project={name}
           rows={rows}
           pending={statsQuery.isPending}
           can={can}
@@ -316,7 +317,6 @@ function Project({
           canManage={actions.can.manage}
           canFiles={showFiles}
           firing={firing}
-          rows={rows}
           deploying={!!deploy?.active}
           phone={phone}
           onTab={(t) => setTab(t)}

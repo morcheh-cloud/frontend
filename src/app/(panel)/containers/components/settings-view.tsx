@@ -1,19 +1,13 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import {
-  Layers,
-  Loader2,
-  Lock,
-  RotateCcw,
-  Server,
-  Settings2,
-} from "lucide-react"
-import { parseAsString, useQueryState } from "nuqs"
+import { Loader2, Lock, RotateCcw, Settings2 } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
 import { storagesQuery } from "@/components/panel/problems"
+import { useWorkspace } from "@/components/panel/workspace"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useOpen } from "@/hooks/useOpen"
@@ -28,8 +22,8 @@ import {
   useSaveDockerServerSettings,
   useSaveDockerSettings,
 } from "../api"
-import { useDockerEnv } from "../env"
-import { type WsCtx, WsPage } from "./env-page"
+import { setDockerEnv, useDockerEnv } from "../env"
+import { EnvPage, type WsCtx, WsPage } from "./env-page"
 import { useDockerWorkspaceCan } from "./permissions"
 import {
   defaults,
@@ -44,7 +38,13 @@ import {
   tidy,
 } from "./settings-model"
 import { type FieldState, SideNav, sections } from "./settings-parts"
-import { ScopeBar, type ScopeEnv } from "./settings-scope"
+import {
+  GLOBAL_SETTINGS,
+  GlobalHeader,
+  type ScopeEnv,
+  SERVER_SETTINGS,
+  ServerHeader,
+} from "./settings-scope"
 import { type Ctl, SettingsSections } from "./settings-sections"
 import {
   downloadSettings,
@@ -52,14 +52,43 @@ import {
   type ImportPick,
 } from "./settings-transfer"
 
+// /containers/settings: what the environment picked in the sidebar uses,
+// the global settings with its own values on top.
 export function SettingsPage() {
-  return <WsPage title="Settings">{(ctx) => <SettingsView {...ctx} />}</WsPage>
+  return (
+    <EnvPage title="Settings" anyState>
+      {({ env, phone }) => <ServerSettings env={env.server_id} phone={phone} />}
+    </EnvPage>
+  )
 }
 
-// /containers/settings: the workspace's container settings, and what each
-// environment sets for itself on top. Owners change them; everyone else
-// reads.
-function SettingsView({ ws, phone }: WsCtx) {
+function ServerSettings({ env, phone }: { env: string; phone: boolean }) {
+  const { workspace } = useWorkspace()
+  if (!workspace) {
+    return (
+      <Empty
+        icon={Settings2}
+        title="No workspace"
+        body="Container settings belong to a workspace; ask an admin to give you one."
+      />
+    )
+  }
+  return <SettingsView ws={workspace} phone={phone} env={env} />
+}
+
+// /containers/global-settings: the settings every server of the workspace
+// uses, unless it sets a value for itself.
+export function GlobalSettingsPage() {
+  return (
+    <WsPage title="Global settings">
+      {(ctx) => <SettingsView {...ctx} />}
+    </WsPage>
+  )
+}
+
+// One scope of the container settings: the workspace's (global) or one
+// environment's own values on top. Owners change them; everyone else reads.
+function SettingsView({ ws, phone, env }: WsCtx & { env?: string }) {
   const query = useDockerSettings(ws.id)
   const envQuery = useDockerServerSettings(ws.id)
   if (query.isPending || envQuery.isPending) {
@@ -100,6 +129,7 @@ function SettingsView({ ws, phone }: WsCtx) {
     <SettingsForm
       ws={ws}
       phone={phone}
+      envId={env}
       saved={query.data}
       envSaved={envQuery.data}
     />
@@ -113,9 +143,14 @@ const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`
 function SettingsForm({
   ws,
   phone,
+  envId,
   saved,
   envSaved,
-}: WsCtx & { saved: DockerSettings; envSaved: DockerServerSettings[] }) {
+}: WsCtx & {
+  envId?: string
+  saved: DockerSettings
+  envSaved: DockerServerSettings[]
+}) {
   const can = useDockerWorkspaceCan(ws.id)
   const edit = can.own
   const saveWs = useSaveDockerSettings()
@@ -124,10 +159,7 @@ function SettingsForm({
   const [errors, setErrors] = useState<Errors>({})
   const [general, setGeneral] = useState<string>()
   const [importing, setImporting] = useOpen("docker-settings-import")
-  const [scopeParam, setScopeParam] = useQueryState(
-    "scope",
-    parseAsString.withDefault(""),
-  )
+  const router = useRouter()
 
   // Environments: every server with an engine, plus any that still has
   // settings of its own saved.
@@ -162,8 +194,20 @@ function SettingsForm({
     dirtyEnvs.reduce((n, e) => n + envChanged(e.id).length, 0)
   const dirty = changeCount > 0
 
-  const env = envs.find((e) => e.id === scopeParam)
+  const env = envId
+    ? (envs.find((e) => e.id === envId) ?? { id: envId, name: "This server" })
+    : undefined
   const scope = env?.id ?? ""
+  // Sends the person to the scope that needs a look: the global page, or
+  // the settings of one server (picked as the environment).
+  const goTo = (id: string) => {
+    if (id === scope) return
+    if (!id) return router.push(GLOBAL_SETTINGS)
+    setDockerEnv(id)
+    router.push(SERVER_SETTINGS)
+  }
+  const nameOf = (id: string) =>
+    id ? (envs.find((e) => e.id === id)?.name ?? "a server") : "global settings"
   const own = env ? envValue(env.id) : {}
   const value: Settings = env ? { ...wsValue, ...own } : wsValue
   const scopeChanged = env ? envChanged(env.id) : wsChanged
@@ -216,8 +260,15 @@ function SettingsForm({
     const changed = keys.some((k) => scopeChanged.includes(k))
     if (!env) {
       const off = keys.some((k) => !same(wsValue[k], defaults[k]))
+      // How many servers keep a value of their own for these.
+      const differ = envs.filter((e) =>
+        keys.some((k) => k in envValue(e.id)),
+      ).length
       return {
         changed,
+        own: differ
+          ? `Own value on ${differ} server${differ === 1 ? "" : "s"}`
+          : undefined,
         reset:
           edit && off
             ? {
@@ -235,10 +286,10 @@ function SettingsForm({
     const mine = keys.some((k) => k in own)
     return {
       changed,
-      own: mine ? "This environment" : undefined,
+      own: mine ? "This server" : undefined,
       reset:
         edit && mine
-          ? { label: "Use the workspace's", run: () => drop(keys) }
+          ? { label: "Use the global value", run: () => drop(keys) }
           : undefined,
     }
   }
@@ -255,8 +306,14 @@ function SettingsForm({
         bad.push(e.id)
     }
     if (bad.length) {
-      setScopeParam(bad[0] || null)
-      toast.error("Fix the marked settings first")
+      const other = bad.find((id) => id !== scope)
+      if (bad.includes(scope) || other === undefined) {
+        toast.error("Fix the marked settings first")
+      } else {
+        toast.error(`Fix the settings of ${nameOf(other)} first`, {
+          action: { label: "Open", onClick: () => goTo(other) },
+        })
+      }
       return
     }
     setSaving(true)
@@ -275,7 +332,7 @@ function SettingsForm({
         await saveWs.mutateAsync({ ws: ws.id, ...tidy(wsValue) })
         setWsDraft(null)
       } catch (err) {
-        note("", "the workspace", err)
+        note("", "the global settings", err)
       }
     }
     for (const e of dirtyEnvs) {
@@ -293,13 +350,18 @@ function SettingsForm({
     setSaving(false)
     setErrors(failed)
     setGeneral(message)
-    const first = Object.keys(failed)[0]
-    if (first === undefined) {
+    const ids = Object.keys(failed)
+    if (ids.length === 0) {
       toast.success("Settings saved")
       return
     }
-    setScopeParam(first || null)
-    toast.error(`Couldn't save ${failedNames.join(", ")}`)
+    const other = ids.find((id) => id !== scope)
+    toast.error(`Couldn't save ${failedNames.join(", ")}`, {
+      action:
+        ids.includes(scope) || other === undefined
+          ? undefined
+          : { label: "Open", onClick: () => goTo(other) },
+    })
   }
 
   const discard = () => {
@@ -366,23 +428,23 @@ function SettingsForm({
   const body = (
     <div className="flex min-w-0 flex-col gap-8 max-md:gap-6">
       <div className="flex flex-col gap-3">
-        <ScopeBar
-          phone={phone}
-          workspace={ws.name}
-          envs={scopeEnvs}
-          scope={scope}
-          wsDirty={wsChanged.length > 0}
-          onScope={(id) => setScopeParam(id || null)}
-          onExport={exportFile}
-          onImport={edit ? () => setImporting(true) : undefined}
-        />
-        <ScopeNote
-          env={env}
-          workspace={ws.name}
-          own={ownCount}
-          edit={edit}
-          onFollow={() => env && setEnv(env.id, () => ({}))}
-        />
+        {env ? (
+          <ServerHeader
+            name={env.name}
+            own={ownCount}
+            edit={edit}
+            onFollow={() => setEnv(env.id, () => ({}))}
+          />
+        ) : (
+          <GlobalHeader
+            phone={phone}
+            workspace={ws.name}
+            envs={scopeEnvs}
+            onOpen={goTo}
+            onExport={exportFile}
+            onImport={edit ? () => setImporting(true) : undefined}
+          />
+        )}
       </div>
       {!edit && (
         <Notices
@@ -422,7 +484,7 @@ function SettingsForm({
         {updatedAt ? (
           <span>Last changed {timeAgo(updatedAt)}</span>
         ) : env ? (
-          <span>Never set for this environment</span>
+          <span>Nothing set for this server yet</span>
         ) : (
           <span>Never changed: these are the defaults</span>
         )}
@@ -500,62 +562,6 @@ function SettingsForm({
         }}
       />
       {body}
-    </div>
-  )
-}
-
-// What the scope in view means, under the picker.
-function ScopeNote({
-  env,
-  workspace,
-  own,
-  edit,
-  onFollow,
-}: {
-  env?: { id: string; name: string }
-  workspace: string
-  own: number
-  edit: boolean
-  onFollow: () => void
-}) {
-  if (!env) {
-    return (
-      <p className="flex items-start gap-2 text-caption text-muted-foreground">
-        <Layers className="mt-px size-3.5 shrink-0 text-ash" />
-        Every environment of {workspace} uses these, unless it sets one for
-        itself.
-      </p>
-    )
-  }
-  return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-subtle px-3 py-2.5 text-caption text-muted-foreground">
-      <Server className="size-3.5 shrink-0 text-ash" />
-      <span className="min-w-0 flex-1">
-        {own === 0 ? (
-          <>
-            <span className="font-medium text-foreground">{env.name}</span>{" "}
-            follows the workspace. Change a setting here to set it for this
-            environment only.
-          </>
-        ) : (
-          <>
-            <span className="font-medium text-foreground">{env.name}</span>{" "}
-            follows the workspace except for {plural(own, "setting")} of its
-            own, marked below.
-          </>
-        )}
-      </span>
-      {edit && own > 0 && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-my-1 text-brand max-md:h-11"
-          onClick={onFollow}
-        >
-          <RotateCcw />
-          Follow the workspace for everything
-        </Button>
-      )}
     </div>
   )
 }

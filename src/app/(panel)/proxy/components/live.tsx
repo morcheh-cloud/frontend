@@ -1,6 +1,14 @@
 "use client"
 
-import type { ReactNode } from "react"
+import {
+  type PointerEvent,
+  type ReactNode,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react"
+import { createPortal } from "react-dom"
 
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
 import {
@@ -475,19 +483,88 @@ export function LivePanel({
 
 // ---- a site card's numbers ----
 
+// What a hover over the small chart tells about one minute.
+export type BarDetails = {
+  // When the first column's minute began (ISO).
+  start: string
+  clientErrors?: number[]
+  bytes?: number[]
+  stream?: boolean
+}
+
+// A site's full minutes for MiniBars: the running minute left out.
+export function siteBars(t: SiteTraffic, start: string, stream: boolean) {
+  return {
+    requests: t.requests.slice(0, -1),
+    errors: t.server_errors.slice(0, -1),
+    details: {
+      start,
+      clientErrors: t.client_errors.slice(0, -1),
+      bytes: t.bytes.slice(0, -1),
+      stream,
+    },
+  }
+}
+
+const minuteFormat = new Intl.DateTimeFormat("en", {
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+})
+
 // A thin column per minute: 5xx on top in red, an empty minute a stub.
+// With `details`, hovering a column shows that minute's numbers.
 export function MiniBars({
   requests,
   errors,
+  details,
+  onOpen,
   className,
 }: {
   requests: number[]
   errors: number[]
+  details?: BarDetails
+  // A click on the chart (it sits above a card's own link).
+  onOpen?: () => void
   className?: string
 }) {
+  const [box, setBox] = useState<HTMLDivElement | null>(null)
+  const [hover, setHover] = useState<number | null>(null)
   const max = Math.max(1, ...requests)
+  const n = requests.length
+  const active = details && hover !== null && hover < n ? hover : null
+
+  // A page scroll would leave the tooltip behind.
+  useEffect(() => {
+    if (active === null) return
+    const clear = () => setHover(null)
+    window.addEventListener("scroll", clear, { capture: true, passive: true })
+    return () => window.removeEventListener("scroll", clear, { capture: true })
+  }, [active])
+
+  const pick = (e: PointerEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    if (!r.width || !n) return
+    const i = Math.floor(((e.clientX - r.left) / r.width) * n)
+    setHover(Math.min(n - 1, Math.max(0, i)))
+  }
+
   return (
-    <div aria-hidden className={cn("flex h-12 items-end gap-[3px]", className)}>
+    <div
+      ref={setBox}
+      // Mouse detail only: the card's numbers and link say it in words.
+      aria-hidden
+      onPointerMove={details ? pick : undefined}
+      onPointerDown={details ? pick : undefined}
+      onPointerLeave={details ? () => setHover(null) : undefined}
+      onClick={onOpen}
+      className={cn(
+        "flex h-12 items-end gap-[3px]",
+        details && "relative touch-pan-y",
+        onOpen && "cursor-pointer",
+        className,
+      )}
+    >
       {requests.map((r, i) => {
         const e = Math.min(r, errors[i] ?? 0)
         const height = r > 0 ? Math.max(8, (r / max) * 100) : 0
@@ -495,7 +572,10 @@ export function MiniBars({
           <span
             // biome-ignore lint/suspicious/noArrayIndexKey: one per minute
             key={i}
-            className="flex h-full min-w-px flex-1 flex-col justify-end"
+            className={cn(
+              "flex h-full min-w-px flex-1 flex-col justify-end rounded-[3px] transition-opacity",
+              active !== null && active !== i && "opacity-45",
+            )}
           >
             {r > 0 ? (
               <span
@@ -510,12 +590,104 @@ export function MiniBars({
                 )}
               </span>
             ) : (
-              <span className="h-[3px] rounded-full bg-muted" />
+              <span
+                className={cn(
+                  "h-[3px] rounded-full",
+                  active === i ? "bg-mist" : "bg-muted",
+                )}
+              />
             )}
           </span>
         )
       })}
+      {details && active !== null && box && (
+        <MinuteTip
+          box={box}
+          index={active}
+          n={n}
+          requests={requests[active] ?? 0}
+          errors={errors[active] ?? 0}
+          details={details}
+        />
+      )}
     </div>
+  )
+}
+
+// One minute's numbers, above its column. Rendered in <body> with a fixed
+// position, so a table's or card's overflow never cuts it.
+function MinuteTip({
+  box,
+  index,
+  n,
+  requests,
+  errors,
+  details: d,
+}: {
+  box: HTMLElement
+  index: number
+  n: number
+  requests: number
+  errors: number
+  details: BarDetails
+}) {
+  const tip = useRef<HTMLDivElement>(null)
+
+  // Centred over the column, kept inside the window, below it when there's
+  // no room above.
+  useLayoutEffect(() => {
+    const el = tip.current
+    if (!el) return
+    const r = box.getBoundingClientRect()
+    const w = el.offsetWidth
+    const h = el.offsetHeight
+    const x = r.left + ((index + 0.5) / n) * r.width
+    const left = Math.min(Math.max(8, x - w / 2), window.innerWidth - w - 8)
+    const top = r.top - h - 8 >= 8 ? r.top - h - 8 : r.bottom + 8
+    el.style.left = `${left}px`
+    el.style.top = `${top}px`
+    el.style.visibility = "visible"
+  })
+
+  const from = Date.parse(d.start) + index * 60_000
+  const client = d.clientErrors?.[index] ?? 0
+  const bytes = d.bytes?.[index]
+  const rows = [
+    {
+      label: d.stream ? "Connections" : "Requests",
+      value: count(requests),
+      swatch: swatches.ok,
+    },
+    ...(d.stream || !d.clientErrors
+      ? []
+      : [{ label: "4xx", value: count(client), swatch: swatches.client }]),
+    {
+      label: d.stream ? "Failed" : "5xx",
+      value: errors > 0 ? `${count(errors)} · ${rate(errors, requests)}` : "0",
+      swatch: swatches.server,
+    },
+    ...(bytes === undefined
+      ? []
+      : [{ label: "Sent", value: formatSize(bytes) }]),
+  ]
+
+  return createPortal(
+    <div
+      ref={tip}
+      role="status"
+      style={{ visibility: "hidden", left: 0, top: 0 }}
+      className="pointer-events-none fixed z-50 w-max max-w-64 rounded-lg border border-border bg-popover px-3 py-2 text-caption text-popover-foreground shadow-md"
+    >
+      <Tip
+        title={
+          Number.isNaN(from)
+            ? "One minute"
+            : `${minuteFormat.format(from)}–${minuteFormat.format(from + 60_000)}`
+        }
+        rows={rows}
+      />
+    </div>,
+    document.body,
   )
 }
 

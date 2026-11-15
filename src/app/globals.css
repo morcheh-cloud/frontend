@@ -377,3 +377,15 @@
   --xy-attribution-background-color-default: transparent;
   font-family: inherit;
 }
+
+/* Our "group" nodes draw their own box: drop React Flow's built-in group
+   look (padding, centred text, square border, default size). */
+.react-flow.netmap .react-flow__node-group {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  text-align: start;
+  width: auto;
+}

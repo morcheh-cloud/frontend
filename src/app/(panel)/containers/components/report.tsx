@@ -6,14 +6,15 @@ import {
   ChevronRight,
   HeartPulse,
   Info,
-  Maximize2,
-  Waypoints,
-  X,
+  Search,
 } from "lucide-react"
 import Link from "next/link"
 import { type ReactNode, useState } from "react"
 
-import { Segmented } from "@/app/(panel)/servers/[id]/components/parts"
+import {
+  SearchBox,
+  Segmented,
+} from "@/app/(panel)/servers/[id]/components/parts"
 import {
   type Buckets,
   bucketLabel,
@@ -23,9 +24,7 @@ import {
   type Series,
   Tip,
 } from "@/components/charts/time-chart"
-import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useOpen } from "@/hooks/useOpen"
 import { formatSize } from "@/lib/format"
 import type { DockerReport, DockerReportContainer } from "@/lib/services"
 import { cn } from "@/lib/utils"
@@ -34,25 +33,27 @@ import { StackBar } from "./parts"
 import {
   CPU_FLOOR,
   containerTone,
+  PortLink,
   pct,
   portLabel,
   rate,
   Spark,
   shareTone,
   upFor,
+  useServerAddress,
 } from "./project-stats"
-import { buildTopology, Topology } from "./topology"
 
 // The Dashboard's report on one environment: totals, usage over time, who
-// uses the most, the network map and every container's state and uptime.
+// uses the most and every container's state and uptime. The map lives in
+// `topology.tsx`.
 // Everything comes from one request (`useDockerReport`).
 
-const running = (c: DockerReportContainer) =>
+export const running = (c: DockerReportContainer) =>
   c.state === "running" || c.state === "restarting"
 
 // Server share of the containers' CPU (the report adds up percent of one
 // core).
-const serverShare = (r: DockerReport, cpu: number) =>
+export const serverShare = (r: DockerReport, cpu: number) =>
   r.cpus > 0 ? cpu / r.cpus : cpu
 
 function problemRank(c: DockerReportContainer) {
@@ -594,164 +595,25 @@ export function TopConsumers({
   )
 }
 
-// --- Network map -------------------------------------------------------------
-
-function MapNotice({ report: r }: { report: DockerReport }) {
-  if (r.links_state === "read" && r.link_bytes) return null
-  const text =
-    r.links_state === "unavailable"
-      ? r.links_note || "Connections between containers couldn't be read."
-      : r.links_state === "partial"
-        ? r.links_note || "Some containers' connections couldn't be read."
-        : "Lines show open connections; their bytes need a login that can use sudo (nsenter and ss)."
-  return (
-    <p className="flex items-start gap-1.5 text-caption text-ash">
-      <Info className="mt-px size-3.5 shrink-0" />
-      {text}
-    </p>
-  )
-}
-
-function MapCounts({ report }: { report: DockerReport }) {
-  const all = buildTopology(report, { stopped: true, phone: false }).counts
-  return (
-    <span className="text-caption text-muted-foreground tabular-nums">
-      {all.networks} network{all.networks === 1 ? "" : "s"} · {all.links} link
-      {all.links === 1 ? "" : "s"} · {all.connections} connection
-      {all.connections === 1 ? "" : "s"}
-    </span>
-  )
-}
-
-export function TopologyCard({
-  report,
-  server,
-}: {
-  report: DockerReport
-  server: string
-}) {
-  const [stopped, setStopped] = useState<"running" | "all">("running")
-  return (
-    <section
-      aria-label="Network map"
-      className="flex min-w-0 flex-col rounded-2xl border border-border bg-card shadow-sm [contain:inline-size]"
-    >
-      <header className="flex flex-wrap items-center gap-x-3 gap-y-2 px-5 pt-4 pb-3">
-        <h2 className="text-body-sm font-medium">Network map</h2>
-        <MapCounts report={report} />
-        <span className="flex-1" />
-        <Segmented
-          label="Containers on the map"
-          items={[
-            { value: "running", label: "Running" },
-            { value: "all", label: "All" },
-          ]}
-          value={stopped}
-          onChange={setStopped}
-        />
-        <Link
-          href={envHref(server, "/containers/networks")}
-          className="flex items-center gap-0.5 text-caption text-muted-foreground outline-none hover:text-brand focus-visible:text-brand"
-        >
-          Networks
-          <ChevronRight className="size-3.5 rtl:rotate-180" />
-        </Link>
-      </header>
-      <div className="h-[34rem] border-y border-border">
-        <Topology
-          report={report}
-          server={server}
-          phone={false}
-          stopped={stopped === "all"}
-        />
-      </div>
-      <div className="px-5 py-2.5">
-        <MapNotice report={report} />
-        {report.links_state === "read" && report.link_bytes && (
-          <p className="text-caption text-ash">
-            Hover a container to follow its lines; click it to open it.
-          </p>
-        )}
-      </div>
-    </section>
-  )
-}
-
-// Phones: a row on the dashboard opens the map full screen, where a finger
-// can pan and pinch.
-export function PhoneMapRow({
-  report,
-  server,
-}: {
-  report: DockerReport
-  server: string
-}) {
-  const [open, setOpen] = useOpen("docker-network-map")
-  const all = buildTopology(report, { stopped: false, phone: true }).counts
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="flex min-h-16 w-full items-center gap-3 px-4 py-2 text-start active:bg-muted"
-      >
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-strong">
-          <Waypoints className="size-5" />
-        </span>
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="text-body font-medium">Network map</span>
-          <span className="truncate text-caption text-muted-foreground">
-            {all.containers} running · {all.networks} network
-            {all.networks === 1 ? "" : "s"} · {all.links} link
-            {all.links === 1 ? "" : "s"}
-          </span>
-        </span>
-        <Maximize2 className="size-4 shrink-0 text-ash" />
-      </button>
-      {open && (
-        <div
-          role="dialog"
-          aria-modal
-          aria-label="Network map"
-          className="fixed inset-0 z-50 flex flex-col bg-background pt-[env(safe-area-inset-top)]"
-        >
-          <div className="flex h-14 shrink-0 items-center gap-2 border-b border-border ps-4 pe-1">
-            <h2 className="min-w-0 flex-1 truncate text-body font-medium">
-              Network map
-            </h2>
-            <Button
-              variant="ghost"
-              size="icon-lg"
-              aria-label="Close"
-              onClick={() => setOpen(false)}
-            >
-              <X />
-            </Button>
-          </div>
-          <div className="relative min-h-0 flex-1">
-            <Topology
-              report={report}
-              server={server}
-              phone
-              stopped={false}
-              interactive
-            />
-          </div>
-          <div className="shrink-0 border-t border-border px-4 pt-2 pb-[calc(--spacing(2)+env(safe-area-inset-bottom))]">
-            <MapNotice report={report} />
-          </div>
-        </div>
-      )}
-    </>
-  )
-}
-
 // --- Containers: state and uptime --------------------------------------------
 
 const PAGE = 12
 
-function Ports({ c }: { c: DockerReportContainer }) {
-  const list = [...new Set(c.ports.filter((p) => p.public > 0).map(portLabel))]
+const filterLabels: Record<string, string> = {
+  all: "All",
+  running: "Running",
+  problems: "Problems",
+  stopped: "Stopped",
+}
+
+function Ports({ c, address }: { c: DockerReportContainer; address?: string }) {
+  const seen = new Set<string>()
+  const list = c.ports.filter((p) => {
+    const k = portLabel(p)
+    if (p.public <= 0 || seen.has(k)) return false
+    seen.add(k)
+    return true
+  })
   if (!list.length) {
     const inner = c.listening.slice(0, 3)
     return inner.length ? (
@@ -763,9 +625,11 @@ function Ports({ c }: { c: DockerReportContainer }) {
     )
   }
   return (
-    <span className="font-mono text-caption tracking-normal">
-      {list.slice(0, 2).join(" ")}
-      {list.length > 2 && <span className="text-ash"> +{list.length - 2}</span>}
+    <span className="flex flex-wrap gap-x-2 font-mono text-caption tracking-normal">
+      {list.slice(0, 2).map((p) => (
+        <PortLink key={portLabel(p)} p={p} address={address} />
+      ))}
+      {list.length > 2 && <span className="text-ash">+{list.length - 2}</span>}
     </span>
   )
 }
@@ -802,31 +666,90 @@ function StateCell({ c }: { c: DockerReportContainer }) {
   )
 }
 
+const containerFilters = ["all", "running", "problems", "stopped"] as const
+type ContainerFilter = (typeof containerFilters)[number]
+
+const filterOf = (c: DockerReportContainer): ContainerFilter[] => {
+  const tone = containerTone(c)
+  const out: ContainerFilter[] = ["all"]
+  if (running(c)) out.push("running")
+  else out.push("stopped")
+  if (tone === "destructive" || tone === "warning") out.push("problems")
+  return out
+}
+
+// `full` = the Dashboard's Containers tab: every row, with search and a
+// state filter; otherwise the first 12 by what needs a look.
 export function ContainersReport({
   report: r,
   server,
+  full = false,
 }: {
   report: DockerReport
   server: string
+  full?: boolean
 }) {
+  const address = useServerAddress(server)
   const [all, setAll] = useState(false)
-  const list = [...r.containers].sort(byAttention)
-  const shown = all ? list : list.slice(0, PAGE)
+  const [show, setShow] = useState<ContainerFilter>("all")
+  const [q, setQ] = useState("")
+  const sorted = [...r.containers].sort(byAttention)
+  const counts = Object.fromEntries(
+    containerFilters.map((f) => [
+      f,
+      sorted.filter((c) => filterOf(c).includes(f)).length,
+    ]),
+  ) as Record<ContainerFilter, number>
+  const needle = q.trim().toLowerCase()
+  const list = full
+    ? sorted.filter(
+        (c) =>
+          filterOf(c).includes(show) &&
+          (!needle ||
+            `${c.name} ${c.image} ${c.project ?? ""}`
+              .toLowerCase()
+              .includes(needle)),
+      )
+    : sorted
+  const shown = all || full ? list : list.slice(0, PAGE)
   return (
     <section
       aria-label="Containers"
       className="flex min-w-0 flex-col rounded-2xl border border-border bg-card shadow-sm [contain:inline-size]"
     >
-      <header className="flex items-center gap-2 px-5 pt-4 pb-3">
+      <header className="flex flex-wrap items-center gap-2 px-5 pt-4 pb-3">
         <h2 className="text-body-sm font-medium">State and uptime</h2>
         <span className="text-caption text-muted-foreground tabular-nums">
           {list.length}
         </span>
+        {full && (
+          <span className="ms-auto flex flex-wrap items-center gap-2">
+            <Segmented
+              label="Show"
+              items={containerFilters.map((f) => ({
+                value: f,
+                label: `${filterLabels[f]} ${counts[f]}`,
+              }))}
+              value={show}
+              onChange={setShow}
+            />
+            <SearchBox
+              value={q}
+              onChange={setQ}
+              placeholder="Search"
+              label="Search containers"
+              className="md:w-56"
+            />
+          </span>
+        )}
         <Link
           href={envHref(server, "/containers/list")}
-          className="ms-auto flex items-center gap-0.5 text-caption text-muted-foreground outline-none hover:text-brand focus-visible:text-brand"
+          className={cn(
+            "flex items-center gap-0.5 text-caption text-muted-foreground outline-none hover:text-brand focus-visible:text-brand",
+            !full && "ms-auto",
+          )}
         >
-          All containers
+          {full ? "Manage" : "All containers"}
           <ChevronRight className="size-3.5 rtl:rotate-180" />
         </Link>
       </header>
@@ -891,7 +814,7 @@ export function ContainersReport({
                           tone={shareTone(share)}
                           className="h-6 w-16"
                         />
-                        <span className="tabular-nums">{pct(share)}</span>
+                        <span className="w-12 tabular-nums">{pct(share)}</span>
                       </span>
                     ) : (
                       <span className="text-ash">—</span>
@@ -900,7 +823,9 @@ export function ContainersReport({
                   <td className="hidden whitespace-nowrap tabular-nums @3xl:table-cell">
                     {on ? (
                       <>
-                        {formatSize(c.memory_used)}
+                        <span className="inline-block min-w-14">
+                          {formatSize(c.memory_used)}
+                        </span>
                         {c.memory_limit > 0 && (
                           <span className="text-ash">
                             {" "}
@@ -914,7 +839,7 @@ export function ContainersReport({
                   </td>
                   <td className="hidden text-caption whitespace-nowrap tabular-nums @4xl:table-cell">
                     {on ? (
-                      <span className="flex flex-col">
+                      <span className="flex w-20 flex-col">
                         <span>↓ {rate(c.net_rx_rate)}</span>
                         <span className="text-ash">
                           ↑ {rate(c.net_tx_rate)}
@@ -925,7 +850,7 @@ export function ContainersReport({
                     )}
                   </td>
                   <td className="hidden @5xl:table-cell">
-                    <Ports c={c} />
+                    <Ports c={c} address={address} />
                   </td>
                 </tr>
               )
@@ -933,7 +858,13 @@ export function ContainersReport({
           </tbody>
         </table>
       </div>
-      {list.length > PAGE && (
+      {full && !list.length && (
+        <p className="flex items-center gap-2 border-t border-border px-5 py-6 text-body-sm text-muted-foreground">
+          <Search className="size-4 text-ash" />
+          No container matches.
+        </p>
+      )}
+      {!full && list.length > PAGE && (
         <button
           type="button"
           onClick={() => setAll(!all)}

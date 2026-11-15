@@ -7,6 +7,7 @@ import type {
   DockerProjectStats,
 } from "@/lib/services"
 import { cn } from "@/lib/utils"
+import { useDockerFleet } from "../api"
 import { exitCode, type Tone } from "./meta"
 
 // Shared bits for a compose project's live numbers: the cards on
@@ -34,6 +35,74 @@ export function portLabel(p: DockerPortOut) {
   const ip =
     p.ip && p.ip !== "0.0.0.0" && p.ip !== "::" && p.ip !== "" ? `${p.ip}:` : ""
   return `${ip}${p.public}→${p.private}${proto}`
+}
+
+const loopback = /^(127\.|::1$|localhost$)/
+
+// The address a published port answers on, for a browser: the bound IP when
+// it's a specific one, else the server's address. None for UDP, unpublished
+// or loopback-only ports (they can't be reached from here).
+export function portHref(p: DockerPortOut, address?: string) {
+  if (p.public <= 0 || (p.proto && p.proto !== "tcp")) return undefined
+  const specific = !!p.ip && p.ip !== "0.0.0.0" && p.ip !== "::"
+  if (specific && loopback.test(p.ip ?? "")) return undefined
+  const host = specific ? p.ip : address
+  if (!host) return undefined
+  const h = host.includes(":") && !host.startsWith("[") ? `[${host}]` : host
+  const tls = [443, 8443].includes(p.private) || p.public === 443
+  const scheme = tls ? "https" : "http"
+  const plain = (scheme === "http" && p.public === 80) || p.public === 443
+  return `${scheme}://${h}${plain ? "" : `:${p.public}`}`
+}
+
+// The server's address as the Docker fleet knows it (for port links).
+export function useServerAddress(serverId: string) {
+  const fleet = useDockerFleet()
+  return fleet.data?.servers.find((s) => s.server_id === serverId)?.address
+}
+
+// A published port that opens in a new tab; plain text when it can't.
+export function PortLink({
+  p,
+  address,
+  className,
+}: {
+  p: DockerPortOut
+  address?: string
+  className?: string
+}) {
+  const href = portHref(p, address)
+  const label = portLabel(p)
+  if (!href)
+    return (
+      <span
+        className={className}
+        title={
+          p.ip && loopback.test(p.ip)
+            ? "Only reachable on the server itself"
+            : undefined
+        }
+      >
+        {label}
+      </span>
+    )
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      title={`Open ${href} in a new tab`}
+      // Rows and cards open on a click: the link mustn't open them too.
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+      className={cn(
+        "underline-offset-2 outline-none hover:text-brand hover:underline focus-visible:text-brand focus-visible:underline",
+        className,
+      )}
+    >
+      {label}
+    </a>
+  )
 }
 
 // One container's tone: what its dot in the bar and the tables shows.

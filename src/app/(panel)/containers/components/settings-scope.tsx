@@ -1,29 +1,13 @@
 "use client"
 
-import {
-  Check,
-  ChevronDown,
-  Download,
-  Layers,
-  Server,
-  Upload,
-} from "lucide-react"
+import { ChevronRight, Download, Globe, RotateCcw, Upload } from "lucide-react"
+import Link from "next/link"
 
-import { BottomSheet, SheetAction } from "@/components/bottom-sheet"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { useOpen } from "@/hooks/useOpen"
 import { cn } from "@/lib/utils"
-import { afterClose } from "../../servers/[id]/components/parts"
+
+export const GLOBAL_SETTINGS = "/containers/global-settings"
+export const SERVER_SETTINGS = "/containers/settings"
 
 export type ScopeEnv = {
   id: string
@@ -33,215 +17,157 @@ export type ScopeEnv = {
   dirty: boolean
 }
 
-const ownText = (n: number) =>
-  n === 0
-    ? "Follows the workspace"
-    : n === 1
-      ? "1 of its own"
-      : `${n} of its own`
+const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`
 
-// The page's toolbar: which settings are in view (the workspace's, or one
-// environment's), and export / import.
-export function ScopeBar({
+// The global page's head: what these settings cover, the servers that set
+// some for themselves (a click opens that server's settings), export and
+// import.
+export function GlobalHeader({
   phone,
   workspace,
   envs,
-  scope,
-  wsDirty,
-  onScope,
+  onOpen,
   onExport,
   onImport,
 }: {
   phone: boolean
   workspace: string
   envs: ScopeEnv[]
-  scope: string
-  wsDirty: boolean
-  onScope: (id: string) => void
+  onOpen: (id: string) => void
   onExport: () => void
   onImport?: () => void
 }) {
-  const env = envs.find((e) => e.id === scope)
-  const current = env?.name ?? "Whole workspace"
-  const icon = env ? <Server /> : <Layers />
-  const anyDirty = wsDirty || envs.some((e) => e.dirty)
-  const transfer = (
-    <div className="ms-auto flex items-center gap-1">
-      <Button
-        variant="ghost"
-        size={phone ? "icon" : "sm"}
-        className={cn(phone && "size-11")}
-        aria-label="Export settings"
-        title={phone ? undefined : "Download these settings as a file"}
-        onClick={onExport}
-      >
-        <Download />
-        {!phone && "Export"}
-      </Button>
-      {onImport && (
-        <Button
-          variant="ghost"
-          size={phone ? "icon" : "sm"}
-          className={cn(phone && "size-11")}
-          aria-label="Import settings"
-          title={phone ? undefined : "Load settings from a file"}
-          onClick={onImport}
-        >
-          <Upload />
-          {!phone && "Import"}
-        </Button>
-      )}
-    </div>
-  )
+  const own = envs.filter((e) => e.own > 0 || e.dirty)
+  const following = envs.length - own.length
   return (
-    <div className="flex items-center gap-2">
-      {phone ? (
-        <PhonePicker
-          workspace={workspace}
-          envs={envs}
-          scope={scope}
-          wsDirty={wsDirty}
-          current={current}
-          icon={icon}
-          dot={anyDirty}
-          onScope={onScope}
-        />
-      ) : (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button variant="outline" className="h-9 gap-1.5">
-                {icon}
-                <span className="text-muted-foreground">Settings for</span>
-                <span className="max-w-60 truncate font-medium">{current}</span>
-                {anyDirty && (
-                  <span
-                    className="size-1.5 rounded-full bg-brand"
-                    title="Unsaved changes"
-                  />
-                )}
-                <ChevronDown className="size-3.5 text-ash" />
-              </Button>
-            }
-          />
-          <DropdownMenuContent align="start" className="min-w-72">
-            <DropdownMenuRadioGroup value={scope} onValueChange={onScope}>
-              <DropdownMenuRadioItem value="">
-                <ScopeLabel
-                  name="Whole workspace"
-                  note={`Every environment of ${workspace}`}
-                  dirty={wsDirty}
-                />
-              </DropdownMenuRadioItem>
-              {envs.length > 0 && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
-                    <DropdownMenuLabel>Environments</DropdownMenuLabel>
-                    {envs.map((e) => (
-                      <DropdownMenuRadioItem key={e.id} value={e.id}>
-                        <ScopeLabel
-                          name={e.name}
-                          note={ownText(e.own)}
-                          dirty={e.dirty}
-                        />
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuGroup>
-                </>
-              )}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+    <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 max-md:-mx-4 max-md:rounded-none max-md:border-x-0 max-md:p-4">
+      <div className="flex items-start gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-strong">
+          <Globe className="size-5" />
+        </span>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <p className="text-body font-medium">
+            Every container server in {workspace}
+          </p>
+          <p className="text-caption text-muted-foreground">
+            {envs.length === 0
+              ? "No server runs Docker or Podman yet; a new one starts with these."
+              : `${plural(envs.length, "server")} use these. A server can still set a value for itself on its own Settings page.`}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <Button
+            variant="ghost"
+            size={phone ? "icon" : "sm"}
+            className={cn(phone && "size-11")}
+            aria-label="Export settings"
+            title={phone ? undefined : "Download every setting as a file"}
+            onClick={onExport}
+          >
+            <Download />
+            {!phone && "Export"}
+          </Button>
+          {onImport && (
+            <Button
+              variant="ghost"
+              size={phone ? "icon" : "sm"}
+              className={cn(phone && "size-11")}
+              aria-label="Import settings"
+              title={phone ? undefined : "Load settings from a file"}
+              onClick={onImport}
+            >
+              <Upload />
+              {!phone && "Import"}
+            </Button>
+          )}
+        </div>
+      </div>
+      {envs.length > 0 && (
+        <div className="flex flex-col gap-2 border-t border-border pt-4">
+          <p className="text-caption text-muted-foreground">
+            {own.length === 0
+              ? "Every server follows these exactly."
+              : following > 0
+                ? `${plural(own.length, "server")} set some values for themselves; ${following} follow these exactly.`
+                : "Every server sets some values for itself."}
+          </p>
+          {own.length > 0 && (
+            <ul className="flex flex-wrap gap-2">
+              {own.map((e) => (
+                <li key={e.id} className="max-w-full min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => onOpen(e.id)}
+                    title={`Open the settings of ${e.name}`}
+                    className="flex h-8 max-w-full min-w-0 items-center gap-1.5 rounded-full border border-border bg-background ps-3 pe-2 text-body-sm transition-colors hover:bg-muted max-md:h-11"
+                  >
+                    <span className="truncate font-medium">{e.name}</span>
+                    <span className="shrink-0 text-caption text-muted-foreground">
+                      {e.own} own
+                    </span>
+                    {e.dirty && (
+                      <span
+                        className="size-1.5 shrink-0 rounded-full bg-brand"
+                        title="Unsaved changes"
+                      />
+                    )}
+                    <ChevronRight className="size-3.5 shrink-0 text-ash rtl:rotate-180" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
-      {transfer}
     </div>
   )
 }
 
-function ScopeLabel({
+// A server's page head: how much of it follows the global settings, a way
+// back to everything it follows, and to the global page.
+export function ServerHeader({
   name,
-  note,
-  dirty,
+  own,
+  edit,
+  onFollow,
 }: {
   name: string
-  note: string
-  dirty: boolean
+  own: number
+  edit: boolean
+  onFollow: () => void
 }) {
   return (
-    <span className="flex min-w-0 flex-1 flex-col">
-      <span className="flex items-center gap-1.5">
-        <span className="truncate">{name}</span>
-        {dirty && <span className="size-1.5 shrink-0 rounded-full bg-brand" />}
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-border bg-card px-4 py-3 text-caption text-muted-foreground max-md:-mx-4 max-md:rounded-none max-md:border-x-0">
+      <Globe className="size-4 shrink-0 text-ash" />
+      <span className="min-w-0 flex-1">
+        <span className="font-medium text-foreground">{name}</span>{" "}
+        {own === 0
+          ? "follows the global settings. Change a value here to set it for this server only."
+          : `follows the global settings except for ${plural(own, "value")} of its own, marked below.`}
       </span>
-      <span className="truncate text-caption text-muted-foreground">
-        {note}
+      <span className="flex flex-wrap items-center gap-1">
+        {edit && own > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-brand max-md:h-11"
+            onClick={onFollow}
+          >
+            <RotateCcw />
+            Follow global for everything
+          </Button>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          className="max-md:h-11"
+          render={<Link href={GLOBAL_SETTINGS} />}
+          nativeButton={false}
+        >
+          <Globe />
+          Global settings
+        </Button>
       </span>
-    </span>
-  )
-}
-
-function PhonePicker({
-  workspace,
-  envs,
-  scope,
-  wsDirty,
-  current,
-  icon,
-  dot,
-  onScope,
-}: {
-  workspace: string
-  envs: ScopeEnv[]
-  scope: string
-  wsDirty: boolean
-  current: string
-  icon: React.ReactNode
-  dot: boolean
-  onScope: (id: string) => void
-}) {
-  const [open, setOpen] = useOpen("docker-settings-scope")
-  // The scope lives in the URL: write it once the sheet's history entry is
-  // gone, or closing the sheet would undo it.
-  const choose = (id: string) => afterClose(setOpen, () => onScope(id))
-  const row = (id: string, name: string, note: string, dirty: boolean) => (
-    <li key={id || "workspace"}>
-      <SheetAction
-        icon={<Check className={cn(scope !== id && "invisible")} />}
-        label={name}
-        description={note}
-        trailing={
-          dirty ? (
-            <span className="size-2 rounded-full bg-brand" title="Unsaved" />
-          ) : undefined
-        }
-        onClick={() => choose(id)}
-      />
-    </li>
-  )
-  return (
-    <>
-      <Button
-        variant="outline"
-        className="h-9 min-w-0 gap-1.5 rounded-full px-3.5"
-        onClick={() => setOpen(true)}
-      >
-        {icon}
-        <span className="truncate font-medium">{current}</span>
-        {dot && <span className="size-1.5 shrink-0 rounded-full bg-brand" />}
-        <ChevronDown className="size-3.5 shrink-0 text-ash" />
-      </Button>
-      <BottomSheet open={open} onOpenChange={setOpen} title="Settings for">
-        <ul className="divide-y divide-border">
-          {row(
-            "",
-            "Whole workspace",
-            `Every environment of ${workspace}`,
-            wsDirty,
-          )}
-          {envs.map((e) => row(e.id, e.name, ownText(e.own), e.dirty))}
-        </ul>
-      </BottomSheet>
-    </>
+    </div>
   )
 }

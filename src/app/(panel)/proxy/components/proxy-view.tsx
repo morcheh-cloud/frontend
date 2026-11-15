@@ -63,7 +63,14 @@ import type {
 } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { useFleetHosts, useProxies, useProxyTraffic } from "../api"
-import { count, LiveState, MiniBars, SiteNumbers, Sparkline } from "./live"
+import {
+  count,
+  LiveState,
+  MiniBars,
+  SiteNumbers,
+  Sparkline,
+  siteBars,
+} from "./live"
 import {
   groupManaged,
   ManagedHeading,
@@ -428,6 +435,7 @@ function ProxyDesktop() {
                     row={r}
                     stream={d.tab === "streams"}
                     minutes={d.traffic.data?.minutes ?? 30}
+                    start={d.traffic.data?.start}
                     loaded={!!d.traffic.data}
                   />
                 </li>
@@ -447,6 +455,7 @@ function ProxyDesktop() {
                       m={m}
                       traffic={d.managedTrafficOf.get(m.key)}
                       minutes={d.traffic.data?.minutes ?? 30}
+                      start={d.traffic.data?.start}
                       loaded={!!d.traffic.data}
                       unread={d.unread.has(m.proxy.id)}
                     />
@@ -637,14 +646,18 @@ function SiteCard({
   row,
   stream,
   minutes,
+  start,
   loaded,
 }: {
   row: Row
   stream: boolean
   minutes: number
+  // When the traffic's first minute began.
+  start?: string
   // The traffic answer has come.
   loaded: boolean
 }) {
+  const router = useRouter()
   const menu = useHostMenu()
   const h = row.fleet.host
   const p = row.proxy
@@ -721,8 +734,8 @@ function SiteCard({
           <div className="flex flex-col gap-3">
             <SiteNumbers t={t} stream={stream} minutes={minutes} />
             <MiniBars
-              requests={t.requests.slice(0, -1)}
-              errors={t.server_errors.slice(0, -1)}
+              {...siteBars(t, start ?? "", stream)}
+              onOpen={() => router.push(hostHref(h.proxy_id, h.id))}
             />
           </div>
         ) : (

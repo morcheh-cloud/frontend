@@ -61,35 +61,48 @@ export const alerts: GuideSection[] = [
           Morche takes (every minute by default), or on every connection check
           for <UI>Unreachable</UI>.
         </P>
+        <P>
+          A rule has its own page: <UI>New rule</UI> on <UI>Alerts</UI> ›{" "}
+          <UI>Rules</UI> opens it, and so does <UI>Edit</UI> in a rule's menu.
+          On a wide screen the side column keeps the rule{" "}
+          <UI>In plain words</UI> and a <UI>Summary</UI> in sight while you fill
+          it in; on a phone it's a full screen with <UI>Save</UI> in the top
+          bar.
+        </P>
         <Steps>
           {[
             <>
-              On <UI>Alerts</UI> › <UI>Rules</UI> press <UI>New rule</UI>, or
-              pick a ready-made one under <UI>Start from</UI>. From a server's{" "}
-              <UI>Metrics</UI> tab, the bell on a chart starts one for that
-              server. <See guide="server-metrics" section="alerts" />
+              <UI>What to watch</UI>: pick what kind of thing (Servers,
+              Containers, Databases or Proxmox), then the measure. A new rule
+              also offers <UI>Ready-made</UI> ones that fill in the whole page;
+              change anything before saving. From a server's <UI>Metrics</UI>{" "}
+              tab, the bell on a chart opens the page for that server already.{" "}
+              <See guide="server-metrics" section="alerts" />
             </>,
             <>
-              <UI>Watch</UI>: the measure (CPU, memory, disk, unreachable, load
-              per core, I/O wait, swap, download, upload, a service, or a
-              database's reachability or health), <UI>Above</UI> or{" "}
-              <UI>Below</UI>, the limit, and how long it must last. For a disk,
-              leave <UI>Filesystem</UI> empty to watch the fullest one, or name
-              a mount like <C>/var</C>.
+              <UI>When it alerts</UI>: <UI>Above</UI> or <UI>Below</UI>, the
+              limit, and how long it must last. For a disk, leave{" "}
+              <UI>Filesystem</UI> empty to watch the fullest one, or name a
+              mount like <C>/var</C>.
             </>,
             <>
-              <UI>On</UI>: <UI>Every server</UI> (new ones too),{" "}
+              <UI>Covers</UI>: <UI>Every server</UI> (new ones too),{" "}
               <UI>Chosen servers</UI>, or <UI>By tag</UI> (any server with one
-              of the tags, now or later).
+              of the tags, now or later); databases and clusters the same way.
             </>,
             <>
-              <UI>Right now</UI> shows what each server reads at the moment and
+              <UI>Right now</UI> shows what each one reads at the moment and
               whether the rule would fire, before you save.
             </>,
             <>
-              <UI>Tell</UI>: the channels, <UI>Warning</UI> or <UI>Critical</UI>
-              , <UI>Remind</UI> (while it keeps firing), and whether to send a
-              message when it's back to normal.
+              <UI>Notify</UI>: the channels, <UI>Warning</UI> or{" "}
+              <UI>Critical</UI>, <UI>Remind</UI> (while it keeps firing), and{" "}
+              <UI>Tell when it's back to normal</UI>.
+            </>,
+            <>
+              <UI>Name</UI>: left alone, it follows the condition (
+              <C>CPU above 90% for 10 min</C>). Press <UI>Save</UI> (Ctrl/⌘+S on
+              a computer); leaving with unsaved changes asks first.
             </>,
           ]}
         </Steps>
@@ -393,25 +406,37 @@ export const alerts: GuideSection[] = [
     title: "Adding a channel",
     body: (
       <>
+        <P>
+          A channel has its own page: <UI>Add channel</UI> on <UI>Alerts</UI> ›{" "}
+          <UI>Channels</UI> opens it, and so does clicking a channel (or{" "}
+          <UI>Edit</UI> in its menu). The <UI>Add a channel</UI> links on a
+          monitor or rule with no channels lead there too.
+        </P>
         <Steps>
           {[
             <>
-              Open <UI>Alerts</UI> and press <UI>Add channel</UI> (phone: the{" "}
-              <UI>+</UI> button).
-            </>,
-            <>Pick the kind: Chat, Phone push, or Email and webhooks.</>,
-            <>
-              Fill in its fields (see below) and give it a name your team will
-              recognise, like <C>Telegram: on-call</C>.
+              <UI>Kind</UI>: Chat, Phone push, or Email and webhooks. A saved
+              channel keeps its kind; to send somewhere else, add another one.
             </>,
             <>
-              Press <UI>Send a test</UI>: a test message goes out with what you
-              typed, before anything is saved.
+              <UI>Where it sends</UI>: a name your team will recognise, like{" "}
+              <C>Telegram: on-call</C>, then the kind's own fields (see below).
+              The line under the title says where to find them.
             </>,
             <>
-              Tick <UI>Default for new monitors</UI> if every new monitor should
-              use it; <UI>Add to every monitor now</UI> also adds it to the
-              monitors you already have. Then <UI>Save</UI>.
+              <UI>Options</UI>: <UI>Default for new monitors</UI> if every new
+              monitor and rule should start with it ticked;{" "}
+              <UI>Add to every monitor now</UI> also adds it to the monitors you
+              already have.
+            </>,
+            <>
+              <UI>Send a test</UI>: a real message goes out with what's on the
+              page, before anything is saved.
+            </>,
+            <>
+              Press <UI>Add channel</UI> (or <UI>Save</UI>; Ctrl/⌘+S on a
+              computer). The side column sums up where it sends and, for a saved
+              one, how many monitors and rules use it.
             </>,
           ]}
         </Steps>

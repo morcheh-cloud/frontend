@@ -23,7 +23,7 @@ import type {
 import { cn } from "@/lib/utils"
 import { inspectable } from "../[id]/components/toolbar"
 import { useInspections } from "../api"
-import { count, MiniBars, SiteNumbers, Sparkline } from "./live"
+import { count, MiniBars, SiteNumbers, Sparkline, siteBars } from "./live"
 import { ProxyName, ProxyStatusDot, proxyHref, type SiteTab } from "./meta"
 import { Tag } from "./parts"
 import { useProxyActions } from "./proxy-actions"
@@ -164,12 +164,15 @@ export function ManagedSiteCard({
   m,
   traffic: t,
   minutes,
+  start,
   loaded,
   unread,
 }: {
   m: ManagedSite
   traffic?: ProxySiteTraffic
   minutes: number
+  // When the traffic's first minute began.
+  start?: string
   // The traffic answer has come.
   loaded: boolean
   // This proxy's logs couldn't be read.
@@ -227,8 +230,8 @@ export function ManagedSiteCard({
           <div className="flex flex-col gap-3">
             <SiteNumbers t={t} stream={false} minutes={minutes} />
             <MiniBars
-              requests={t.requests.slice(0, -1)}
-              errors={t.server_errors.slice(0, -1)}
+              {...siteBars(t, start ?? "", false)}
+              onOpen={() => actions.viewSite(p, s)}
             />
           </div>
         ) : (

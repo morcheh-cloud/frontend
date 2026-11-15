@@ -1,39 +1,66 @@
 "use client"
 
-import { FlaskConical, Plus, X } from "lucide-react"
-import { useState } from "react"
+import {
+  BellRing,
+  ChevronLeft,
+  CircleAlert,
+  CircleCheck,
+  FlaskConical,
+  Plus,
+  X,
+} from "lucide-react"
+import Link from "next/link"
+import { useParams, useSearchParams } from "next/navigation"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
 import {
   Callout,
+  Section,
   ToggleRow,
 } from "@/app/(panel)/cronjobs/components/editor-parts"
 import { Pick } from "@/app/(panel)/monitoring/components/monitor-fields"
-import { Segmented } from "@/app/(panel)/servers/[id]/components/parts"
+import { Empty, Segmented } from "@/app/(panel)/servers/[id]/components/parts"
+import { timeAgo } from "@/app/(panel)/servers/components/meta"
+import { useAccess } from "@/components/auth/auth"
+import { atLeast } from "@/components/auth/level"
+import {
+  AsideCard,
+  EditorLoading,
+  EditorPage,
+  SummaryList,
+} from "@/components/editor-page"
 import { Field } from "@/components/field"
-import { ResponsiveDialog } from "@/components/responsive-dialog"
+import { usePageCrumbs } from "@/components/panel/breadcrumbs"
+import { useFollowWorkspace, useWorkspace } from "@/components/panel/workspace"
 import { SecretInput } from "@/components/secret-input"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
-import { fieldErrors } from "@/lib/api"
+import { useBackOr } from "@/hooks/useBack"
+import { useIsPhone } from "@/hooks/useIsPhone"
+import { ApiError, fieldErrors } from "@/lib/api"
 import type {
   ChannelConfig,
   ChannelSecrets,
   NotifyChannel,
   NotifyChannelBody,
 } from "@/lib/services"
-import { cn } from "@/lib/utils"
-import { useSaveChannel, useTestChannelSettings } from "../api"
+import { useChannel, useSaveChannel, useTestChannelSettings } from "../api"
 import {
   ChannelIcon,
   type ChannelKind,
   channelGroups,
   channelKinds,
   channelMeta,
+  editChannelHref,
 } from "./meta"
 
-// Header values are sealed on the backend like the other secrets (they often
+// The alert channel editor: /alerts/channels/new (?kind= picks the kind)
+// and /alerts/channels/[id]/edit. A full page on desktop (EditorPage), a
+// native screen with its own app bar on phones. Owner on the workspace.
+
 // carry a login); `saved` = the name it was saved under, so a blank value
 // keeps that saved value.
 type Header = { key: string; name: string; value: string; saved?: string }
@@ -268,68 +295,148 @@ const priorities: Record<string, { value: string; label: string }[]> = {
   })),
 }
 
-// Add or edit a channel: pick the kind, then only that kind's fields.
-export function ChannelFormLayer({
-  open,
-  onOpenChange,
-  channel,
-  workspaceId,
-  admin,
-  phone,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  channel?: NotifyChannel
-  workspaceId: string
-  admin: boolean
-  phone: boolean
-}) {
-  return (
-    <ResponsiveDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title={channel ? `Edit ${channel.name}` : "New alert channel"}
-      description={
-        channel
-          ? undefined
-          : "Where Morche sends a message when a monitor goes down or comes back."
-      }
-      className="sm:max-w-2xl"
-    >
-      {open && (
-        <Form
-          key={channel?.id ?? "new"}
-          channel={channel}
-          workspaceId={workspaceId}
-          admin={admin}
-          phone={phone}
-          onDone={() => onOpenChange(false)}
+// /alerts/channels/[id]/edit reads its id from the route.
+export function ChannelEditorFromRoute() {
+  const { id } = useParams<{ id: string }>()
+  return <ChannelEditor id={id} />
+}
+
+export function ChannelEditor({ id }: { id?: string }) {
+  const phone = useIsPhone()
+  const params = useSearchParams()
+  const query = useChannel(id)
+  if (phone === null) return null
+  if (id && query.isPending) return <Loading phone={phone} />
+  if (id && !query.data) {
+    const gone =
+      query.error instanceof ApiError && [403, 404].includes(query.error.status)
+    return (
+      <div className="px-4 pt-10 md:px-6">
+        <Empty
+          icon={BellRing}
+          title={gone ? "This channel isn't here" : "Couldn't load the channel"}
+          body={
+            gone
+              ? "It was deleted, or you don't have access to it."
+              : query.error?.message
+          }
+          action={<BackToChannels />}
         />
-      )}
-    </ResponsiveDialog>
+      </div>
+    )
+  }
+  const saved = id ? query.data : undefined
+  const asked = params.get("kind")
+  const kind = channelKinds.find((k) => k.value === asked)?.value
+  return (
+    <Editor
+      key={saved?.id ?? `new:${kind ?? ""}`}
+      saved={saved}
+      kind={kind}
+      phone={phone}
+    />
   )
 }
 
-function Form({
-  channel,
-  workspaceId,
-  admin,
+function BackToChannels() {
+  return (
+    <Button
+      variant="outline"
+      className="h-11 w-full md:h-9 md:w-auto"
+      render={<Link href="/alerts/channels" />}
+      nativeButton={false}
+    >
+      Back to channels
+    </Button>
+  )
+}
+
+// Header row keys are made fresh for every draft: leave them out.
+const serial = (d: Draft) =>
+  JSON.stringify({ ...d, headers: d.headers.map(({ key, ...h }) => h) })
+
+function scrollToProblem() {
+  requestAnimationFrame(() =>
+    document
+      .querySelector("[aria-invalid=true], [data-error]")
+      ?.scrollIntoView({ block: "center", behavior: "smooth" }),
+  )
+}
+
+// Where the messages land, in a few words, for the summary.
+function targetText(d: Draft, saved: string[]): string {
+  const host = (v: string) => {
+    try {
+      return new URL(v.trim()).host
+    } catch {
+      return ""
+    }
+  }
+  switch (d.kind) {
+    case "email": {
+      const to = d.to.split(/[\s,;]+/).filter(Boolean)
+      return to.length > 1 ? `${to[0]} +${to.length - 1}` : (to[0] ?? "")
+    }
+    case "telegram":
+    case "bale":
+      return d.chatId.trim() ? `Chat ${d.chatId.trim()}` : ""
+    case "ntfy":
+      return d.topic.trim()
+        ? `${host(d.url) || "ntfy.sh"}/${d.topic.trim()}`
+        : ""
+    case "gotify":
+    case "webhook":
+      return host(d.url)
+    case "pushover":
+      return d.userKey || saved.includes("user_key") ? "Your Pushover key" : ""
+    default:
+      return d.webhookUrl
+        ? host(d.webhookUrl)
+        : saved.includes("webhook_url")
+          ? "Saved webhook"
+          : ""
+  }
+}
+
+function Editor({
+  saved,
+  kind,
   phone,
-  onDone,
 }: {
-  channel?: NotifyChannel
-  workspaceId: string
-  admin: boolean
+  saved: NotifyChannel | undefined
+  kind: ChannelKind | undefined
   phone: boolean
-  onDone: () => void
 }) {
-  const [d, setD] = useState<Draft>(() => draftOf(channel))
-  const [errors, setErrors] = useState<Errors>({})
-  const [tested, setTested] = useState<{ ok: boolean; message: string }>()
+  const { workspace } = useWorkspace()
+  useFollowWorkspace(saved?.workspace_id)
+  const ws = saved?.workspace_id ?? workspace?.id ?? ""
+  const access = useAccess()
+  const owner = atLeast(access.workspaceLevel(ws), "owner")
+  const leave = useBackOr("/alerts/channels")
   const save = useSaveChannel()
   const test = useTestChannelSettings()
-  const saved = channel?.secrets ?? []
+  const secrets = saved?.secrets ?? []
+
+  const [d, setD] = useState<Draft>(() => draftOf(saved, kind))
+  const [initial] = useState(() => serial(draftOf(saved, kind)))
+  const [errors, setErrors] = useState<Errors>({})
+  const [tested, setTested] = useState<{ ok: boolean; message: string }>()
+  const dirty = serial(d) !== initial
   const k = d.kind
+  const meta = channelMeta[k]
+
+  usePageCrumbs(
+    saved
+      ? [{ href: editChannelHref(saved.id), label: saved.name }]
+      : [{ href: "/alerts/channels/new", label: "New alert channel" }],
+  )
+
+  useEffect(() => {
+    if (!dirty) return
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault()
+    window.addEventListener("beforeunload", warn)
+    return () => window.removeEventListener("beforeunload", warn)
+  }, [dirty])
 
   const set = (patch: Partial<Draft>) => {
     setD((x) => ({ ...x, ...patch }))
@@ -341,13 +448,16 @@ function Form({
     const e = fieldErrors(err)
     setErrors(e)
     toast.error(Object.values(e)[0] ?? err.message)
+    scrollToProblem()
   }
 
   const validate = () => {
-    const e = check(d, saved)
+    const e = check(d, secrets)
     setErrors(e)
-    if (Object.keys(e).length) {
-      toast.error(Object.values(e)[0])
+    const first = Object.values(e)[0]
+    if (first) {
+      toast.error(first)
+      scrollToProblem()
       return false
     }
     return true
@@ -356,14 +466,11 @@ function Form({
   const submit = () => {
     if (!validate()) return
     save.mutate(
-      {
-        id: channel?.id,
-        body: toBody(d),
-      },
+      { id: saved?.id, body: toBody(d) },
       {
         onSuccess: (c) => {
-          toast.success(channel ? "Saved" : `${c.name} added`)
-          onDone()
+          toast.success(saved ? `${c.name} saved` : `${c.name} added`)
+          leave()
         },
         onError: failed,
       },
@@ -374,7 +481,7 @@ function Form({
     if (!validate()) return
     setTested(undefined)
     test.mutate(
-      { ...toBody(d), channel_id: channel?.id },
+      { ...toBody(d), channel_id: saved?.id },
       {
         onSuccess: (r) => {
           setTested(r)
@@ -386,9 +493,22 @@ function Form({
     )
   }
 
+  if (!owner) {
+    return (
+      <div className="px-4 pt-10 md:px-6">
+        <Empty
+          icon={BellRing}
+          title="You can't change channels here"
+          body="Alert channels need Owner access to this workspace."
+          action={<BackToChannels />}
+        />
+      </div>
+    )
+  }
+
   const f = (key: string) => errors[key]
   const secretPh = (name: string) =>
-    saved.includes(name) ? "Saved: blank keeps it" : undefined
+    secrets.includes(name) ? "Saved: blank keeps it" : undefined
   const internalHint =
     k === "email" ||
     k === "webhook" ||
@@ -396,36 +516,263 @@ function Form({
     k === "gotify" ||
     k === "telegram" ||
     k === "bale"
+  const target = targetText(d, secrets)
+  const name = d.name.trim() || meta.label
 
-  return (
-    <div className="flex flex-col gap-5" data-ws={workspaceId}>
-      {channel ? (
-        <div className="flex items-center gap-3 rounded-lg bg-subtle px-3 py-2.5">
-          <ChannelIcon kind={k} className="size-5 text-muted-foreground" />
-          <span className="text-body-sm font-medium">
-            {channelMeta[k].label}
-          </span>
-          <span className="truncate text-caption text-muted-foreground">
-            {channelMeta[k].short}
-          </span>
-        </div>
-      ) : (
-        <KindGrid value={k} onChange={(kind) => set({ kind })} phone={phone} />
-      )}
+  const sections = (
+    <>
+      <Section
+        title="Kind"
+        hint={
+          saved
+            ? "A channel keeps its kind. To send somewhere else, add another channel."
+            : "Where the messages go. Each kind asks only for what it needs."
+        }
+        phone={phone}
+      >
+        {saved ? (
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-subtle px-3 py-2.5">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-strong">
+              <ChannelIcon kind={k} className="size-4.5" />
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate text-body-sm font-medium">
+                {meta.label}
+              </span>
+              <span className="block truncate text-caption text-muted-foreground">
+                {meta.short}
+              </span>
+            </span>
+          </div>
+        ) : (
+          <KindGrid value={k} onChange={(kind) => set({ kind })} />
+        )}
+      </Section>
 
-      <Field label="Name" hint="How it shows when picking where alerts go.">
-        {(p) => (
-          <Input
-            {...p}
-            value={d.name}
-            onChange={(e) => set({ name: e.target.value })}
-            placeholder={`${channelMeta[k].label}: on-call`}
-            maxLength={100}
-            className="placeholder:text-ash"
+      <Section
+        title="Where it sends"
+        hint={setupHint[k] ?? meta.short}
+        phone={phone}
+      >
+        <Field label="Name" hint="How it shows when picking where alerts go.">
+          {(p) => (
+            <Input
+              {...p}
+              value={d.name}
+              onChange={(e) => set({ name: e.target.value })}
+              placeholder={`${meta.label}: on-call`}
+              maxLength={100}
+              className="placeholder:text-ash"
+            />
+          )}
+        </Field>
+        <KindFields d={d} set={set} f={f} secretPh={secretPh} phone={phone} />
+      </Section>
+
+      <Section
+        title="Options"
+        hint="Where it's used, and whether it sends at all."
+        phone={phone}
+      >
+        <ToggleRow
+          id="channel-default"
+          label="Default for new monitors"
+          hint="Ticked by itself when someone creates a monitor or an alert rule."
+          checked={d.isDefault}
+          onChange={(isDefault) => set({ isDefault })}
+        />
+        <ToggleRow
+          id="channel-attach-all"
+          label="Add to every monitor now"
+          hint={`Every monitor in this workspace sends here too${
+            saved ? ` (now ${saved.monitors})` : ""
+          }.`}
+          checked={d.attachAll}
+          onChange={(attachAll) => set({ attachAll })}
+        />
+        {saved && (
+          <ToggleRow
+            id="channel-enabled"
+            label="On"
+            hint="Turned off, nothing is sent; monitors and rules keep it ticked."
+            checked={d.enabled}
+            onChange={(enabled) => set({ enabled })}
           />
         )}
-      </Field>
+        {access.admin && internalHint && (
+          <ToggleRow
+            id="channel-internal"
+            label="Allow a private address"
+            hint="For an SMTP, ntfy, Gotify, Bot API or webhook server inside your network. Only system admins can allow it."
+            checked={d.allowInternal}
+            onChange={(allowInternal) => set({ allowInternal })}
+          />
+        )}
+      </Section>
 
+      <Section
+        title="Send a test"
+        hint="Sends one real message with what's on this page, saved or not. Nothing is saved."
+        phone={phone}
+      >
+        <div className="flex flex-col gap-3">
+          <Button
+            variant="outline"
+            className={phone ? "h-11" : "h-9 self-start"}
+            disabled={test.isPending}
+            onClick={runTest}
+          >
+            <FlaskConical />
+            {test.isPending ? "Sending…" : `Send a test to ${meta.label}`}
+          </Button>
+          {tested && (
+            <Callout
+              icon={tested.ok ? <CircleCheck /> : <CircleAlert />}
+              tone={tested.ok ? undefined : "warning"}
+            >
+              {tested.ok
+                ? "Test message sent. Check that it arrived."
+                : tested.message}
+            </Callout>
+          )}
+          {saved?.last_error && !tested && (
+            <Callout icon={<CircleAlert />} tone="warning">
+              The last message failed
+              {saved.last_error_at ? ` ${timeAgo(saved.last_error_at)}` : ""}:{" "}
+              {saved.last_error}
+            </Callout>
+          )}
+        </div>
+      </Section>
+    </>
+  )
+
+  const label = saved ? "Save" : "Add channel"
+  const blocked = save.isPending || (!!saved && !dirty)
+
+  if (phone) {
+    return (
+      <div className="flex min-h-[calc(100dvh-4rem-env(safe-area-inset-bottom))] flex-col">
+        <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-1 border-b border-border bg-background px-1 pt-[env(safe-area-inset-top)]">
+          <Button
+            variant="ghost"
+            size="icon-lg"
+            aria-label="Back"
+            onClick={leave}
+          >
+            <ChevronLeft className="size-6" />
+          </Button>
+          <h1 className="min-w-0 flex-1 truncate text-body font-medium">
+            {saved ? "Edit channel" : "New alert channel"}
+          </h1>
+          <Button
+            variant="ghost"
+            className="h-11 px-3 text-brand"
+            disabled={blocked}
+            onClick={submit}
+          >
+            {save.isPending ? "Saving…" : saved ? "Save" : "Add"}
+          </Button>
+        </header>
+        <div className="flex flex-col pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+          {sections}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <EditorPage
+      icon={<ChannelIcon kind={k} />}
+      title={saved ? saved.name : "New alert channel"}
+      dirty={dirty}
+      status={
+        dirty
+          ? "Unsaved changes"
+          : saved
+            ? `Saved ${timeAgo(saved.updated_at)}`
+            : "Not saved yet"
+      }
+      onSave={blocked ? undefined : submit}
+      aside={
+        <>
+          <AsideCard title="Summary">
+            <SummaryList
+              rows={[
+                ["Kind", meta.label],
+                ["Name", name],
+                ["Sends to", target || "Not set yet"],
+                ["New monitors", d.isDefault ? "Ticked" : "Not ticked"],
+                ...(saved
+                  ? ([
+                      [
+                        "Used by",
+                        `${saved.monitors} ${saved.monitors === 1 ? "monitor" : "monitors"} · ${saved.rules} ${saved.rules === 1 ? "rule" : "rules"}`,
+                      ],
+                      ["State", d.enabled ? "On" : "Off"],
+                    ] as [string, string][])
+                  : []),
+              ]}
+            />
+          </AsideCard>
+          {saved?.last_sent_at && (
+            <AsideCard title="Last message">
+              <p className="text-body-sm">Sent {timeAgo(saved.last_sent_at)}</p>
+            </AsideCard>
+          )}
+        </>
+      }
+      actions={
+        <>
+          <Button variant="outline" className="h-9" onClick={leave}>
+            Cancel
+          </Button>
+          <Button className="h-9" disabled={blocked} onClick={submit}>
+            {save.isPending ? "Saving…" : label}
+          </Button>
+        </>
+      }
+    >
+      {sections}
+    </EditorPage>
+  )
+}
+
+// One sentence on where to find what this kind asks for.
+const setupHint: Partial<Record<ChannelKind, string>> = {
+  email: "Your SMTP server's address and login, and who gets the emails.",
+  telegram:
+    "Make a bot with @BotFather, add it to the chat, group or channel, then paste its token and the chat id.",
+  bale: "Make a bot with @botfather in Bale, add it to the chat or channel, then paste its token and the chat id.",
+  slack: "Slack › Apps › Incoming Webhooks › Add to a channel, then paste it.",
+  discord:
+    "Channel settings › Integrations › Webhooks › New webhook › Copy URL.",
+  mattermost: "Integrations › Incoming webhooks › Add, then paste it.",
+  teams: "A Workflows webhook (or an older connector one) for the channel.",
+  ntfy: "A topic on ntfy.sh or your own server; subscribe to it in the ntfy app.",
+  gotify: "Your Gotify server and an app token made under Apps.",
+  pushover: "An app token from pushover.net and your user or group key.",
+  webhook:
+    "Morche sends JSON to your address on every alert; headers and signing are optional.",
+}
+
+// The fields of one kind (no name, no options).
+function KindFields({
+  d,
+  set,
+  f,
+  secretPh,
+  phone,
+}: {
+  d: Draft
+  set: (patch: Partial<Draft>) => void
+  f: (key: string) => string | undefined
+  secretPh: (name: string) => string | undefined
+  phone: boolean
+}) {
+  const k = d.kind
+  return (
+    <>
       {k === "email" && (
         <>
           <div className="grid gap-4 sm:grid-cols-[1fr_8rem]">
@@ -826,85 +1173,17 @@ function Form({
           onChange={(silent) => set({ silent })}
         />
       )}
+    </>
+  )
+}
 
-      <div className="flex flex-col gap-3 border-t border-border pt-4">
-        <ToggleRow
-          id="channel-default"
-          label="Default for new monitors"
-          hint="Ticked by itself when someone creates a monitor."
-          checked={d.isDefault}
-          onChange={(isDefault) => set({ isDefault })}
-        />
-        <ToggleRow
-          id="channel-attach-all"
-          label="Add to every monitor now"
-          hint={`Every monitor in this workspace sends here too${
-            channel ? ` (now ${channel.monitors})` : ""
-          }.`}
-          checked={d.attachAll}
-          onChange={(attachAll) => set({ attachAll })}
-        />
-        {channel && (
-          <ToggleRow
-            id="channel-enabled"
-            label="On"
-            hint="Turned off, nothing is sent; monitors keep it ticked."
-            checked={d.enabled}
-            onChange={(enabled) => set({ enabled })}
-          />
-        )}
-        {admin && internalHint && (
-          <ToggleRow
-            id="channel-internal"
-            label="Allow a private address"
-            hint="For an SMTP, ntfy, Gotify or webhook server inside your network. Only system admins can allow it."
-            checked={d.allowInternal}
-            onChange={(allowInternal) => set({ allowInternal })}
-          />
-        )}
-      </div>
-
-      {tested && (
-        <Callout
-          icon={<FlaskConical />}
-          tone={tested.ok ? undefined : "warning"}
-        >
-          {tested.ok
-            ? "Test message sent. Check that it arrived."
-            : tested.message}
-        </Callout>
-      )}
-
-      <div
-        className={cn(
-          "flex gap-2",
-          phone
-            ? "sticky bottom-0 -mx-4 flex-col border-t border-border bg-background px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
-            : "sticky bottom-0 z-10 -mx-6 -mb-1 justify-end border-t border-border bg-popover px-6 pt-4 pb-1",
-        )}
-      >
-        <Button
-          variant="outline"
-          className={phone ? "h-11" : "me-auto h-9"}
-          disabled={test.isPending}
-          onClick={runTest}
-        >
-          <FlaskConical />
-          {test.isPending ? "Sending…" : "Send a test"}
-        </Button>
-        {!phone && (
-          <Button variant="outline" className="h-9" onClick={onDone}>
-            Cancel
-          </Button>
-        )}
-        <Button
-          className={phone ? "h-11" : "h-9"}
-          disabled={save.isPending}
-          onClick={submit}
-        >
-          {save.isPending ? "Saving…" : channel ? "Save" : "Add channel"}
-        </Button>
-      </div>
+function Loading({ phone }: { phone: boolean }) {
+  if (!phone) return <EditorLoading />
+  return (
+    <div className="flex flex-col gap-4 p-4">
+      <Skeleton className="h-8 w-60" />
+      <Skeleton className="h-40 w-full rounded-2xl" />
+      <Skeleton className="h-40 w-full rounded-2xl" />
     </div>
   )
 }
@@ -918,29 +1197,23 @@ const webhookHint: Partial<Record<ChannelKind, string>> = {
     'A Workflows "Post to a channel when a webhook request is received" address, or an older connector one.',
 }
 
+// Every kind as a tile, grouped (Email & chat, Push, Webhook…).
 function KindGrid({
   value,
   onChange,
-  phone,
 }: {
   value: ChannelKind
   onChange: (k: ChannelKind) => void
-  phone: boolean
 }) {
   return (
-    <fieldset className="flex flex-col gap-3">
+    <fieldset className="flex min-w-0 flex-col gap-4">
       <legend className="sr-only">Kind of channel</legend>
       {channelGroups.map((g) => (
-        <div key={g.value} className="flex flex-col gap-1.5">
+        <div key={g.value} className="flex flex-col gap-2">
           <span className="font-label text-caption tracking-label text-ash uppercase">
             {g.label}
           </span>
-          <div
-            className={cn(
-              "grid gap-2",
-              phone ? "grid-cols-2" : "grid-cols-3 lg:grid-cols-4",
-            )}
-          >
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-[repeat(auto-fill,minmax(15rem,1fr))]">
             {channelKinds
               .filter((k) => k.group === g.value)
               .map((k) => (
@@ -949,10 +1222,19 @@ function KindGrid({
                   type="button"
                   aria-pressed={value === k.value}
                   onClick={() => onChange(k.value)}
-                  className="flex min-h-11 items-center gap-2 rounded-lg border border-border px-3 py-2 text-start text-body-sm outline-none hover:bg-subtle focus-visible:ring-3 focus-visible:ring-ring/50 aria-pressed:border-brand aria-pressed:bg-brand-soft aria-pressed:text-brand-strong"
+                  className="group flex min-h-14 min-w-0 items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 text-start transition-colors outline-none hover:bg-subtle focus-visible:ring-3 focus-visible:ring-ring/50 aria-pressed:border-brand aria-pressed:bg-brand-soft"
                 >
-                  <k.icon className="size-4 shrink-0" />
-                  <span className="truncate">{k.label}</span>
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground group-aria-pressed:bg-brand group-aria-pressed:text-primary-foreground">
+                    <k.icon className="size-4.5" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-body-sm font-medium group-aria-pressed:text-brand-strong">
+                      {k.label}
+                    </span>
+                    <span className="block truncate text-caption text-muted-foreground">
+                      {k.short}
+                    </span>
+                  </span>
                 </button>
               ))}
           </div>

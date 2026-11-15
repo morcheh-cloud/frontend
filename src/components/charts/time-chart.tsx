@@ -83,11 +83,19 @@ function xTicks(b: Buckets, width: number) {
     .filter(({ t }) => {
       const d = new Date(t)
       if (b.size < hour && span <= 3 * hour)
-        return d.getMinutes() % (span <= hour ? 5 : 15) === 0
+        return (
+          d.getMinutes() % (span <= 15 * 60_000 ? 1 : span <= hour ? 5 : 15) ===
+          0
+        )
       if (b.size < hour) return d.getMinutes() === 0 && d.getHours() % 6 === 0
       if (b.size < day) return d.getHours() === 0 && d.getMinutes() === 0
       return true
     })
+    // Buckets shorter than a minute share their label: keep the first.
+    .filter(
+      ({ t }, k, all) =>
+        k === 0 || Math.floor(t / 60_000) !== Math.floor(all[k - 1].t / 60_000),
+    )
   const fit = Math.max(2, Math.floor(width / 72))
   if (ticks.length > fit) {
     const step = Math.ceil(ticks.length / fit)

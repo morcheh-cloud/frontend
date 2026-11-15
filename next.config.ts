@@ -5,7 +5,6 @@ import type { NextConfig } from "next"
 const tabPages = Object.entries({
   "/storage": { storages: "list", syncs: "syncs", migrations: "migrations" },
   "/vms": { nodes: "nodes", storage: "storage", clusters: "clusters" },
-  "/cloud": { servers: "servers" },
   "/dns": { servers: "servers" },
   "/applications": {
     installed: "installed",
@@ -99,6 +98,8 @@ const nextConfig: NextConfig = {
         destination: "/help/monitoring",
         permanent: true,
       },
+      // Cloud servers are listed on each account's page now.
+      { source: "/cloud/servers", destination: "/cloud", permanent: true },
       ...tabPages,
     ]
   },

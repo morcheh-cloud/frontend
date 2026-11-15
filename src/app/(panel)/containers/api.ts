@@ -7,10 +7,11 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { isActive, useJobList } from "@/components/jobs/api"
 import { useJobActions } from "@/components/jobs/jobs-provider"
+import usePersistedQuery from "@/hooks/usePersistedQuery"
 import { ApiError, api } from "@/lib/api"
 import type {
   DockerAutoUpdate,
@@ -25,6 +26,7 @@ import type {
   DockerNetworkBody,
   DockerProject,
   DockerProjectDetails,
+  DockerProjectLiveStats,
   DockerProjectLogBatch,
   DockerProjectLogLine,
   DockerPruneBody,
@@ -57,6 +59,7 @@ export const dockerKeys = {
   image: (id: string, ref: string) => ["docker", id, "image", ref] as const,
   volumes: (id: string, sizes: boolean) =>
     ["docker", id, "volumes", sizes] as const,
+  volumeSizes: (id: string) => ["docker", id, "volume-sizes"] as const,
   networks: (id: string) => ["docker", id, "networks"] as const,
   usage: (id: string) => ["docker", id, "usage"] as const,
   projects: (id: string) => ["docker", id, "projects"] as const,
@@ -278,6 +281,35 @@ export function useDockerNetworks(id: string, enabled = true) {
     queryFn: () => api.containers.listDockerNetworks(id),
     refetchInterval: POLL,
     enabled,
+    retry,
+  })
+}
+
+// Each volume's size by name, from the backend's last disk-usage measurement
+// (answered at once, measured again behind it when old). The last answer is
+// kept in IndexedDB too, so a reopened page shows sizes straight away; when
+// `measuredAt` (the usage query, polling while `measuring`) moves on, a newer
+// measurement has landed and the sizes are read again. Read only after the
+// usage answer, which starts that measurement, so none can slip in between.
+export function useVolumeSizes(id: string, measuredAt?: string) {
+  const qc = useQueryClient()
+  const seen = useRef(measuredAt)
+  useEffect(() => {
+    const before = seen.current
+    seen.current = measuredAt
+    if (before && measuredAt && before !== measuredAt)
+      qc.invalidateQueries({ queryKey: dockerKeys.volumeSizes(id) })
+  }, [qc, id, measuredAt])
+  return usePersistedQuery<Record<string, number>>({
+    queryKey: dockerKeys.volumeSizes(id),
+    queryFn: async () => {
+      const vs = await api.containers.listDockerVolumes(id, { sizes: true })
+      return Object.fromEntries(
+        vs.filter((v) => v.size >= 0).map((v) => [v.name, v.size]),
+      )
+    },
+    ttl: 1000 * 60 * 60 * 24 * 7,
+    enabled: !!measuredAt,
     retry,
   })
 }
@@ -640,6 +672,109 @@ export function useContainerStats(id: string, c: string, enabled: boolean) {
   return state
 }
 
+export const LIVE_HISTORY = 60
+
+export type LiveContainer = {
+  now: DockerStats
+  cpu: number[]
+  memory: number[]
+}
+
+export type ProjectLiveState = {
+  byId: Record<string, LiveContainer>
+  live: boolean
+}
+
+// Live resource use of every running container of a compose project, about
+// once a second over one stream, with the last minute kept per container.
+// `running` = the running containers' ids: a change (one started, one was
+// recreated) connects again, since the stream only follows the ones that
+// ran when it opened. Closed while the tab is hidden.
+export function useProjectLiveStats(
+  id: string,
+  project: string,
+  running: string,
+  enabled: boolean,
+): ProjectLiveState {
+  const [state, setState] = useState<ProjectLiveState>({
+    byId: {},
+    live: false,
+  })
+
+  useEffect(() => {
+    setState({ byId: {}, live: false })
+    if (!enabled || !running) return
+    let es: EventSource | null = null
+    let closed = false
+    let ended = false
+    let timer = 0
+    const open = () => {
+      if (document.hidden || ended) return
+      es = new EventSource(
+        streamUrl(
+          `/servers/${id}/docker/projects/${seg(project)}/stats/stream`,
+        ),
+        { withCredentials: true },
+      )
+      es.onopen = () => setState((s) => ({ ...s, live: true }))
+      es.addEventListener("stats", (ev) => {
+        const batch = JSON.parse(
+          (ev as MessageEvent).data,
+        ) as DockerProjectLiveStats
+        setState((s) => {
+          const byId: Record<string, LiveContainer> = {}
+          for (const c of batch.containers) {
+            const prev = s.byId[c.id]
+            // The same reading again (the engine's pace is a bit slower
+            // than the stream's) adds no point to the charts.
+            const fresh = !prev || prev.now.time !== c.stats.time
+            byId[c.id] = fresh
+              ? {
+                  now: c.stats,
+                  cpu: [...(prev?.cpu ?? []), c.stats.cpu].slice(-LIVE_HISTORY),
+                  memory: [...(prev?.memory ?? []), c.stats.memory_used].slice(
+                    -LIVE_HISTORY,
+                  ),
+                }
+              : prev
+          }
+          return { byId, live: true }
+        })
+      })
+      es.addEventListener("end", () => {
+        ended = true
+        setState((s) => ({ ...s, live: false }))
+        es?.close()
+        es = null
+      })
+      es.onerror = () => {
+        setState((s) => ({ ...s, live: false }))
+        es?.close()
+        es = null
+        if (!closed) timer = window.setTimeout(() => !closed && open(), 3000)
+      }
+    }
+    const onVisible = () => {
+      if (closed) return
+      if (document.hidden) {
+        es?.close()
+        es = null
+        setState((s) => ({ ...s, live: false }))
+      } else if (!es) open()
+    }
+    document.addEventListener("visibilitychange", onVisible)
+    open()
+    return () => {
+      closed = true
+      window.clearTimeout(timer)
+      document.removeEventListener("visibilitychange", onVisible)
+      es?.close()
+    }
+  }, [id, project, running, enabled])
+
+  return state
+}
+
 // --- Compose projects -------------------------------------------------------
 
 export function useDockerProjects(id: string | undefined, enabled = true) {
@@ -673,7 +808,19 @@ export function useProjectStats(
   return useQuery({
     queryKey: dockerKeys.projectStats(id ?? ""),
     queryFn: () => api.containers.dockerProjectStats(id ?? ""),
-    refetchInterval: fast ? 4_000 : 12_000,
+    // Quicker while a deploy runs or a container is still settling (Docker
+    // restarting it, its health check not passed yet), so states move soon.
+    refetchInterval: (q) =>
+      fast ||
+      q.state.data?.projects.some((p) =>
+        p.containers.some(
+          (c) =>
+            c.state === "restarting" ||
+            (c.state === "running" && c.health === "starting"),
+        ),
+      )
+        ? 4_000
+        : 12_000,
     placeholderData: keepPreviousData,
     enabled: !!id && enabled,
     retry,

@@ -1,5 +1,6 @@
 "use client"
 
+import { Loader2 } from "lucide-react"
 import {
   createSerializer,
   parseAsBoolean,
@@ -7,6 +8,7 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs"
+import type { ReactNode } from "react"
 
 import type {
   DockerContainer,
@@ -113,6 +115,55 @@ export function ContainerState({
           · {health.label.toLowerCase()}
         </span>
       ) : null}
+    </span>
+  )
+}
+
+const badgeTone: Record<Tone, string> = {
+  success: "bg-success/12 text-success",
+  warning: "bg-warning/12 text-warning",
+  destructive: "bg-destructive/10 text-destructive",
+  muted: "bg-muted text-muted-foreground",
+  brand: "bg-brand-soft text-brand-strong",
+}
+
+// A tinted pill for a state: a dot (or a spinner while it's under way), the
+// word, and an optional icon in front.
+export function StatusBadge({
+  tone,
+  label,
+  busy,
+  icon,
+  title,
+  className,
+}: {
+  tone: Tone
+  label: ReactNode
+  busy?: boolean
+  icon?: ReactNode
+  title?: string
+  className?: string
+}) {
+  return (
+    <span
+      title={title}
+      className={cn(
+        "inline-flex h-6 max-w-full items-center gap-1.5 rounded-full px-2.5 text-caption font-medium whitespace-nowrap [&_svg]:size-3.5 [&_svg]:shrink-0",
+        badgeTone[tone],
+        className,
+      )}
+    >
+      {busy ? (
+        <Loader2 className="animate-spin" />
+      ) : (
+        (icon ?? (
+          <span
+            aria-hidden
+            className={cn("size-1.5 shrink-0 rounded-full", dotTone[tone])}
+          />
+        ))
+      )}
+      <span className="truncate">{label}</span>
     </span>
   )
 }

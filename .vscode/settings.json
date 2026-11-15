@@ -10,5 +10,8 @@
   },
   "eslint.enable": false,
   "prettier.enable": false,
-  "cSpell.words": ["turbopack"]
+  "cSpell.words": ["turbopack"],
+  "[jsonc]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  }
 }

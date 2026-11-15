@@ -51,6 +51,7 @@ export function EnvPage({
   root = false,
   anyState = false,
   bleed = false,
+  fill = false,
   parent = "/containers",
   children,
 }: {
@@ -63,6 +64,8 @@ export function EnvPage({
   anyState?: boolean
   // Phones: the content brings its own padding.
   bleed?: boolean
+  // Desktop: the content fills the window (a map), so no tall bottom gap.
+  fill?: boolean
   children: (ctx: EnvCtx) => ReactNode
 }) {
   const phone = useIsPhone()
@@ -100,7 +103,13 @@ export function EnvPage({
   }
 
   if (!phone) {
-    return <div className="flex flex-col gap-4 px-6 pt-5 pb-24">{body}</div>
+    return (
+      <div
+        className={cn("flex flex-col gap-4 px-6 pt-5", fill ? "pb-6" : "pb-24")}
+      >
+        {body}
+      </div>
+    )
   }
   return (
     <>

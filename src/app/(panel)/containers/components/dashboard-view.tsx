@@ -9,17 +9,29 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import {
+  createSerializer,
+  parseAsString,
+  parseAsStringLiteral,
+  useQueryStates,
+} from "nuqs"
 import type { ReactNode } from "react"
 
-import { dockerGroups, dockerPages } from "@/components/panel/nav"
+import {
+  dockerFleetGroup,
+  dockerGroups,
+  dockerPages,
+} from "@/components/panel/nav"
 import { Skeleton } from "@/components/ui/skeleton"
 import type {
   DockerContainer,
   DockerEvent,
   DockerFleetServer,
   DockerImageScan,
+  DockerReport,
 } from "@/lib/services"
 import { cn } from "@/lib/utils"
+import { Segmented } from "../../servers/[id]/components/parts"
 import { timeAgo } from "../../servers/components/meta"
 import {
   useDockerEvents,
@@ -31,6 +43,14 @@ import {
   useDockerVolumes,
 } from "../api"
 import { useDockerEnv } from "../env"
+import {
+  EventsChart,
+  MemoryLimits,
+  NetworkUsage,
+  ProjectUsage,
+  StateBreakdown,
+  TroubleList,
+} from "./dashboard-stats"
 import { type EnvCtx, EnvPage } from "./env-page"
 import { describeEvent, keyed } from "./events-view"
 import { Containers, Host } from "./fleet-view"
@@ -57,17 +77,17 @@ import {
   KpiTiles,
   PhoneContainerRows,
   PhoneKpis,
-  PhoneMapRow,
   ReportLoading,
   TopConsumers,
-  TopologyCard,
   UsageCard,
 } from "./report"
 import { severities } from "./security-view"
+import { ContainerMap } from "./topology"
 
 export function DashboardPage() {
+  const [{ tab }] = useQueryStates(dashboardParsers)
   return (
-    <EnvPage title="Containers" root bleed>
+    <EnvPage title="Containers" root bleed fill={tab === "map"}>
       {(ctx) => <Dashboard {...ctx} />}
     </EnvPage>
   )
@@ -124,23 +144,94 @@ function useDashboard(env: DockerFleetServer) {
 
 type Data = ReturnType<typeof useDashboard>
 
-// /containers: the current environment at a glance. Every block leads to
-// the page that does something about it.
+const dashTabs = [
+  "overview",
+  "map",
+  "resources",
+  "containers",
+  "activity",
+] as const
+type DashTab = (typeof dashTabs)[number]
+
+const tabLabel: Record<DashTab, string> = {
+  overview: "Overview",
+  map: "Map",
+  resources: "Resources",
+  containers: "Containers",
+  activity: "Activity",
+}
+
+export const dashboardParsers = {
+  tab: parseAsStringLiteral(dashTabs).withDefault("overview"),
+}
+
+const dashboardSerializer = createSerializer({
+  env: parseAsString,
+  ...dashboardParsers,
+})
+
+// A Dashboard tab on one environment.
+export function dashboardHref(server: string, tab: DashTab = "overview") {
+  return dashboardSerializer("/containers", { env: server, tab })
+}
+
+// /containers: the current environment at a glance, in tabs: Overview
+// (what needs a look), Map (who talks to whom), Resources (where the CPU,
+// memory and traffic go), Containers (every one, filterable) and Activity
+// (what the engine did). Every block leads to the page that acts on it.
 function Dashboard({ env, phone }: EnvCtx) {
   const d = useDashboard(env)
   const can = useDockerCan(env.server_id, env.workspace_id)
   const router = useRouter()
+  const [{ tab }, setQuery] = useQueryStates(dashboardParsers, {
+    history: "replace",
+  })
+  const setTab = (t: DashTab) => setQuery({ tab: t === "overview" ? null : t })
   const engine = [
     env.version && `${engineName(env)} ${env.version}`,
     env.via && (viaLabel[env.via] ?? env.via),
   ]
     .filter(Boolean)
     .join(" · ")
+  const counts: Partial<Record<DashTab, ReactNode>> = {
+    containers: d.report.data?.containers.length,
+    overview: d.problems.length > 0 && (
+      <span
+        role="img"
+        aria-label={`${d.problems.length} need a look`}
+        className="size-1.5 rounded-full bg-destructive"
+      />
+    ),
+  }
 
   return (
     <>
       <PageBar
         phone={phone}
+        tabs={
+          phone ? (
+            <TabChips tab={tab} onChange={setTab} counts={counts} />
+          ) : (
+            <Segmented
+              label="Dashboard"
+              value={tab}
+              onChange={setTab}
+              items={dashTabs.map((t) => ({
+                value: t,
+                label: (
+                  <span className="flex items-center gap-1.5">
+                    {tabLabel[t]}
+                    {counts[t] !== undefined && counts[t] !== false && (
+                      <span className="text-caption text-ash tabular-nums">
+                        {counts[t]}
+                      </span>
+                    )}
+                  </span>
+                ),
+              }))}
+            />
+          )
+        }
         caption={engine}
         refresh={{ busy: d.busy, run: d.refresh }}
         primary={
@@ -154,18 +245,156 @@ function Dashboard({ env, phone }: EnvCtx) {
         }
       />
       {phone ? (
-        <PhoneDashboard env={env} d={d} />
+        <PhoneDashboard env={env} d={d} tab={tab} />
       ) : (
-        <DesktopDashboard env={env} d={d} />
+        <DesktopDashboard env={env} d={d} tab={tab} />
       )}
     </>
   )
 }
 
-// A report on the environment: totals, usage, the network map and every
-// container, then the cards that lead to the other pages.
-function DesktopDashboard({ env, d }: { env: DockerFleetServer; d: Data }) {
+function TabChips({
+  tab,
+  onChange,
+  counts,
+}: {
+  tab: DashTab
+  onChange: (t: DashTab) => void
+  counts: Partial<Record<DashTab, ReactNode>>
+}) {
+  return (
+    <>
+      {dashTabs.map((t) => (
+        <button
+          key={t}
+          type="button"
+          aria-pressed={tab === t}
+          onClick={() => onChange(t)}
+          className="flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-body-sm whitespace-nowrap text-muted-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:bg-muted aria-pressed:border-transparent aria-pressed:bg-foreground aria-pressed:font-medium aria-pressed:text-background"
+        >
+          {tabLabel[t]}
+          {counts[t] !== undefined && counts[t] !== false && (
+            <span className="text-caption tabular-nums opacity-70">
+              {counts[t]}
+            </span>
+          )}
+        </button>
+      ))}
+    </>
+  )
+}
+
+// Report-based tabs wait for the report (or say why it isn't there).
+function WithReport({
+  d,
+  children,
+}: {
+  d: Data
+  children: (report: DockerReport) => ReactNode
+}) {
+  if (d.report.data) return children(d.report.data)
+  if (d.report.isError) return <ReportError d={d} />
+  return <ReportLoading />
+}
+
+function Row({
+  children,
+  className,
+}: {
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div
+      className={cn(
+        "grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-3",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  )
+}
+
+function Wide({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-4 lg:col-span-2">{children}</div>
+  )
+}
+
+function Side({ children }: { children: ReactNode }) {
+  return <div className="flex min-w-0 flex-col gap-4">{children}</div>
+}
+
+function DesktopDashboard({
+  env,
+  d,
+  tab,
+}: {
+  env: DockerFleetServer
+  d: Data
+  tab: DashTab
+}) {
   const report = d.report.data
+  if (tab === "map") {
+    return (
+      <div className="mt-4">
+        <WithReport d={d}>
+          {(r) => <ContainerMap report={r} server={d.id} phone={false} />}
+        </WithReport>
+      </div>
+    )
+  }
+  if (tab === "resources") {
+    return (
+      <div className="mt-4 flex flex-col gap-4">
+        <WithReport d={d}>
+          {(r) => (
+            <>
+              <Row>
+                <Wide>
+                  <UsageCard report={r} />
+                  <ProjectUsage report={r} server={d.id} phone={false} />
+                </Wide>
+                <Side>
+                  <TopConsumers report={r} server={d.id} />
+                  <MemoryLimits report={r} server={d.id} phone={false} />
+                  <NetworkUsage report={r} server={d.id} phone={false} />
+                </Side>
+              </Row>
+            </>
+          )}
+        </WithReport>
+      </div>
+    )
+  }
+  if (tab === "containers") {
+    return (
+      <div className="mt-4">
+        <WithReport d={d}>
+          {(r) => <ContainersReport report={r} server={d.id} full />}
+        </WithReport>
+      </div>
+    )
+  }
+  if (tab === "activity") {
+    return (
+      <div className="mt-4">
+        <Row>
+          <Wide>
+            <EventsChart events={d.events.data?.items ?? []} phone={false} />
+            <EventsCard d={d} limit={40} />
+          </Wide>
+          <Side>
+            {report && (
+              <TroubleList report={report} server={d.id} phone={false} />
+            )}
+            <UpdatesCard d={d} />
+          </Side>
+        </Row>
+      </div>
+    )
+  }
   return (
     <div className="mt-4 flex flex-col gap-4">
       {report ? (
@@ -176,29 +405,24 @@ function DesktopDashboard({ env, d }: { env: DockerFleetServer; d: Data }) {
         <ReportLoading />
       )}
       <Attention d={d} />
-      {report && (
-        <>
-          <div className="grid items-stretch gap-4 lg:grid-cols-3">
-            <div className="min-w-0 lg:col-span-2">
-              <UsageCard report={report} />
-            </div>
-            <TopConsumers report={report} server={d.id} />
-          </div>
-          <TopologyCard report={report} server={d.id} />
-          <ContainersReport report={report} server={d.id} />
-        </>
-      )}
-      <div className="grid items-start gap-4 lg:grid-cols-3">
-        <div className="flex min-w-0 flex-col gap-4 lg:col-span-2">
+      <Row>
+        <Wide>
           <ProjectsCard d={d} />
-          <EventsCard d={d} />
-        </div>
-        <div className="flex min-w-0 flex-col gap-4">
-          <EngineCard env={env} />
           <UpdatesCard d={d} />
           <SecurityCard d={d} />
-        </div>
-      </div>
+          <EventsCard
+            d={d}
+            limit={8}
+            href={dashboardHref(d.id, "activity")}
+            link="All activity"
+          />
+        </Wide>
+        <Side>
+          {report && <StateBreakdown report={report} phone={false} />}
+          {report && <TopConsumers report={report} server={d.id} />}
+          <EngineCard env={env} />
+        </Side>
+      </Row>
     </div>
   )
 }
@@ -428,13 +652,23 @@ function EventLine({ e, server }: { e: DockerEvent; server: string }) {
   )
 }
 
-function EventsCard({ d }: { d: Data }) {
+function EventsCard({
+  d,
+  limit,
+  href,
+  link,
+}: {
+  d: Data
+  limit: number
+  href?: string
+  link?: string
+}) {
   const items = d.events.data?.items ?? []
   return (
     <Card
       title="Last 24 hours"
-      href={envHref(d.id, "/containers/events")}
-      link="Event log"
+      href={href ?? envHref(d.id, "/containers/events")}
+      link={link ?? "Event log"}
     >
       {d.events.isPending ? (
         <Loading />
@@ -444,7 +678,7 @@ function EventsCard({ d }: { d: Data }) {
         <Quiet>Quiet: the engine reported nothing in the last 24 hours.</Quiet>
       ) : (
         <ul className="divide-y divide-border border-t border-border">
-          {keyed(items.slice(0, 10)).map(({ e, key }) => (
+          {keyed(items.slice(0, limit)).map(({ e, key }) => (
             <EventLine key={key} e={e} server={d.id} />
           ))}
         </ul>
@@ -609,9 +843,96 @@ function SecurityCard({ d }: { d: Data }) {
 
 // --- Phone -------------------------------------------------------------------
 
-// Phones have no sidebar: the Dashboard lists every Containers page, each
+function PhoneDashboard({
+  env,
+  d,
+  tab,
+}: {
+  env: DockerFleetServer
+  d: Data
+  tab: DashTab
+}) {
+  if (tab === "map") {
+    return (
+      <div className="pt-3">
+        <WithReport d={d}>
+          {(r) => <ContainerMap report={r} server={d.id} phone />}
+        </WithReport>
+      </div>
+    )
+  }
+  if (tab === "resources") {
+    return (
+      <div className="flex flex-col pt-4 pb-24">
+        <WithReport d={d}>
+          {(r) => (
+            <>
+              <PhoneKpis report={r} />
+              <section aria-label="Usage" className="mt-6">
+                <h2 className="px-4 pb-2 font-label text-caption tracking-label text-ash uppercase">
+                  Usage
+                </h2>
+                <UsageCard report={r} phone />
+              </section>
+              <ProjectUsage report={r} server={d.id} phone />
+              <MemoryLimits report={r} server={d.id} phone />
+              <NetworkUsage report={r} server={d.id} phone />
+            </>
+          )}
+        </WithReport>
+      </div>
+    )
+  }
+  if (tab === "containers") {
+    return (
+      <div className="flex flex-col pb-24">
+        <WithReport d={d}>
+          {(r) => (
+            <PhoneGroup
+              title={`${r.containers.length} containers · problems first`}
+            >
+              <PhoneContainerRows
+                report={r}
+                server={d.id}
+                limit={r.containers.length}
+              />
+            </PhoneGroup>
+          )}
+        </WithReport>
+      </div>
+    )
+  }
+  if (tab === "activity") {
+    const items = d.events.data?.items ?? []
+    return (
+      <div className="flex flex-col pb-24">
+        <EventsChart events={items} phone />
+        {d.report.data && (
+          <TroubleList report={d.report.data} server={d.id} phone />
+        )}
+        {items.length > 0 && (
+          <PhoneGroup title="Last 24 hours">
+            {keyed(items.slice(0, 40)).map(({ e, key }) => (
+              <EventLine key={key} e={e} server={d.id} />
+            ))}
+          </PhoneGroup>
+        )}
+        <Link
+          href={envHref(d.id, "/containers/events")}
+          className="mx-4 mt-4 flex min-h-11 items-center justify-center gap-1 rounded-lg border border-border text-body-sm active:bg-muted"
+        >
+          Open the event log
+          <ChevronRight className="size-4 text-ash rtl:rotate-180" />
+        </Link>
+      </div>
+    )
+  }
+  return <PhoneOverview env={env} d={d} />
+}
+
+// Phones have no sidebar: the Overview lists every Containers page, each
 // with its number, like a native app's home screen.
-function PhoneDashboard({ env, d }: { env: DockerFleetServer; d: Data }) {
+function PhoneOverview({ env, d }: { env: DockerFleetServer; d: Data }) {
   const icon = (href: string) =>
     dockerPages.find((p) => p.href === href)?.icon ?? ChevronRight
   const updates = d.updates.data?.available
@@ -667,15 +988,7 @@ function PhoneDashboard({ env, d }: { env: DockerFleetServer; d: Data }) {
   return (
     <div className="flex flex-col pt-4 pb-24">
       {d.report.data ? (
-        <>
-          <PhoneKpis report={d.report.data} />
-          <section aria-label="Usage" className="mt-6">
-            <h2 className="px-4 pb-2 font-label text-caption tracking-label text-ash uppercase">
-              Usage
-            </h2>
-            <UsageCard report={d.report.data} phone />
-          </section>
-        </>
+        <PhoneKpis report={d.report.data} />
       ) : (
         <div className="border-y border-border">
           <Containers s={env} />
@@ -707,20 +1020,9 @@ function PhoneDashboard({ env, d }: { env: DockerFleetServer; d: Data }) {
         </PhoneGroup>
       )}
 
-      {d.report.data && (
-        <>
-          <PhoneGroup title="Network">
-            <li>
-              <PhoneMapRow report={d.report.data} server={d.id} />
-            </li>
-          </PhoneGroup>
-          <PhoneGroup title="State and uptime">
-            <PhoneContainerRows report={d.report.data} server={d.id} />
-          </PhoneGroup>
-        </>
-      )}
+      {d.report.data && <StateBreakdown report={d.report.data} phone />}
 
-      {dockerGroups.map((g) => (
+      {[...dockerGroups, dockerFleetGroup].map((g) => (
         <PhoneGroup key={g.label} title={g.label ?? ""}>
           {g.items
             .flatMap((item) =>

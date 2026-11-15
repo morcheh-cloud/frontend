@@ -28,11 +28,9 @@ import {
   type Role,
 } from "@/app/(panel)/cronjobs/components/end-picker"
 import { browserZone, cronText } from "@/app/(panel)/cronjobs/components/meta"
-import { ScheduleField } from "@/app/(panel)/cronjobs/components/schedule-field"
 import { Empty, Segmented } from "@/app/(panel)/servers/[id]/components/parts"
 import {
   type Builder,
-  fromBuilder,
   toBuilder,
 } from "@/app/(panel)/servers/[id]/cron/components/schedule"
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
@@ -73,7 +71,8 @@ import {
   type Trigger,
   triggerMeta,
 } from "./meta"
-import { useStorageLevelOf, useSyncCan } from "./permissions"
+import { useServerLevelOf, useStorageLevelOf, useSyncCan } from "./permissions"
+import { WhenPicker } from "./when-picker"
 
 type Existing = keyof typeof existingMeta
 
@@ -89,6 +88,8 @@ type Draft = {
   builder: Builder
   timezone: string
   interval: string
+  watchDelay: string
+  watchCheck: string
   excludes: string
   existing: Existing
   verify: boolean
@@ -111,6 +112,7 @@ type ErrorKey =
   | "mode"
   | "cron"
   | "interval"
+  | "watchDelay"
   | "settle"
   | "delay"
   | "bandwidth"
@@ -122,11 +124,16 @@ type Errors = Partial<Record<ErrorKey, string>>
 const DEFAULT_CRON = "0 2 * * *"
 
 const endOf = (e: StorageSync["source"]): EndDraft => ({
-  storage_id: e.storage_id,
+  ...(e.kind === "server"
+    ? { server_id: e.server_id }
+    : { storage_id: e.storage_id }),
   name: e.name,
   path: e.path,
   missing: e.missing,
 })
+
+const idOf = (e: EndDraft | null | undefined) =>
+  e ? (e.server_id ?? e.storage_id) : undefined
 
 const fromSaved = (s: StorageSync): Draft => {
   const r = s.options.replication
@@ -142,7 +149,9 @@ const fromSaved = (s: StorageSync): Draft => {
     cron,
     builder: toBuilder(cron),
     timezone: s.timezone || browserZone(),
-    interval: String(s.interval_minutes || 15),
+    interval: String((s.trigger === "interval" && s.interval_minutes) || 15),
+    watchDelay: String(s.options.watch_delay_seconds || 5),
+    watchCheck: String(s.trigger === "watch" ? s.interval_minutes : 0),
     excludes: (s.options.excludes ?? []).join("\n"),
     existing: (s.options.existing as Existing) || "changed",
     verify: !!s.options.verify,
@@ -161,19 +170,26 @@ const fromSaved = (s: StorageSync): Draft => {
 const fresh = (p: {
   kind: SyncKind | null
   source: string | null
+  server: string | null
   dest: string | null
 }): Draft => ({
   kind: p.kind ?? "sync",
   name: "",
-  source: p.source ? { storage_id: p.source, name: "", path: "/" } : null,
+  source: p.server
+    ? { server_id: p.server, name: "", path: "/" }
+    : p.source
+      ? { storage_id: p.source, name: "", path: "/" }
+      : null,
   dest: p.dest ? { storage_id: p.dest, name: "", path: "/" } : null,
   engine: "morche",
   mode: "update",
-  trigger: "interval",
+  trigger: p.server ? "watch" : "interval",
   cron: DEFAULT_CRON,
   builder: toBuilder(DEFAULT_CRON),
   timezone: browserZone(),
   interval: "15",
+  watchDelay: "5",
+  watchCheck: "0",
   excludes: "",
   existing: "changed",
   verify: true,
@@ -217,7 +233,9 @@ function toBody(d: Draft, both: boolean): StorageSyncBody {
   const base = {
     kind: d.kind,
     name: d.name.trim(),
-    source_storage_id: d.source?.storage_id ?? "",
+    ...(d.source?.server_id
+      ? { source_server_id: d.source.server_id }
+      : { source_storage_id: d.source?.storage_id ?? "" }),
     source_path: d.source?.path ?? "/",
     dest_storage_id: d.dest?.storage_id ?? "",
     dest_path: d.dest?.path ?? "/",
@@ -259,11 +277,15 @@ function toBody(d: Draft, both: boolean): StorageSyncBody {
       timezone: d.timezone,
     }),
     ...(d.trigger === "interval" && { interval_minutes: num(d.interval) }),
+    ...(d.trigger === "watch" && { interval_minutes: num(d.watchCheck) }),
     options: {
       excludes: lines(d.excludes),
       existing: d.existing,
-      settle_minutes: num(d.settle),
+      settle_minutes: d.trigger === "watch" ? 0 : num(d.settle),
       delete_delay_hours: d.mode === "mirror" ? num(d.delay) : 0,
+      ...(d.trigger === "watch" && {
+        watch_delay_seconds: num(d.watchDelay),
+      }),
     },
   }
 }
@@ -282,6 +304,7 @@ function errorKey(field: string): ErrorKey | undefined {
     return "cron"
   if (field === "interval_minutes") return "interval"
   if (field === "options.settle_minutes") return "settle"
+  if (field === "options.watch_delay_seconds") return "watchDelay"
   if (field === "options.delete_delay_hours") return "delay"
   if (field === "options.delete_source") return "deleteSource"
   if (field.startsWith("options.excludes")) return "excludes"
@@ -345,12 +368,19 @@ function Editor({
   const ws = saved?.workspace_id ?? workspace?.id ?? ""
   const can = useSyncCan(ws)
   const levelOf = useStorageLevelOf(ws)
+  const serverLevelOf = useServerLevelOf(ws)
   const { user } = useAuth()
   const router = useRouter()
   const qc = useQueryClient()
   const storages = useQuery(storagesQuery)
   const storageOf = (id?: string) =>
     storages.data?.items.find((s) => s.id === id)
+  // Same key as the end picker's list: one request.
+  const servers = useQuery({
+    queryKey: ["servers", "transfer-targets"],
+    queryFn: () => api.servers.listServers({ limit: 500 }),
+  })
+  const serverOf = (id?: string) => servers.data?.items.find((s) => s.id === id)
 
   const [prefill] = useQueryStates(newSyncParams)
   const [draft, setDraft] = useState<Draft>(() =>
@@ -372,6 +402,10 @@ function Editor({
   const saving = create.isPending || update.isPending
 
   const src = storageOf(draft.source?.storage_id)
+  const srcServer = draft.source?.server_id
+    ? serverOf(draft.source.server_id)
+    : undefined
+  const fromServer = !!draft.source?.server_id
   const dst = storageOf(draft.dest?.storage_id)
   const both = minio(src) && minio(dst)
   const engine = engineOf(draft, both)
@@ -410,6 +444,7 @@ function Editor({
         }
         if (k === "rBandwidth") delete next.bandwidth
         if (k === "rEndpoint") delete next.endpoint
+        if (k === "watchCheck") delete next.interval
         delete next[k as ErrorKey]
       }
       return next
@@ -418,7 +453,15 @@ function Editor({
 
   // A prefilled end carries only its id: name it once the list is here.
   const named = (e: EndDraft | null) =>
-    e && !e.name ? { ...e, name: storageOf(e.storage_id)?.name ?? "" } : e
+    e && !e.name
+      ? {
+          ...e,
+          name:
+            (e.server_id
+              ? serverOf(e.server_id)?.name
+              : storageOf(e.storage_id)?.name) ?? "",
+        }
+      : e
 
   function pick(r: Role) {
     setRole(r)
@@ -427,15 +470,26 @@ function Editor({
 
   function onPick(end: EndDraft) {
     const other = role === "source" ? draft.dest : draft.source
-    if (
-      other &&
-      other.storage_id === end.storage_id &&
-      other.path === end.path
-    ) {
+    if (other && idOf(other) === idOf(end) && other.path === end.path) {
       toast.error("That's the other end: pick another folder")
       return
     }
-    set(role === "source" ? { source: end } : { dest: end })
+    if (role !== "source") {
+      set({ dest: end })
+      return
+    }
+    // A server's folder can be followed as it changes; a storage can't.
+    const server = !!end.server_id
+    set({
+      source: end,
+      ...(server && !saved && draft.trigger === "interval"
+        ? { trigger: "watch" as const }
+        : {}),
+      ...(!server && draft.trigger === "watch"
+        ? { trigger: "interval" as const }
+        : {}),
+      ...(server && { deleteSource: false }),
+    })
   }
 
   // MinIO keeps object names as they are: the folder inside both buckets
@@ -465,6 +519,7 @@ function Editor({
     if (
       draft.source &&
       draft.dest &&
+      !fromServer &&
       draft.source.storage_id === draft.dest.storage_id
     ) {
       const a = draft.source.path.replace(/\/$/, "")
@@ -474,7 +529,9 @@ function Editor({
           "On the same storage the two folders can't be inside one another"
     }
     if (dst?.read_only) e.dest = `${dst.name} is read-only in Morche`
-    if (kind === "migrate" && draft.deleteSource && src?.read_only)
+    if (kind === "migrate" && draft.deleteSource && fromServer)
+      e.deleteSource = "Files on a server are never deleted by a migration"
+    else if (kind === "migrate" && draft.deleteSource && src?.read_only)
       e.deleteSource = `${src.name} is read-only, so nothing can be deleted from it`
     if (replication) {
       if (srcPrefix === null) e.source = "Pick a bucket, or a folder inside one"
@@ -492,11 +549,27 @@ function Editor({
       const every = num(draft.interval)
       if (
         draft.trigger === "interval" &&
-        (!Number.isInteger(every) || every < 5 || every > 10080)
+        (!Number.isInteger(every) || every < 1 || every > 10080)
       )
-        e.interval = "From 5 minutes to 10080 (a week)"
+        e.interval = "From 1 minute to 10080 (a week)"
+      if (draft.trigger === "watch") {
+        if (!fromServer)
+          e.cron = "Only a folder on a server can be followed as it changes"
+        const wait = num(draft.watchDelay)
+        if (!Number.isInteger(wait) || wait < 1 || wait > 600)
+          e.watchDelay = "From 1 to 600 seconds"
+        const full = num(draft.watchCheck)
+        if (
+          !Number.isInteger(full) ||
+          (full !== 0 && (full < 15 || full > 10080))
+        )
+          e.interval = "0, or from 15 minutes to 10080 (a week)"
+      }
       const settle = num(draft.settle)
-      if (!Number.isInteger(settle) || settle < 0 || settle > 1440)
+      if (
+        draft.trigger !== "watch" &&
+        (!Number.isInteger(settle) || settle < 0 || settle > 1440)
+      )
         e.settle = "From 0 to 1440 minutes"
       const delay = num(draft.delay)
       if (
@@ -587,7 +660,9 @@ function Editor({
   const srcShort =
     draft.source && src && !levelOf(src.id, srcNeed)
       ? `You need ${srcNeed === "engineer" ? "Engineer" : "Operator"} access to ${src.name}${srcNeed === "engineer" ? " to delete from it" : ""}.`
-      : undefined
+      : srcServer && !serverLevelOf(srcServer.id, "operator")
+        ? `You need Operator access to ${srcServer.name}.`
+        : undefined
   const dstShort =
     draft.dest && dst && !levelOf(dst.id, "engineer")
       ? `You need Engineer access to ${dst.name} to write to it.`
@@ -598,7 +673,7 @@ function Editor({
   const runsAs =
     saved?.runs_as && saved.runs_as !== user.full_name
       ? `It runs with ${saved.runs_as}'s access now. Once you save, it runs with yours.`
-      : "It runs with your access to both storages. If you lose it, it stops and says why."
+      : "It runs with your access to both ends. If you lose it, it stops and says why."
 
   const title = draft.name.trim() || saved?.name || `New ${noun}`
   const KindIcon = kindMeta[kind].icon
@@ -865,67 +940,14 @@ function Editor({
 
       {kind === "sync" && !replication && (
         <Section title="When" phone={phone}>
-          <Cards
-            label="When"
+          <WhenPicker
+            value={draft}
+            onChange={set}
+            errors={errors}
             phone={phone}
-            value={draft.trigger}
-            onChange={(trigger) => set({ trigger })}
-            items={(["interval", "schedule", "manual"] as const).map((t) => ({
-              value: t,
-              icon: triggerMeta[t].icon,
-              label: triggerMeta[t].label,
-              text: triggerMeta[t].text,
-            }))}
+            fromServer={fromServer}
+            server={srcServer?.name}
           />
-          {draft.trigger === "schedule" && (
-            <ScheduleField
-              builder={draft.builder}
-              onChange={(builder) =>
-                set({ builder, cron: fromBuilder(builder) })
-              }
-              timezone={draft.timezone}
-              onTimezone={(timezone) => set({ timezone })}
-              error={errors.cron}
-              phone={phone}
-            />
-          )}
-          {draft.trigger === "interval" && (
-            <div className="flex flex-col gap-2">
-              <Field
-                label="Minutes between runs"
-                hint="Counted from the end of the last run, so runs never pile up. 5 at the least."
-                error={errors.interval}
-                className="w-56"
-              >
-                {(p) => (
-                  <Input
-                    {...p}
-                    type="number"
-                    inputMode="numeric"
-                    min={5}
-                    max={10080}
-                    value={draft.interval}
-                    onChange={(e) => set({ interval: e.target.value })}
-                    className="tabular-nums"
-                  />
-                )}
-              </Field>
-              <div className="flex flex-wrap gap-2">
-                {[5, 15, 60, 360, 1440].map((m) => (
-                  <Button
-                    key={m}
-                    variant="outline"
-                    size="sm"
-                    aria-pressed={num(draft.interval) === m}
-                    className="h-9 rounded-full aria-pressed:border-brand aria-pressed:text-brand md:h-7"
-                    onClick={() => set({ interval: String(m) })}
-                  >
-                    {m < 60 ? `${m} min` : m < 1440 ? `${m / 60} h` : "1 day"}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
           <ToggleRow
             id="sync-on"
             label="Turned on"
@@ -951,8 +973,15 @@ function Editor({
             label="Empty the source afterwards"
             hint="A real move: files that arrived and passed the check are deleted from the source."
             checked={draft.deleteSource}
+            disabled={fromServer}
             onChange={(deleteSource) => set({ deleteSource })}
           />
+          {fromServer && (
+            <p className="text-caption text-muted-foreground">
+              Files on a server are never deleted by a migration: copy them,
+              then delete them yourself.
+            </p>
+          )}
           <FieldError text={errors.deleteSource} />
           {draft.deleteSource && (
             <Callout icon={<TriangleAlert />} tone="warning">
@@ -985,7 +1014,7 @@ function Editor({
               {existingMeta[draft.existing].text}
             </p>
           </div>
-          {kind === "sync" && (
+          {kind === "sync" && draft.trigger !== "watch" && (
             <Field
               label="Wait for new files to settle"
               hint="Minutes a file must stay unchanged before it's copied, so half-uploaded files are left for the next run. 0 = copy at once."
@@ -1077,7 +1106,7 @@ function Editor({
       open={picking}
       onOpenChange={setPicking}
       role={role}
-      storagesOnly
+      storagesOnly={role === "destination"}
       need={
         role === "destination"
           ? "engineer"
@@ -1088,7 +1117,7 @@ function Editor({
       title={role === "source" ? "Copy from" : "Copy to"}
       description={
         role === "source"
-          ? "A storage and the folder whose contents are copied."
+          ? "A storage, or a server's folder, whose contents are copied."
           : "The folder the files go into. Missing folders are created."
       }
       value={(role === "source" ? draft.source : draft.dest) ?? undefined}
@@ -1133,7 +1162,9 @@ function Editor({
 
   const where = (e: EndDraft | null) => {
     const n = named(e)
-    return n ? `${n.name || "A storage"}:${n.path}` : ""
+    return n
+      ? `${n.name || (n.server_id ? "A server" : "A storage")}:${n.path}`
+      : ""
   }
   const when = replication
     ? "As files change"
@@ -1143,7 +1174,9 @@ function Editor({
         ? cronText(draft.cron)
         : draft.trigger === "interval"
           ? `Every ${draft.interval || "?"} min`
-          : triggerMeta.manual.label
+          : draft.trigger === "watch"
+            ? triggerMeta.watch.label
+            : triggerMeta.manual.label
   const summary = (
     <AsideCard title="Summary">
       <SummaryList

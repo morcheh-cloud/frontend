@@ -43,3 +43,12 @@ export function useCanReplicate() {
     atLeast(storageLevel(s.source.storage_id, s.workspace_id), "owner") &&
     atLeast(storageLevel(s.dest.storage_id, s.workspace_id), "owner")
 }
+
+// The level this person has on a server of the workspace (a sync's source).
+export function useServerLevelOf(workspaceId?: string) {
+  const { serverLevel } = useAccess()
+  return (serverId: string | undefined, min: Level) =>
+    !!serverId &&
+    !!workspaceId &&
+    atLeast(serverLevel(serverId, workspaceId), min)
+}

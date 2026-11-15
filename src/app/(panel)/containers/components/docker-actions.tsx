@@ -142,7 +142,10 @@ function useActionsState() {
   const [dialogOpen, setDialogOpen] = useOpen("docker-dialog")
   const [detail, setDetail] = useState<(Detail & { n: number }) | null>(null)
   const [detailOpen, setDetailOpen] = useOpen("docker-detail")
-  const [busy, setBusy] = useState<Set<string>>(new Set())
+  // Containers with an action under way, and which one.
+  const [busy, setBusy] = useState<ReadonlyMap<string, ContainerAction>>(
+    new Map(),
+  )
   const [pending, setPending] = useState(false)
   const action = useContainerAction()
   const removeVolume = useRemoveVolume()
@@ -159,10 +162,10 @@ function useActionsState() {
     setDetail({ ...d, n: Date.now() })
     setDetailOpen(true)
   }
-  function mark(id: string, on: boolean) {
+  function mark(id: string, act: ContainerAction | null) {
     setBusy((prev) => {
-      const next = new Set(prev)
-      if (on) next.add(id)
+      const next = new Map(prev)
+      if (act) next.set(id, act)
       else next.delete(id)
       return next
     })
@@ -174,7 +177,7 @@ function useActionsState() {
     act: ContainerAction,
     quiet = false,
   ) {
-    mark(c.id, true)
+    mark(c.id, act)
     const t = quiet ? undefined : toast.loading(`${verbs[act][0]} ${c.name}…`)
     try {
       await action.mutateAsync({ server, container: c.id, action: act })
@@ -184,7 +187,7 @@ function useActionsState() {
       toast.error(`${c.name}: ${(err as Error).message}`, { id: t })
       return false
     } finally {
-      mark(c.id, false)
+      mark(c.id, null)
     }
   }
 

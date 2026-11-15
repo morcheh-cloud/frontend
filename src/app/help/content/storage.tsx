@@ -855,6 +855,17 @@ https://assets.s3.amazonaws.com/img/logo.png  (AWS)`}</Code>
           <UI>New sync</UI>, or from a storage's ⋯ menu ›{" "}
           <UI>Sync to another storage…</UI>.
         </P>
+        <P>
+          The source can also be a folder on one of your servers: pick a server
+          in <UI>Source</UI>. Morche reads it over SSH and copies it to the
+          storage, which suits files an app writes on the server (uploads,
+          exports, reports). A server source can follow changes as they happen,
+          see{" "}
+          <See guide="storage" section="realtime">
+            Copying changes as they happen
+          </See>
+          .
+        </P>
         <Table
           head={["Mode", "What happens on the destination"]}
           rows={[
@@ -915,7 +926,11 @@ https://assets.s3.amazonaws.com/img/logo.png  (AWS)`}</Code>
             ],
             [
               <UI key="i">Every few minutes</UI>,
-              "Background copying: it starts again a set time (5 minutes or more) after the last run ended, so runs never pile up.",
+              "Background copying: it starts again a set time (1 minute or more) after the last run ended, so runs never pile up.",
+            ],
+            [
+              <UI key="w">As soon as it changes</UI>,
+              "Server sources only: each change is copied a few seconds after it happens. See Copying changes as they happen.",
             ],
           ]}
         />
@@ -958,6 +973,111 @@ https://assets.s3.amazonaws.com/img/logo.png  (AWS)`}</Code>
           A sync that has a problem, or whose last run failed, shows a red count
           on <UI>Storage</UI> in the menu and on Home. A paused one doesn't.
         </Tip>
+      </>
+    ),
+  },
+  {
+    id: "realtime",
+    title: "Copying changes as they happen",
+    body: (
+      <>
+        <P>
+          With a server folder as the source, <UI>When</UI> ›{" "}
+          <UI>As soon as it changes</UI> keeps an SSH connection open and
+          follows the folder with <C>inotifywait</C>. A new or changed file is
+          copied to the storage a few seconds after the last write to it; in{" "}
+          <UI>Mirror</UI> mode a deleted file is deleted there too. Nothing runs
+          on the server but <C>inotifywait</C>, and nothing is installed except
+          the <C>inotify-tools</C> package.
+        </P>
+        <Steps>
+          <li>
+            <UI>Storage</UI> › <UI>Syncs</UI> › <UI>New sync</UI>, pick a server
+            and its folder as the <UI>Source</UI>, and a storage as the{" "}
+            <UI>Destination</UI>.
+          </li>
+          <li>
+            Under <UI>When</UI> pick <UI>As soon as it changes</UI>.
+          </li>
+          <li>
+            Save. Morche copies everything once to catch up, then starts
+            watching. The sync's page shows <UI>Following changes</UI>: what's
+            waiting, what was copied, and the last changes one by one.
+          </li>
+        </Steps>
+        <Table
+          head={["Setting", "Means"]}
+          rows={[
+            [
+              <UI key="q">Copy after it's quiet for</UI>,
+              "Seconds a file must go unchanged before it's copied (1 to 600, 5 by default), so a file still being written isn't copied half done.",
+            ],
+            [
+              <UI key="c">Compare everything every</UI>,
+              "A full run that compares both sides, for anything a watch can miss. Off = only after a reconnect; otherwise 15 minutes or more.",
+            ],
+          ]}
+        />
+        <P>
+          If the connection drops, Morche reconnects by itself and runs a full
+          comparison first, so changes made while it was away are copied too. A
+          change that fails to copy is listed with its error and picked up by
+          the next comparison.
+        </P>
+        <Example title="App uploads kept in MinIO">
+          An app writes user uploads to <C>/srv/app/uploads</C>. A sync from
+          that folder to a MinIO bucket, <UI>Add and update</UI>, as soon as it
+          changes, quiet for 5 seconds and a comparison every 6 hours: each
+          upload is in MinIO within seconds, and a daily mistake on the server
+          never deletes the copy.
+        </Example>
+        <Recommended
+          rows={[
+            {
+              setting: "Copy after it's quiet for",
+              value: "5 seconds",
+              why: "Long enough for most writes to finish, still near-live.",
+            },
+            {
+              setting: "Large files written slowly (videos, dumps)",
+              value: "30 to 60 seconds",
+              why: "A slow writer pauses between chunks.",
+            },
+            {
+              setting: "Compare everything every",
+              value: "6 hours or 1 day",
+              why: "A safety net that costs little.",
+            },
+          ]}
+        />
+        <P>If it isn't watching:</P>
+        <List>
+          <li>
+            <UI>Needs inotify-tools</UI>: the package isn't on the server. Press{" "}
+            <UI>Install inotify-tools</UI> on the sync's page (Engineer on the
+            server); watching starts as soon as it's in.
+          </li>
+          <li>
+            <UI>Too many folders</UI>: Linux lets one user watch a limited
+            number of folders (<C>fs.inotify.max_user_watches</C>, often 8192 on
+            older systems). <UI>Raise the limit</UI> sets it high enough for
+            this folder (at least 524288) and keeps it after a reboot; it needs
+            root or passwordless sudo. Or sync a smaller folder.
+          </li>
+          <li>
+            <UI>Reconnecting</UI>: the server can't be reached right now. It
+            tries again by itself; <UI>Restart</UI> tries at once.
+          </li>
+          <li>
+            A file shows up late: it was still being written. Lower{" "}
+            <UI>Copy after it's quiet for</UI> only if files are written in one
+            go.
+          </li>
+        </List>
+        <Warn>
+          Watching runs as the server's login user: files it can't read are
+          listed as failed. Use a login that can read the whole folder.
+        </Warn>
       </>
     ),
   },

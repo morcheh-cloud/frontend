@@ -22,8 +22,8 @@ export const cloud: GuideSection[] = [
         <P>
           <UI>Cloud</UI> shows the servers you rent from a cloud provider,
           straight from the provider's API: their state, size, region and
-          addresses, all accounts in one list. ArvanCloud is the first provider;
-          more will follow.
+          addresses. <UI>Cloud</UI> lists your accounts; open one to see its
+          servers. ArvanCloud is the first provider; more will follow.
         </P>
         <P>
           Connect as many accounts as you have API keys (one per company,
@@ -31,19 +31,15 @@ export const cloud: GuideSection[] = [
           <UI>Allow changes from Morche</UI> for an account; then you can also
           turn servers on or off, restart and rename them from here.
         </P>
-        <Table
-          head={["Tab", "What you see there"]}
-          rows={[
-            [
-              <UI key="s">Servers</UI>,
-              "Every server of every account, with state, region, address and size",
-            ],
-            [
-              <UI key="a">Accounts</UI>,
-              "The first tab: a card per connected account with its status, servers at a glance, regions and read only or not. Click a card for the account's page",
-            ],
-          ]}
-        />
+        <P>
+          The <UI>Cloud</UI> page shows a card per connected account: its
+          status, servers at a glance, regions and whether it's read only. Click
+          a card for{" "}
+          <See guide="cloud" section="account-page">
+            the account's page
+          </See>
+          , where its servers, disks, firewalls, networks and backups are.
+        </P>
         <Tip>
           A cloud server isn't the same as one of Morche's{" "}
           <See guide="servers">Servers</See>: Cloud is what the provider knows
@@ -77,8 +73,8 @@ export const cloud: GuideSection[] = [
               which regions answered and how many servers the key sees.
             </P>,
             <P key="4">
-              Save. The servers appear on the <UI>Servers</UI> tab within a few
-              seconds.
+              Save. Open the account's card: its servers appear on the{" "}
+              <UI>Servers</UI> tab within a few seconds.
             </P>,
           ]}
         </Steps>
@@ -137,22 +133,22 @@ export const cloud: GuideSection[] = [
   },
   {
     id: "servers",
-    title: "The servers list",
+    title: "An account's servers",
     body: (
       <>
         <P>
-          The list reads every region of every account and refreshes by itself
-          every 30 seconds (every 5 while a server is starting, stopping or
-          restarting). The refresh icon reads again from the provider right
-          away.
+          An account's <UI>Servers</UI> tab reads every region of that account
+          and refreshes by itself every 30 seconds (every 5 while a server is
+          starting, stopping or restarting). The refresh icon reads again from
+          the provider right away.
         </P>
         <List>
           <li>
             Search finds a server by name, address, region, plan or system.
           </li>
           <li>
-            <UI>Account</UI> and <UI>State</UI> narrow the list; the state menu
-            shows how many servers each state has.
+            <UI>Show</UI> narrows the list to All, Running, Off or Not in
+            Morche, with how many servers each has.
           </li>
           <li>
             Click a name (on phones, tap the row) for its details: every address
@@ -201,7 +197,7 @@ export const cloud: GuideSection[] = [
             ],
             [
               <UI key="s">Servers</UI>,
-              "A card per server: state, address (copy button), size and where it runs. Search and filter by All, Running, Off or Not in Morche. Its menu has the same actions as the servers list",
+              "A card per server: state, address (copy button), size and where it runs. Search and filter by All, Running, Off or Not in Morche. Click it for its details; its menu has power, rename and Add to Morche servers",
             ],
             [
               <UI key="d">Disks</UI>,

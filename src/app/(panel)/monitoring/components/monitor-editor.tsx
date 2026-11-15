@@ -938,7 +938,7 @@ export function ChannelPicker({
         <span>
           No alert channels in this workspace yet: {empty}{" "}
           <Link
-            href="/alerts"
+            href="/alerts/channels/new"
             className="font-medium text-brand hover:underline"
           >
             Add a channel
@@ -993,7 +993,7 @@ export function ChannelPicker({
       </ul>
       {error && <p className="text-caption text-destructive">{error}</p>}
       <Link
-        href="/alerts"
+        href="/alerts/channels"
         className="inline-flex min-h-11 items-center gap-1.5 self-start text-body-sm text-brand hover:underline md:min-h-0"
         data-ws={ws}
       >

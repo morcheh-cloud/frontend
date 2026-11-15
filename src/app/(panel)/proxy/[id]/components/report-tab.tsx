@@ -72,6 +72,8 @@ type SiteRow = {
   stream: boolean
   series: number[]
   errorSeries: number[]
+  clientSeries: number[]
+  bytesSeries: number[]
   now: number
   total: number
   client: number
@@ -91,6 +93,8 @@ function numbers(t: SiteTraffic | undefined, minutes: number): Numbers {
   return {
     series,
     errorSeries: t ? t.server_errors.slice(0, -1) : blank,
+    clientSeries: t ? t.client_errors.slice(0, -1) : blank,
+    bytesSeries: t ? t.bytes.slice(0, -1) : blank,
     now: series.at(-1) ?? 0,
     total: sum(t?.requests),
     client: sum(t?.client_errors),
@@ -247,6 +251,7 @@ export function ReportTab({ detail }: { detail: ProxyDetail }) {
     <SitesNow
       rows={rows}
       minutes={minutes}
+      start={traffic.data?.start}
       pending={traffic.isPending}
       phone={!!phone}
       off={detail.hosts.filter((h) => !h.enabled).length}
@@ -352,6 +357,7 @@ function PhoneHeading({
 function SitesNow({
   rows,
   minutes,
+  start,
   pending,
   phone,
   off,
@@ -359,6 +365,8 @@ function SitesNow({
 }: {
   rows: SiteRow[]
   minutes: number
+  // When the traffic's first minute began.
+  start?: string
   pending: boolean
   phone: boolean
   off: number
@@ -492,6 +500,12 @@ function SitesNow({
                     <MiniBars
                       requests={r.series}
                       errors={r.errorSeries}
+                      details={{
+                        start: start ?? "",
+                        clientErrors: r.clientSeries,
+                        bytes: r.bytesSeries,
+                        stream: r.stream,
+                      }}
                       className="h-6 w-36 gap-[2px]"
                     />
                   )}

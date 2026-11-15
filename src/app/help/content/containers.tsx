@@ -79,12 +79,18 @@ export const containers: GuideSection[] = [
       <>
         <P>
           Each server that runs Docker or Podman is an{" "}
-          <strong>environment</strong>. Most pages (Dashboard, Updates,
-          Security, Projects, Containers, Images, Networks, Volumes, Event log)
-          show one of them: pick it in the box under <UI>Main menu</UI> (on a
-          phone, the name in the top bar). The choice is kept, and links carry
-          it in the address (<C>?env=</C>), so a shared link opens the same
-          server.
+          <strong>environment</strong>. Every page in the menu (Dashboard,
+          Updates, Security, Projects, Containers, Images, Networks, Volumes,
+          Alerts, Event log, Engine config, Settings) shows the one picked in
+          the box under <UI>Main menu</UI> (on a phone, the name in the top
+          bar). The choice is kept, and links carry it in the address (
+          <C>?env=</C>), so a shared link opens the same server.
+        </P>
+        <P>
+          What covers every server sits apart, in the <UI>All servers</UI> group
+          at the bottom of the menu: <UI>Environments</UI>, <UI>Auto-update</UI>
+          , <UI>Templates</UI>, <UI>Registries</UI> and <UI>Global settings</UI>
+          .
         </P>
         <P>
           <UI>Environments</UI> lists all of them as cards, the ones that need a
@@ -127,38 +133,29 @@ export const containers: GuideSection[] = [
     body: (
       <>
         <P>
-          The <UI>Dashboard</UI> is a report on the chosen environment: how its
-          containers are doing right now, what they used over time, who talks to
-          whom, and the cards that lead to the other pages. It refreshes by
-          itself every 10 seconds.
+          The <UI>Dashboard</UI> is a report on the chosen environment, split
+          into five tabs. It refreshes by itself every 10 seconds, and the tab
+          you are on stays in the address, so a link opens the same tab.
         </P>
         <Table
-          head={["Block", "Shows"]}
+          head={["Tab", "Shows"]}
           rows={[
             [
-              "Top row",
-              "Containers running, health checks passing, CPU (as a share of the whole server), memory, network in and out, and restarts Docker made",
+              "Overview",
+              "Containers running, health checks passing, CPU (as a share of the whole server), memory, network and restarts; Needs a look; projects, updates, vulnerabilities, the last 24 hours, states, the busiest containers and the server's CPU/memory/disk",
+            ],
+            ["Map", "Who talks to whom (see Network map below)"],
+            [
+              "Resources",
+              "CPU, memory or network of every container added up (Live or the last 24 hours), the same per project, the busiest containers, containers without a memory limit and the network right now",
             ],
             [
-              "Needs a look",
-              "Containers that failed, keep restarting or are unhealthy (or a calm line when there are none)",
+              "Containers",
+              "Every container: state, health, uptime (or since when it is stopped), restarts, exit code, CPU, memory, network and ports; problems first",
             ],
             [
-              "Usage",
-              "CPU, memory or network of every container added up: Live (a point every few seconds while someone looks) or the last 24 hours",
-            ],
-            ["Busiest", "The containers using the most CPU or memory now"],
-            [
-              "Network map",
-              "Containers, their networks and the connections between them (see below)",
-            ],
-            [
-              "State and uptime",
-              "Every container: state, health, how long it has been up (or since when it is stopped), restarts, exit code, CPU, memory, network and ports; problems first",
-            ],
-            [
-              "Projects, Last 24 hours, engine, Updates, Vulnerabilities",
-              "Compose projects, recent engine events, the server's CPU/memory/disk, images with a newer version and the last scans",
+              "Activity",
+              "Engine events per hour, the events themselves, restarts and crashes, and images with a newer version",
             ],
           ]}
         />
@@ -172,9 +169,8 @@ export const containers: GuideSection[] = [
           line.
         </P>
         <P>
-          On a phone the same report is shorter: the numbers, the usage chart, a{" "}
-          <UI>Network map</UI> row that opens the map full screen (pan and pinch
-          to zoom), every container with its uptime, then every Containers page.
+          On a phone the tabs sit in a chip row under the header; the map can be
+          panned and pinched to zoom.
         </P>
         <P>
           <UI>New project</UI> (Engineer) starts a compose project on this
@@ -189,26 +185,54 @@ export const containers: GuideSection[] = [
     body: (
       <>
         <P>
-          The map draws the running containers (or all of them, with{" "}
-          <UI>All</UI>) as boxes, their Docker networks on the right, and the
-          outside world on the left. Hover a container to light up its lines;
-          click it to open it. Drag boxes to tidy the view, zoom with the
-          buttons.
+          The <UI>Map</UI> tab has three views, built to stay readable with
+          dozens of containers:
         </P>
         <Table
-          head={["Line", "Means"]}
+          head={["View", "Shows"]}
           rows={[
             [
-              "Solid indigo, with moving dots",
-              "Open connections from one container to another (or to the server itself), with the port and how many; thicker = more traffic",
+              "Traffic",
+              "Only the containers that talk to each other, laid out left to right from who asks to who answers; the rest are counted above the map",
             ],
             [
-              "Dashed dark",
-              "A published port: the outside world reaches the container through it",
+              "Projects",
+              "Every container in a box per compose project, the boxes packed to fit the screen",
             ],
-            ["Dotted grey", "The container is attached to that network"],
+            ["Networks", "The same, with a box per Docker network"],
           ]}
         />
+        <P>
+          In <UI>Projects</UI> and <UI>Networks</UI> the lines stay hidden until
+          you point at (or tap) a box or a container: a box shows the lines to
+          other boxes, with how many connections; a container shows its own. A
+          box's header counts its containers, the connections that stay inside
+          it, the ones published to the internet and the other boxes it talks
+          to.
+        </P>
+        <Table
+          head={["Mark", "Means"]}
+          rows={[
+            [
+              "Indigo line with moving dots",
+              "Open connections from one container to another (or to the server itself); thicker = more traffic",
+            ],
+            [
+              "Globe chip on a container",
+              "It is published to the internet, or the internet reaches it (the number = ports or connections)",
+            ],
+            [
+              "Arrow chip on a container",
+              "It opens connections out to the internet",
+            ],
+          ]}
+        />
+        <P>
+          Click a container for its details (who it talks to, ports, numbers);
+          double-click opens its page. <UI>Find a container</UI> jumps to one,{" "}
+          <UI>All</UI> adds stopped containers. Boxes can be dragged; the frame
+          button fits everything again.
+        </P>
         <P>
           Connections are read from inside each container's own network, so they
           show even for programs that don't log anything. How many bytes went
@@ -279,11 +303,11 @@ export const containers: GuideSection[] = [
           rows={[
             [
               "Overview",
-              "Title and note, live tiles, charts of the last minutes, readiness, folder and files",
+              "A hero (the containers as a ring, health, uptime, published ports, shortcuts), live tiles, usage charts, who uses what, the last 24 hours, readiness, images (updates, vulnerabilities) and files",
             ],
             [
               "Containers",
-              "Every container with state, CPU, memory, network, ports, restarts and uptime",
+              "Every container with a coloured state badge (Running, Exited · code, Out of memory, Restarting…), a health badge (Healthy, Unhealthy, Checking; No check = the image sets none), CPU, memory, network, ports, restarts and uptime. A Start, Stop or Restart you press shows in its row with a spinner until it ends",
             ],
             ["Logs", "Every container's output merged by time, live"],
             [
@@ -298,7 +322,7 @@ export const containers: GuideSection[] = [
           ]}
         />
         <P>
-          <UI>Edit</UI> beside the title on the Overview gives the project a
+          The pencil beside the title on the Overview gives the project a
           display <UI>Title</UI> (shown instead of the folder name) and a{" "}
           <UI>Note</UI>: what it is, who looks after it, where it is reached.
           They are kept by Morche, not in the compose file. The menu:
@@ -908,6 +932,20 @@ export const containers: GuideSection[] = [
           recorded history, a point every 5 minutes with its average and peak.
           The period you pick is remembered.
         </P>
+        <P>
+          The <UI>Containers</UI> tab shows each running container's numbers
+          live, every second (<UI>Live · every second</UI> above the list): CPU
+          with a short chart (100% = one core), memory with a bar against its
+          limit (or the server's memory when it has none), disk reads and writes
+          (<C>R</C>/<C>W</C> per second) and network in and out. On a narrow
+          window the less important columns hide; on a phone the numbers sit on
+          their own line under each container.
+        </P>
+        <Tip>
+          A memory bar that turns orange or red means the container is close to
+          its limit: raise <C>mem_limit</C> on the Production tab before it gets
+          killed for running out of memory.
+        </Tip>
         <P>
           Points are recorded while the server is in use by Morche (its
           containers looked at, or its updates checked). A gap in a chart means
@@ -1688,12 +1726,15 @@ export const containers: GuideSection[] = [
     body: (
       <>
         <P>
-          <UI>Settings</UI> belong to the workspace, and each environment can
-          change some of them for itself (see{" "}
+          <UI>All servers</UI> › <UI>Global settings</UI> apply to every
+          container server in the workspace, new ones included. A server can
+          still change some of them for itself on its own <UI>Settings</UI> page
+          (see{" "}
           <See guide="containers" section="environment-settings">
-            Settings for one environment
+            Settings for one server
           </See>
-          ). A workspace Owner changes them; everyone else can read them.
+          ); the top of Global settings lists those servers, and a click opens
+          one. A workspace Owner changes them; everyone else can read them.
           Changes wait in the form until you press <UI>Save</UI>. The bar at the
           bottom counts them, and <UI>Discard</UI> drops them.
         </P>
@@ -1931,41 +1972,39 @@ export const containers: GuideSection[] = [
   },
   {
     id: "environment-settings",
-    title: "Settings for one environment",
+    title: "Settings for one server",
     body: (
       <>
         <P>
-          <UI>Settings for</UI> at the top of the settings page switches from{" "}
-          <UI>Whole workspace</UI> to one environment. The form then shows what
-          that server uses. Change a value and it applies to this environment
-          only; the row gets a <UI>This environment</UI> tag. Everything else
-          keeps following the workspace, including later changes to the
-          workspace.
+          <UI>Administration</UI> › <UI>Settings</UI> shows what the picked
+          server uses: the global settings, plus any value it sets for itself.
+          Change a value and it applies to this server only; the row gets a{" "}
+          <UI>This server</UI> tag. Everything else keeps following the global
+          settings, including later changes to them.
         </P>
         <Steps>
           {[
             <>
-              Open <UI>Settings</UI> and pick the environment under{" "}
-              <UI>Settings for</UI>.
+              Pick the server in the box under <UI>Main menu</UI> and open{" "}
+              <UI>Settings</UI>.
             </>,
             <>
               Change what should differ, for example a bigger{" "}
               <UI>Versions kept per project</UI> or a different backup storage.
             </>,
             <>
-              <UI>Save</UI>. Changes for the workspace and several environments
-              are saved together.
+              <UI>Save</UI>.
             </>,
           ]}
         </Steps>
         <P>
-          <UI>Use the workspace&apos;s</UI> under a row takes one value back.{" "}
-          <UI>Follow the workspace for everything</UI> takes them all back. Set
-          a value back to the workspace&apos;s and it follows the workspace
-          again by itself.
+          <UI>Use the global value</UI> under a row takes one value back.{" "}
+          <UI>Follow global for everything</UI> takes them all back. Set a value
+          back to the global one and it follows the global settings again by
+          itself.
         </P>
         <Example title="A build server">
-          The workspace cleans up weekly, keeping untagged images only. The
+          The global settings clean up weekly, keeping untagged images only. The
           build server (lots of images, little disk) gets its own: daily, every
           unused image, build cache included.
         </Example>
@@ -1978,8 +2017,8 @@ export const containers: GuideSection[] = [
     body: (
       <>
         <P>
-          <UI>Export</UI> saves the workspace&apos;s settings and every
-          environment&apos;s own settings to a <C>.json</C> file.{" "}
+          <UI>Export</UI> on <UI>Global settings</UI> saves the global settings
+          and every server&apos;s own settings to a <C>.json</C> file.{" "}
           <UI>Import</UI> reads such a file (pick it, drop it or paste it),
           shows what it holds and loads the parts you tick into the form.
           Nothing changes until you <UI>Save</UI>.
@@ -1988,12 +2027,12 @@ export const containers: GuideSection[] = [
           head={["In the file", "On import"]}
           rows={[
             [
-              "Workspace settings",
+              "Global settings",
               "Replace what the file sets; what it leaves out stays",
             ],
             [
-              "An environment's settings",
-              "Matched by server name; replace what that environment has now",
+              "A server's own settings",
+              "Matched by server name; replace what that server has now",
             ],
             [
               "Alert channels and backup storage",
@@ -2482,8 +2521,8 @@ export const containers: GuideSection[] = [
             ["Sort", "Name, Largest first, Newest/Oldest first, Most used"],
             ["Group", "One block per compose project, with its total size"],
             [
-              "Measure sizes",
-              "Runs du over every volume (can take a while on a big server); Largest first measures by itself",
+              "Sizes",
+              "Always shown: the last measurement appears at once (kept on this device too) and a newer one runs in the background; the caption says when they were measured, Refresh measures again",
             ],
           ]}
         />

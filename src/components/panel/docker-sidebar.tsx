@@ -2,6 +2,7 @@
 
 import { ArrowLeft, ChevronsUpDown, ServerCog } from "lucide-react"
 import Link from "next/link"
+import { useEffect, useRef } from "react"
 import {
   Dot,
   engineName,
@@ -31,7 +32,12 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar"
 import { Skeleton } from "@/components/ui/skeleton"
-import { dockerGroups, dockerPageFor } from "./nav"
+import {
+  dockerFleetGroup,
+  dockerGroups,
+  dockerPageFor,
+  type NavGroup,
+} from "./nav"
 import { NavEntry } from "./nav-entry"
 
 // The Containers menu that takes the sidebar's place under /containers:
@@ -46,8 +52,21 @@ export function DockerSidebarContent({
 }) {
   const current = dockerPageFor(pathname)?.href
 
+  // On a short window the menu scrolls: keep the current page in sight
+  // (the All servers group sits at the bottom).
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!current) return
+    box.current
+      ?.querySelector("[data-sidebar=menu-button][data-active]")
+      ?.scrollIntoView({ block: "nearest" })
+  }, [current])
+
   return (
-    <SidebarContent className="animate-in duration-200 slide-in-from-end-4 fade-in">
+    <SidebarContent
+      ref={box}
+      className="animate-in duration-200 slide-in-from-end-4 fade-in"
+    >
       <SidebarGroup className="pb-0">
         <SidebarMenu>
           <SidebarMenuItem>
@@ -66,25 +85,52 @@ export function DockerSidebarContent({
       <SidebarSeparator className="mx-2" />
 
       {dockerGroups.map((group) => (
-        <SidebarGroup key={group.label}>
-          <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
-          <SidebarMenu>
-            {group.items.map((item) => (
-              <NavEntry
-                key={item.href}
-                item={item}
-                pathname={pathname}
-                active={
-                  item.href === current ||
-                  !!item.children?.some((c) => c.href === current)
-                }
-                current={current}
-              />
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
+        <MenuGroup
+          key={group.label}
+          group={group}
+          pathname={pathname}
+          current={current}
+        />
       ))}
+
+      {/* Pages for every server, apart from the picked environment's. */}
+      <SidebarSeparator className="mx-2 mt-auto" />
+      <MenuGroup
+        group={dockerFleetGroup}
+        pathname={pathname}
+        current={current}
+      />
     </SidebarContent>
+  )
+}
+
+function MenuGroup({
+  group,
+  pathname,
+  current,
+}: {
+  group: NavGroup
+  pathname: string
+  current?: string
+}) {
+  return (
+    <SidebarGroup>
+      <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+      <SidebarMenu>
+        {group.items.map((item) => (
+          <NavEntry
+            key={item.href}
+            item={item}
+            pathname={pathname}
+            active={
+              item.href === current ||
+              !!item.children?.some((c) => c.href === current)
+            }
+            current={current}
+          />
+        ))}
+      </SidebarMenu>
+    </SidebarGroup>
   )
 }
 

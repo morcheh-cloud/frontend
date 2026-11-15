@@ -4,7 +4,7 @@ import { formatSize } from "@/lib/format"
 import type { StorageSync, StorageSyncRun } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { useSyncRun } from "../api"
-import { EndBadge, engineMeta, isRunning } from "./meta"
+import { EndBadge, engineMeta, isRunning, watchOf } from "./meta"
 
 // Source → destination, with the engine on the line between them. The line
 // turns brand and moves while a run is going.
@@ -19,7 +19,11 @@ export function Flow({
 }) {
   const engine = engineMeta[s.engine]
   const Icon = engine.icon
-  const live = isRunning(s) || (s.engine === "replication" && !s.paused)
+  const w = watchOf(s)
+  const live =
+    isRunning(s) ||
+    (s.engine === "replication" && !s.paused) ||
+    (!s.paused && w?.state === "watching" && (w.copying || w.queued > 0))
   return (
     <div className={cn("flex min-w-0 items-center gap-3", className)}>
       <EndBadge end={s.source} size={size} className="min-w-0 flex-1" />

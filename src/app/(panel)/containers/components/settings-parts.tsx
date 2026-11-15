@@ -147,7 +147,7 @@ export function SideNav({ mark }: { mark: (id: SectionId) => SectionMark }) {
                 {m.own > 0 && (
                   <span
                     className="shrink-0 rounded-full bg-muted px-1.5 text-caption text-muted-foreground tabular-nums"
-                    title={`${m.own} set for this environment`}
+                    title={`${m.own} set for this server`}
                   >
                     {m.own}
                   </span>

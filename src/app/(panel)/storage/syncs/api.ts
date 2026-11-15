@@ -38,6 +38,19 @@ const retryUnlessGone = (count: number, error: Error) =>
 
 const busy = (s: StorageSync) => runActive(s.last_run?.state)
 
+// A sync that follows changes as they happen: its page shows them live.
+const WATCH_POLL = 3_000
+const following = (s: StorageSync) => !!s.watch && s.watch.state !== "paused"
+
+const detailPoll = (s: StorageSync | undefined) =>
+  !s
+    ? STATUS_POLL
+    : busy(s) || s.watch?.copying || (s.watch?.queued ?? 0) > 0
+      ? ACTIVE_POLL
+      : following(s)
+        ? WATCH_POLL
+        : STATUS_POLL
+
 // The workspace's syncs and migrations; fast while one is running.
 export function useStorageSyncs(ws: string | undefined) {
   return useQuery({
@@ -57,9 +70,7 @@ export function useStorageSync(id: string | undefined, { poll = true } = {}) {
     retry: retryUnlessGone,
     // The editor keeps its own draft; a save elsewhere answers 409.
     refetchOnWindowFocus: poll,
-    refetchInterval: poll
-      ? (q) => (q.state.data && busy(q.state.data) ? ACTIVE_POLL : STATUS_POLL)
-      : false,
+    refetchInterval: poll ? (q) => detailPoll(q.state.data) : false,
     placeholderData: () => {
       for (const [, d] of qc.getQueriesData<{ items: StorageSync[] }>({
         queryKey: ["storage-syncs", "list"],
@@ -204,5 +215,26 @@ export function useResync() {
       api.storageSyncs.resyncStorageSyncReplication(id),
     onSuccess: (_, id) =>
       qc.invalidateQueries({ queryKey: syncKeys.replication(id) }),
+  })
+}
+
+// Drops the watcher's connection and starts it again (after installing
+// inotify-tools, raising the limit or a long outage).
+export function useRestartWatch() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.storageSyncs.restartStorageSyncWatch(id),
+    onSuccess: (s) => putSync(qc, s),
+  })
+}
+
+// Raises fs.inotify.max_user_watches on the source server (0 = enough for
+// this folder), then restarts the watcher.
+export function useRaiseWatchLimit() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, limit = 0 }: { id: string; limit?: number }) =>
+      api.storageSyncs.raiseStorageSyncWatchLimit(id, { limit }),
+    onSuccess: (s) => putSync(qc, s),
   })
 }

@@ -28,6 +28,7 @@ import {
   useDockerVolumes,
   useRefreshDockerUsage,
   useVolumeBackups,
+  useVolumeSizes,
 } from "../api"
 import { useDockerActions, useVolumeMenu } from "./docker-actions"
 import {
@@ -134,20 +135,23 @@ export function VolumesTab({
 }) {
   const a = useDockerActions()
   const router = useRouter()
-  // Sizes cost a du over every volume: only when asked (or sorted by size).
-  const [measure, setMeasure] = useState(false)
   const [filters, setFilters] = useDockerFilters()
   const [f, setF] = useQueryStates(volumeListParsers, { history: "replace" })
-  const sizes = measure || f.sort === "size"
-  const list = useDockerVolumes(server.id, sizes)
+  // The list comes fast and polls; sizes come from the backend's last
+  // measurement (kept on this device too) and refresh behind it.
+  const list = useDockerVolumes(server.id, false)
   const usage = useDockerUsage(server.id)
+  const sizes = useVolumeSizes(server.id, usage.data?.measured_at)
   const refreshUsage = useRefreshDockerUsage(server.id)
   const backups = useVolumeBackups(server.id)
   const copies = copiesOf(backups.data?.items ?? [])
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
-  const all = list.data ?? []
-  const measured = sizes && !list.isPlaceholderData && !!list.data
+  const measured = !!sizes.data
+  const all = (list.data ?? []).map((v) => ({
+    ...v,
+    size: sizes.data?.[v.name] ?? -1,
+  }))
   const test: Record<Which, (v: DockerVolume) => boolean> = {
     all: () => true,
     used: (v) => v.used_by.length > 0,
@@ -212,6 +216,7 @@ export function VolumesTab({
     can,
     copies,
     measured,
+    measuring: sizes.isFetching || usage.isPending,
     largest,
     open,
   }
@@ -324,24 +329,22 @@ export function VolumesTab({
     )
   }
 
-  const measureButton = (
-    <Button
-      variant="outline"
-      size={phone ? "icon-lg" : "sm"}
-      className="md:h-9"
-      aria-label="Measure sizes"
-      title="Measure every volume's size (du on the server)"
-      disabled={sizes && list.isFetching}
-      onClick={() => (sizes ? list.refetch() : setMeasure(true))}
+  const busy = usage.data?.measuring || sizes.isFetching
+  const measuredAt = usage.data?.measured_at
+  const sizeState = (
+    <span
+      className="inline-flex shrink-0 items-center gap-1.5 text-caption whitespace-nowrap text-ash"
+      title="Sizes come from the last measurement and update by themselves"
     >
-      <Ruler className={cn(sizes && list.isFetching && "animate-pulse")} />
-      {!phone &&
-        (sizes && list.isFetching
-          ? "Measuring…"
-          : measured
-            ? "Measure again"
-            : "Measure sizes")}
-    </Button>
+      <Ruler className={cn("size-3.5", busy && "animate-pulse text-brand")} />
+      {busy
+        ? measured
+          ? "Updating sizes…"
+          : "Measuring sizes…"
+        : measuredAt
+          ? `Sizes measured ${timeAgo(measuredAt).toLowerCase()}`
+          : null}
+    </span>
   )
 
   return (
@@ -351,7 +354,7 @@ export function VolumesTab({
         tabs={tabs}
         aside={
           <>
-            {!phone && measureButton}
+            {!phone && sizeState}
             <VolumeCopiesButton
               server={server.id}
               serverName={server.name}
@@ -407,14 +410,13 @@ export function VolumesTab({
               <ListTree className="size-4" />
               {phone || f.group ? "By project" : "Group"}
             </Button>
-            {phone && measureButton}
           </>
         }
         refresh={{
           busy: list.isFetching,
           run: () => {
             list.refetch()
-            refreshUsage()
+            refreshUsage().catch(() => {})
             backups.refetch()
           },
         }}
@@ -624,6 +626,7 @@ type RowProps = {
   can: DockerCan
   copies: Copies
   measured: boolean
+  measuring: boolean
   largest: number
   open: (v: DockerVolume) => void
 }
@@ -639,6 +642,7 @@ function VolumeRow({
   can,
   copies,
   measured,
+  measuring,
   largest,
   open,
   select,
@@ -695,6 +699,8 @@ function VolumeRow({
             ) : (
               <span className="text-ash">—</span>
             )
+          ) : measuring ? (
+            <Skeleton className="ms-auto h-4 w-14" />
           ) : (
             <span className="text-ash">—</span>
           ),

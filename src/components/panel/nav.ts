@@ -25,7 +25,6 @@ import {
   type LucideIcon,
   MonitorCog,
   Network,
-  Palette,
   RefreshCcwDot,
   ScrollText,
   Server,
@@ -75,15 +74,11 @@ export const vmsItem: NavItem = {
     { href: "/vms/clusters", label: "Clusters" },
   ],
 }
-// Servers at cloud providers (ArvanCloud…), read over each account's API key.
+// Cloud provider accounts (ArvanCloud…); each account's page lists its servers.
 export const cloudItem: NavItem = {
   href: "/cloud",
   label: "Cloud",
   icon: Cloud,
-  children: [
-    { href: "/cloud", label: "Accounts", also: ["/cloud/*"] },
-    { href: "/cloud/servers", label: "Servers" },
-  ],
 }
 export const networkMapItem: NavItem = {
   href: "/network",
@@ -98,25 +93,16 @@ export const containersItem: NavItem = {
 }
 
 // The Containers section has its own sidebar (like Arcane's): clicking
-// Containers swaps the main menu for these groups, with a way back.
+// Containers swaps the main menu for these groups, with a way back. Every
+// page in them works on the environment (server) picked above them.
 export const dockerGroups: NavGroup[] = [
   {
     label: "Management",
     items: [
       { href: "/containers", label: "Dashboard", icon: LayoutDashboard },
       { href: "/containers/updates", label: "Updates", icon: CircleArrowUp },
-      {
-        href: "/containers/auto-update",
-        label: "Auto-update",
-        icon: RefreshCcwDot,
-      },
       { href: "/containers/security", label: "Security", icon: ShieldCheck },
       { href: "/containers/projects", label: "Projects", icon: Layers },
-      {
-        href: "/containers/environments",
-        label: "Environments",
-        icon: ServerCog,
-      },
     ],
   },
   {
@@ -133,32 +119,49 @@ export const dockerGroups: NavGroup[] = [
     items: [
       { href: "/containers/alerts", label: "Alerts", icon: BellRing },
       { href: "/containers/events", label: "Event log", icon: Logs },
-      {
-        href: "/containers/templates",
-        label: "Customization",
-        icon: Palette,
-        children: [
-          { href: "/containers/templates", label: "Templates" },
-          { href: "/containers/registries", label: "Registries" },
-        ],
-      },
       { href: "/containers/daemon", label: "Engine config", icon: FileCog },
       { href: "/containers/settings", label: "Settings", icon: Settings },
     ],
   },
 ]
 
-// Every Containers page, children included, for breadcrumbs and phone rows.
-export const dockerPages: NavItem[] = dockerGroups.flatMap((g) =>
-  g.items.flatMap((item) =>
+// The pages that cover every container server of the workspace, not the
+// picked one: kept apart from the environment's menu (user rule).
+export const dockerFleetGroup: NavGroup = {
+  label: "All servers",
+  items: [
+    {
+      href: "/containers/environments",
+      label: "Environments",
+      icon: ServerCog,
+    },
+    {
+      href: "/containers/auto-update",
+      label: "Auto-update",
+      icon: RefreshCcwDot,
+    },
+    {
+      href: "/containers/templates",
+      label: "Templates",
+      icon: LayoutTemplate,
+    },
+    { href: "/containers/registries", label: "Registries", icon: Warehouse },
+    {
+      href: "/containers/global-settings",
+      label: "Global settings",
+      icon: Globe,
+    },
+  ],
+}
+
+// Every Containers page, for breadcrumbs and phone rows.
+export const dockerPages: NavItem[] = [...dockerGroups, dockerFleetGroup]
+  .flatMap((g) => g.items)
+  .flatMap((item) =>
     item.children
-      ? item.children.map((c) => ({
-          ...c,
-          icon: c.href.endsWith("registries") ? Warehouse : LayoutTemplate,
-        }))
+      ? item.children.map((c) => ({ ...c, icon: item.icon }))
       : [item],
-  ),
-)
+  )
 
 // The Containers page that owns a path: the longest match, so
 // /containers/projects/x is Projects and not the Dashboard.

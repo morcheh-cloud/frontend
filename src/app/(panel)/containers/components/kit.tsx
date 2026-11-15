@@ -97,7 +97,7 @@ export function PageBar({
       onClick={primary.run}
     >
       {primary.icon}
-      {!phone && primary.label}
+      {!phone && <span className="hidden @3xl:inline">{primary.label}</span>}
     </Button>
   )
   if (phone) {
@@ -119,7 +119,7 @@ export function PageBar({
     )
   }
   return (
-    <div className="@container flex items-center gap-2">
+    <div className="@container flex flex-wrap items-center gap-2">
       {tabs}
       {tabs && (search || filters) && (
         <span className="mx-1 h-5 w-px shrink-0 bg-border" />
@@ -200,7 +200,7 @@ export function Table({
 }) {
   return (
     <div className="@container overflow-hidden rounded-2xl border border-border [contain:inline-size]">
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         <table className="w-full text-body-sm">
           <thead className="border-b border-border bg-subtle text-caption text-muted-foreground">
             <tr>

@@ -1,6 +1,6 @@
 "use client"
 
-import { FileText, Loader2 } from "lucide-react"
+import { FileText, HeartPulse, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 import { Skeleton } from "@/components/ui/skeleton"
@@ -9,19 +9,45 @@ import type { DockerContainer, DockerProjectContainer } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import type { Item } from "../../servers/[id]/components/parts"
 import { timeAgo } from "../../servers/components/meta"
-import { useContainerMenu } from "./docker-actions"
+import {
+  type ContainerAction,
+  LIVE_HISTORY,
+  type LiveContainer,
+  type ProjectLiveState,
+  useProjectLiveStats,
+} from "../api"
+import { useContainerMenu, useDockerActions } from "./docker-actions"
 import { PhoneRow, Rows, Table, Tag, Tr } from "./kit"
-import { containerHref, Dot, healthMeta, stateOf } from "./meta"
+import {
+  containerHref,
+  Dot,
+  exitCode,
+  healthMeta,
+  StatusBadge,
+  stateOf,
+  type Tone,
+} from "./meta"
 import { Quiet } from "./parts"
 import type { DockerCan } from "./permissions"
 import type { RowState, ServiceRow } from "./project-deploy"
-import { containerTone, pct, portLabel, rate, upFor } from "./project-stats"
+import {
+  CPU_FLOOR,
+  containerTone,
+  PortLink,
+  pct,
+  rate,
+  Spark,
+  shareTone,
+  upFor,
+  useServerAddress,
+} from "./project-stats"
 
-// Every service of the project: its containers with their live numbers, and
-// a row for each service without one saying why (image downloading, the
-// deploy failed, left out by a profile…).
+// Every service of the project: its containers with their live numbers
+// (streamed about once a second), and a row for each service without one
+// saying why (image downloading, the deploy failed, left out by a profile…).
 export function ProjectContainers({
   serverId,
+  project,
   rows,
   pending,
   can,
@@ -29,12 +55,20 @@ export function ProjectContainers({
   onLogs,
 }: {
   serverId: string
+  project: string
   rows: ServiceRow[] | undefined
   pending: boolean
   can: DockerCan
   phone: boolean
   onLogs: (service: string) => void
 }) {
+  const running = (rows ?? [])
+    .flatMap((r) =>
+      r.kind === "container" && r.c.state === "running" ? [r.c.id] : [],
+    )
+    .sort()
+    .join(",")
+  const stream = useProjectLiveStats(serverId, project, running, !!running)
   if (!rows)
     return pending ? (
       <Skeleton className="h-64 rounded-2xl" />
@@ -52,6 +86,7 @@ export function ProjectContainers({
   if (phone)
     return (
       <div className="-mx-4">
+        {running && <LiveState stream={stream} className="px-4 pb-2" />}
         <Rows>
           {rows.map((r) =>
             r.kind === "container" ? (
@@ -59,6 +94,7 @@ export function ProjectContainers({
                 key={r.key}
                 serverId={serverId}
                 c={r.c}
+                live={stream.byId[r.c.id]}
                 activity={r.activity}
                 can={can}
                 onLogs={onLogs}
@@ -77,39 +113,144 @@ export function ProjectContainers({
     )
 
   return (
-    <Table
-      head={[
-        { label: "Container" },
-        { label: "State" },
-        { label: "CPU", className: "text-end" },
-        { label: "Memory", className: "text-end" },
-        { label: "Network", className: "hidden @3xl:table-cell text-end" },
-        { label: "Ports", className: "hidden @4xl:table-cell" },
-        { label: "Restarts", className: "hidden @2xl:table-cell text-end" },
-        { label: "Up for", className: "hidden @2xl:table-cell" },
-        { label: "", className: "w-10" },
-      ]}
-    >
-      {rows.map((r) =>
-        r.kind === "container" ? (
-          <Row
-            key={r.key}
-            serverId={serverId}
-            c={r.c}
-            activity={r.activity}
-            can={can}
-            onLogs={onLogs}
-          />
-        ) : (
-          <PendingRow
-            key={r.key}
-            service={r.service}
-            image={r.image}
-            state={r.state}
-          />
-        ),
+    <div className="flex flex-col gap-2">
+      {running && <LiveState stream={stream} className="self-end" />}
+      <Table
+        head={[
+          { label: "Container" },
+          { label: "State" },
+          { label: "Health", className: "hidden @5xl:table-cell" },
+          { label: "CPU", className: "text-end" },
+          { label: "Memory", className: "text-end" },
+          { label: "Disk", className: "hidden @2xl:table-cell text-end" },
+          { label: "Network", className: "hidden @3xl:table-cell text-end" },
+          { label: "Ports", className: "hidden @7xl:table-cell" },
+          { label: "Restarts", className: "hidden @6xl:table-cell text-end" },
+          {
+            label: "Up for",
+            className: "hidden @4xl:table-cell whitespace-nowrap",
+          },
+          { label: "", className: "w-10" },
+        ]}
+      >
+        {rows.map((r) =>
+          r.kind === "container" ? (
+            <Row
+              key={r.key}
+              serverId={serverId}
+              c={r.c}
+              live={stream.byId[r.c.id]}
+              activity={r.activity}
+              can={can}
+              onLogs={onLogs}
+            />
+          ) : (
+            <PendingRow
+              key={r.key}
+              service={r.service}
+              image={r.image}
+              state={r.state}
+            />
+          ),
+        )}
+      </Table>
+    </div>
+  )
+}
+
+// "Live" while the stream sends, else what it's waiting for.
+function LiveState({
+  stream,
+  className,
+}: {
+  stream: ProjectLiveState
+  className?: string
+}) {
+  const live = stream.live && Object.keys(stream.byId).length > 0
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 text-caption text-muted-foreground",
+        className,
       )}
-    </Table>
+    >
+      <span className="relative flex size-2">
+        {live && (
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60 motion-reduce:hidden" />
+        )}
+        <span
+          className={cn(
+            "relative inline-flex size-2 rounded-full",
+            live ? "bg-success" : "bg-mist",
+          )}
+        />
+      </span>
+      {live
+        ? "Live · every second"
+        : stream.live
+          ? "Reading the numbers…"
+          : "Connecting…"}
+    </span>
+  )
+}
+
+// The numbers a row shows: the stream's when it has them, else the last
+// measurement of the project's stats.
+function numbersOf(c: DockerProjectContainer, live?: LiveContainer) {
+  const n = live?.now
+  const used = n ? n.memory_used : c.memory_used
+  const of = c.memory_limit || n?.memory_limit || c.host_memory
+  return {
+    shown: !!n || c.measured,
+    cpu: n ? n.cpu : c.cpu,
+    used,
+    share: of ? (used / of) * 100 : 0,
+    rx: n ? n.net_rx_rate : c.net_rx_rate,
+    tx: n ? n.net_tx_rate : c.net_tx_rate,
+    read: n?.read_rate,
+    write: n?.write_rate,
+  }
+}
+
+// CPU history scaled to the container's limit (or at least CPU_FLOOR).
+function CpuSpark({
+  c,
+  live,
+  className,
+}: {
+  c: DockerProjectContainer
+  live?: LiveContainer
+  className?: string
+}) {
+  if (!live || live.cpu.length < 2)
+    return <span className={cn("block", className)} aria-hidden />
+  const max = c.cpu_limit > 0 ? c.cpu_limit * 100 : CPU_FLOOR
+  return (
+    <Spark
+      values={live.cpu}
+      max={max}
+      slots={LIVE_HISTORY}
+      className={className}
+    />
+  )
+}
+
+// A thin meter under the memory figure.
+function MemoryMeter({ share }: { share: number }) {
+  return (
+    <span className="block h-1 w-full overflow-hidden rounded-full bg-muted">
+      <span
+        className={cn(
+          "block h-full rounded-full transition-[width] duration-500",
+          shareTone(share) === "brand" && "bg-brand",
+          shareTone(share) === "warning" && "bg-warning",
+          shareTone(share) === "destructive" && "bg-destructive",
+        )}
+        style={{
+          width: `${Math.min(100, Math.max(share, share > 0 ? 2 : 0))}%`,
+        }}
+      />
+    </span>
   )
 }
 
@@ -155,7 +296,7 @@ function PendingRow({
         <StateLabel st={state} />
       </td>
       <td
-        colSpan={7}
+        colSpan={8}
         className={cn(
           "px-3 py-2.5 text-caption break-words",
           state.tone === "destructive"
@@ -242,6 +383,95 @@ function useMenu(
   )
 }
 
+type Badge = { label: string; tone: Tone; busy?: boolean; title?: string }
+
+const underWay: Record<ContainerAction, string> = {
+  start: "Starting…",
+  stop: "Stopping…",
+  restart: "Restarting…",
+  pause: "Pausing…",
+  unpause: "Resuming…",
+}
+
+// The container's state as a badge; an action sent from here wins while it
+// runs, so a restart shows at once instead of only in a toast.
+export function stateBadge(
+  c: DockerProjectContainer,
+  act?: ContainerAction,
+): Badge {
+  if (act) return { label: underWay[act], tone: "brand", busy: true }
+  if (c.oom_killed)
+    return {
+      label: "Out of memory",
+      tone: "destructive",
+      title: "The kernel stopped it for using more memory than it may.",
+    }
+  if (c.state === "restarting")
+    return {
+      label: "Restarting",
+      tone: "warning",
+      busy: true,
+      title: "Docker is starting it again (its restart policy).",
+    }
+  if (c.state === "removing")
+    return { label: "Removing", tone: "warning", busy: true }
+  if (c.state === "exited") {
+    const code = c.exit_code || exitCode(c.status)
+    return code
+      ? { label: `Exited · ${code}`, tone: "destructive", title: c.status }
+      : { label: "Stopped", tone: "muted", title: c.status }
+  }
+  if (c.state === "created")
+    return {
+      label: "Created",
+      tone: c.error ? "destructive" : "muted",
+      title: "Created, not started",
+    }
+  const s = stateOf(c)
+  return { label: s.label, tone: s.tone }
+}
+
+// Its health check's verdict; null when there's nothing to say (no check,
+// not running, or an action is under way and the old verdict would mislead).
+export function healthBadge(
+  c: DockerProjectContainer,
+  act?: ContainerAction,
+): Badge | null {
+  if (act || c.state !== "running" || c.health === "none") return null
+  if (c.health === "starting")
+    return {
+      label: "Checking",
+      tone: "warning",
+      busy: true,
+      title: "The health check hasn't passed yet since it started.",
+    }
+  return {
+    ...healthMeta[c.health],
+    title:
+      c.health === "healthy"
+        ? "Its health check passes."
+        : "Its health check keeps failing: look at its logs.",
+  }
+}
+
+function StateCell({ b }: { b: Badge }) {
+  return (
+    <StatusBadge tone={b.tone} label={b.label} busy={b.busy} title={b.title} />
+  )
+}
+
+function HealthCell({ b }: { b: Badge }) {
+  return (
+    <StatusBadge
+      tone={b.tone}
+      label={b.label}
+      busy={b.busy}
+      title={b.title}
+      icon={<HeartPulse />}
+    />
+  )
+}
+
 export function stateText(c: DockerProjectContainer) {
   const s = stateOf(c)
   if (c.oom_killed)
@@ -262,30 +492,35 @@ export function stoppedText(c: DockerProjectContainer) {
   return `Stopped ${timeAgo(c.finished_at)}`
 }
 
-function memoryText(c: DockerProjectContainer) {
-  if (!c.measured) return "—"
+function memoryText(c: DockerProjectContainer, used: number) {
   return c.memory_limit
-    ? `${formatSize(c.memory_used)} / ${formatSize(c.memory_limit)}`
-    : formatSize(c.memory_used)
+    ? `${formatSize(used)} / ${formatSize(c.memory_limit)}`
+    : formatSize(used)
 }
 
 function Row({
   serverId,
   c,
+  live,
   activity,
   can,
   onLogs,
 }: {
   serverId: string
   c: DockerProjectContainer
+  live?: LiveContainer
   activity?: RowState
   can: DockerCan
   onLogs: (service: string) => void
 }) {
   const router = useRouter()
   const menu = useMenu(serverId, c, can, onLogs)
+  const act = useDockerActions().busy.get(c.id)
   const st = stateText(c)
-  const memShare = c.memory_limit ? (c.memory_used / c.memory_limit) * 100 : 0
+  const state = stateBadge(c, act)
+  const health = healthBadge(c, act)
+  const n = numbersOf(c, live)
+  const address = useServerAddress(serverId)
   return (
     <Tr
       onOpen={() => router.push(containerHref(serverId, c.name))}
@@ -309,19 +544,17 @@ function Row({
               </span>
             </span>
           ),
+          className: "max-w-60 @7xl:max-w-80",
         },
         {
           node: (
-            <span className="flex flex-col gap-0.5 whitespace-nowrap">
-              <span>
-                {st.label}
-                {c.state === "exited" && c.exit_code !== 0 && (
-                  <span className="text-muted-foreground">
-                    {" "}
-                    ({c.exit_code})
-                  </span>
-                )}
-              </span>
+            <span className="flex flex-col items-start gap-1 whitespace-nowrap">
+              <StateCell b={state} />
+              {health && (
+                <span className="@5xl:hidden">
+                  <HealthCell b={health} />
+                </span>
+              )}
               {activity && (
                 <span className="text-caption">
                   <StateLabel st={activity} />
@@ -331,50 +564,118 @@ function Row({
           ),
         },
         {
-          node: c.measured ? (
+          node: health ? (
+            <HealthCell b={health} />
+          ) : (
+            <span
+              className="text-caption whitespace-nowrap text-ash"
+              title={
+                c.healthcheck || c.health !== "none"
+                  ? undefined
+                  : "Its image or compose file sets no health check."
+              }
+            >
+              {c.state === "running" && !act ? "No check" : "—"}
+            </span>
+          ),
+          className: "hidden @5xl:table-cell whitespace-nowrap",
+        },
+        {
+          node: n.shown ? (
             <span className="flex items-center justify-end gap-2">
-              {pct(c.cpu)}
-              {c.cpu_limit > 0 && (
-                <span className="text-caption text-ash">
-                  / {c.cpu_limit} {c.cpu_limit === 1 ? "core" : "cores"}
-                </span>
-              )}
+              <CpuSpark
+                c={c}
+                live={live}
+                className="hidden h-6 w-16 @5xl:block"
+              />
+              <span className="flex min-w-14 flex-col items-end">
+                <span>{pct(n.cpu)}</span>
+                {c.cpu_limit > 0 && (
+                  <span className="text-caption text-ash">
+                    of {c.cpu_limit} {c.cpu_limit === 1 ? "core" : "cores"}
+                  </span>
+                )}
+              </span>
             </span>
           ) : (
-            "—"
+            <span className="text-ash">—</span>
           ),
           className: "text-end tabular-nums whitespace-nowrap",
         },
         {
-          node: (
+          node: n.shown ? (
             <span
               className={cn(
-                memShare >= 90 && "text-destructive",
-                memShare >= 80 && memShare < 90 && "text-warning",
+                "ms-auto flex flex-col items-end gap-1",
+                c.memory_limit ? "w-36" : "w-20",
               )}
             >
-              {memoryText(c)}
+              <span
+                className={cn(
+                  n.share >= 90 && "text-destructive",
+                  n.share >= 80 && n.share < 90 && "text-warning",
+                )}
+              >
+                {memoryText(c, n.used)}
+              </span>
+              <MemoryMeter share={n.share} />
             </span>
+          ) : (
+            <span className="text-ash">—</span>
           ),
           className: "text-end tabular-nums whitespace-nowrap",
         },
         {
-          node: c.measured
-            ? `↓ ${rate(c.net_rx_rate)} ↑ ${rate(c.net_tx_rate)}`
-            : "—",
+          node:
+            n.read === undefined || n.write === undefined ? (
+              <span className="text-ash">—</span>
+            ) : (
+              <span className="ms-auto flex w-24 flex-col items-end">
+                <span>
+                  <span className="text-ash">R</span> {rate(n.read)}
+                </span>
+                <span>
+                  <span className="text-ash">W</span> {rate(n.write)}
+                </span>
+              </span>
+            ),
+          className:
+            "hidden @2xl:table-cell text-end tabular-nums whitespace-nowrap text-muted-foreground",
+        },
+        {
+          node: n.shown ? (
+            <span className="ms-auto flex w-24 flex-col items-end">
+              <span>
+                <span className="text-ash">↓</span> {rate(n.rx)}
+              </span>
+              <span>
+                <span className="text-ash">↑</span> {rate(n.tx)}
+              </span>
+            </span>
+          ) : (
+            <span className="text-ash">—</span>
+          ),
           className:
             "hidden @3xl:table-cell text-end tabular-nums whitespace-nowrap text-muted-foreground",
         },
         {
           node: c.ports.length ? (
-            <span className="font-mono text-caption">
-              {c.ports.slice(0, 3).map(portLabel).join(", ")}
-              {c.ports.length > 3 && ` +${c.ports.length - 3}`}
+            <span className="flex flex-wrap gap-x-2 font-mono text-caption">
+              {c.ports.slice(0, 3).map((p) => (
+                <PortLink
+                  key={`${p.ip}|${p.public}|${p.private}|${p.proto}`}
+                  p={p}
+                  address={address}
+                />
+              ))}
+              {c.ports.length > 3 && (
+                <span className="text-ash">+{c.ports.length - 3}</span>
+              )}
             </span>
           ) : (
             <span className="text-ash">—</span>
           ),
-          className: "hidden @4xl:table-cell",
+          className: "hidden @7xl:table-cell",
         },
         {
           node: c.restarts ? (
@@ -382,7 +683,7 @@ function Row({
           ) : (
             <span className="text-ash">0</span>
           ),
-          className: "hidden @2xl:table-cell text-end tabular-nums",
+          className: "hidden @6xl:table-cell text-end tabular-nums",
         },
         {
           node:
@@ -392,7 +693,7 @@ function Row({
               <span className="text-ash">{stoppedText(c) || "—"}</span>
             ),
           className:
-            "hidden @2xl:table-cell whitespace-nowrap text-muted-foreground",
+            "hidden @4xl:table-cell whitespace-nowrap text-muted-foreground",
         },
       ]}
     />
@@ -402,24 +703,35 @@ function Row({
 function PhoneItem({
   serverId,
   c,
+  live,
   activity,
   can,
   onLogs,
 }: {
   serverId: string
   c: DockerProjectContainer
+  live?: LiveContainer
   activity?: RowState
   can: DockerCan
   onLogs: (service: string) => void
 }) {
   const router = useRouter()
   const menu = useMenu(serverId, c, can, onLogs)
+  const act = useDockerActions().busy.get(c.id)
   const st = stateText(c)
-  const bits = [activity ? activity.label : st.label]
-  if (c.measured) bits.push(`CPU ${pct(c.cpu)}`, memoryText(c))
-  if (c.restarts) bits.push(`${c.restarts} restarts`)
+  const state = stateBadge(c, act)
+  const health = healthBadge(c, act)
+  const n = numbersOf(c, live)
+  // The state and health sit as badges at the end; this line says the rest.
+  const bits = [activity ? activity.label : c.service]
+  if (c.restarts)
+    bits.push(`${c.restarts} restart${c.restarts === 1 ? "" : "s"}`)
   const stopped = stoppedText(c)
-  if (stopped && !c.measured) bits.push(stopped.toLowerCase())
+  if (stopped && !n.shown) bits.push(stopped.toLowerCase())
+  // The numbers get a line of their own, so they never get cut off.
+  const usage = n.shown ? [`CPU ${pct(n.cpu)}`, memoryText(c, n.used)] : []
+  if (n.shown && n.read !== undefined && n.write !== undefined)
+    usage.push(`R ${rate(n.read)}`, `W ${rate(n.write)}`)
   return (
     <PhoneRow
       id={c.id}
@@ -433,8 +745,21 @@ function PhoneItem({
         c.error ? (
           <span className="text-destructive">{c.error}</span>
         ) : (
-          bits.join(" · ")
+          <>
+            <span className="block truncate">{bits.join(" · ")}</span>
+            {usage.length > 0 && (
+              <span className="block truncate text-foreground tabular-nums">
+                {usage.join(" · ")}
+              </span>
+            )}
+          </>
         )
+      }
+      aside={
+        <span className="flex flex-col items-end gap-1">
+          <StateCell b={state} />
+          {health && <HealthCell b={health} />}
+        </span>
       }
       onOpen={() => router.push(containerHref(serverId, c.name))}
       menu={menu}

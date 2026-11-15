@@ -4,6 +4,7 @@ import {
   CalendarClock,
   CloudOff,
   Ellipsis,
+  Eye,
   Hourglass,
   RefreshCw,
   SearchX,
@@ -336,6 +337,7 @@ const triggerIcon = {
   manual: undefined,
   schedule: CalendarClock,
   interval: Timer,
+  watch: Eye,
 }
 
 function Chip({

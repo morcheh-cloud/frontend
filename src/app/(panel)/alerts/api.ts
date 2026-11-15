@@ -29,6 +29,16 @@ export const channelKeys = {
 }
 
 // The selected workspace's channels (or another one's, e.g. a monitor's).
+// One channel, for its edit page.
+export function useChannel(id: string | undefined) {
+  return useQuery({
+    queryKey: [...channelKeys.all, "one", id ?? ""],
+    queryFn: () => api.notifications.getNotificationChannel(id ?? ""),
+    enabled: !!id,
+    retry: false,
+  })
+}
+
 export function useChannels(workspaceId?: string) {
   const { workspace } = useWorkspace()
   const ws = workspaceId ?? workspace?.id ?? ""
@@ -140,6 +150,16 @@ export const alertRuleKeys = {
 export function useAlertRules() {
   const { workspace } = useWorkspace()
   return useQuery(alertRulesQuery(workspace?.id ?? ""))
+}
+
+// One rule, for its edit page.
+export function useAlertRule(id: string | undefined) {
+  return useQuery({
+    queryKey: [...alertRuleKeys.all, "one", id ?? ""],
+    queryFn: () => api.alerts.getAlertRule(id ?? ""),
+    enabled: !!id,
+    retry: false,
+  })
 }
 
 // The rules covering one server, with only that server's state.

@@ -2,12 +2,16 @@
 
 import {
   ArrowDownUp,
+  ArrowUp,
   ChevronLeft,
   CircleCheck,
   CloudOff,
   Ellipsis,
+  Eye,
   FlaskConical,
+  FolderTree,
   Hourglass,
+  Package,
   Pencil,
   Play,
   RotateCcw,
@@ -19,7 +23,8 @@ import {
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { parseAsString, useQueryState } from "nuqs"
-import { type ReactNode, useRef } from "react"
+import { type ReactNode, useEffect, useRef, useState } from "react"
+import { toast } from "sonner"
 import {
   duration,
   formatInZone,
@@ -30,11 +35,14 @@ import {
   ItemMenu,
   SheetItems,
 } from "@/app/(panel)/servers/[id]/components/parts"
+import { usePackageAction } from "@/app/(panel)/servers/[id]/packages/api"
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
 import { syncListHref } from "@/app/(panel)/storage/components/filters"
 import { BottomSheet } from "@/components/bottom-sheet"
 import { guideHref } from "@/components/help/guides"
 import { HelpButton } from "@/components/help/help-link"
+import { useJobList } from "@/components/jobs/api"
+import { useJobActions } from "@/components/jobs/jobs-provider"
 import { usePageCrumbs } from "@/components/panel/breadcrumbs"
 import { Button } from "@/components/ui/button"
 import {
@@ -54,11 +62,15 @@ import type {
   ReplicationState,
   StorageSync,
   StorageSyncRun,
+  StorageSyncWatch,
+  StorageSyncWatchChange,
 } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import {
   runActive,
+  useRaiseWatchLimit,
   useReplication,
+  useRestartWatch,
   useStorageSync,
   useSyncRun,
   useSyncRuns,
@@ -77,10 +89,13 @@ import {
   StateLabel,
   syncState,
   timingText,
+  toneDot,
   triggerMeta,
   triggerText,
+  watchOf,
+  watchStateMeta,
 } from "./meta"
-import { useSyncCan } from "./permissions"
+import { useServerLevelOf, useSyncCan } from "./permissions"
 import { useSyncActions, useSyncMenu } from "./sync-actions"
 
 const listHref = (s: Pick<StorageSync, "kind">) => syncListHref(s.kind)
@@ -158,6 +173,7 @@ function Page({ s, phone }: { s: StorageSync; phone: boolean }) {
     after: () => router.replace(listHref(s)),
   })
   const replication = isReplication(s)
+  const watch = watchOf(s)
 
   usePageCrumbs([
     { href: listHref(s), label: kindMeta[s.kind].plural },
@@ -262,7 +278,9 @@ function Page({ s, phone }: { s: StorageSync; phone: boolean }) {
                 ? "replication"
                 : s.kind === "migrate"
                   ? "migrate"
-                  : "sync",
+                  : watch
+                    ? "realtime"
+                    : "sync",
             )}
             label="Storage guide"
           />
@@ -290,6 +308,7 @@ function Page({ s, phone }: { s: StorageSync; phone: boolean }) {
         {problem}
         {buttons && <div className="flex gap-2 px-4 pb-4">{buttons}</div>}
         {live}
+        {watch && <WatchPanel s={s} w={watch} phone />}
         {replication ? (
           <ReplicationPanel s={s} phone />
         ) : (
@@ -375,8 +394,13 @@ function Page({ s, phone }: { s: StorageSync; phone: boolean }) {
                 : "Right after each write"}
             </HeroFact>
           )}
+          {watch && (
+            <HeroFact label="Last copy">
+              {watch.last_push_at ? timeAgo(watch.last_push_at) : "Not yet"}
+            </HeroFact>
+          )}
           {!replication && s.last_run?.id && (
-            <HeroFact label="Last run">
+            <HeroFact label={watch ? "Last full check" : "Last run"}>
               {timeAgo(s.last_run.finished_at ?? s.last_run.at)}
             </HeroFact>
           )}
@@ -396,6 +420,7 @@ function Page({ s, phone }: { s: StorageSync; phone: boolean }) {
             <ReplicationPanel s={s} phone={false} />
           ) : (
             <>
+              {watch && <WatchPanel s={s} w={watch} phone={false} />}
               <LastRun s={s} phone={false} onOpen={open} />
               <Runs s={s} phone={false} onOpen={open} />
             </>
@@ -554,7 +579,13 @@ function LastRun({
   const verify = x?.verify
   return (
     <Block
-      title={s.kind === "migrate" ? "Last migration" : "Last run"}
+      title={
+        s.kind === "migrate"
+          ? "Last migration"
+          : watchOf(s)
+            ? "Last full check"
+            : "Last run"
+      }
       phone={phone}
       action={
         <button
@@ -944,6 +975,280 @@ function Rows({
 
 const yes = (on?: boolean) => (on ? "Yes" : "No")
 
+const everyMinutes = (m: number) =>
+  m % 1440 === 0
+    ? `Every ${m / 1440 === 1 ? "day" : `${m / 1440} days`}`
+    : m % 60 === 0
+      ? `Every ${m / 60 === 1 ? "hour" : `${m / 60} hours`}`
+      : `Every ${m} min`
+
+// Watch: what Morche is following on the source server right now.
+function WatchPanel({
+  s,
+  w,
+  phone,
+}: {
+  s: StorageSync
+  w: StorageSyncWatch
+  phone: boolean
+}) {
+  const can = useSyncCan(s.workspace_id)
+  const serverCan = useServerLevelOf(s.workspace_id)
+  const serverId = s.source.server_id ?? undefined
+  const restart = useRestartWatch()
+  const raise = useRaiseWatchLimit()
+  const install = useInstallInotify(serverId, () =>
+    restart.mutate(s.id, { onError: (e) => toast.error(e.message) }),
+  )
+  const [all, setAll] = useState(false)
+  const m = watchStateMeta[w.state]
+  const following = w.state === "watching"
+  const recent = all ? w.recent : w.recent.slice(0, 8)
+
+  const restartButton = can.run && w.state !== "paused" && (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="max-md:h-11"
+      disabled={restart.isPending}
+      onClick={() =>
+        restart.mutate(s.id, {
+          onSuccess: () => toast("Started watching again"),
+          onError: (e) => toast.error(e.message),
+        })
+      }
+    >
+      <RotateCcw />
+      Restart
+    </Button>
+  )
+
+  const raiseLimit = () =>
+    raise.mutate(
+      { id: s.id },
+      {
+        onSuccess: () => toast("Limit raised, watching again"),
+        onError: (e) => toast.error(e.message),
+      },
+    )
+
+  return (
+    <Block title="Following changes" phone={phone} action={restartButton}>
+      <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 items-center gap-2.5 text-body-sm">
+          <span
+            className={cn(
+              "size-2 shrink-0 rounded-full",
+              toneDot[m.tone],
+              following && "animate-pulse",
+            )}
+          />
+          <span className="font-medium">{m.label}</span>
+          <span className="min-w-0 truncate text-muted-foreground">
+            {following && w.since
+              ? `since ${timeAgo(w.since)}`
+              : w.state === "paused"
+                ? "The sync is paused"
+                : ""}
+          </span>
+        </div>
+
+        {w.state === "missing" && (
+          <Quiet icon={Package} tone="problem">
+            {w.message ||
+              "inotify-tools isn't installed on the server, so changes can't be followed."}{" "}
+            {serverCan(serverId, "engineer")
+              ? "Install it here; watching starts as soon as it's in."
+              : "Someone with Engineer access to the server can install it."}
+          </Quiet>
+        )}
+        {w.state === "limit" && (
+          <Quiet icon={FolderTree} tone="problem">
+            {w.message}{" "}
+            {can.edit
+              ? "Raise the server's limit (fs.inotify.max_user_watches) to fit this folder, or sync a smaller one."
+              : "Someone with Engineer access can raise the server's limit."}
+          </Quiet>
+        )}
+        {(w.state === "failed" || w.state === "reconnecting") && w.message && (
+          <Quiet
+            icon={TriangleAlert}
+            tone={w.state === "failed" ? "problem" : undefined}
+          >
+            {w.message}
+            {w.state === "reconnecting" && " Trying again by itself."}
+          </Quiet>
+        )}
+        {w.state === "missing" && serverCan(serverId, "engineer") && (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              className="max-md:h-11 max-md:flex-1"
+              size="sm"
+              disabled={install.busy}
+              onClick={install.start}
+            >
+              <Package />
+              {install.busy ? "Installing…" : "Install inotify-tools"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="max-md:h-11 max-md:flex-1"
+              render={<Link href={`/servers/${serverId}/packages`} />}
+              nativeButton={false}
+            >
+              Open packages
+            </Button>
+          </div>
+        )}
+        {w.state === "limit" && can.edit && (
+          <div>
+            <Button
+              size="sm"
+              className="max-md:h-11 max-md:w-full"
+              disabled={raise.isPending}
+              onClick={raiseLimit}
+            >
+              <FolderTree />
+              {raise.isPending ? "Raising…" : "Raise the limit"}
+            </Button>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+          <Tile
+            label="Waiting"
+            value={w.queued}
+            sub={w.copying ? "Copying now" : w.queued ? "To copy" : "Nothing"}
+          />
+          <Tile
+            label="Copied"
+            value={w.pushed}
+            sub={w.bytes ? formatSize(w.bytes) : "Since it started"}
+          />
+          <Tile
+            label="Deleted"
+            value={w.deleted}
+            sub={s.mode === "mirror" ? "Mirror mode" : "Kept on the copy"}
+          />
+          <Tile
+            label="Failed"
+            value={w.failed}
+            tone={w.failed > 0 ? "problem" : undefined}
+            sub={w.failed ? "See below" : "None"}
+          />
+        </div>
+
+        <Rows
+          items={[
+            {
+              label: "Folders watched",
+              value: w.limit
+                ? `${w.folders.toLocaleString()} of ${w.limit.toLocaleString()} allowed`
+                : w.folders.toLocaleString(),
+            },
+            {
+              label: "Last change seen",
+              value: w.last_event_at ? timeAgo(w.last_event_at) : "None yet",
+            },
+            {
+              label: "Last copy",
+              value: w.last_push_at ? timeAgo(w.last_push_at) : "None yet",
+            },
+          ]}
+        />
+
+        <div>
+          <p className="mb-1 text-caption text-ash">Recent changes</p>
+          {w.recent.length === 0 ? (
+            <Quiet icon={Eye}>
+              Nothing has changed since it started watching. Changes show here a
+              few seconds after they happen.
+            </Quiet>
+          ) : (
+            <ul className="flex flex-col divide-y divide-border">
+              {recent.map((c) => (
+                <ChangeRow key={`${c.at}-${c.action}-${c.path}`} c={c} />
+              ))}
+            </ul>
+          )}
+          {w.recent.length > 8 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-1 max-md:h-11"
+              onClick={() => setAll(!all)}
+            >
+              {all ? "Show fewer" : `Show all ${w.recent.length}`}
+            </Button>
+          )}
+        </div>
+      </div>
+    </Block>
+  )
+}
+
+const changeIcon = { copied: ArrowUp, deleted: Trash2, failed: TriangleAlert }
+
+function ChangeRow({ c }: { c: StorageSyncWatchChange }) {
+  const Icon = changeIcon[c.action]
+  return (
+    <li className="flex min-w-0 items-start gap-3 py-2 text-body-sm">
+      <Icon
+        className={cn(
+          "mt-0.5 size-4 shrink-0",
+          c.action === "failed" ? "text-destructive" : "text-ash",
+        )}
+      />
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-mono text-caption" title={c.path}>
+          {c.path}
+          {c.folder && "/"}
+        </p>
+        {c.error && (
+          <p className="mt-0.5 text-caption break-words text-destructive">
+            {c.error}
+          </p>
+        )}
+      </div>
+      <span className="shrink-0 text-caption text-ash tabular-nums">
+        {c.bytes ? `${formatSize(c.bytes)} · ` : ""}
+        {timeAgo(c.at)}
+      </span>
+    </li>
+  )
+}
+
+// Installs inotify-tools with the server's package manager as a background
+// job, then calls done once it has finished well.
+function useInstallInotify(serverId: string | undefined, done: () => void) {
+  const action = usePackageAction(serverId ?? "")
+  const jobs = useJobActions()
+  const list = useJobList()
+  const [jobId, setJobId] = useState<string | null>(null)
+  const job = jobId ? list.data?.find((j) => j.id === jobId) : undefined
+  const state = job?.state
+  useEffect(() => {
+    if (!jobId || !state || state === "queued" || state === "running") return
+    setJobId(null)
+    if (state === "succeeded") done()
+  }, [jobId, state, done])
+  return {
+    busy: action.isPending || !!jobId,
+    start: () =>
+      action.mutate(
+        { action: "install", names: ["inotify-tools"] },
+        {
+          onSuccess: (j) => {
+            jobs.track(j)
+            setJobId(j.id)
+          },
+          onError: (e) => toast.error(e.message),
+        },
+      ),
+  }
+}
+
 function Settings({ s, phone }: { s: StorageSync; phone: boolean }) {
   const o = s.options
   const r = o.replication
@@ -976,11 +1281,26 @@ function Settings({ s, phone }: { s: StorageSync; phone: boolean }) {
         existingMeta[(o.existing as keyof typeof existingMeta) || "changed"]
           ?.label,
     })
+    if (s.trigger === "watch") {
+      items.push(
+        {
+          label: "Copy after it's quiet for",
+          value: `${o.watch_delay_seconds || 5} s`,
+        },
+        {
+          label: "Compare everything",
+          value: s.interval_minutes
+            ? everyMinutes(s.interval_minutes)
+            : "Only after reconnecting",
+        },
+      )
+    }
     if (s.kind === "sync") {
-      items.push({
-        label: "Settle time",
-        value: o.settle_minutes ? `${o.settle_minutes} min` : "None",
-      })
+      if (s.trigger !== "watch")
+        items.push({
+          label: "Settle time",
+          value: o.settle_minutes ? `${o.settle_minutes} min` : "None",
+        })
       if (s.mode === "mirror")
         items.push({
           label: "Wait before deleting",

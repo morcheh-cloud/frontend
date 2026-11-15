@@ -9,7 +9,7 @@ import type {
   Proxy as ReverseProxy,
 } from "@/lib/services"
 import { useProxyTraffic } from "../../../api"
-import { MiniBars, SiteNumbers } from "../../../components/live"
+import { MiniBars, SiteNumbers, siteBars } from "../../../components/live"
 import { hostHref } from "../../../components/meta"
 import { EditorCard as Card } from "./editor-card"
 
@@ -52,10 +52,7 @@ export function SiteTraffic({
       {t && !unread ? (
         <div className="flex flex-col gap-3">
           <SiteNumbers t={t} stream={stream} minutes={minutes} />
-          <MiniBars
-            requests={t.requests.slice(0, -1)}
-            errors={t.server_errors.slice(0, -1)}
-          />
+          <MiniBars {...siteBars(t, data?.start ?? "", stream)} />
         </div>
       ) : (
         <p className="flex h-[6.25rem] items-center justify-center rounded-xl border border-dashed border-border px-4 text-center text-caption text-ash">
