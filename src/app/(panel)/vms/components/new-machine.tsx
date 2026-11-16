@@ -914,6 +914,10 @@ function check(d: Draft, m: Model) {
   if (d.disk && m.template) {
     const has = Math.ceil(m.template.maxdisk / 1024 ** 3)
     if (Number(d.disk) < has) e.disk_gb = `At least ${has}: a disk can't shrink`
+  } else if (d.disk) {
+    // The backend makes new disks at least this big.
+    const least = d.kind === "lxc" ? 4 : 8
+    if (Number(d.disk) < least) e.disk_gb = `At least ${least}`
   }
   if (d.vlan && Number(d.vlan) > 4094) e.vlan = "1 to 4094"
   if (m.source !== "iso" && d.ipMode === "static") {
@@ -1184,7 +1188,9 @@ function Summary({ d, m }: { d: Draft; m: Model }) {
     [
       "Size",
       [
-        `${d.cores || (m.template ? m.template.cpus : m.defCores)} cores`,
+        coresText(
+          Number(d.cores || (m.template ? m.template.cpus : m.defCores)),
+        ),
         d.memory
           ? memText(Number(d.memory))
           : m.template
@@ -1420,3 +1426,5 @@ function Loading({ phone }: { phone: boolean }) {
     </div>
   )
 }
+
+const coresText = (n: number) => `${n} ${n === 1 ? "core" : "cores"}`

@@ -284,7 +284,11 @@ export function RrdCharts({
     <Card
       key="cpu"
       title="CPU"
-      aside={last.maxcpu ? `${last.maxcpu} cores` : undefined}
+      aside={
+        last.maxcpu
+          ? `${last.maxcpu} ${last.maxcpu === 1 ? "core" : "cores"}`
+          : undefined
+      }
     >
       <MultiLineChart
         buckets={b}

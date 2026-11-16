@@ -183,7 +183,7 @@ export function ConsoleTab() {
       <div
         ref={stage}
         className={cn(
-          "relative flex min-h-[28rem] flex-1 overflow-hidden rounded-2xl border border-border bg-background",
+          "relative flex min-h-[28rem] flex-1 overflow-hidden rounded-2xl border border-border bg-background [contain:inline-size]",
           mode === "screen" && "bg-muted",
           "max-md:h-[calc(100dvh-14rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] max-md:min-h-64 max-md:flex-none max-md:rounded-none max-md:border-x-0 max-md:border-t-0",
           full && "rounded-none border-0",

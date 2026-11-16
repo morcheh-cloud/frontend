@@ -240,6 +240,12 @@ export const virtualMachines: GuideSection[] = [
           a <UI>Full copy</UI> is independent; a linked clone (from a template
           only) shares its disk and takes seconds.
         </P>
+        <P>
+          <UI>Copy from</UI> picks what to copy: <UI>How it is now</UI> or one
+          of the machine's snapshots. A running container can only be copied
+          from a snapshot (Proxmox's rule), so the dialog picks the newest one;
+          with none, take a snapshot first or shut the container down.
+        </P>
         <P>A cloud-init template from an official cloud image, on a node:</P>
         <Code>{`wget https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
 qm create 9000 --name ubuntu-24.04 --memory 2048 --cores 2 --net0 virtio,bridge=vmbr0
@@ -534,6 +540,10 @@ qm template 9000`}</Code>
           [
             "403 / Permission check failed",
             "The token lacks a privilege. Give the user (and the token, if Privilege Separation is on) a role on /.",
+          ],
+          [
+            "Token refused: “the token signs in but may see nothing”",
+            "The token has Privilege Separation on and no role of its own, so Proxmox shows it no nodes or machines. In Datacenter › Permissions › Add › API Token Permission give it a role on /, or edit the token and untick Privilege Separation. Then press Check.",
           ],
           [
             "Certificate error",

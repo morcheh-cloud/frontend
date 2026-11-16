@@ -145,10 +145,11 @@ export function useGuestRrd(cluster: string, vmid: number, tf: Timeframe) {
   })
 }
 
-export function useSnapshots(cluster: string, vmid: number) {
+export function useSnapshots(cluster: string, vmid: number, enabled = true) {
   return useQuery({
     queryKey: vmKeys.snapshots(cluster, vmid),
     queryFn: () => api.virtualMachines.listPveSnapshots(cluster, vmid),
+    enabled,
   })
 }
 

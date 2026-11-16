@@ -8,6 +8,7 @@ import {
   Loader2,
   Search,
   ShieldAlert,
+  TriangleAlert,
 } from "lucide-react"
 import { type FormEvent, type ReactNode, useState } from "react"
 import { toast } from "sonner"
@@ -34,6 +35,7 @@ import {
   useLinkServer,
   useMigrationCheck,
   useSetHa,
+  useSnapshots,
   useVmJob,
   vmKeys,
 } from "../api"
@@ -134,6 +136,19 @@ export function CloneDialog({ open, onOpenChange, guest, onDone }: LayerProps) {
   const [storage, setStorage] = useState("")
   const [start, setStart] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  // A running container can only be copied from a snapshot.
+  const mustSnap =
+    guest.kind === "lxc" && !guest.template && guestState(guest) === "running"
+  const snaps = useSnapshots(
+    guest.cluster_id,
+    guest.vmid,
+    open && !guest.template,
+  )
+  const taken = (snaps.data?.items ?? [])
+    .filter((s) => !s.current)
+    .sort((a, b) => (b.taken_at ?? "").localeCompare(a.taken_at ?? ""))
+  const [picked, setPicked] = useState<string | null>(null)
+  const from = picked ?? (mustSnap ? (taken[0]?.name ?? "") : "")
 
   const o = opts.data
   const node = target || guest.node
@@ -148,6 +163,12 @@ export function CloneDialog({ open, onOpenChange, guest, onDone }: LayerProps) {
       setErrors({ new_id: "An ID is a whole number from 100 up." })
       return
     }
+    if (mustSnap && !from) {
+      setErrors({
+        snapshot: "Pick a snapshot, or shut the container down first.",
+      })
+      return
+    }
     clone.mutate(
       {
         full,
@@ -156,6 +177,7 @@ export function CloneDialog({ open, onOpenChange, guest, onDone }: LayerProps) {
         target: target || undefined,
         storage: full ? storage || undefined : undefined,
         start: start || undefined,
+        snapshot: from || undefined,
       },
       {
         onSuccess: () => {
@@ -240,6 +262,44 @@ export function CloneDialog({ open, onOpenChange, guest, onDone }: LayerProps) {
             />
           )}
         </Field>
+        {mustSnap && !snaps.isPending && !taken.length ? (
+          <Callout tone="warning" icon={<TriangleAlert />}>
+            A running container can only be copied from a snapshot. Take a
+            snapshot first, or shut it down and clone it then.
+          </Callout>
+        ) : (
+          (mustSnap || taken.length > 0) && (
+            <Field
+              label="Copy from"
+              error={errors.snapshot}
+              hint={
+                !errors.snapshot && mustSnap
+                  ? "It's running, so the copy is made from a snapshot."
+                  : undefined
+              }
+            >
+              {(p) => (
+                <Pick
+                  id={p.id}
+                  value={from}
+                  onChange={setPicked}
+                  items={[
+                    ...(mustSnap
+                      ? []
+                      : [{ value: "", label: "How it is now" }]),
+                    ...taken.map((s) => ({
+                      value: s.name,
+                      label: s.name,
+                      detail: s.taken_at
+                        ? new Date(s.taken_at).toLocaleString()
+                        : undefined,
+                    })),
+                  ]}
+                />
+              )}
+            </Field>
+          )
+        )}
         <CheckRow
           checked={full}
           onChange={setFull}

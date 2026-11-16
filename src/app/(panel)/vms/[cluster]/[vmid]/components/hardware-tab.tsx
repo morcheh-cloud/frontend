@@ -242,7 +242,7 @@ export function HardwareTab() {
                       label: "CPU limit",
                       value:
                         config.cpulimit && config.cpulimit !== "0"
-                          ? `${config.cpulimit} cores`
+                          ? `${config.cpulimit} ${config.cpulimit === "1" ? "core" : "cores"}`
                           : "",
                     },
                     { label: "Memory", value: mib(config.memory) || "512 MiB" },

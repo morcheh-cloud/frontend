@@ -2047,6 +2047,11 @@ export interface ClonePveGuestRequest {
    * @max 999999999
    */
   new_id?: number;
+  /**
+   * Clone from this snapshot instead of the current state
+   * @maxLength 40
+   */
+  snapshot?: string;
   start?: boolean;
   /**
    * Full clone: storage for its disks
