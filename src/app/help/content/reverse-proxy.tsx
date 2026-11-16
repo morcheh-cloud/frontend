@@ -216,7 +216,7 @@ export const reverseProxy: GuideSection[] = [
           <P>
             Leave <UI>Set it up now</UI> ticked. Morche installs nginx with the
             server's package manager if it's missing (never inside a container),
-            makes the folder <C>/etc/nginx/morcheh/</C> and includes it in
+            makes the folder <C>/etc/nginx/morche/</C> and includes it in
             nginx's config. It runs as a background task (see{" "}
             <See guide="tasks" />
             ).
@@ -687,7 +687,7 @@ networks:
           <li>
             <UI>Upload</UI>: a certificate (with its intermediates) and private
             key you already have, in PEM. It's checked before it's saved in{" "}
-            <C>/etc/ssl/morcheh/</C>.
+            <C>/etc/ssl/morche/</C>.
           </li>
         </List>
         <Steps>
@@ -1377,7 +1377,7 @@ networks:
               <UI key="p">Proxy cache</UI>,
               <>
                 Proxy hosts only: nginx keeps the app's answers on its own disk
-                (<C>/var/cache/morcheh-nginx</C>) and hands them out again for
+                (<C>/var/cache/morche-nginx</C>) and hands them out again for
                 the time you set (10 minutes if empty), up to a size (1 GB)
               </>,
             ],
@@ -2158,7 +2158,7 @@ networks:
           <P>Save. Clear the address to stop.</P>
         </Steps>
         <P>
-          Copies carry the header <C>X-Morcheh-Mirror: 1</C>, so the test app
+          Copies carry the header <C>X-Morche-Mirror: 1</C>, so the test app
           (and its logs) can tell them apart.
         </P>
         <Warn>
@@ -3195,7 +3195,7 @@ https://example.com/old-shop,https://shop.example.com/,301
         <P>
           <UI>Use the generated one</UI> drops your text; once you save, the
           file is made from the other tabs again. Lines starting with{" "}
-          <C>MORCHEH_</C> or holding <C>@@morcheh-</C> are refused: Morche uses
+          <C>MORCHE_</C> or holding <C>@@morche-</C> are refused: Morche uses
           them for itself.
         </P>
         <P>
@@ -3213,7 +3213,7 @@ https://example.com/old-shop,https://shop.example.com/,301
         <List>
           <li>
             Morche writes only its own files, one per site, in{" "}
-            <C>/etc/nginx/morcheh/</C>. Nothing else on the server is changed.
+            <C>/etc/nginx/morche/</C>. Nothing else on the server is changed.
           </li>
           <li>
             Every save is tested with <C>nginx -t</C> first. If the test fails,

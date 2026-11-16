@@ -70,7 +70,7 @@ export function FleetCard({
   live: HomeLive
   className?: string
 }) {
-  const [metric, setMetric] = useStoredChoice("morcheh.home.fleet", metrics)
+  const [metric, setMetric] = useStoredChoice("morche.home.fleet", metrics)
   const [focus, setFocus] = useState<string | null>(null)
   const servers = live.model?.servers ?? []
   const label = metricItems.find((m) => m.value === metric)?.label ?? ""

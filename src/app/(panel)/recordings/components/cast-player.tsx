@@ -100,7 +100,7 @@ export function CastPlayer({
     void import("asciinema-player").then(({ create }) => {
       if (disposed) return
       player = create({ data }, host, {
-        theme: "morcheh",
+        theme: "morche",
         fit: phone ? "width" : "both",
         idleTimeLimit: IDLE_LIMIT,
         autoPlay: true,

@@ -189,7 +189,7 @@ const defaults: LogColumnId[] = ["ip", "took", "sent"]
 // When the site answers on more than one domain.
 const multiDomainDefaults: LogColumnId[] = ["ip", "domain", "took", "sent"]
 
-const KEY = "morcheh.proxy.logs.columns"
+const KEY = "morche.proxy.logs.columns"
 
 function readSaved(): LogColumnId[] | null {
   try {

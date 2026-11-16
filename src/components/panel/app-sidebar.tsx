@@ -1,12 +1,11 @@
 "use client"
 
-import { ChevronsUpDown, CircleUser, LogOut, Settings2 } from "lucide-react"
+import { ChevronsUpDown, Settings2 } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 
 import { useAuth } from "@/components/auth/auth"
 import { atLeast } from "@/components/auth/level"
-import { ThemeMenuItems } from "@/components/theme-picker"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +20,6 @@ import {
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarHeader,
@@ -58,10 +56,6 @@ export function AppSidebar() {
           <SidebarBody pathname={pathname} search={search} />
         )}
       </WithPathname>
-
-      <SidebarFooter>
-        <AccountMenu />
-      </SidebarFooter>
 
       <SidebarRail />
     </Sidebar>
@@ -193,47 +187,6 @@ function WorkspaceSwitcher() {
                 </DropdownMenuItem>
               </>
             )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </SidebarMenuItem>
-    </SidebarMenu>
-  )
-}
-
-function AccountMenu() {
-  const { user, signOut } = useAuth()
-
-  return (
-    <SidebarMenu>
-      <SidebarMenuItem>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <SidebarMenuButton className="data-popup-open:bg-sidebar-accent" />
-            }
-          >
-            <CircleUser />
-            <span className="truncate">{user.full_name || user.username}</span>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="min-w-48" side="right" align="end">
-            <DropdownMenuGroup>
-              <DropdownMenuLabel className="truncate">
-                {user.username}
-              </DropdownMenuLabel>
-              <DropdownMenuItem render={<Link href="/account" />}>
-                <CircleUser />
-                Account
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <ThemeMenuItems />
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem onClick={signOut}>
-                <LogOut />
-                Sign out
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>

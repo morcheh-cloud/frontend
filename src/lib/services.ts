@@ -1716,8 +1716,8 @@ export interface Certificate {
   issuer?: string;
   key: string;
   name: string;
-  /** certbot = renewed by certbot on the server; morcheh = uploaded or self-signed through the panel, never renewed */
-  source: "certbot" | "morcheh";
+  /** certbot = renewed by certbot on the server; morche = uploaded or self-signed through the panel, never renewed */
+  source: "certbot" | "morche";
 }
 
 export interface ChangePasswordBody {
@@ -1804,7 +1804,7 @@ export interface ChannelSecrets {
    */
   password?: string;
   /**
-   * Webhook: signs each body (X-Morcheh-Signature: sha256=…)
+   * Webhook: signs each body (X-Morche-Signature: sha256=…)
    * @maxLength 500
    */
   signing_key?: string;
@@ -2585,7 +2585,7 @@ export interface ContainerAccess {
   /** The saved limits are in force right now */
   loaded: boolean;
   /** The address this server sees Morche's connection from */
-  morcheh_ip: string;
+  morche_ip: string;
   /** They're loaded again after a restart */
   persistent: boolean;
   /** Why limits can't be set, or why Docker didn't answer */
@@ -4689,7 +4689,7 @@ export interface DockerAutoUpdateBody {
   /** Never pull: only recreate containers whose image was replaced on the server some other way (built or pulled there) */
   no_pull: boolean;
   notify: "never" | "changes" | "failures" | "always";
-  /** all = every container (but excluded ones); labeled = only containers labelled morcheh.auto-update.enable=true or com.centurylinklabs.watchtower.enable=true; chosen = containers, compose projects or images named in include (or labelled) */
+  /** all = every container (but excluded ones); labeled = only containers labelled morche.auto-update.enable=true or com.centurylinklabs.watchtower.enable=true; chosen = containers, compose projects or images named in include (or labelled) */
   pick: "all" | "labeled" | "chosen";
   /** Restart containers that depend on an updated one (depends-on label or network_mode container:) */
   restart_linked: boolean;
@@ -4834,7 +4834,7 @@ export interface DockerAutoUpdateRules {
   include_stopped: boolean;
   /** monitor = only report new images, never pull or recreate */
   mode: "update" | "monitor";
-  /** all = every container (but excluded ones); labeled = only containers labelled morcheh.auto-update.enable=true or com.centurylinklabs.watchtower.enable=true; chosen = containers, compose projects or images named in include (or labelled) */
+  /** all = every container (but excluded ones); labeled = only containers labelled morche.auto-update.enable=true or com.centurylinklabs.watchtower.enable=true; chosen = containers, compose projects or images named in include (or labelled) */
   pick: "all" | "labeled" | "chosen";
   /**
    * Server ids in the workspace
@@ -5080,7 +5080,7 @@ export interface DockerDaemonConfig {
   path: string;
   /** The file changed after Docker started (or was last reloaded) */
   pending: boolean;
-  /** The copy kept by the last save (.morcheh-bak), empty when none */
+  /** The copy kept by the last save (.morche-bak), empty when none */
   previous: string;
   /** sha256 of the content, empty when there is no file; send it back with a save */
   revision: string;
@@ -8564,7 +8564,7 @@ export interface FirewallOverview {
   forwards: Forward[];
   init: "systemd" | "openrc" | "none";
   /** The address this server sees Morche's connection from */
-  morcheh_ip: string;
+  morche_ip: string;
   package_manager: string;
   /** A change waiting to be kept; while it's here, other changes are refused */
   pending?: FirewallPending;
@@ -9697,7 +9697,7 @@ export interface LocationResult {
   detail?: string;
   /** @format int64 */
   latency_ms?: number;
-  /** morcheh, or the server's id */
+  /** morche, or the server's id */
   location: string;
   message: string;
   name: string;
@@ -10338,7 +10338,7 @@ export interface MonitorBody {
     | "command"
     | "push";
   /**
-   * Where to check from: morcheh and/or server ids (over SSH). docker, systemd and command take one server. Left out: Morche on create, unchanged on update
+   * Where to check from: morche and/or server ids (over SSH). docker, systemd and command take one server. Left out: Morche on create, unchanged on update
    * @maxItems 20
    */
   locations?: string[];
@@ -10570,7 +10570,7 @@ export interface MonitorLocation {
   code: string;
   /** @format int32 */
   latency_ms?: number;
-  /** morcheh, or the server's id */
+  /** morche, or the server's id */
   location: string;
   name: string;
   /** @format uuid */
@@ -10680,7 +10680,7 @@ export interface MonitorTestBody {
     | "command"
     | "push";
   /**
-   * Where to check from: morcheh and/or server ids (over SSH). docker, systemd and command take one server. Left out: Morche on create, unchanged on update
+   * Where to check from: morche and/or server ids (over SSH). docker, systemd and command take one server. Left out: Morche on create, unchanged on update
    * @maxItems 20
    */
   locations?: string[];
@@ -12941,7 +12941,7 @@ export interface Process {
    */
   memory_percent: number;
   /** Part of Morche's own SSH connection: ending it closes open terminals and running tasks here */
-  morcheh: boolean;
+  morche: boolean;
   /** The kernel's name for it (comm, at most 15 characters) */
   name: string;
   /**
@@ -14573,7 +14573,7 @@ export interface ReportLocation {
   down: number;
   /** @format double */
   latency_avg?: number;
-  /** morcheh, or the server's id */
+  /** morche, or the server's id */
   location: string;
   name: string;
   /**
@@ -14764,7 +14764,7 @@ export interface Rule {
    * @format int64
    */
   line: number;
-  /** Written by Morche (sudoers.d/morcheh-*) */
+  /** Written by Morche (sudoers.d/morche-*) */
   managed: boolean;
   nopasswd: boolean;
   text: string;
@@ -17139,8 +17139,8 @@ export interface SoftwareInstall {
   kind: "package" | "script";
   latest: string;
   name: string;
-  /** morcheh = installed from the panel; found = a scan found it */
-  origin: "morcheh" | "found";
+  /** morche = installed from the panel; found = a scan found it */
+  origin: "morche" | "found";
   /** The values it was installed with, without the secret ones */
   params: Record<string, string>;
   recipe_id: string;
@@ -24860,7 +24860,7 @@ export class Api<
       }),
 
     /**
-     * @description Checks the JSON (and `dockerd --validate` when there is one), keeps the old file as daemon.json.morcheh-bak, writes the new one and optionally reloads or restarts Docker. A restart that doesn't bring Docker back puts the old file back and restarts again (422 with Docker's log). 409 when the file changed since it was read.
+     * @description Checks the JSON (and `dockerd --validate` when there is one), keeps the old file as daemon.json.morche-bak, writes the new one and optionally reloads or restarts Docker. A restart that doesn't bring Docker back puts the old file back and restarts again (422 with Docker's log). 409 when the file changed since it was read.
      *
      * @tags Containers
      * @name SaveDockerDaemonConfig
@@ -24928,7 +24928,7 @@ export class Api<
       }),
 
     /**
-     * @description Runs Trivy on the server: the `trivy` command if installed, else the workspace's scanner image through Docker (its database is cached in the `morcheh-trivy-cache` volume). Runs as a job (kind `docker-scan`).
+     * @description Runs Trivy on the server: the `trivy` command if installed, else the workspace's scanner image through Docker (its database is cached in the `morche-trivy-cache` volume). Runs as a job (kind `docker-scan`).
      *
      * @tags Containers
      * @name ScanDockerImages
@@ -27006,7 +27006,7 @@ export class Api<
       }),
 
     /**
-     * @description `acme`: certbot asks the CA over HTTP-01 (the names must point at this server, port 80 open); certbot is installed when missing and renews the certificate itself. `self-signed`: made with openssl. `upload`: the PEM pair is checked and written to /etc/ssl/morcheh/<name>. Secrets (EAB HMAC key, private key) are kept sealed with the job, never in plain text. Runs as a background job (kind `proxy-certificate`); its result has the certificate and key paths.
+     * @description `acme`: certbot asks the CA over HTTP-01 (the names must point at this server, port 80 open); certbot is installed when missing and renews the certificate itself. `self-signed`: made with openssl. `upload`: the PEM pair is checked and written to /etc/ssl/morche/<name>. Secrets (EAB HMAC key, private key) are kept sealed with the job, never in plain text. Runs as a background job (kind `proxy-certificate`); its result has the certificate and key paths.
      *
      * @tags Reverse proxy
      * @name CreateProxyCertificate
@@ -31056,7 +31056,7 @@ export class Api<
       }),
 
     /**
-     * @description Only the fields sent change. sudo rewrites how the account gets sudo: the sudo group, or a rule in /etc/sudoers.d/morcheh-<name>; its own rules elsewhere are commented out. Every sudoers change is checked with visudo and put back when it fails.
+     * @description Only the fields sent change. sudo rewrites how the account gets sudo: the sudo group, or a rule in /etc/sudoers.d/morche-<name>; its own rules elsewhere are commented out. Every sudoers change is checked with visudo and put back when it fails.
      *
      * @tags Users
      * @name UpdateUser
@@ -32853,7 +32853,7 @@ export class Api<
       }),
 
     /**
-     * @description Sets fs.inotify.max_user_watches on the source server now and in /etc/sysctl.d/90-morcheh-inotify.conf, then watches again. Needs Engineer on the server and root or sudo without a password. Each watched folder takes about 1 KB of kernel memory.
+     * @description Sets fs.inotify.max_user_watches on the source server now and in /etc/sysctl.d/90-morche-inotify.conf, then watches again. Needs Engineer on the server and root or sudo without a password. Each watched folder takes about 1 KB of kernel memory.
      *
      * @tags Storage syncs
      * @name RaiseStorageSyncWatchLimit

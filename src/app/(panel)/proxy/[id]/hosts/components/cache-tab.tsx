@@ -360,7 +360,7 @@ function ProxyCacheCard({
             </Callout>
           )}
           <Callout icon={<Info />}>
-            Kept answers live in /var/cache/morcheh-nginx on the proxy's server.
+            Kept answers live in /var/cache/morche-nginx on the proxy's server.
             Clear the cache after a release if pages look old.
           </Callout>
         </>

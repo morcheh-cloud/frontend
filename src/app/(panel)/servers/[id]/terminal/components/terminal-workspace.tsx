@@ -12,7 +12,7 @@ import { TerminalMobile } from "./terminal-mobile"
 import { type TerminalHandle, TerminalView } from "./terminal-view"
 import { type Tab, useTabs } from "./use-tabs"
 
-const FONT_KEY = "morcheh.terminal.fontSize"
+const FONT_KEY = "morche.terminal.fontSize"
 export const FONT_MIN = 10
 export const FONT_MAX = 22
 

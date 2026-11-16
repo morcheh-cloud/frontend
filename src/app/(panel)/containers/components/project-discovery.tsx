@@ -107,7 +107,7 @@ export function useProjectDiscovery(server: string, can: boolean) {
 
 // Folders whose notice someone set aside on this browser ("Not now").
 function useSeen(server: string) {
-  const key = `morcheh.docker.discovery.seen.${server}`
+  const key = `morche.docker.discovery.seen.${server}`
   const [dirs, setDirs] = useState<string[]>(() => {
     try {
       const v = JSON.parse(localStorage.getItem(key) ?? "[]")

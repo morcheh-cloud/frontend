@@ -146,7 +146,7 @@ export const commandLog: GuideSection[] = [
           Morche starts bash and zsh with small hooks that report each command
           line, its folder and how it ended. Nothing reads keystrokes, so a
           password typed at a sudo prompt is never seen. The hooks live in{" "}
-          <C>~/.cache/morcheh/shell</C> on the server.
+          <C>~/.cache/morche/shell</C> on the server.
         </P>
         <P>
           Each terminal also gets a row of its own (<UI>Terminal opened</UI>)

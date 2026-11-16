@@ -240,14 +240,14 @@ git commit -m "feat(apps): add address validation and response shaping"
 - [ ] **Step 1: target مکیفایل و harness را بنویس**
 
 ```make
-TEST_DATABASE_URL ?= postgres://morcheh:morcheh@localhost:5433/morcheh_test?sslmode=disable
+TEST_DATABASE_URL ?= postgres://morche:morche@localhost:5433/morche_test?sslmode=disable
 test-integration:
-	docker compose exec -T postgres psql -U morcheh -d morcheh -c 'DROP DATABASE IF EXISTS morcheh_test' -c 'CREATE DATABASE morcheh_test'
+	docker compose exec -T postgres psql -U morche -d morche -c 'DROP DATABASE IF EXISTS morche_test' -c 'CREATE DATABASE morche_test'
 	go tool goose -dir migrations postgres "$(TEST_DATABASE_URL)" up
-	MORCHEH_TEST_DATABASE_URL="$(TEST_DATABASE_URL)" go test ./internal/api -run Integration -count=1
+	MORCHE_TEST_DATABASE_URL="$(TEST_DATABASE_URL)" go test ./internal/api -run Integration -count=1
 ```
 
-`newEnv` وقتی `MORCHEH_TEST_DATABASE_URL` خالی است `t.Skip` می‌کند، پس `go test ./...` بدون دیتابیس سبز می‌ماند. روتر واقعی با `build(cfg, db, &cache.Cache{}, box, jobs.New(sqlc.New(db)))` و `box` با کلید تصادفی. کاربر با `CreateUser`، سشن با `auth.NewToken` + `CreateSession`، کوکی `morcheh_session`. هر تست workspace و کاربر تازه با پسوند تصادفی می‌سازد و چیزی پاک نمی‌کند. چون `a.accessOf` دسترسی را کش می‌کند، grant را قبل از اولین درخواست آن کاربر بده یا از API با ادمین.
+`newEnv` وقتی `MORCHE_TEST_DATABASE_URL` خالی است `t.Skip` می‌کند، پس `go test ./...` بدون دیتابیس سبز می‌ماند. روتر واقعی با `build(cfg, db, &cache.Cache{}, box, jobs.New(sqlc.New(db)))` و `box` با کلید تصادفی. کاربر با `CreateUser`، سشن با `auth.NewToken` + `CreateSession`، کوکی `morche_session`. هر تست workspace و کاربر تازه با پسوند تصادفی می‌سازد و چیزی پاک نمی‌کند. چون `a.accessOf` دسترسی را کش می‌کند، grant را قبل از اولین درخواست آن کاربر بده یا از API با ادمین.
 
 - [ ] **Step 2: تست‌های شکست‌خورنده را بنویس**
 
@@ -485,7 +485,7 @@ Expected: `api.apps.listApps` و بقیه در `src/lib/services.ts` هست.
 
 - [ ] **Step 4: صفحه‌های workspace را سیم‌کشی کن**
 
-`workspace-detail.tsx`: ردیف سرویس‌ها، `everything` و `a.move` شامل `app_ids`؛ `MoveTarget` و متن‌های `workspaces-actions.tsx` و شمارش‌های `workspaces-view.tsx`؛ `useRefreshWorkspaces` کلید `["apps"]` را invalidate کند. `morcheh.services.view` به `PERSONAL` در `local-data.ts` اضافه شود.
+`workspace-detail.tsx`: ردیف سرویس‌ها، `everything` و `a.move` شامل `app_ids`؛ `MoveTarget` و متن‌های `workspaces-actions.tsx` و شمارش‌های `workspaces-view.tsx`؛ `useRefreshWorkspaces` کلید `["apps"]` را invalidate کند. `morche.services.view` به `PERSONAL` در `local-data.ts` اضافه شود.
 
 - [ ] **Step 5: تأیید**
 
@@ -537,7 +537,7 @@ git commit -m "feat(services): add services to the access screens"
 - ریل: All services، Critical، دسته‌ها با نقطه و تعداد، `Uncategorized` فقط اگر سرویس بی‌دسته هست، `New category` در تسک ۹ اضافه می‌شود.
 - کاشی: `<a target="_blank" rel="noopener noreferrer">`، لوگوی ۳۶px، `rounded-2xl border-border shadow-sm hover:shadow-md`، نقطهٔ `bg-destructive` برای critical. عنوان دسته `font-label uppercase tracking-label`.
 - جدول: لوگوی ۲۸px، آدرس `text-brand-strong` با آیکون `ExternalLink`، یوزر mono، چیپ `+2` برای چند اکانت، ستون Password و کپی‌ها تا تسک ۱۰ خالی.
-- نما در `localStorage` کلید `morcheh.services.view` داخل `try/catch`؛ پیش‌فرض `tiles`. حالت خالی و حالت بدون نتیجهٔ جستجو. `Add service` و دکمهٔ حالت خالی در تسک ۹ وصل می‌شوند و تا آن موقع رندر نمی‌شوند.
+- نما در `localStorage` کلید `morche.services.view` داخل `try/catch`؛ پیش‌فرض `tiles`. حالت خالی و حالت بدون نتیجهٔ جستجو. `Add service` و دکمهٔ حالت خالی در تسک ۹ وصل می‌شوند و تا آن موقع رندر نمی‌شوند.
 
 - [ ] **Step 4: تأیید**
 

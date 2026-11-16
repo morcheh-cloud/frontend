@@ -138,7 +138,7 @@ export function ruleMatches(r: FilterRule, q: string) {
 
 // The rule Morche adds for a forward means nothing on a server without it.
 export const canCopy = (r: FilterRule) =>
-  r.editable && r.comment !== "Port forward (added by Morcheh)"
+  r.editable && r.comment !== "Port forward (added by Morche)"
 
 export const forwardFrom = (f: Forward) => `${portText(f.port)}/${f.protocol}`
 

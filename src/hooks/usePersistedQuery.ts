@@ -6,7 +6,7 @@ import {
 import localforage from "localforage"
 import { useEffect, useState } from "react"
 
-const CACHE_PREFIX = "morcheh"
+const CACHE_PREFIX = "morche"
 const DEFAULT_TTL = 1000 * 60 * 60 * 24 * 30 // 30 days
 
 interface CacheEntry<T> {

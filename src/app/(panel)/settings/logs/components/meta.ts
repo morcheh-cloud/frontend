@@ -10,7 +10,7 @@ import {
 import type { LogArchiveView, LogDatasetView, LogPolicy } from "@/lib/services"
 
 export const LOGS_HOME = "/settings/logs"
-export const DEFAULT_FOLDER = "/morcheh-archives"
+export const DEFAULT_FOLDER = "/morche-archives"
 export const MAX_STORAGES = 10
 
 // ---- URL state ----

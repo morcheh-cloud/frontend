@@ -1346,7 +1346,7 @@ export const containers: GuideSection[] = [
             [
               "Labelled ones",
               <>
-                Only containers labelled <C>morcheh.auto-update.enable=true</C>
+                Only containers labelled <C>morche.auto-update.enable=true</C>
               </>,
             ],
             [
@@ -1368,7 +1368,7 @@ export const containers: GuideSection[] = [
           stack moved from Watchtower needs no changes.
         </P>
         <Table
-          head={["Label (morcheh.auto-update.…)", "Does"]}
+          head={["Label (morche.auto-update.…)", "Does"]}
           rows={[
             [
               <C key="e">enable=true|false</C>,
@@ -1393,12 +1393,12 @@ export const containers: GuideSection[] = [
   web:
     image: ghcr.io/acme/web:1
     labels:
-      morcheh.auto-update.enable: "true"
+      morche.auto-update.enable: "true"
   db:
     image: postgres:16
     labels:
-      morcheh.auto-update.enable: "true"
-      morcheh.auto-update.monitor-only: "true"`}</Code>
+      morche.auto-update.enable: "true"
+      morche.auto-update.monitor-only: "true"`}</Code>
         </Example>
       </>
     ),
@@ -1482,7 +1482,7 @@ export const containers: GuideSection[] = [
           with labels:
         </P>
         <Table
-          head={["Label (morcheh.auto-update.lifecycle.…)", "Runs"]}
+          head={["Label (morche.auto-update.lifecycle.…)", "Runs"]}
           rows={[
             [<C key="a">pre-check</C>, "Before each check for a new image"],
             [
@@ -1505,8 +1505,8 @@ export const containers: GuideSection[] = [
         </P>
         <Example title="Dump the database before an update">
           <Code>{`labels:
-  morcheh.auto-update.lifecycle.pre-update: "pg_dump -U app app > /backup/before-update.sql"
-  morcheh.auto-update.lifecycle.pre-update-timeout: "5"`}</Code>
+  morche.auto-update.lifecycle.pre-update: "pg_dump -U app app > /backup/before-update.sql"
+  morche.auto-update.lifecycle.pre-update-timeout: "5"`}</Code>
         </Example>
       </>
     ),
@@ -1680,7 +1680,7 @@ export const containers: GuideSection[] = [
           Before writing, Morche asks Docker to check the file (
           <C>dockerd --validate</C>, Docker 23 and later), so a file Docker
           would refuse is never saved. The file before each save is kept as{" "}
-          <C>daemon.json.morcheh-bak</C>; <UI>⋯</UI> ›{" "}
+          <C>daemon.json.morche-bak</C>; <UI>⋯</UI> ›{" "}
           <UI>Load the copy before the last save</UI> puts it back in the
           editor. An empty editor removes the file, so Docker uses its defaults.
         </P>

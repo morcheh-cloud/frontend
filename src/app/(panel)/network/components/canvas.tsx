@@ -31,7 +31,7 @@ const edgeTypes = { link: LinkEdge, float: FloatEdge }
 
 type Positions = Record<string, { x: number; y: number }>
 
-const layoutKey = (view: string) => `morcheh.netmap.layout.${view}`
+const layoutKey = (view: string) => `morche.netmap.layout.${view}`
 
 function loadLayout(view: string): Positions {
   try {

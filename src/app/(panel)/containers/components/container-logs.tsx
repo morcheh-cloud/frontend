@@ -86,11 +86,8 @@ export function ContainerLogs({
   const [q, setQ] = useState("")
   const [stream, setStream] = useState<Stream>("all")
   const [follow, setFollow] = useState(true)
-  const [wrap, setWrap] = useStoredFlag("morcheh.containers.logs.wrap", true)
-  const [times, setTimes] = useStoredFlag(
-    "morcheh.containers.logs.times",
-    false,
-  )
+  const [wrap, setWrap] = useStoredFlag("morche.containers.logs.wrap", true)
+  const [times, setTimes] = useStoredFlag("morche.containers.logs.times", false)
   const backlog = useDockerLogs(server.id, c.id, tail)
   const since = backlog.data?.lines.at(-1)?.time
   // Follow only once the backlog is in, starting after its last line.

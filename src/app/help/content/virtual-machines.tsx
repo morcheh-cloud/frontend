@@ -73,7 +73,7 @@ export const virtualMachines: GuideSection[] = [
           {[
             <>
               In Proxmox, open <UI>Datacenter › Permissions › Users › Add</UI>{" "}
-              and make a user for Morche, say <C>morcheh@pve</C>.
+              and make a user for Morche, say <C>morche@pve</C>.
             </>,
             <>
               Under <UI>Permissions › Add › User Permission</UI>, give it path{" "}

@@ -9,7 +9,7 @@ export type Overrides = Partial<Settings>
 // What the backend uses for a workspace that never saved its settings
 // (defaultDockerSettings in the backend).
 export const defaults: Settings = {
-  projects_dir: "/opt/morcheh/projects",
+  projects_dir: "/opt/morche/projects",
   remove_orphans: true,
   versions_keep: 50,
   default_restart: "",
@@ -282,7 +282,7 @@ export function tidy<T extends Overrides>(s: T): T {
 
 // --- Export and import -------------------------------------------------------
 
-export const exportKind = "morcheh.docker-settings"
+export const exportKind = "morche.docker-settings"
 
 export type SettingsFile = {
   kind: typeof exportKind

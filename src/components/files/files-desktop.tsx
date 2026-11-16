@@ -94,7 +94,7 @@ import {
   useUploads,
 } from "./uploads"
 
-const DRAG_TYPE = "application/x-morcheh-files"
+const DRAG_TYPE = "application/x-morche-files"
 
 // Desktop: a framed browser (toolbar, sortable table, status bar) with a
 // context menu on every row, keyboard shortcuts, drag-and-drop uploads and

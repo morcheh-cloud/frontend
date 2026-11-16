@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils"
 
 export type Workspace = PanelWorkspace
 
-const storageKey = "morcheh.workspace"
+const storageKey = "morche.workspace"
 export const workspacesKey = ["workspaces"] as const
 
 type WorkspaceState = {

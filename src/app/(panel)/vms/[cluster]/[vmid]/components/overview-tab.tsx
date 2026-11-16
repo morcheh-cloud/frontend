@@ -34,7 +34,7 @@ const tfValues = timeframes.map((t) => t.value)
 export function OverviewTab() {
   const { guest: g, phone } = useGuestPage()
   const [tf, setTf] = useStoredChoice<Timeframe>(
-    "morcheh.vms.timeframe",
+    "morche.vms.timeframe",
     tfValues,
   )
   const rrd = useGuestRrd(g.cluster_id, g.vmid, tf)

@@ -14,7 +14,7 @@ import {
   type Draft,
   type Errors,
   locationsOf,
-  MORCHEH,
+  MORCHE,
   ruleText,
   toRule,
 } from "./draft"
@@ -49,7 +49,7 @@ export function LocationsPicker({
 }) {
   const [q, setQ] = useState("")
   const extra: LocationOption[] = value
-    .filter((l) => l !== MORCHEH && !options.some((o) => o.id === l))
+    .filter((l) => l !== MORCHE && !options.some((o) => o.id === l))
     .map((id) => ({ id, name: names[id] ?? "A removed server" }))
   const servers = [...extra, ...options]
   const words = q.trim().toLowerCase()
@@ -59,10 +59,10 @@ export function LocationsPicker({
       )
     : servers
   const items = [
-    ...(!words || "morcheh".includes(words)
+    ...(!words || "morche".includes(words)
       ? [
           {
-            id: MORCHEH,
+            id: MORCHE,
             label: "Morche",
             meta: outboundIp
               ? `From Morche's own network · ${outboundIp}`
@@ -81,7 +81,7 @@ export function LocationsPicker({
     const next = value.filter((l) => l !== id)
     if (on) next.push(id)
     // Morche first, then the order they were ticked in.
-    next.sort((a, b) => Number(b === MORCHEH) - Number(a === MORCHEH))
+    next.sort((a, b) => Number(b === MORCHE) - Number(a === MORCHE))
     onChange(next)
   }
 

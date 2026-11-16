@@ -723,7 +723,7 @@ function ReviewDialog({
             ? "Docker checks the file before it's saved; a file it refuses is never written."
             : "This Docker can't check a file in advance (no dockerd --validate)."}{" "}
           The current file is kept beside it as{" "}
-          <span className="font-mono">daemon.json.morcheh-bak</span>.
+          <span className="font-mono">daemon.json.morche-bak</span>.
         </p>
         {error && (
           <p className="rounded-lg bg-destructive/10 p-3 font-mono text-caption whitespace-pre-wrap text-destructive">

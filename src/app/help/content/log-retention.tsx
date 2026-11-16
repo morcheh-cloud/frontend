@@ -195,10 +195,10 @@ export const logRetention: GuideSection[] = [
           In the policy's <UI>Files</UI> section turn on <UI>Morche's disk</UI>{" "}
           (the folder shown, with its free space), tick one or more Storages, or
           both. On a Storage they go under the folder you choose (default{" "}
-          <C>/morcheh-archives</C>), then a folder per kind of log. A file
-          counts as stored once at least one place has it; a place that failed
-          shows with its error in the file's details and in the run's task. If
-          no place takes it, the run stops and the rows stay in the database.
+          <C>/morche-archives</C>), then a folder per kind of log. A file counts
+          as stored once at least one place has it; a place that failed shows
+          with its error in the file's details and in the run's task. If no
+          place takes it, the run stops and the rows stay in the database.
         </P>
         <P>
           <UI>Delete the files after</UI> (optional) removes files that many

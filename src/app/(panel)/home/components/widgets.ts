@@ -22,7 +22,7 @@ export const widgets = [
 
 export type WidgetId = (typeof widgets)[number]["id"]
 
-const KEY = "morcheh.home.widgets"
+const KEY = "morche.home.widgets"
 const known = new Set<string>(widgets.map((w) => w.id))
 
 function read(): WidgetId[] {

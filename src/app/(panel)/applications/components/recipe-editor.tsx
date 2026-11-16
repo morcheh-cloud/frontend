@@ -179,7 +179,7 @@ function Editor({
   const back = useBackOr(CATALOG)
   const readOnly = !can.recipes
   const [stored, setMode] = useStoredChoice<Mode>(
-    "morcheh.applications.recipe-mode",
+    "morche.applications.recipe-mode",
     modes,
   )
   // Read-only people read the text; the form is for building.
@@ -191,7 +191,7 @@ function Editor({
   const [server, setServer] = useState<Problems>({})
   // What one kind had, set aside while another is picked.
   const [stash, setStash] = useState<Partial<Draft>>({})
-  const [side, setSide] = useStoredChoice("morcheh.applications.recipe-side", [
+  const [side, setSide] = useStoredChoice("morche.applications.recipe-side", [
     "preview",
     "fields",
   ] as const)

@@ -1,14 +1,14 @@
 import localforage from "localforage"
 
-const USER_KEY = "morcheh.user"
+const USER_KEY = "morche.user"
 // What one person worked on, which the next person on this browser shouldn't
 // see. Preferences like the terminal's font size stay.
 const PERSONAL = [
-  "morcheh.palette.recent",
-  "morcheh.workspace",
-  "morcheh.services.view",
+  "morche.palette.recent",
+  "morche.workspace",
+  "morche.services.view",
 ]
-const PERSONAL_PREFIX = "morcheh.netmap.layout."
+const PERSONAL_PREFIX = "morche.netmap.layout."
 
 export function clearLocalData() {
   try {

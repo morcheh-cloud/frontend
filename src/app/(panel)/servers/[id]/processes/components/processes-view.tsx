@@ -69,7 +69,7 @@ const liveLabels: Record<Live, string> = {
 
 export function ProcessesView() {
   const { server, phone } = useServerPage()
-  const [live, setLive] = useStoredChoice("morcheh.processes.live", lives)
+  const [live, setLive] = useStoredChoice("morche.processes.live", lives)
   const query = useProcesses(
     server.id,
     live === "off" ? false : Number(live) * 1000,

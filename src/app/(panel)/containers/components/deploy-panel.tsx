@@ -31,7 +31,7 @@ import {
 } from "./project-deploy"
 import type { ProjectTab } from "./project-overview"
 
-const SEEN_KEY = "morcheh.docker.deploy.seen"
+const SEEN_KEY = "morche.docker.deploy.seen"
 // A finished job that went well stays this long, then goes by itself.
 const SHOW_DONE_MS = 5 * 60_000
 

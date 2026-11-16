@@ -23,14 +23,14 @@ import type {
   Subnet,
 } from "@/lib/services"
 
-export const views = ["networks", "reach", "matrix", "morcheh"] as const
+export const views = ["networks", "reach", "matrix", "morche"] as const
 export type View = (typeof views)[number]
 
 export const viewItems: readonly { value: View; label: string }[] = [
   { value: "networks", label: "Networks" },
   { value: "reach", label: "Reachability" },
   { value: "matrix", label: "Matrix" },
-  { value: "morcheh", label: "From Morche" },
+  { value: "morche", label: "From Morche" },
 ]
 
 export function useNetworkFilters() {

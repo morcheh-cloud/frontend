@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils"
 import { useNetworkMap, useRescan } from "../api"
 import { Canvas, type LegendItem } from "./canvas"
 import { DetailsLayer } from "./details"
-import { morchehGraph, networksGraph, reachGraph } from "./graph"
+import { morcheGraph, networksGraph, reachGraph } from "./graph"
 import { Matrix } from "./matrix"
 import {
   type Filters,
@@ -57,7 +57,7 @@ const legends: Record<Filters["view"], LegendItem[]> = {
     { label: "Blocked", stroke: "var(--destructive)", dash: "4 3" },
   ],
   matrix: [],
-  morcheh: [
+  morche: [
     { label: "Online", stroke: "var(--color-success)" },
     { label: "Login problem", stroke: "var(--color-warning)" },
     { label: "Unreachable", stroke: "var(--destructive)", dash: "4 3" },
@@ -149,7 +149,7 @@ function Body({
   const graph = useMemo(() => {
     if (!map || view === "matrix") return null
     if (view === "reach") return reachGraph(map, { problems })
-    if (view === "morcheh") return morchehGraph(map, { problems })
+    if (view === "morche") return morcheGraph(map, { problems })
     return networksGraph(map, { containers, ipv6 }, phone)
   }, [map, view, containers, ipv6, problems, phone])
 
@@ -215,7 +215,7 @@ function notice(map: NetworkMap, filters: Filters, edges: number) {
       ? "No problems: every pair that was tested connects."
       : "Nothing could be tested yet."
   }
-  if (filters.view === "morcheh" && filters.problems) {
+  if (filters.view === "morche" && filters.problems) {
     return "No problems: Morche reaches every server."
   }
   return undefined

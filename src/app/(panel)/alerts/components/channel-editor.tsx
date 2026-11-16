@@ -989,7 +989,7 @@ function KindFields({
               {...p}
               value={d.topic}
               onChange={(e) => set({ topic: e.target.value })}
-              placeholder="morcheh-alerts-7f3k"
+              placeholder="morche-alerts-7f3k"
               autoCapitalize="none"
               className="font-mono placeholder:text-ash"
             />
@@ -1069,7 +1069,7 @@ function KindFields({
                   {...p}
                   value={d.url}
                   onChange={(e) => set({ url: e.target.value })}
-                  placeholder="https://example.com/hooks/morcheh"
+                  placeholder="https://example.com/hooks/morche"
                   inputMode="url"
                   autoCapitalize="none"
                   className="placeholder:text-ash"
@@ -1148,7 +1148,7 @@ function KindFields({
           </div>
           <Field
             label="Signing key"
-            hint="Optional: each body is signed with HMAC-SHA256 in X-Morcheh-Signature: sha256=…"
+            hint="Optional: each body is signed with HMAC-SHA256 in X-Morche-Signature: sha256=…"
           >
             {(p) => (
               <SecretInput

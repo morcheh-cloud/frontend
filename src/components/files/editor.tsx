@@ -38,7 +38,7 @@ import { useSource } from "./source"
 const MONO =
   "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace"
 
-const WRAP_KEY = "morcheh.editor.wrap"
+const WRAP_KEY = "morche.editor.wrap"
 
 const theme = EditorView.theme({
   "&": { height: "100%", fontSize: "13px" },

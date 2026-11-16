@@ -111,7 +111,7 @@ export function ProcessesActionsProvider({
 
   const reach = (p: Process) =>
     !p.kernel &&
-    !p.morcheh &&
+    !p.morche &&
     (report.access !== "user" || p.user === report.login)
 
   const mark = (keys: string[], on: boolean) =>
@@ -135,12 +135,12 @@ export function ProcessesActionsProvider({
       )
     } else if (out.length === 0) {
       toast.error(
-        ps.length === 1 && ps[0].morcheh
+        ps.length === 1 && ps[0].morche
           ? "That's Morche's own connection to this server"
           : "This login can't signal that",
         {
           description:
-            ps.length === 1 && ps[0].morcheh
+            ps.length === 1 && ps[0].morche
               ? "Ending it would cut Morche off. Close the terminal or page that uses it instead."
               : "It belongs to another user (needs root or sudo without a password), or it's a kernel thread.",
         },

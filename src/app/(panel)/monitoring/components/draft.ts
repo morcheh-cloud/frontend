@@ -5,7 +5,7 @@ import type {
   MonitorConfig,
   UptimeMonitor,
 } from "@/lib/services"
-import { type Kind, morchehOnly, onServer } from "./meta"
+import { type Kind, morcheOnly, onServer } from "./meta"
 
 // The monitor editor's form state. The config is kept as the API's shape;
 // lists and numbers that are typed live as text until saved.
@@ -25,7 +25,7 @@ export type Draft = {
   secretHeaders: Row[]
   password: string
   token: string
-  // Where it's checked from: MORCHEH and/or server ids.
+  // Where it's checked from: MORCHE and/or server ids.
   locations: string[]
   ruleDown: LocationRule["down"]
   ruleDownCount: string
@@ -49,17 +49,17 @@ export type Draft = {
 }
 
 let rowSeq = 0
-export const MORCHEH = "morcheh"
+export const MORCHE = "morche"
 
 // The servers among a draft's locations.
 export const serverLocations = (d: Pick<Draft, "locations">) =>
-  d.locations.filter((l) => l !== MORCHEH)
+  d.locations.filter((l) => l !== MORCHE)
 export const fromMorche = (d: Pick<Draft, "locations" | "kind">) =>
-  !onServer(d.kind) && d.locations.includes(MORCHEH)
+  !onServer(d.kind) && d.locations.includes(MORCHE)
 // Locations the kind actually uses.
 export function locationsOf(d: Pick<Draft, "locations" | "kind">): string[] {
   if (d.kind === "push") return []
-  if (morchehOnly(d.kind)) return [MORCHEH]
+  if (morcheOnly(d.kind)) return [MORCHE]
   if (onServer(d.kind)) return serverLocations(d).slice(0, 1)
   return d.locations
 }
@@ -93,7 +93,7 @@ export function freshDraft(kind: Kind = "http"): Draft {
     secretHeaders: [],
     password: "",
     token: "",
-    locations: [MORCHEH],
+    locations: [MORCHE],
     ruleDown: "majority",
     ruleDownCount: "2",
     ruleDegraded: "any",
@@ -479,7 +479,7 @@ export function checkDraft(d: Draft): Errors {
   }
   if (onServer(k) && !serverLocations(d).length) {
     e.locations = "Pick the server it runs on"
-  } else if (!morchehOnly(k) && !d.locations.length) {
+  } else if (!morcheOnly(k) && !d.locations.length) {
     e.locations = "Pick at least one place to check from"
   }
 

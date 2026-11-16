@@ -53,7 +53,7 @@
 - **منوی ⋯:** Open، Details، Edit، Move to category، Mark as critical، Access، Remove. هر کدام طبق سطح دسترسی نشان داده می‌شوند.
 - **لایهٔ Details:** ساید‌شیت در دسکتاپ و باتم‌شیت در موبایل، شامل آدرس، همهٔ اکانت‌ها، یادداشت، لینک دسترسی و تب Activity (لاگ).
 
-`q` و دسته در URL می‌مانند (nuqs). نما در `localStorage` با کلید `morcheh.services.view`. [تصمیم طراح]
+`q` و دسته در URL می‌مانند (nuqs). نما در `localStorage` با کلید `morche.services.view`. [تصمیم طراح]
 
 ### موبایل
 

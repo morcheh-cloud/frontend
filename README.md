@@ -1,6 +1,6 @@
-# Morcheh — Frontend
+# Morche — Frontend
 
-The admin panel of Morcheh: SSH-based server management and monitoring. The backend (Go) lives in `../backend`, and this panel talks to it from the browser.
+The admin panel of Morche: SSH-based server management and monitoring. The backend (Go) lives in `../backend`, and this panel talks to it from the browser.
 
 Built with Next.js 16 (App Router, Turbopack), React 19, TypeScript, Tailwind CSS v4, shadcn/ui (on Base UI), TanStack Query and nuqs. Every request runs client-side: there is no SSR data and there are no Server Actions.
 
@@ -66,9 +66,11 @@ src/lib/                     api client, formatting, generated services.ts
 ## Docker
 
 ```bash
-docker build --build-arg NEXT_PUBLIC_API_URL=https://api.example.com -t morcheh-frontend .
+docker build -t morcheh-frontend .
+docker run -e API_URL=https://api.example.com -p 3200:3200 morcheh-frontend
 ```
 
-- `NEXT_PUBLIC_API_URL` is baked in at build time. It must be the address people's browsers reach the backend at, so rebuild after changing it.
+- `API_URL` = the address people's browsers reach the backend at. The image is built with a placeholder that `docker-entrypoint.sh` replaces with it on start; change it and restart the container to move. `--build-arg NEXT_PUBLIC_API_URL=…` bakes one address in instead.
 - The image serves the standalone build with `node server.js` on `:3200`.
-- The whole stack (Postgres, Redis, backend, panel) is in `../backend/deploy/compose.yml`.
+- Published images: `ghcr.io/morcheh-cloud/frontend` (`.github/workflows/image.yml`: `edge` from main, versions from `v*` tags; amd64 + arm64).
+- Self-hosting (Postgres, Redis, backend, panel from the published images): the [deploy repository](https://github.com/morcheh-cloud/morcheh). Building the whole stack from source: `../backend/deploy/compose.yml`.

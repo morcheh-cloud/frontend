@@ -40,7 +40,7 @@ const SHOWN = 8
 
 // 404s the person chose to leave alone, per site, on this browser only.
 export function useIgnored(hostId: string) {
-  const key = `morcheh.redirects.ignored.${hostId}`
+  const key = `morche.redirects.ignored.${hostId}`
   const [ignored, setIgnored] = useState<Set<string>>(() => {
     try {
       const raw = localStorage.getItem(key)

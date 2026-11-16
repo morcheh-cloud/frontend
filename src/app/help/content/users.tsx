@@ -135,11 +135,11 @@ export const users: GuideSection[] = [
           <li>
             <UI>Sudo with password</UI>: the account joins the distribution's
             sudo group (<C>sudo</C> or <C>wheel</C>). Where there is none, a
-            rule goes in <C>/etc/sudoers.d/morcheh-&lt;name&gt;</C>.
+            rule goes in <C>/etc/sudoers.d/morche-&lt;name&gt;</C>.
           </li>
           <li>
             <UI>Sudo without password</UI>: a <C>NOPASSWD</C> rule in{" "}
-            <C>/etc/sudoers.d/morcheh-&lt;name&gt;</C>.
+            <C>/etc/sudoers.d/morche-&lt;name&gt;</C>.
           </li>
         </List>
         <P>

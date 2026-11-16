@@ -43,7 +43,7 @@ no moby SDK). Compose has no Engine API, so stacks run `docker compose` over SSH
   Redeploy (pull + recreate); commit to image.
 
 ### 3 — Stacks (compose projects)
-- Discover projects by compose labels (working dir), plus Morche's own under `/opt/morcheh/stacks`.
+- Discover projects by compose labels (working dir), plus Morche's own under `/opt/morche/stacks`.
 - Editor (YAML + `.env`, CodeMirror), files tree, deploy options (pull policy, force recreate,
   remove orphans), up / down / restart / pull / redeploy / destroy (keep volumes?), live output
   (job), services list, logs per service.

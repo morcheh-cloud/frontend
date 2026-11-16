@@ -60,14 +60,13 @@ export const dns: GuideSection[] = [
       <>
         <P>
           First make an API token in Technitium. Use a user of its own (for
-          example <C>morcheh</C>) so the token can be cut off without touching
+          example <C>morche</C>) so the token can be cut off without touching
           anyone's login.
         </P>
         <Steps>
           <P>
             In Technitium's console, open the user menu (top right) ›{" "}
-            <UI>Create API Token</UI>. Name it <C>morcheh</C> and copy the
-            token.
+            <UI>Create API Token</UI>. Name it <C>morche</C> and copy the token.
           </P>
           <P>
             In Morche open <UI>DNS</UI> and press <UI>Add DNS server</UI>.

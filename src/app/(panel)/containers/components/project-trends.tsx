@@ -45,7 +45,7 @@ export function ProjectTrends({
   phone: boolean
 }) {
   const [range, setRange] = useStoredChoice<Choice>(
-    "morcheh.docker.project.range",
+    "morche.docker.project.range",
     choices,
   )
   return (

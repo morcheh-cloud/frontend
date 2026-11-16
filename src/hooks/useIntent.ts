@@ -8,7 +8,7 @@ import { useEffect, useRef } from "react"
 // it is already mounted. Nothing goes into the URL, so Back and reloads never
 // replay it.
 
-const EVENT = "morcheh:intent"
+const EVENT = "morche:intent"
 let pending: string | null = null
 
 export function queueIntent(name: string) {

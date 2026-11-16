@@ -354,7 +354,7 @@ export type ProjectDraft = {
 }
 
 export function draftKey(server: string, template?: string) {
-  return `morcheh.docker.new-project.${server}.${template ?? "blank"}`
+  return `morche.docker.new-project.${server}.${template ?? "blank"}`
 }
 
 export function readDraft(key: string): ProjectDraft | null {

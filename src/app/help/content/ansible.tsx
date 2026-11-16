@@ -361,8 +361,8 @@ export const ansible: GuideSection[] = [
         <P>
           Servers are named in the inventory after their name in Morche, with
           spaces turned into <C>-</C>. The <UI>Servers</UI> tab of a run shows
-          each one's inventory name. Each host also gets{" "}
-          <C>morcheh_server_id</C> and <C>morcheh_server_name</C> as variables.
+          each one's inventory name. Each host also gets <C>morche_server_id</C>{" "}
+          and <C>morche_server_name</C> as variables.
         </P>
         <Tip>
           A play whose <C>hosts:</C> matches none of the servers in the run is

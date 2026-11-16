@@ -137,7 +137,7 @@ export const applications: GuideSection[] = [
             ],
             [
               "Docker apps installed from here",
-              "Still running, untouched. They show in Containers › Projects on that server; Find on the disk (or Add by path: /opt/morcheh/apps/<id>) lists them with their compose file.",
+              "Still running, untouched. They show in Containers › Projects on that server; Find on the disk (or Add by path: /opt/morche/apps/<id>) lists them with their compose file.",
             ],
           ]}
         />
@@ -553,7 +553,7 @@ uninstall: rm -f /usr/local/bin/mycli`}
           <b>A Docker app I installed here is gone from the list.</b> Container
           apps moved to <UI>Containers</UI>: open <UI>Projects</UI> on that
           server; <UI>Find on the disk</UI> (or <UI>Add by path</UI> with{" "}
-          <C>/opt/morcheh/apps/&lt;id&gt;</C>) lists it with its compose file.
+          <C>/opt/morche/apps/&lt;id&gt;</C>) lists it with its compose file.
         </li>
         <li>
           <b>Not found.</b> The last check couldn't find it on the server any

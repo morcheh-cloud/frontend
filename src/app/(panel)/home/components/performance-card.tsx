@@ -38,11 +38,8 @@ const rangeItems = insightRanges.map((r) => ({ value: r, label: r }))
 // Availability and one measure over time for the whole fleet, with its own
 // range: the Servers › Insights tab in small.
 export function PerformanceCard({ className }: { className?: string }) {
-  const [range, setRange] = useStoredChoice("morcheh.home.range", insightRanges)
-  const [measure, setMeasure] = useStoredChoice(
-    "morcheh.home.measure",
-    measures,
-  )
+  const [range, setRange] = useStoredChoice("morche.home.range", insightRanges)
+  const [measure, setMeasure] = useStoredChoice("morche.home.measure", measures)
   const q = useServerInsights(range)
   const m = q.data ? buildModel(q.data) : null
   const t = m?.totals

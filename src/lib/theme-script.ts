@@ -1,7 +1,7 @@
 // Shared by the root layout (server) and `@/components/theme` (client): a
 // server component can't import plain values from a "use client" module.
 
-export const THEME_KEY = "morcheh.theme"
+export const THEME_KEY = "morche.theme"
 export const DARK_QUERY = "(prefers-color-scheme: dark)"
 
 // Browser chrome on phones (status bar): the page background of each theme.

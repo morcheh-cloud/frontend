@@ -6,9 +6,9 @@ import { useEffect, useState } from "react"
 // that led somewhere. Storage can be unavailable (private mode); then both
 // lists simply stay empty.
 
-const GUIDES = "morcheh.help.recent"
-const SEARCHES = "morcheh.help.searches"
-const EVENT = "morcheh:help-recent"
+const GUIDES = "morche.help.recent"
+const SEARCHES = "morche.help.searches"
+const EVENT = "morche:help-recent"
 
 function read(key: string): string[] {
   try {

@@ -210,7 +210,7 @@ export function ImportDialog({
           <Textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder='{ "kind": "morcheh.docker-settings", … }'
+            placeholder='{ "kind": "morche.docker-settings", … }'
             className="min-h-28 font-mono text-caption"
             spellCheck={false}
             aria-label="Settings file text"

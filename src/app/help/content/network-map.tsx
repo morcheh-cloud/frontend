@@ -162,7 +162,7 @@ export const networkMap: GuideSection[] = [
     ),
   },
   {
-    id: "from-morcheh",
+    id: "from-morche",
     title: "From Morche view",
     body: (
       <P>

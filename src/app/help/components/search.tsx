@@ -45,7 +45,7 @@ export function useHelpSearch() {
 
 // Ask the article page to highlight a section once it is on screen (a
 // same-page hash push fires no event of its own).
-export const JUMP_EVENT = "morcheh:help-jump"
+export const JUMP_EVENT = "morche:help-jump"
 
 // Full-text search over every guide, opened from the header, the home page,
 // phone app bars, or with ⌘K / Ctrl+K / "/" anywhere in help.

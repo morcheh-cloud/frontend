@@ -103,6 +103,180 @@ const topPages = new Set([
 ])
 export const shortcutPages = pages.filter((p) => topPages.has(p.href ?? ""))
 
+// Things to create; the palette and the header's + menu offer them.
+export const addCommands: Command[] = [
+  {
+    key: "action:add-server",
+    label: "Add server",
+    icon: Plus,
+    tile: "brand",
+    href: "/servers",
+    intent: "add-server",
+    keywords: "new create ssh host",
+  },
+  {
+    key: "action:new-vm",
+    label: "New virtual machine or container",
+    icon: Plus,
+    tile: "brand",
+    href: "/vms/new",
+    keywords:
+      "create proxmox pve vm lxc container qemu kvm clone template cloud-init iso",
+  },
+  {
+    key: "action:add-pve-cluster",
+    label: "Add Proxmox cluster",
+    icon: Plus,
+    tile: "brand",
+    href: vmsHref("clusters"),
+    intent: "add-pve-cluster",
+    keywords: "new connect proxmox pve virtualization hypervisor node token",
+  },
+  {
+    key: "action:add-database",
+    label: "Add database",
+    icon: Plus,
+    tile: "brand",
+    href: "/databases/new",
+    keywords:
+      "new create deploy container docker monitor postgres postgresql mysql mariadb sql server mssql redis mongodb",
+  },
+  {
+    key: "action:add-storage",
+    label: "Add storage",
+    icon: Plus,
+    tile: "brand",
+    href: "/storage",
+    intent: "add-storage",
+    keywords: "new create s3 ftp sftp webdav bucket",
+  },
+  {
+    key: "action:new-storage-sync",
+    label: "New storage sync",
+    icon: Plus,
+    tile: "brand",
+    href: "/storage/syncs/new?kind=sync",
+    keywords:
+      "create sync mirror copy replicate replication minio bucket storage schedule background",
+  },
+  {
+    key: "action:new-storage-migration",
+    label: "New storage migration",
+    icon: Plus,
+    tile: "brand",
+    href: "/storage/syncs/new?kind=migrate",
+    keywords: "create migrate move copy transfer storage bucket s3 ftp webdav",
+  },
+  {
+    key: "action:add-dns-server",
+    label: "Add DNS server",
+    icon: Plus,
+    tile: "brand",
+    href: "/dns",
+    intent: "add-dns-server",
+    keywords: "new create technitium nameserver ns zone domain records",
+  },
+  {
+    key: "action:add-cloud-account",
+    label: "Add cloud account",
+    icon: Plus,
+    tile: "brand",
+    href: "/cloud",
+    intent: "add-cloud-account",
+    keywords: "new connect arvan arvancloud provider api key iaas vps",
+  },
+  {
+    key: "action:add-proxy",
+    label: "Add reverse proxy",
+    icon: Plus,
+    tile: "brand",
+    href: "/proxy",
+    intent: "add-proxy",
+    keywords: "new create nginx site domain https ssl vhost web server",
+  },
+  {
+    key: "action:add-service",
+    label: "Add service",
+    icon: Plus,
+    tile: "brand",
+    href: "/services",
+    intent: "add-service",
+    keywords: "new create web app link launcher bookmark login",
+  },
+  {
+    key: "action:add-cronjob",
+    label: "New cron job",
+    icon: Plus,
+    tile: "brand",
+    href: "/cronjobs/new",
+    keywords:
+      "create schedule sync backup copy mirror snapshot storage server timer",
+  },
+  {
+    key: "action:add-monitor",
+    label: "New monitor",
+    icon: Plus,
+    tile: "brand",
+    href: "/monitoring/new",
+    keywords:
+      "uptime monitor check http website ping tcp port dns certificate database queue heartbeat push alert",
+  },
+  {
+    key: "action:add-alert-rule",
+    label: "New alert rule",
+    icon: Plus,
+    tile: "brand",
+    href: "/alerts",
+    intent: "add-alert-rule",
+    keywords:
+      "alarm notify notification cpu memory disk full load swap network down unreachable threshold metric",
+  },
+  {
+    key: "action:add-alert-channel",
+    label: "Add alert channel",
+    icon: Plus,
+    tile: "brand",
+    href: "/alerts",
+    intent: "add-alert-channel",
+    keywords:
+      "notification notify email smtp telegram bale slack discord teams mattermost ntfy gotify pushover webhook",
+  },
+  {
+    key: "action:add-script",
+    label: "New script",
+    icon: Plus,
+    tile: "brand",
+    href: "/scripts/new",
+    keywords: "create shell bash python command saved snippet run",
+  },
+  {
+    key: "action:install-application",
+    label: "Install an application",
+    icon: LayoutGrid,
+    tile: "brand",
+    href: "/applications",
+    keywords:
+      "app software docker compose package catalog deploy setup add podman k3s swap chrony restic rclone tools",
+  },
+  {
+    key: "action:update-applications",
+    label: "Update applications and servers",
+    icon: ArrowUpCircle,
+    tile: "brand",
+    href: applicationsHref("updates"),
+    keywords: "upgrade apt dnf packages security patch software docker image",
+  },
+  {
+    key: "action:run-command",
+    label: "Run a command on servers",
+    icon: SquareTerminal,
+    tile: "brand",
+    href: "/scripts",
+    intent: "run-command",
+    keywords: "script shell bash exec execute many servers bulk ad hoc",
+  },
+]
+
 export function actions(
   pathname: string,
   toggleSidebar: () => void,
@@ -110,181 +284,8 @@ export function actions(
   theme: Theme,
 ): Command[] {
   const guide = guideForPath(pathname)
-  const add: Command[] = [
-    {
-      key: "action:add-server",
-      label: "Add server",
-      icon: Plus,
-      tile: "brand",
-      href: "/servers",
-      intent: "add-server",
-      keywords: "new create ssh host",
-    },
-    {
-      key: "action:new-vm",
-      label: "New virtual machine or container",
-      icon: Plus,
-      tile: "brand",
-      href: "/vms/new",
-      keywords:
-        "create proxmox pve vm lxc container qemu kvm clone template cloud-init iso",
-    },
-    {
-      key: "action:add-pve-cluster",
-      label: "Add Proxmox cluster",
-      icon: Plus,
-      tile: "brand",
-      href: vmsHref("clusters"),
-      intent: "add-pve-cluster",
-      keywords: "new connect proxmox pve virtualization hypervisor node token",
-    },
-    {
-      key: "action:add-database",
-      label: "Add database",
-      icon: Plus,
-      tile: "brand",
-      href: "/databases/new",
-      keywords:
-        "new create deploy container docker monitor postgres postgresql mysql mariadb sql server mssql redis mongodb",
-    },
-    {
-      key: "action:add-storage",
-      label: "Add storage",
-      icon: Plus,
-      tile: "brand",
-      href: "/storage",
-      intent: "add-storage",
-      keywords: "new create s3 ftp sftp webdav bucket",
-    },
-    {
-      key: "action:new-storage-sync",
-      label: "New storage sync",
-      icon: Plus,
-      tile: "brand",
-      href: "/storage/syncs/new?kind=sync",
-      keywords:
-        "create sync mirror copy replicate replication minio bucket storage schedule background",
-    },
-    {
-      key: "action:new-storage-migration",
-      label: "New storage migration",
-      icon: Plus,
-      tile: "brand",
-      href: "/storage/syncs/new?kind=migrate",
-      keywords:
-        "create migrate move copy transfer storage bucket s3 ftp webdav",
-    },
-    {
-      key: "action:add-dns-server",
-      label: "Add DNS server",
-      icon: Plus,
-      tile: "brand",
-      href: "/dns",
-      intent: "add-dns-server",
-      keywords: "new create technitium nameserver ns zone domain records",
-    },
-    {
-      key: "action:add-cloud-account",
-      label: "Add cloud account",
-      icon: Plus,
-      tile: "brand",
-      href: "/cloud",
-      intent: "add-cloud-account",
-      keywords: "new connect arvan arvancloud provider api key iaas vps",
-    },
-    {
-      key: "action:add-proxy",
-      label: "Add reverse proxy",
-      icon: Plus,
-      tile: "brand",
-      href: "/proxy",
-      intent: "add-proxy",
-      keywords: "new create nginx site domain https ssl vhost web server",
-    },
-    {
-      key: "action:add-service",
-      label: "Add service",
-      icon: Plus,
-      tile: "brand",
-      href: "/services",
-      intent: "add-service",
-      keywords: "new create web app link launcher bookmark login",
-    },
-    {
-      key: "action:add-cronjob",
-      label: "New cron job",
-      icon: Plus,
-      tile: "brand",
-      href: "/cronjobs/new",
-      keywords:
-        "create schedule sync backup copy mirror snapshot storage server timer",
-    },
-    {
-      key: "action:add-monitor",
-      label: "New monitor",
-      icon: Plus,
-      tile: "brand",
-      href: "/monitoring/new",
-      keywords:
-        "uptime monitor check http website ping tcp port dns certificate database queue heartbeat push alert",
-    },
-    {
-      key: "action:add-alert-rule",
-      label: "New alert rule",
-      icon: Plus,
-      tile: "brand",
-      href: "/alerts",
-      intent: "add-alert-rule",
-      keywords:
-        "alarm notify notification cpu memory disk full load swap network down unreachable threshold metric",
-    },
-    {
-      key: "action:add-alert-channel",
-      label: "Add alert channel",
-      icon: Plus,
-      tile: "brand",
-      href: "/alerts",
-      intent: "add-alert-channel",
-      keywords:
-        "notification notify email smtp telegram bale slack discord teams mattermost ntfy gotify pushover webhook",
-    },
-    {
-      key: "action:add-script",
-      label: "New script",
-      icon: Plus,
-      tile: "brand",
-      href: "/scripts/new",
-      keywords: "create shell bash python command saved snippet run",
-    },
-    {
-      key: "action:install-application",
-      label: "Install an application",
-      icon: LayoutGrid,
-      tile: "brand",
-      href: "/applications",
-      keywords:
-        "app software docker compose package catalog deploy setup add podman k3s swap chrony restic rclone tools",
-    },
-    {
-      key: "action:update-applications",
-      label: "Update applications and servers",
-      icon: ArrowUpCircle,
-      tile: "brand",
-      href: applicationsHref("updates"),
-      keywords: "upgrade apt dnf packages security patch software docker image",
-    },
-    {
-      key: "action:run-command",
-      label: "Run a command on servers",
-      icon: SquareTerminal,
-      tile: "brand",
-      href: "/scripts",
-      intent: "run-command",
-      keywords: "script shell bash exec execute many servers bulk ad hoc",
-    },
-  ]
   return [
-    ...(canAdd ? add : []),
+    ...(canAdd ? addCommands : []),
     {
       key: "action:guide",
       label: guide ? `How ${guide.guide.title} works` : "Open help",
@@ -425,8 +426,8 @@ export type Recent = {
   href: string
 }
 
-const RECENT = "morcheh.palette.recent"
-const EVENT = "morcheh:palette-recent"
+const RECENT = "morche.palette.recent"
+const EVENT = "morche:palette-recent"
 
 function read(): Recent[] {
   try {

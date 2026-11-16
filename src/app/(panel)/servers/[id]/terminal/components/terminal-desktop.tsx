@@ -249,7 +249,7 @@ export function TerminalDesktop({
   )
 }
 
-const HISTORY_KEY = "morcheh.terminal.history"
+const HISTORY_KEY = "morche.terminal.history"
 
 // Whether the recent-commands box shows; on unless the user closed it.
 function useHistoryShown() {

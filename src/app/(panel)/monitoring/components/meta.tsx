@@ -219,7 +219,7 @@ export function KindIcon({
 // Kinds that need a server to run on, and the ones that can't use one.
 export const onServer = (k: Kind) =>
   k === "docker" || k === "systemd" || k === "command"
-export const morchehOnly = (k: Kind) => k === "push" || k === "udp"
+export const morcheOnly = (k: Kind) => k === "push" || k === "udp"
 
 export const stateOf = (m: Pick<UptimeMonitor, "paused" | "status">) =>
   (m.paused ? "paused" : m.status) as MonitorState

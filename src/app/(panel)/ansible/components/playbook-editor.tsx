@@ -116,7 +116,7 @@ export function PlaybookPage({ id }: { id?: string }) {
 type Pane = "playbook" | "variables" | "details" | "runs"
 type Mode = "visual" | "yaml"
 
-const modeKey = "morcheh.ansible.editor-mode"
+const modeKey = "morche.ansible.editor-mode"
 const modes = [
   { value: "visual", label: "Visual" },
   { value: "yaml", label: "YAML" },

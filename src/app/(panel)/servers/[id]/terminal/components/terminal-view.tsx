@@ -36,7 +36,7 @@ export type Command = {
 }
 
 // Kept per session for the browser tab, so a reload keeps the history.
-const commandsKey = (session: string) => `morcheh.terminal.commands.${session}`
+const commandsKey = (session: string) => `morche.terminal.commands.${session}`
 const MAX_COMMANDS = 100
 
 export type TerminalHandle = {

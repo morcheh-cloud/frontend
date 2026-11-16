@@ -81,7 +81,7 @@ export const servers: GuideSection[] = [
             },
             {
               setting: "User",
-              value: "A dedicated user, e.g. morcheh",
+              value: "A dedicated user, e.g. morche",
               why: "Its actions are easy to tell apart in logs, and you can revoke it alone.",
             },
             {
@@ -99,18 +99,18 @@ export const servers: GuideSection[] = [
         <Example title="Create a key and a dedicated user">
           <P>On the server (as root, or with sudo):</P>
           <Code>{`
-sudo adduser --disabled-password --gecos "" morcheh
-echo 'morcheh ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/morcheh
-sudo chmod 440 /etc/sudoers.d/morcheh
+sudo adduser --disabled-password --gecos "" morche
+echo 'morche ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/morche
+sudo chmod 440 /etc/sudoers.d/morche
 `}</Code>
           <P>On your computer, make a key and install it for that user:</P>
           <Code>{`
-ssh-keygen -t ed25519 -C morcheh -f ~/.ssh/morcheh
-ssh-copy-id -i ~/.ssh/morcheh.pub morcheh@203.0.113.10
+ssh-keygen -t ed25519 -C morche -f ~/.ssh/morche
+ssh-copy-id -i ~/.ssh/morche.pub morche@203.0.113.10
 `}</Code>
           <P>
-            Then add the server with user <C>morcheh</C>, authentication{" "}
-            <UI>Private key</UI>, and load <C>~/.ssh/morcheh</C> (the file
+            Then add the server with user <C>morche</C>, authentication{" "}
+            <UI>Private key</UI>, and load <C>~/.ssh/morche</C> (the file
             without <C>.pub</C>).
           </P>
         </Example>

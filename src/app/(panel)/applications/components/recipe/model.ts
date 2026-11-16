@@ -237,7 +237,7 @@ const reserved = new Set([
 ])
 export const reservedParam = (n: string) =>
   reserved.has(n) ||
-  ["LD_", "BASH_FUNC", "PYTHON", "MORCHEH_"].some((p) => n.startsWith(p))
+  ["LD_", "BASH_FUNC", "PYTHON", "MORCHE_"].some((p) => n.startsWith(p))
 
 export type Problems = Record<string, string>
 

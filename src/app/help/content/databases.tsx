@@ -300,31 +300,31 @@ export const databases: GuideSection[] = [
           note on the dashboard saying which grant is missing.
         </P>
         <Example title="PostgreSQL">
-          <Code>{`CREATE ROLE morcheh LOGIN PASSWORD 'change-me';
-GRANT pg_monitor TO morcheh;
+          <Code>{`CREATE ROLE morche LOGIN PASSWORD 'change-me';
+GRANT pg_monitor TO morche;
 -- to stop other sessions with Kill:
-GRANT pg_signal_backend TO morcheh;
+GRANT pg_signal_backend TO morche;
 -- for the Queries tab (needs shared_preload_libraries = 'pg_stat_statements'):
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;`}</Code>
         </Example>
         <Example title="MySQL / MariaDB">
-          <Code>{`CREATE USER 'morcheh'@'%' IDENTIFIED BY 'change-me';
-GRANT PROCESS, REPLICATION CLIENT ON *.* TO 'morcheh'@'%';
-GRANT SELECT ON performance_schema.* TO 'morcheh'@'%';
+          <Code>{`CREATE USER 'morche'@'%' IDENTIFIED BY 'change-me';
+GRANT PROCESS, REPLICATION CLIENT ON *.* TO 'morche'@'%';
+GRANT SELECT ON performance_schema.* TO 'morche'@'%';
 -- to stop other sessions with Kill (MySQL 8):
-GRANT CONNECTION_ADMIN ON *.* TO 'morcheh'@'%';`}</Code>
+GRANT CONNECTION_ADMIN ON *.* TO 'morche'@'%';`}</Code>
         </Example>
         <Example title="SQL Server">
-          <Code>{`CREATE LOGIN morcheh WITH PASSWORD = 'Change-me-2026!';
-GRANT VIEW SERVER STATE TO morcheh;  -- 2022: VIEW SERVER PERFORMANCE STATE
-GRANT VIEW ANY DEFINITION TO morcheh;
+          <Code>{`CREATE LOGIN morche WITH PASSWORD = 'Change-me-2026!';
+GRANT VIEW SERVER STATE TO morche;  -- 2022: VIEW SERVER PERFORMANCE STATE
+GRANT VIEW ANY DEFINITION TO morche;
 -- to stop other sessions with Kill:
-GRANT ALTER ANY CONNECTION TO morcheh;`}</Code>
+GRANT ALTER ANY CONNECTION TO morche;`}</Code>
         </Example>
         <Example title="MongoDB">
           <Code>{`use admin
 db.createUser({
-  user: "morcheh",
+  user: "morche",
   pwd: "change-me",
   roles: ["clusterMonitor"]  // add "hostManager" to stop operations
 })`}</Code>
@@ -332,7 +332,7 @@ db.createUser({
         <Example title="Redis (6 and later)">
           <Code>
             {
-              "ACL SETUSER morcheh on >change-me -@all +ping +info +client|list +client|kill +slowlog|get +config|get +acl|list +scan +type +memory|usage +dbsize"
+              "ACL SETUSER morche on >change-me -@all +ping +info +client|list +client|kill +slowlog|get +config|get +acl|list +scan +type +memory|usage +dbsize"
             }
           </Code>
         </Example>

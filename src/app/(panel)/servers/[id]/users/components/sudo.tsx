@@ -36,8 +36,8 @@ export function SudoTab() {
         title="Who can use sudo"
         hint={
           o.sudo_group
-            ? `Sudo with a password comes from the ${o.sudo_group} group; without a password, from a rule in /etc/sudoers.d/morcheh-<name>.`
-            : "Morche gives sudo with a rule in /etc/sudoers.d/morcheh-<name>."
+            ? `Sudo with a password comes from the ${o.sudo_group} group; without a password, from a rule in /etc/sudoers.d/morche-<name>.`
+            : "Morche gives sudo with a rule in /etc/sudoers.d/morche-<name>."
         }
       >
         <People users={list} />

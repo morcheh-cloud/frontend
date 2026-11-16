@@ -46,8 +46,8 @@ export function checkConfig(text: string): string {
   let quote = ""
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
-    if (/^\s*MORCHEH_/.test(line) || line.includes("@@morcheh-")) {
-      return `Line ${i + 1} starts with a word Morche keeps for itself (MORCHEH_ / @@morcheh-).`
+    if (/^\s*MORCHE_/.test(line) || line.includes("@@morche-")) {
+      return `Line ${i + 1} starts with a word Morche keeps for itself (MORCHE_ / @@morche-).`
     }
     for (const ch of line) {
       if (quote) {
@@ -68,12 +68,12 @@ export function checkConfig(text: string): string {
 type TestResult = { ok: boolean; output: string; tested: string }
 
 // The line of this site's file nginx -t complains about, if it's this one:
-// "... in /etc/nginx/morcheh/hosts/<id>.conf:12". A new site is tested
+// "... in /etc/nginx/morche/hosts/<id>.conf:12". A new site is tested
 // under an id of its own, so any file of Morche's sites counts then.
 function failedLine(output: string, hostId: string | undefined) {
   for (const m of output.matchAll(/in (\S+\.conf):(\d+)/g)) {
     const file = m[1]
-    if (hostId ? file.includes(hostId) : file.includes("/morcheh/hosts/")) {
+    if (hostId ? file.includes(hostId) : file.includes("/morche/hosts/")) {
       return Number(m[2])
     }
   }
@@ -406,7 +406,7 @@ export function ConfigTab({
       )}
 
       <p className="text-caption text-ash">
-        Written to its own file in /etc/{p.kind}/morcheh/ and tested before it's
+        Written to its own file in /etc/{p.kind}/morche/ and tested before it's
         loaded. If the test fails, nothing changes on the server.
       </p>
 

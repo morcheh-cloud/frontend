@@ -422,7 +422,7 @@ function OutputSection({
   loaded: boolean
   phone: boolean
 }) {
-  const [wrap, setWrap] = useStoredChoice("morcheh.audit.output.wrap", wraps)
+  const [wrap, setWrap] = useStoredChoice("morche.audit.output.wrap", wraps)
   const { copied, copy } = useCopy()
   const out = c.output
   const text = out?.text ? cleanTerminal(out.text) : ""

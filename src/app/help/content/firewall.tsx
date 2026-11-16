@@ -307,7 +307,7 @@ export const firewall: GuideSection[] = [
             itself.
           </li>
           <li>
-            Morche keeps the rules in its own chain (<C>MORCHEH-DOCKER</C>,
+            Morche keeps the rules in its own chain (<C>MORCHE-DOCKER</C>,
             reached from Docker's <C>DOCKER-USER</C>) and puts them back after a
             reboot or a Docker restart.
           </li>

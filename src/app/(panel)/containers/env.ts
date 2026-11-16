@@ -8,8 +8,8 @@ import { useDockerFleet } from "./api"
 // The "environment" every Containers page works on: one server with an
 // engine, picked in the sidebar (or by a link with `?env=`), remembered per
 // browser like Arcane's environment switcher.
-const KEY = "morcheh.docker.env"
-const EVENT = "morcheh:docker-env"
+const KEY = "morche.docker.env"
+const EVENT = "morche:docker-env"
 
 function read() {
   try {

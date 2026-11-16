@@ -237,7 +237,7 @@
 
 /* Terminal recordings (asciinema-player): our ANSI tokens, so a replay looks
    like the live terminal in both themes. */
-.ap-player.asciinema-player-theme-morcheh {
+.ap-player.asciinema-player-theme-morche {
   --term-color-foreground: var(--foreground);
   --term-color-background: var(--background);
   --term-color-0: var(--term-black);

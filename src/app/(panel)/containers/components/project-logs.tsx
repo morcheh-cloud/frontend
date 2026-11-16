@@ -54,11 +54,8 @@ export function ProjectLogs({
   const [q, setQ] = useState("")
   const [stream, setStream] = useState<Stream>("all")
   const [follow, setFollow] = useState(true)
-  const [wrap, setWrap] = useStoredFlag("morcheh.containers.logs.wrap", true)
-  const [times, setTimes] = useStoredFlag(
-    "morcheh.containers.logs.times",
-    false,
-  )
+  const [wrap, setWrap] = useStoredFlag("morche.containers.logs.wrap", true)
+  const [times, setTimes] = useStoredFlag("morche.containers.logs.times", false)
   const backlog = useProjectLogs(serverId, project, tail)
   const since = backlog.data?.lines.at(-1)?.time
   const live = useProjectLogFollow(

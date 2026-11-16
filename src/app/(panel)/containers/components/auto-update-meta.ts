@@ -24,7 +24,7 @@ export const pickMeta: Record<
   },
   labeled: {
     label: "Labelled ones",
-    hint: "Only containers labelled morcheh.auto-update.enable=true (Watchtower's com.centurylinklabs.watchtower.enable=true works too).",
+    hint: "Only containers labelled morche.auto-update.enable=true (Watchtower's com.centurylinklabs.watchtower.enable=true works too).",
   },
   chosen: {
     label: "Chosen ones",

@@ -85,8 +85,8 @@ export function useFiles() {
   return ctx
 }
 
-const HIDDEN_KEY = "morcheh.files.hidden"
-const SORT_KEY = "morcheh.files.sort"
+const HIDDEN_KEY = "morche.files.hidden"
+const SORT_KEY = "morche.files.sort"
 
 function stored<T>(key: string, fallback: T): T {
   try {

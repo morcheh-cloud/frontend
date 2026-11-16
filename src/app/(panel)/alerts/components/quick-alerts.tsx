@@ -184,7 +184,7 @@ export function QuickAlerts({
   const router = useRouter()
   const channels = useChannels()
   const statusOf = useStatuses()
-  const [group, setGroup] = useStoredChoice("morcheh.quick-alerts", groups)
+  const [group, setGroup] = useStoredChoice("morche.quick-alerts", groups)
 
   const canPick = (p: Choice) => (p.preset ? a.can : monitorCan.edit)
   const start = (p: Choice) => {

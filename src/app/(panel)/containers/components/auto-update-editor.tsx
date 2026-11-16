@@ -276,7 +276,7 @@ export function AutoUpdateEditor({
           <Callout icon={<TagIcon />}>
             Add the label{" "}
             <code className="font-mono text-foreground">
-              morcheh.auto-update.enable=true
+              morche.auto-update.enable=true
             </code>{" "}
             to a container (in compose: under <code>labels:</code>). Containers
             already set up for Watchtower (
@@ -309,14 +309,14 @@ export function AutoUpdateEditor({
         <Field
           label="Never touch"
           error={errors.exclude}
-          hint="Same kinds of names. A container labelled morcheh.auto-update.enable=false is left out too."
+          hint="Same kinds of names. A container labelled morche.auto-update.enable=false is left out too."
         >
           {(p) => (
             <Textarea
               {...p}
               rows={2}
               value={form.exclude}
-              placeholder={"postgres*\nmorcheh"}
+              placeholder={"postgres*\nmorche"}
               onChange={(e) => set({ exclude: e.target.value }, "exclude")}
               className="font-mono text-body-sm"
               spellCheck={false}
@@ -492,7 +492,7 @@ export function AutoUpdateEditor({
             <Callout icon={<Info />}>
               Labels (prefix{" "}
               <code className="font-mono text-foreground">
-                morcheh.auto-update.
+                morche.auto-update.
               </code>{" "}
               or Watchtower's{" "}
               <code className="font-mono">com.centurylinklabs.watchtower.</code>

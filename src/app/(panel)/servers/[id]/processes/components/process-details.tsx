@@ -466,13 +466,13 @@ function Overview({
             <p className="text-muted-foreground">{hint}</p>
           </Callout>
         )}
-      {p.morcheh && (
+      {p.morche && (
         <Callout icon={ShieldAlert}>
           Part of Morche's own connection to this server. It can't be signalled
           from here: ending it would cut Morche off.
         </Callout>
       )}
-      {p.protected && !p.morcheh && (
+      {p.protected && !p.morche && (
         <Callout icon={ShieldAlert}>
           The system relies on it (SSH, logging, init…). Ending or pausing it
           asks you to confirm first: this server may stop answering.

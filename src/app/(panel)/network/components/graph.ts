@@ -275,7 +275,7 @@ const statusTone = {
 } as const
 
 // Morche in the middle: how it, not the servers, gets to each one.
-export function morchehGraph(
+export function morcheGraph(
   map: NetworkMap,
   filters: Pick<Filters, "problems">,
 ): Graph {
@@ -285,10 +285,10 @@ export function morchehGraph(
   const radius = circleRadius(shown.length)
   const nodes: Node[] = [
     {
-      id: "morcheh",
+      id: "morche",
       type: "hub",
       position: { x: -NODE_WIDTH / 2, y: -BOX / 2 },
-      data: { flow: "free", text: "morcheh" } satisfies HubData,
+      data: { flow: "free", text: "morche" } satisfies HubData,
     },
     ...shown.map((entry, i) => ({
       ...serverNode(entry, "free"),
@@ -300,7 +300,7 @@ export function morchehGraph(
     return {
       id: `m:${s.id}`,
       type: "float",
-      source: "morcheh",
+      source: "morche",
       target: sid(s.id),
       data: {
         stroke: strokes[tone],

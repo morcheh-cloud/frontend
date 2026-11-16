@@ -69,7 +69,7 @@ export function useInstallMenu(
       onSelect: () => a.forget(i),
     })
   }
-  if (i.status === "failed" && can.installOn(i) && i.origin === "morcheh") {
+  if (i.status === "failed" && can.installOn(i) && i.origin === "morche") {
     change.push({
       key: "retry",
       label: "Install again",

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { ApiError } from "@/lib/api"
 
 // The backend's answer when the panel's allowlist keeps an address out.
-export const ADDRESS_REFUSED = "urn:morcheh:address-not-allowed"
+export const ADDRESS_REFUSED = "urn:morche:address-not-allowed"
 
 export function isAddressRefused(error: unknown) {
   return error instanceof ApiError && error.body?.type === ADDRESS_REFUSED

@@ -73,7 +73,7 @@ export function ServersDesktop() {
   const folders = useShownFolders(filters)
   // A level holding only folders has no empty list to explain.
   const showList = servers.isPending || items.length > 0 || !folders.length
-  const [listView, setListView] = useStoredChoice("morcheh.servers.view", [
+  const [listView, setListView] = useStoredChoice("morche.servers.view", [
     "cards",
     "table",
   ])

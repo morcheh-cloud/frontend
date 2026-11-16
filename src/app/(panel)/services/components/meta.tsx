@@ -223,4 +223,4 @@ export function visibleGroups(
 
 // Tiles or table, remembered on this browser.
 export const useViewMode = () =>
-  useStoredChoice("morcheh.services.view", ["tiles", "table"])
+  useStoredChoice("morche.services.view", ["tiles", "table"])
