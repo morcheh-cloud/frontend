@@ -7,6 +7,7 @@ const PERSONAL = [
   "morche.palette.recent",
   "morche.workspace",
   "morche.services.view",
+  "morche.header.terminals",
 ]
 const PERSONAL_PREFIX = "morche.netmap.layout."
 

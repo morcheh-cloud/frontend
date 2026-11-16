@@ -35,7 +35,7 @@ RUN pnpm build
 
 # ---- runtime ------------------------------------------------------------------
 FROM node:${NODE_VERSION}-slim
-LABEL org.opencontainers.image.source=https://github.com/morche-cloud/frontend \
+LABEL org.opencontainers.image.source=https://github.com/morcheh-cloud/frontend \
       org.opencontainers.image.title="Morche panel" \
       org.opencontainers.image.description="Web panel for Morche: SSH-based server management and monitoring"
 WORKDIR /app

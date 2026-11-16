@@ -73,4 +73,4 @@ docker run -e API_URL=https://api.example.com -p 3200:3200 morcheh-frontend
 - `API_URL` = the address people's browsers reach the backend at. The image is built with a placeholder that `docker-entrypoint.sh` replaces with it on start; change it and restart the container to move. `--build-arg NEXT_PUBLIC_API_URL=…` bakes one address in instead.
 - The image serves the standalone build with `node server.js` on `:3200`.
 - Published images: `ghcr.io/morcheh-cloud/frontend` (`.github/workflows/image.yml`: `edge` from main, versions from `v*` tags; amd64 + arm64).
-- Self-hosting (Postgres, Redis, backend, panel from the published images): the [deploy repository](https://github.com/morcheh-cloud/morcheh). Building the whole stack from source: `../backend/deploy/compose.yml`.
+- Self-hosting (Postgres, Redis, backend, panel from the published images): the [deploy repository](https://github.com/morcheh-cloud/morche). Building the whole stack from source: `../backend/deploy/compose.yml`.
