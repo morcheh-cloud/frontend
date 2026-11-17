@@ -43,6 +43,7 @@ import {
 import { useDashboard } from "../parts"
 import { BackupDetails } from "./backup-details"
 import { folderOf, storedOn } from "./meta"
+import { RestoreFileLayer } from "./restore-file-layer"
 import { RestoreLayer } from "./restore-layer"
 
 type Actions = {
@@ -54,6 +55,8 @@ type Actions = {
   cancel: (b: Backup) => void
   remove: (b: Backup) => void
   restore: (b: Backup) => void
+  // Restore a dump that sits on a server or a storage.
+  restoreFile: () => void
 }
 
 const ActionsContext = createContext<Actions | null>(null)
@@ -102,6 +105,8 @@ export function BackupActionsProvider({ children }: { children: ReactNode }) {
   const [restoring, setRestoring] = useState<{ b?: Backup; nonce: number }>({
     nonce: 0,
   })
+  const [fileOpen, setFileOpen] = useOpen("backup-restore-file")
+  const [fileNonce, setFileNonce] = useState(0)
   const [rmPlanOpen, setRmPlanOpen] = useOpen("backup-plan-remove")
   const [rmPlan, setRmPlan] = useState<BackupPlan>()
   const [detailsOpen, setDetailsOpen] = useOpen("backup-details")
@@ -156,6 +161,10 @@ export function BackupActionsProvider({ children }: { children: ReactNode }) {
       setRestoring((r) => ({ b, nonce: r.nonce + 1 }))
       setRestoreOpen(true)
     },
+    restoreFile: () => {
+      setFileNonce((n) => n + 1)
+      setFileOpen(true)
+    },
   }
 
   return (
@@ -166,6 +175,11 @@ export function BackupActionsProvider({ children }: { children: ReactNode }) {
         backup={restoring.b}
         open={restoreOpen}
         onOpenChange={setRestoreOpen}
+      />
+      <RestoreFileLayer
+        key={`file-${fileNonce}`}
+        open={fileOpen}
+        onOpenChange={setFileOpen}
       />
       <BackupDetails
         id={detailsId}

@@ -20,6 +20,8 @@ import type {
   DatabaseHistory,
   DatabaseTestBody,
   RestoreBody,
+  RestoreFileBody,
+  RestoreFileSource,
   UpdateDatabaseMonitoringRequest,
 } from "@/lib/services"
 
@@ -320,6 +322,8 @@ export const backupKeys = {
   options: (id: string) => ["database-backups", "options", id] as const,
   restores: (id: string, page: number) =>
     ["database-backups", "restores", id, page] as const,
+  file: (id: string, source: RestoreFileSource) =>
+    ["database-backups", "file", id, source] as const,
 }
 
 export const backupActive = (b: Pick<Backup, "state">) =>
@@ -443,6 +447,28 @@ export const useCancelBackup = () =>
 export const useRestoreBackup = () =>
   useBackupWrite((v: { id: string; body: RestoreBody }) =>
     api.databaseBackups.restoreDatabaseBackup(v.id, v.body),
+  )
+
+// What a file on a storage or server is, and whether it can go into this
+// database. Read again each time it's asked: the file may have changed.
+export function useRestoreFileInfo(id: string, source?: RestoreFileSource) {
+  return useQuery({
+    queryKey: backupKeys.file(id, source ?? { path: "" }),
+    queryFn: () =>
+      api.databaseBackups.inspectDatabaseRestoreFile(id, {
+        source: source as RestoreFileSource,
+      }),
+    enabled: !!source?.path,
+    retry: false,
+    staleTime: 0,
+    gcTime: 60_000,
+  })
+}
+
+// Answers with a job: hand it to `track`.
+export const useRestoreFile = () =>
+  useBackupWrite((v: { id: string; body: RestoreFileBody }) =>
+    api.databaseBackups.restoreDatabaseFile(v.id, v.body),
   )
 
 export const useDeleteBackup = () =>

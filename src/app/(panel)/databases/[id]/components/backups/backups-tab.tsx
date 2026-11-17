@@ -4,6 +4,7 @@ import {
   ArchiveRestore,
   ChevronLeft,
   ChevronRight,
+  FileUp,
   Play,
   Plus,
 } from "lucide-react"
@@ -21,6 +22,7 @@ import {
 } from "@/app/(panel)/servers/[id]/components/parts"
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
 import { BottomSheet } from "@/components/bottom-sheet"
+import { basename } from "@/components/files/meta"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useOpen } from "@/hooks/useOpen"
@@ -76,6 +78,7 @@ const pagesOf = (total: number) => Math.max(1, Math.ceil(total / BACKUP_PAGE))
 
 function Backups() {
   const { database: d, phone, owner } = useDashboard()
+  const fromFile = owner && fileRestores(d.engine)
   const [{ list, page: rawPage }, setView] = useQueryStates(backupListParsers, {
     history: "replace",
   })
@@ -138,14 +141,17 @@ function Backups() {
           }
           action={
             owner ? (
-              <Button
-                className="max-md:h-11"
-                render={<Link href={newPlanHref(d.id)} />}
-                nativeButton={false}
-              >
-                <Plus />
-                New plan
-              </Button>
+              <div className="flex flex-wrap justify-center gap-2 max-md:w-full max-md:flex-col">
+                <Button
+                  className="max-md:h-11"
+                  render={<Link href={newPlanHref(d.id)} />}
+                  nativeButton={false}
+                >
+                  <Plus />
+                  New plan
+                </Button>
+                {fromFile && <RestoreFileButton />}
+              </div>
             ) : undefined
           }
         />
@@ -180,10 +186,13 @@ function Backups() {
           warn={broken.length > 0}
           onChange={(next) => void setView({ list: next, page: 1 })}
         />
+        {fromFile && !phone && (
+          <RestoreFileButton size="sm" className="ms-auto" />
+        )}
         {owner && !phone && (
           <Button
             size="sm"
-            className="ms-auto"
+            className={cn(!fromFile && "ms-auto")}
             render={<Link href={newPlanHref(d.id)} />}
             nativeButton={false}
           >
@@ -750,8 +759,11 @@ const restoreCols = (open: (id: string) => void): Col<BackupRestore>[] => [
           {r.mode === "replace" ? "Replaced " : "New database "}
           <span className="font-mono">{r.target_name}</span>
         </span>
-        <span className="block text-caption text-ash">
-          From {r.source} · {r.storage_name}
+        <span
+          className="block max-w-md truncate text-caption text-ash"
+          title={r.source}
+        >
+          {sourceText(r)}
         </span>
       </>
     ),
@@ -808,37 +820,94 @@ function Restores({
   items: BackupRestore[]
   pager: ReactNode
 }) {
-  const { phone } = useDashboard()
+  const { database: d, phone, owner } = useDashboard()
   const a = useBackupActions()
   const open = (id: string) => a.show({ id })
+  const fromFile = owner && fileRestores(d.engine)
   return (
-    <ListCard pager={pager}>
-      <Rows
-        rows={items}
-        limit={items.length}
-        label="Restores"
-        rowKey={(r) => r.id}
-        cols={restoreCols(open)}
-        empty="No restores yet. Use the restore button on a backup to start one."
-        onOpen={
-          phone
-            ? (r) => {
-                const id = r.backup_id ?? r.safety_backup_id
-                if (id) open(id)
-              }
-            : undefined
-        }
-        phone={(r) => ({
-          title: `${r.mode === "replace" ? "Replaced" : "New"} ${r.target_name}`,
-          sub: [
-            when.format(new Date(r.created_at)),
-            r.error || (r.safety_backup_id ? "Backed up first" : ""),
-          ]
-            .filter(Boolean)
-            .join(" · "),
-          end: stateLabel(r.state),
-        })}
-      />
-    </ListCard>
+    <>
+      {phone && fromFile && (
+        <div className="px-4">
+          <RestoreFileButton variant="outline" className="h-11 w-full" />
+        </div>
+      )}
+      <ListCard pager={pager}>
+        <Rows
+          rows={items}
+          limit={items.length}
+          label="Restores"
+          rowKey={(r) => r.id}
+          cols={restoreCols(open)}
+          empty={
+            fromFile
+              ? "No restores yet. Use the restore button on a backup, or Restore from a file."
+              : "No restores yet. Use the restore button on a backup to start one."
+          }
+          onOpen={
+            phone
+              ? (r) => {
+                  const id = r.backup_id ?? r.safety_backup_id
+                  if (id) open(id)
+                }
+              : undefined
+          }
+          phone={(r) => ({
+            title: `${r.mode === "replace" ? "Replaced" : "New"} ${r.target_name}`,
+            sub: [
+              when.format(new Date(r.created_at)),
+              r.from_file ? `File ${basename(r.source)}` : "",
+              r.error || (r.safety_backup_id ? "Backed up first" : ""),
+            ]
+              .filter(Boolean)
+              .join(" · "),
+            end: stateLabel(r.state),
+          })}
+        />
+      </ListCard>
+    </>
   )
+}
+
+// Redis keeps one dump file for the whole server: the backend can't load an
+// outside one through a connection, so there's no file restore for it.
+const fileRestores = (engine: string) => engine !== "redis"
+
+function RestoreFileButton({
+  size,
+  variant = "outline",
+  className,
+}: {
+  size?: "sm"
+  variant?: "outline" | "default"
+  className?: string
+}) {
+  const a = useBackupActions()
+  return (
+    <Button
+      size={size}
+      variant={variant}
+      className={cn("max-md:h-11", className)}
+      onClick={a.restoreFile}
+    >
+      <FileUp />
+      Restore from a file
+    </Button>
+  )
+}
+
+// What an outside file was, briefly (formatLabels describe Morche's own).
+const fileKinds: Record<string, string> = {
+  pg_custom: "pg_dump archive",
+  pg_sql: "SQL dump",
+  mysql_sql: "SQL dump",
+  mysql_db: "SQL dump",
+  mongo_arch: "mongodump archive",
+  mssql_bak: "SQL Server .bak",
+}
+
+function sourceText(r: BackupRestore) {
+  if (!r.from_file) return `From ${r.source} · ${r.storage_name}`
+  const where = r.storage_name || r.server_name
+  const kind = fileKinds[r.format]
+  return [`File ${basename(r.source)}`, where, kind].filter(Boolean).join(" · ")
 }

@@ -37,8 +37,15 @@ export const filesKey = (t: Target) =>
 // Every storage, then every server, except the one on screen.
 export function useTargets() {
   const source = useSource()
-  const { serverLevel, storageLevel } = useAccess()
   const self = endpointId(source.endpoint)
+  const { targets, ...rest } = useEndpoints()
+  return { targets: targets.filter((t) => t.id !== self), ...rest }
+}
+
+// Every storage, then every server this person can reach. Works outside a
+// file manager too (e.g. picking a file to restore).
+export function useEndpoints() {
+  const { serverLevel, storageLevel } = useAccess()
   const servers = useQuery({
     queryKey: ["servers", "transfer-targets"],
     queryFn: () => api.servers.listServers({ limit: 500 }),
@@ -74,7 +81,7 @@ export function useTargets() {
         buckets: false,
       }
     }),
-  ].filter((t) => t.id !== self)
+  ]
   return {
     targets,
     loading: servers.isPending || storages.isPending,

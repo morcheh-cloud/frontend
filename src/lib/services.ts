@@ -1185,6 +1185,10 @@ export interface BackupRestore {
   error: string;
   /** @format date-time */
   finished_at: string | null;
+  /** For a file: what it turned out to be */
+  format: string;
+  /** A file Morche didn't take, chosen on a storage or server */
+  from_file: boolean;
   /** @format uuid */
   id: string;
   /** @format uuid */
@@ -1195,8 +1199,12 @@ export interface BackupRestore {
    * @format uuid
    */
   safety_backup_id: string | null;
+  /** For a file on a server: that server */
+  server_name: string;
   /** The backup's file */
   source: string;
+  /** For a file holding several databases: the one taken */
+  source_name: string;
   /** @format date-time */
   started_at: string | null;
   state:
@@ -1206,6 +1214,7 @@ export interface BackupRestore {
     | "failed"
     | "canceled"
     | "interrupted";
+  /** The storage the file was read from */
   storage_name: string;
   target_name: string;
   want_safety: boolean;
@@ -9228,6 +9237,15 @@ export interface IncidentsOutBody {
   items: UptimeIncident[];
 }
 
+export interface InspectDatabaseRestoreFileRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  source: RestoreFileSource;
+}
+
 export interface InstalledPackage {
   arch?: string;
   /** Installed as a dependency of another package, not by hand */
@@ -14657,6 +14675,98 @@ export interface RestoreBody {
    * @maxLength 256
    */
   username?: string;
+}
+
+export interface RestoreFileBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * For replace: the target's name typed again
+   * @maxLength 128
+   */
+  confirm?: string;
+  /** replace = overwrite a database that exists; new = create one */
+  mode: "replace" | "new";
+  /** @maxLength 1024 */
+  password?: string;
+  /**
+   * For a direct database: the server the restore runs on, or "local" (also empty) for the machine Morche runs on
+   * @maxLength 36
+   */
+  runner_server_id?: string;
+  /** For replace: back the target up first */
+  safety_backup?: boolean;
+  /**
+   * The folder on it; empty = beside the file (or the top when it's another storage)
+   * @maxLength 1024
+   */
+  safety_folder?: string;
+  /**
+   * Where the backup before goes; empty = the file's storage
+   * @maxLength 36
+   */
+  safety_storage_id?: string;
+  source: RestoreFileSource;
+  /**
+   * When the file holds several databases: the one to take
+   * @maxLength 128
+   */
+  source_name?: string;
+  /**
+   * The database to load it into
+   * @minLength 1
+   * @maxLength 128
+   */
+  target_name: string;
+  /**
+   * A login for this restore only; empty = the database's saved one
+   * @maxLength 256
+   */
+  username?: string;
+}
+
+export interface RestoreFileInfo {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** The databases the file names (a MySQL dump's USE, a mongodump archive's); empty = it holds one, unnamed */
+  databases: string[];
+  /** The database engine it is for; empty when unknown */
+  engine: string;
+  /** Empty = not a backup Morche knows */
+  format: string;
+  gzip: boolean;
+  /** What it is, in words */
+  label: string;
+  /** @format date-time */
+  modified: string | null;
+  name: string;
+  /** The file names its database and can only go back under that name (a MySQL dump made with --databases) */
+  named: boolean;
+  /** The file's full path */
+  path: string;
+  /** Why it can't be restored into this database; empty = it can */
+  problem: string;
+  /** @format int64 */
+  size: number;
+}
+
+export interface RestoreFileSource {
+  /**
+   * The file's path on the storage or server
+   * @minLength 1
+   * @maxLength 4096
+   */
+  path: string;
+  /** @format uuid */
+  server_id?: string;
+  /** @format uuid */
+  storage_id?: string;
 }
 
 export interface RestoreListBody {
@@ -22162,6 +22272,28 @@ export class Api<
       }),
 
     /**
+     * @description Reads the start of a file on a storage or a server and says what kind of backup it is, which databases it names, and whether it can be restored into this database. It changes nothing.
+     *
+     * @tags Database backups
+     * @name InspectDatabaseRestoreFile
+     * @summary Tell what a backup file is
+     * @request POST:/databases/{id}/restore-file/inspect
+     */
+    inspectDatabaseRestoreFile: (
+      id: string,
+      data: InspectDatabaseRestoreFileRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<RestoreFileInfo, ErrorModel>({
+        path: `/databases/${id}/restore-file/inspect`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * No description
      *
      * @tags Database backups
@@ -22276,6 +22408,28 @@ export class Api<
     ) =>
       this.request<Job, ErrorModel>({
         path: `/database-backups/${id}/restore`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Loads a dump Morche didn't take (pg_dump plain or custom, mysqldump, mongodump --archive, SQL Server .bak; gzip or not) from a storage or a server into a database that exists (replace, with its name typed again, optionally backed up first) or a new one. The whole file is read and checked before the database is touched.
+     *
+     * @tags Database backups
+     * @name RestoreDatabaseFile
+     * @summary Restore a backup file from a storage or server
+     * @request POST:/databases/{id}/restore-file
+     */
+    restoreDatabaseFile: (
+      id: string,
+      data: RestoreFileBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/databases/${id}/restore-file`,
         method: "POST",
         body: data,
         type: ContentType.Json,

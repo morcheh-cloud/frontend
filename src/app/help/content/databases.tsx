@@ -995,6 +995,121 @@ db.createUser({
     ),
   },
   {
+    id: "restore-file",
+    title: "Restoring from a file",
+    body: (
+      <>
+        <P>
+          A dump Morche didn't take (one made by hand, by another tool, or
+          copied over from another machine) can be loaded too, straight from the
+          server or storage it sits on. Only an Owner can start it, and it
+          follows the same rules as restoring a backup.
+        </P>
+        <Steps>
+          <P>
+            On the database's <UI>Backups</UI> tab press{" "}
+            <UI>Restore from a file</UI> (on a phone: under <UI>Restores</UI>).
+          </P>
+          <P>
+            Choose where the file is: any storage, or any server, you can read
+            files on. Browse to it; files that look like dumps (<C>.sql</C>,{" "}
+            <C>.dump</C>, <C>.gz</C>, <C>.bak</C>, <C>.archive</C>…) are listed
+            first. A path you know can be typed in the box under the list.
+          </P>
+          <P>
+            Morche reads the file and says what it is, how big, and which
+            databases it holds. A file that can't go into this database says
+            why, and <UI>Continue</UI> stays off.
+          </P>
+          <P>
+            For a MongoDB archive with several databases, pick{" "}
+            <UI>Which database to take</UI>.
+          </P>
+          <P>
+            Then fill the form as for a backup: <UI>Restore into</UI>,{" "}
+            <UI>Replace it</UI> or <UI>As a new database</UI>,{" "}
+            <UI>Back it up first</UI>, <UI>Run it from</UI>, login, and type the
+            name to confirm.
+          </P>
+        </Steps>
+        <Table
+          head={["File", "Restored by Morche"]}
+          rows={[
+            [
+              "PostgreSQL: pg_dump -Fc archive or plain SQL dump",
+              "Yes, into any name",
+            ],
+            [
+              "MySQL / MariaDB: mysqldump of one database",
+              "Yes, into any name",
+            ],
+            [
+              "mysqldump with --databases (says USE <name>)",
+              "Only into the database it names",
+            ],
+            [
+              "MongoDB: mongodump --archive (gzipped or not)",
+              "Yes, one database at a time, into any name",
+            ],
+            ["SQL Server .bak", "Yes, on its own server only"],
+            [
+              "pg_dumpall, pg_dump --create, several MySQL databases, Redis RDB",
+              "No: restore it by hand",
+            ],
+          ]}
+        />
+        <Recommended
+          rows={[
+            {
+              setting: "A file from somewhere else",
+              value: "As a new database first",
+              why: "Shows what's in it before it replaces anything",
+            },
+            {
+              setting: "Back it up first",
+              value: "On, next to the file or on a storage",
+              why: "The only way back from a replace",
+            },
+          ]}
+        />
+        <P>
+          The backup before goes next to the file when the file is on a storage
+          you can write to. When it's on a server, or a storage you only read,
+          choose a storage under <UI>Keep it on</UI> (with a bucket, give the
+          folder, starting with the bucket).
+        </P>
+        <Tip>
+          A <C>.gz</C> file is unpacked on the fly; nothing is written next to
+          it. The whole file is read and checked once before the database is
+          touched, so a dump that was cut short stops the restore with the
+          database as it was.
+        </Tip>
+        <P>If it fails:</P>
+        <List>
+          <li>
+            <UI>This is a … backup, but the database is …</UI>: the file is for
+            another engine. Pick the right database.
+          </li>
+          <li>
+            <UI>The dump doesn't reach its last line</UI>: the copy is
+            incomplete. Copy it again.
+          </li>
+          <li>
+            <UI>creates and connects to its own database</UI>: dump it again
+            without <C>--create</C>, or load it by hand.
+          </li>
+          <li>
+            Access: Operator on the file's server or storage, Engineer on the
+            storage the backup before goes to.
+          </li>
+        </List>
+        <See guide="databases" section="restore">
+          Restoring a backup
+        </See>
+      </>
+    ),
+  },
+  {
     id: "insights",
     title: "Insights: charts and statistics",
     body: (
