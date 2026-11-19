@@ -1110,6 +1110,88 @@ db.createUser({
     ),
   },
   {
+    id: "sync",
+    title: "Syncing into another database",
+    body: (
+      <>
+        <P>
+          A sync copies one database into another of the same engine, by hand,
+          every few minutes or on a schedule. Find them on the database's{" "}
+          <UI>Syncs</UI> tab. Press <UI>Compare</UI> first: it shows what a run
+          would add, change and delete, table by table with sample rows, and
+          writes nothing. <UI>Apply these changes</UI> then runs it for real.
+        </P>
+        <Table
+          head={["Kind", "What it does"]}
+          rows={[
+            [
+              "Chosen tables",
+              "Compares the tables you pick row by row: add new rows, update ones that differ, optionally delete extras. You choose who wins a difference and what happens when the target refuses a row.",
+            ],
+            [
+              "Mirror",
+              "Makes every table on the target match the source, row by row, with no downtime. Rows the source doesn't have are deleted.",
+            ],
+            [
+              "Only new rows",
+              "Copies rows added since the last run, using a column that grows (an id or updated_at). Fast; a full check every few hours catches deletions.",
+            ],
+            [
+              "Replace",
+              "Drops the target and loads a fresh dump each run. The target is briefly empty. Works for MongoDB too.",
+            ],
+          ]}
+        />
+        <Steps>
+          <li>
+            On the source database open <UI>Syncs</UI> tab › <UI>New sync</UI>.
+          </li>
+          <li>Pick the kind, then the target database and its name.</li>
+          <li>
+            Pick the tables (and the column that grows, for only new rows).
+          </li>
+          <li>
+            Pick when it runs and press <UI>Save and compare</UI>.
+          </li>
+        </Steps>
+        <Recommended
+          rows={[
+            {
+              setting: "Staging copy",
+              value: "Replace, every night",
+              why: "A clean, exact copy; a short gap is fine there.",
+            },
+            {
+              setting: "Reporting copy",
+              value: "Mirror, every 5–15 minutes",
+              why: "Stays close to live with no downtime.",
+            },
+            {
+              setting: "Big append-only tables",
+              value: "Only new rows, every few minutes",
+              why: "Reads only what was added since the last run.",
+            },
+          ]}
+        />
+        <Warn>
+          Mirror, Replace and Chosen tables with deleting on can remove data on
+          the target: saving asks you to type the target's name. Row kinds work
+          on PostgreSQL and MySQL/MariaDB; Replace also on MongoDB.
+        </Warn>
+        <Tip>
+          Replace runs the dump and load tools on Morche's own machine or a
+          server you pick (<UI>Where it runs</UI>); a database reached through a
+          server always uses that server. A table without a primary or unique
+          key can't be matched row by row: skip it or reload it whole.
+        </Tip>
+        <P>
+          Access: Operator on the source, Owner on the target. A sync runs with
+          the access of whoever saved it last.
+        </P>
+      </>
+    ),
+  },
+  {
     id: "insights",
     title: "Insights: charts and statistics",
     body: (

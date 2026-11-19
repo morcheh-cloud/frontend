@@ -23,6 +23,7 @@ import {
   HardDriveDownload,
   HardDriveUpload,
   Image as ImageIcon,
+  KeyRound,
   Layers,
   LayoutGrid,
   ListChecks,
@@ -45,6 +46,7 @@ import {
 } from "lucide-react"
 import { envHref, volumeHref } from "@/app/(panel)/containers/components/meta"
 import { backupsHref } from "@/app/(panel)/databases/[id]/components/backups/meta"
+import { syncsHref } from "@/app/(panel)/databases/[id]/components/syncs/meta"
 import { datasetHref } from "@/app/(panel)/settings/logs/components/meta"
 import { filesHref } from "@/components/files/file-manager"
 import { formatSize } from "@/lib/format"
@@ -75,6 +77,7 @@ const icons: Record<string, LucideIcon> = {
   "database-backup": DatabaseBackup,
   "database-backup-verify": ShieldCheck,
   "database-backup-restore": ArchiveRestore,
+  "database-sync": ArrowLeftRight,
   "proxy-setup": Split,
   "proxy-geo": Earth,
   "proxy-brotli": Gauge,
@@ -101,6 +104,7 @@ const icons: Record<string, LucideIcon> = {
   "docker-image-import": HardDriveDownload,
   "docker-image-copy": Send,
   "docker-auto-update": RefreshCcwDot,
+  "docker-registry-login": KeyRound,
   "log-archive": Archive,
   "log-archive-restore": ArchiveRestore,
   "log-archive-putaway": ArchiveX,
@@ -243,6 +247,9 @@ export function tookText(job: Job) {
 // Ansible or cron job run it belongs to.
 export function placeHref(job: Job) {
   const t = job.target
+  if (job.kind === "database-sync" && t?.database_id) {
+    return syncsHref(t.database_id, t.run_id ?? undefined)
+  }
   if (t?.database_id) {
     return backupsHref(
       t.database_id,
@@ -281,6 +288,7 @@ export function placeHref(job: Job) {
   }
   if (t?.run_id) return `/ansible/runs/${t.run_id}`
   if (job.kind === "storage-scan") return "/storage"
+  if (job.kind === "docker-registry-login") return "/containers/registries"
   if (job.kind.startsWith("package-") && job.refs[0])
     return `/servers/${job.refs[0]}/packages`
   if (job.kind.startsWith("proxy-") && job.refs[0])
@@ -324,6 +332,7 @@ export function placeLabel(job: Job) {
     return "Open updates"
   if (job.kind === "docker-scan") return "Open security"
   if (job.kind === "docker-prune") return "Open Docker"
+  if (job.kind === "docker-registry-login") return "Open registries"
   if (job.target?.database_id) return "Open backups"
   return job.target?.run_id ? "Open run" : "Open folder"
 }
@@ -342,6 +351,7 @@ export function canRetry(job: Job) {
     job.kind !== "storage-migrate" &&
     job.kind !== "database-backup" &&
     job.kind !== "database-backup-restore" &&
+    job.kind !== "database-sync" &&
     !job.kind.startsWith("log-") &&
     // A Proxmox task already ran on the cluster: start it again from there.
     !job.kind.startsWith("pve-")

@@ -44,6 +44,10 @@ import {
   projectStateMeta,
   useProjectActions,
 } from "./project-actions"
+import {
+  ProjectAutoUpdate,
+  useProjectAutoUpdateCount,
+} from "./project-auto-update"
 import { ProjectContainers } from "./project-containers"
 import {
   type DeployAction,
@@ -63,6 +67,7 @@ const tabs = [
   "logs",
   "production",
   "alerts",
+  "auto-update",
   "files",
   "environment",
   "history",
@@ -108,6 +113,10 @@ function Project({
     server: { id, name: env.name },
     project: name,
   })
+  const updating = useProjectAutoUpdateCount(
+    id,
+    statsQuery.data?.projects.find((x) => x.name === name)?.containers,
+  )
   const [{ tab, svc }, setTabs] = useQueryStates(tabParsers, {
     history: "replace",
   })
@@ -199,7 +208,13 @@ function Project({
       }
     : projectStateMeta[p.state]
   const count = (t: ProjectTab) =>
-    t === "containers" ? p.total : t === "alerts" ? firing : 0
+    t === "containers"
+      ? p.total
+      : t === "alerts"
+        ? firing
+        : t === "auto-update"
+          ? updating
+          : 0
   const tabBar = (
     <TabBar
       tabs={shown}
@@ -256,6 +271,17 @@ function Project({
         <ProjectAlerts
           server={{ id, name: env.name }}
           project={p.name}
+          phone={phone}
+        />
+      )
+      break
+    case "auto-update":
+      body = (
+        <ProjectAutoUpdate
+          server={{ id, name: env.name }}
+          workspace={env.workspace_id}
+          project={p.name}
+          containers={containers}
           phone={phone}
         />
       )
@@ -434,6 +460,7 @@ const tabLabels: Record<ProjectTab, string> = {
   logs: "Logs",
   production: "Production",
   alerts: "Alerts",
+  "auto-update": "Auto-update",
   files: "Files",
   environment: "Environment",
   history: "History",

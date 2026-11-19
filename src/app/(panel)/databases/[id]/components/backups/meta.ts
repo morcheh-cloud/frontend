@@ -36,13 +36,16 @@ export const stateLabels: Record<string, string> = {
   canceled: "Canceled",
   interrupted: "Interrupted",
   skipped: "Skipped",
+  partial: "Partly done",
 }
 
 export const stateLabel = (state: string) => stateLabels[state] ?? state
 
 export function stateTone(state: string): "success" | "warning" | "muted" {
   if (state === "succeeded") return "success"
-  return state === "failed" || state === "interrupted" ? "warning" : "muted"
+  return state === "failed" || state === "interrupted" || state === "partial"
+    ? "warning"
+    : "muted"
 }
 
 export const formatLabels: Record<string, string> = {

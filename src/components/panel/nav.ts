@@ -313,7 +313,7 @@ export const helpItem: NavItem = {
 
 // Sidebar order. Help and Settings sit apart, pinned to the bottom.
 export const navGroups: NavGroup[] = [
-  { label: "Platform", items: [homeItem, servicesItem, tasksItem] },
+  { label: "Platform", items: [homeItem, servicesItem] },
   {
     label: "Infrastructure",
     items: [
@@ -330,7 +330,10 @@ export const navGroups: NavGroup[] = [
     label: "Automation",
     items: [applicationsItem, ansibleItem, scriptsItem, cronjobsItem],
   },
-  { label: "Observability", items: [monitoringItem, recordingsItem] },
+  {
+    label: "Observability",
+    items: [monitoringItem, recordingsItem, tasksItem],
+  },
 ]
 
 const allItems = [

@@ -8,6 +8,7 @@ import {
   Pencil,
   Plug,
   Plus,
+  RefreshCw,
   Trash2,
 } from "lucide-react"
 import { useState } from "react"
@@ -16,6 +17,7 @@ import { toast } from "sonner"
 import { useAccess } from "@/components/auth/auth"
 import { atLeast } from "@/components/auth/level"
 import { Field } from "@/components/field"
+import { useJobActions } from "@/components/jobs/jobs-provider"
 import { ConfirmDialog, ResponsiveDialog } from "@/components/responsive-dialog"
 import { SecretInput } from "@/components/secret-input"
 import { Button } from "@/components/ui/button"
@@ -36,11 +38,19 @@ import {
   useDeleteRegistry,
   useDockerRegistries,
   useSaveRegistry,
+  useSignInRegistry,
   useTestRegistry,
 } from "../api"
 import { useDockerEnv } from "../env"
 import { type WsCtx, WsPage } from "./env-page"
 import { NoMatch, PageBar, PhoneRow, Rows, Table, Tag, Tr } from "./kit"
+import {
+  type RegistryMode,
+  RegistryServersField,
+  serversText,
+  signInSummary,
+  useWorkspaceServers,
+} from "./registry-servers"
 
 // Common registries, to fill the address (and a name) in one tap.
 const presets = [
@@ -71,7 +81,10 @@ function RegistriesView({ ws, phone }: WsCtx) {
   const [removing, setRemoving] = useState<DockerRegistry | null>(null)
   const [confirmOpen, setConfirmOpen] = useOpen("docker-registry-remove")
   const remove = useDeleteRegistry()
+  const signIn = useSignInRegistry()
+  const jobs = useJobActions()
   const tester = useLoginTest(ws.id)
+  const { list: servers } = useWorkspaceServers(ws.id)
 
   const items = [...(query.data ?? [])].sort((a, b) =>
     a.name.localeCompare(b.name),
@@ -108,6 +121,25 @@ function RegistriesView({ ws, phone }: WsCtx) {
               disabled: !tester.server,
               onSelect: () => tester.run(r),
             },
+            ...(r.sign_in_on_servers || r.logins.length > 0
+              ? [
+                  {
+                    key: "sign-in",
+                    label: r.sign_in_on_servers
+                      ? "Sign the servers in again"
+                      : "Sign the servers out",
+                    icon: <RefreshCw />,
+                    onSelect: () =>
+                      signIn.mutate(
+                        { ws: ws.id, id: r.id },
+                        {
+                          onSuccess: jobs.track,
+                          onError: (e) => toast.error(e.message),
+                        },
+                      ),
+                  },
+                ]
+              : []),
           ],
           [
             {
@@ -163,7 +195,7 @@ function RegistriesView({ ws, phone }: WsCtx) {
             key={r.id}
             id={r.id}
             title={r.name}
-            sub={`${r.address}${r.username ? ` · ${r.username}` : ""}`}
+            sub={`${r.address} · ${serversText(r)} · ${signInSummary(r, servers).text}`}
             onOpen={() => (own ? edit(r) : undefined)}
             menu={menu(r)}
           />
@@ -177,8 +209,10 @@ function RegistriesView({ ws, phone }: WsCtx) {
           { label: "Name" },
           { label: "Address" },
           { label: "Username" },
-          { label: "Password" },
-          { label: "Changed", className: "hidden @3xl:table-cell" },
+          { label: "Servers" },
+          { label: "On the servers" },
+          { label: "Password", className: "hidden @4xl:table-cell" },
+          { label: "Changed", className: "hidden @5xl:table-cell" },
         ]}
       >
         {shown.map((r) => (
@@ -198,17 +232,22 @@ function RegistriesView({ ws, phone }: WsCtx) {
                 className: "text-muted-foreground",
               },
               {
+                node: serversText(r),
+                className: "text-muted-foreground",
+              },
+              { node: <SignInState r={r} servers={servers} /> },
+              {
                 node: r.has_password ? (
                   <Tag>Saved</Tag>
                 ) : (
                   <span className="text-ash">None</span>
                 ),
-                className: "[&>span]:ms-0",
+                className: "hidden @4xl:table-cell [&>span]:ms-0",
               },
               {
                 node: timeAgo(r.updated_at),
                 className:
-                  "hidden text-caption text-muted-foreground @3xl:table-cell",
+                  "hidden text-caption text-muted-foreground @5xl:table-cell",
               },
             ]}
           />
@@ -274,25 +313,73 @@ function RegistriesView({ ws, phone }: WsCtx) {
             Pulls from <code>{removing?.address}</code> go without a login
             afterwards, so private images there stop pulling. Images already on
             the servers stay.
+            {removing && removing.logins.length > 0 && (
+              <>
+                {" "}
+                It's signed in on {removing.logins.length} server
+                {removing.logins.length === 1 ? "" : "s"}: Morche signs them out
+                first, then forgets it.
+              </>
+            )}
           </>
         }
         confirmLabel="Remove"
-        pending={remove.isPending}
-        onConfirm={() =>
-          removing &&
+        pending={remove.isPending || signIn.isPending}
+        onConfirm={() => {
+          if (!removing) return
+          const done = () => setConfirmOpen(false)
+          if (removing.logins.length > 0) {
+            signIn.mutate(
+              { ws: ws.id, id: removing.id, remove: true },
+              {
+                onSuccess: (job) => {
+                  jobs.track(job)
+                  done()
+                },
+                onError: (e) => toast.error(e.message),
+              },
+            )
+            return
+          }
           remove.mutate(
             { ws: ws.id, id: removing.id },
             {
               onSuccess: () => {
                 toast.success(`${removing.name} removed`)
-                setConfirmOpen(false)
+                done()
               },
               onError: (e) => toast.error(e.message),
             },
           )
-        }
+        }}
       />
     </>
+  )
+}
+
+function SignInState({
+  r,
+  servers,
+}: {
+  r: DockerRegistry
+  servers: DockerFleetServer[]
+}) {
+  const { text, tone } = signInSummary(r, servers)
+  const failed = r.logins.filter((l) => !l.ok)
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 text-body-sm",
+        tone === "success" && "text-success",
+        tone === "warning" && "text-warning",
+        tone === "muted" && "text-muted-foreground",
+      )}
+      title={failed.map((l) => l.message).join("\n") || undefined}
+    >
+      {tone === "success" && <CircleCheck className="size-3.5 shrink-0" />}
+      {tone === "warning" && <CircleX className="size-3.5 shrink-0" />}
+      {text}
+    </span>
   )
 }
 
@@ -353,12 +440,21 @@ function RegistryForm({
   taken: DockerRegistry[]
 }) {
   const save = useSaveRegistry()
+  const signIn = useSignInRegistry()
+  const jobs = useJobActions()
   const test = useTestRegistry()
   const servers = useTestServers(ws)
   const [name, setName] = useState(registry?.name ?? "")
   const [address, setAddress] = useState(registry?.address ?? "")
   const [username, setUsername] = useState(registry?.username ?? "")
   const [password, setPassword] = useState("")
+  const [mode, setMode] = useState<RegistryMode>(
+    registry?.servers === "chosen" ? "chosen" : "all",
+  )
+  const [picked, setPicked] = useState<string[]>(registry?.server_ids ?? [])
+  const [signInOn, setSignInOn] = useState(
+    registry?.sign_in_on_servers ?? false,
+  )
   const [server, setServer] = useState(servers.first?.server_id ?? "")
   const [tried, setTried] = useState(false)
   const errors = fieldErrors(save.error)
@@ -380,6 +476,16 @@ function RegistryForm({
         : dup
           ? `${dup.name} is already the login for ${host}.`
           : undefined) ?? errors.address
+  const serversError =
+    (tried && mode === "chosen" && picked.length === 0
+      ? "Pick at least one server."
+      : undefined) ??
+    errors.server_ids ??
+    Object.entries(errors).find(([k]) => k.startsWith("server_ids"))?.[1]
+  const userError =
+    (tried && signInOn && !username.trim()
+      ? "docker login needs a username."
+      : undefined) ?? errors.username
   const general =
     save.error && Object.keys(errors).length === 0
       ? save.error.message
@@ -397,6 +503,8 @@ function RegistryForm({
   const submit = () => {
     setTried(true)
     if (!name.trim() || !host || addressError) return
+    if (mode === "chosen" && picked.length === 0) return
+    if (signInOn && !username.trim()) return
     save.mutate(
       {
         ws,
@@ -405,11 +513,23 @@ function RegistryForm({
         address: host,
         username: username.trim(),
         ...(password ? { password } : {}),
+        servers: mode,
+        ...(mode === "chosen" ? { server_ids: picked } : {}),
+        sign_in_on_servers: signInOn,
       },
       {
-        onSuccess: () => {
+        onSuccess: (saved) => {
           toast.success(registry ? "Login saved" : `${name.trim()} added`)
           onOpenChange(false)
+          // Sign the servers in (and out of ones it no longer covers).
+          if (saved.sign_in_on_servers || saved.logins.length > 0)
+            signIn.mutate(
+              { ws, id: saved.id },
+              {
+                onSuccess: jobs.track,
+                onError: (e) => toast.error(e.message),
+              },
+            )
         },
       },
     )
@@ -432,7 +552,7 @@ function RegistryForm({
       open={open}
       onOpenChange={onOpenChange}
       title={registry ? `Edit ${registry.name}` : "Add a registry"}
-      description="Used whenever Morche pulls an image from this registry."
+      description="Used whenever Morche pulls an image from this registry on the servers you pick: deploys, updates and auto-update."
       className="sm:max-w-lg"
       footer={
         <>
@@ -501,7 +621,7 @@ function RegistryForm({
           )}
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Username" error={errors.username}>
+          <Field label="Username" error={userError}>
             {(p) => (
               <Input
                 {...p}
@@ -610,6 +730,18 @@ function RegistryForm({
             </p>
           )}
         </div>
+
+        <RegistryServersField
+          ws={ws}
+          mode={mode}
+          onMode={setMode}
+          picked={picked}
+          onPicked={setPicked}
+          signIn={signInOn}
+          onSignIn={setSignInOn}
+          logins={registry?.logins ?? []}
+          error={serversError}
+        />
 
         {general && (
           <p role="alert" className="text-body-sm text-destructive">

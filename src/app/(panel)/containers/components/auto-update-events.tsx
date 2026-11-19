@@ -85,10 +85,18 @@ export function AutoUpdateEvents({
   fixedPolicy,
   limit,
   showPolicy = !fixedPolicy,
+  fixedServer,
+  match,
+  emptyText,
 }: {
   ws: string
   phone: boolean
   fixedPolicy?: string
+  // One server's events, narrowed to what match takes (a project's
+  // containers).
+  fixedServer?: string
+  match?: (e: DockerAutoUpdateEvent) => boolean
+  emptyText?: string
   // A short glance (the policy overview): no paging, no filters.
   limit?: number
   showPolicy?: boolean
@@ -98,10 +106,12 @@ export function AutoUpdateEvents({
     !limit && (!!f.server || !!f.result || (!fixedPolicy && !!f.policy))
   const query = useAutoUpdateEvents(ws, {
     policy: fixedPolicy ?? (f.policy || undefined),
-    server: limit ? undefined : f.server || undefined,
+    server: fixedServer ?? (limit ? undefined : f.server || undefined),
     result: limit ? undefined : (f.result ?? undefined),
   })
-  const items = (query.data?.pages ?? []).flatMap((p) => p.items)
+  const items = (query.data?.pages ?? [])
+    .flatMap((p) => p.items)
+    .filter((e) => !match || match(e))
   const shown = limit ? items.slice(0, limit) : items
 
   if (query.isPending) {
@@ -130,7 +140,10 @@ export function AutoUpdateEvents({
       <Empty
         icon={History}
         title="Nothing happened yet"
-        body="Every container a run updates, finds a new image for, rolls back or fails on shows up here, kept for 180 days."
+        body={
+          emptyText ??
+          "Every container a run updates, finds a new image for, rolls back or fails on shows up here, kept for 180 days."
+        }
         className={cn(limit ? "py-10" : "max-md:mt-4")}
       />
     )

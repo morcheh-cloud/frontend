@@ -19,7 +19,6 @@ import { usePageCrumbs } from "@/components/panel/breadcrumbs"
 import { useWorkspace } from "@/components/panel/workspace"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { useBack } from "@/hooks/useBack"
 import { useIsPhone } from "@/hooks/useIsPhone"
 import { fieldErrors } from "@/lib/api"
@@ -52,6 +51,7 @@ import {
   sameDraft,
   splitPatterns,
 } from "./auto-update-meta"
+import { PatternPicker } from "./auto-update-picker"
 import { useDockerWorkspaceCan } from "./permissions"
 
 type Form = {
@@ -111,12 +111,20 @@ export function AutoUpdateEditor({
   ws: string
   phone: boolean
   saved?: DockerAutoUpdate
-  prefill?: { server?: string | null; container?: string | null }
+  prefill?: {
+    server?: string | null
+    container?: string | null
+    project?: string | null
+  }
 }) {
   const router = useRouter()
   const base = saved
     ? draftOf(saved)
-    : freshDraft(prefill?.server ?? undefined, prefill?.container ?? undefined)
+    : freshDraft(
+        prefill?.server ?? undefined,
+        prefill?.container ?? undefined,
+        prefill?.project ?? undefined,
+      )
   const [form, setForm] = useState<Form>(() => formOf(base))
   const [errors, setErrors] = useState<Errors>({})
   const save = useSaveAutoUpdate()
@@ -290,18 +298,19 @@ export function AutoUpdateEditor({
           <Field
             label="Containers, projects or images"
             error={errors.include}
-            hint="One per line or comma: a container (web), a compose project (shop), or an image (nginx, ghcr.io/acme/*). * and ? match anything."
+            hint="Tick what to keep up to date, or type a pattern: * and ? match anything (web-*, ghcr.io/acme/*)."
           >
-            {(p) => (
-              <Textarea
-                {...p}
-                rows={4}
+            {() => (
+              <PatternPicker
+                ws={ws}
+                servers={d.servers}
                 value={form.include}
+                onChange={(include) => set({ include }, "include")}
+                phone={phone}
                 placeholder={"web\nshop\nghcr.io/acme/*"}
-                onChange={(e) => set({ include: e.target.value }, "include")}
-                className="font-mono text-body-sm"
-                spellCheck={false}
-                autoCapitalize="off"
+                invalid={!!errors.include}
+                other={draft.exclude}
+                otherLabel="Never touched"
               />
             )}
           </Field>
@@ -309,18 +318,20 @@ export function AutoUpdateEditor({
         <Field
           label="Never touch"
           error={errors.exclude}
-          hint="Same kinds of names. A container labelled morche.auto-update.enable=false is left out too."
+          hint="Wins over everything above. A container labelled morche.auto-update.enable=false is left out too."
         >
-          {(p) => (
-            <Textarea
-              {...p}
-              rows={2}
+          {() => (
+            <PatternPicker
+              ws={ws}
+              servers={d.servers}
               value={form.exclude}
+              onChange={(exclude) => set({ exclude }, "exclude")}
+              phone={phone}
               placeholder={"postgres*\nmorche"}
-              onChange={(e) => set({ exclude: e.target.value }, "exclude")}
-              className="font-mono text-body-sm"
-              spellCheck={false}
-              autoCapitalize="off"
+              invalid={!!errors.exclude}
+              other={d.pick === "chosen" ? draft.include : undefined}
+              otherLabel="Also picked above"
+              folded={draft.exclude.length === 0}
             />
           )}
         </Field>
@@ -668,7 +679,7 @@ export function AutoUpdateEditor({
   )
 }
 
-// /containers/auto-update/new (?server=&container= prefill it).
+// /containers/auto-update/new (?server=&container=&project= prefill it).
 export function NewAutoUpdatePage() {
   const phone = useIsPhone()
   const { workspace } = useWorkspace()
@@ -693,7 +704,7 @@ export function NewAutoUpdatePage() {
   }
   return (
     <AutoUpdateEditor
-      key={`${prefill.server}:${prefill.container}`}
+      key={`${prefill.server}:${prefill.container}:${prefill.project}`}
       ws={workspace.id}
       phone={phone}
       prefill={prefill}

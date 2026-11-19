@@ -141,14 +141,20 @@ export function autoUpdateHref(id: string, tab?: PolicyTab) {
   return policySerializer(`${AUTO_UPDATE}/${id}`, { tab: tab ?? null })
 }
 
-// A new policy, prefilled from a server (and a container on it).
+// A new policy, prefilled from a server (and a container or a compose
+// project on it).
 export const newParsers = {
   server: parseAsString,
   container: parseAsString,
+  project: parseAsString,
 }
 const newSerializer = createSerializer(newParsers)
 
-export function newAutoUpdateHref(q: { server?: string; container?: string }) {
+export function newAutoUpdateHref(q: {
+  server?: string
+  container?: string
+  project?: string
+}) {
   return newSerializer(`${AUTO_UPDATE}/new`, q)
 }
 
@@ -164,13 +170,19 @@ export type Draft = Omit<
   channels: string[] | null
 }
 
-export function freshDraft(server?: string, container?: string): Draft {
+export function freshDraft(
+  server?: string,
+  container?: string,
+  project?: string,
+): Draft {
+  // A project's name takes in every container of it (autoMatches).
+  const named = container || project
   return {
-    name: container ? `Keep ${container} up to date` : "",
+    name: named ? `Keep ${named} up to date` : "",
     enabled: true,
     servers: server ? [server] : [],
-    pick: container ? "chosen" : "all",
-    include: container ? [container] : [],
+    pick: named ? "chosen" : "all",
+    include: named ? [named] : [],
     exclude: [],
     include_stopped: false,
     revive_stopped: false,
@@ -249,4 +261,38 @@ export function coverText(p: DockerAutoUpdate) {
           ? p.include[0]
           : `${p.include.length} chosen`
   return `${servers} · ${what}`
+}
+
+// Does a pattern list (include/exclude) name a compose project? Mirrors the
+// backend's globMatch: case-insensitive, * ? and [] like path.Match.
+export function namesProject(patterns: string[], project: string) {
+  return patterns.some(
+    (p) => globMatch(p, project) || globMatch(p, `${project}/*`),
+  )
+}
+
+function globMatch(pattern: string, name: string) {
+  const p = pattern.toLowerCase()
+  const n = name.toLowerCase()
+  if (!/[*?[]/.test(p)) return p === n
+  let re = ""
+  for (let i = 0; i < p.length; i++) {
+    const c = p[i]
+    if (c === "*") re += "[^/]*"
+    else if (c === "?") re += "[^/]"
+    else if (c === "[") {
+      const end = p.indexOf("]", i + 1)
+      if (end < 0) return false
+      re += `[${p
+        .slice(i + 1, end)
+        .replace(/^!/, "^")
+        .replace(/\\/g, "\\\\")}]`
+      i = end
+    } else re += c.replace(/[.+^${}()|\\]/g, "\\$&")
+  }
+  try {
+    return new RegExp(`^${re}$`).test(n)
+  } catch {
+    return false
+  }
 }

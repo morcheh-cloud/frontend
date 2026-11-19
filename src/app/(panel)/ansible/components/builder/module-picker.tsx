@@ -97,6 +97,7 @@ export function ModulePicker({
       grouped={grouped}
       withPopular={grouped ? popularOf(all) : undefined}
       onPick={pick}
+      onCategory={setCat}
       selected={selected}
     />
   )
@@ -116,7 +117,9 @@ export function ModulePicker({
           </div>
         }
       >
-        <div className="border-t border-border">{list}</div>
+        <div key={cat} className="border-t border-border">
+          {list}
+        </div>
       </BottomSheet>
     )
   }
@@ -133,7 +136,9 @@ export function ModulePicker({
           {search}
           {chips}
         </DialogHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto">{list}</div>
+        <div key={cat} className="min-h-0 flex-1 overflow-y-auto">
+          {list}
+        </div>
       </DialogContent>
     </Dialog>
   )

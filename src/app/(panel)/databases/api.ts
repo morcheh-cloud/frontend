@@ -18,6 +18,7 @@ import type {
   Database,
   DatabaseBody,
   DatabaseHistory,
+  DatabaseSyncBody,
   DatabaseTestBody,
   RestoreBody,
   RestoreFileBody,
@@ -485,3 +486,104 @@ export function downloadBackup(id: string, storage?: string) {
   a.click()
   a.remove()
 }
+
+// ── Database syncs (database → database) ────────────────────────────────
+
+export const syncKeys = {
+  all: ["database-syncs"] as const,
+  list: (databaseId: string) => ["database-syncs", "list", databaseId] as const,
+  one: (id: string) => ["database-syncs", "one", id] as const,
+  runs: (id: string) => ["database-syncs", "runs", id] as const,
+  run: (id: string) => ["database-syncs", "run", id] as const,
+  tables: (databaseId: string, name: string) =>
+    ["database-syncs", "tables", databaseId, name] as const,
+}
+
+export const syncRunActive = (r?: { state: string } | null) =>
+  r?.state === "queued" || r?.state === "running"
+
+// Every sync this database is the source or the target of.
+export function useDatabaseSyncs(databaseId: string) {
+  return useQuery({
+    queryKey: syncKeys.list(databaseId),
+    queryFn: () => api.databaseSyncs.listDatabaseSyncPlans(databaseId),
+    select: (l) => l.items,
+    refetchInterval: (q) =>
+      q.state.data?.items.some((s) => syncRunActive(s.last_run))
+        ? BACKUP_POLL
+        : STATUS_POLL,
+  })
+}
+
+export function useDatabaseSync(id?: string) {
+  return useQuery({
+    queryKey: syncKeys.one(id ?? ""),
+    queryFn: () => api.databaseSyncs.getDatabaseSync(id ?? ""),
+    enabled: !!id,
+  })
+}
+
+export function useSyncRuns(id: string, enabled = true) {
+  return useQuery({
+    queryKey: syncKeys.runs(id),
+    queryFn: () => api.databaseSyncs.listDatabaseSyncRuns(id, { limit: 50 }),
+    select: (l) => l.items,
+    enabled: enabled && !!id,
+    refetchInterval: (q) =>
+      q.state.data?.items.some(syncRunActive) ? BACKUP_POLL : STATUS_POLL,
+  })
+}
+
+export function useSyncRun(id?: string) {
+  return useQuery({
+    queryKey: syncKeys.run(id ?? ""),
+    queryFn: () => api.databaseSyncs.getDatabaseSyncRun(id ?? ""),
+    enabled: !!id,
+    refetchInterval: (q) => (syncRunActive(q.state.data) ? 1_500 : false),
+  })
+}
+
+// The tables of one database on a server (with columns and keys), for the
+// pickers. `name` empty = the connection's own database.
+export function useSyncTables(databaseId: string, name: string, on = true) {
+  return useQuery({
+    queryKey: syncKeys.tables(databaseId, name),
+    queryFn: () =>
+      api.databaseSyncs.listDatabaseSyncTables(databaseId, { name }),
+    enabled: on && !!databaseId,
+    staleTime: 30_000,
+    retry: false,
+  })
+}
+
+function useSyncWrite<V, R>(fn: (v: V) => Promise<R>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSettled: () => qc.invalidateQueries({ queryKey: syncKeys.all }),
+  })
+}
+
+export const useSaveSync = (workspaceId: string) =>
+  useSyncWrite((v: { id?: string; body: DatabaseSyncBody }) =>
+    v.id
+      ? api.databaseSyncs.updateDatabaseSync(v.id, v.body)
+      : api.databaseSyncs.createDatabaseSync(workspaceId, v.body),
+  )
+
+export const usePauseSync = () =>
+  useSyncWrite((v: { id: string; paused: boolean }) =>
+    api.databaseSyncs.pauseDatabaseSync(v.id, { paused: v.paused }),
+  )
+
+export const useDeleteSync = () =>
+  useSyncWrite((id: string) => api.databaseSyncs.deleteDatabaseSync(id))
+
+// Answers `{run, job}`: hand the job to `track`.
+export const useRunSync = () =>
+  useSyncWrite((v: { id: string; dry: boolean }) =>
+    api.databaseSyncs.runDatabaseSync(v.id, { dry_run: v.dry }),
+  )
+
+export const useCancelSyncRun = () =>
+  useSyncWrite((id: string) => api.databaseSyncs.cancelDatabaseSyncRun(id))

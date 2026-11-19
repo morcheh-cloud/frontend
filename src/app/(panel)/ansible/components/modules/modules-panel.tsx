@@ -98,6 +98,10 @@ export function ModulesPanel({ phone }: { phone: boolean }) {
               setPicked(m.name)
               setOpen(true)
             }}
+            onCategory={(c) => {
+              setFilters({ cat: c || null })
+              window.scrollTo({ top: 0 })
+            }}
           />
         </div>
       )}

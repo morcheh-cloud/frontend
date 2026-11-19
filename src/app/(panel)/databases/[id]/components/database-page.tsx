@@ -62,6 +62,7 @@ import { DashboardProvider, useDashboard } from "./parts"
 import { QueriesTab } from "./queries"
 import { ReplicationTab } from "./replication"
 import { SpaceTab } from "./space"
+import { SyncsTab } from "./syncs/syncs-tab"
 
 const tabs = [
   "overview",
@@ -71,6 +72,7 @@ const tabs = [
   "clients",
   "replication",
   "backups",
+  "syncs",
   "alerts",
   "details",
 ] as const
@@ -84,6 +86,7 @@ const tabLabels = (d: Database): Record<Tab, string> => ({
   clients: "Clients",
   replication: "Replication",
   backups: "Backups",
+  syncs: "Syncs",
   alerts: "Alerts",
   details: "Details",
 })
@@ -408,6 +411,8 @@ function TabBody({ tab }: { tab: Tab }) {
       return <ReplicationTab />
     case "backups":
       return <BackupsTab />
+    case "syncs":
+      return <SyncsTab />
     case "alerts":
       return <AlertsTab />
     case "details":

@@ -1,6 +1,7 @@
 "use client"
 
-import { ChevronRight } from "lucide-react"
+import { ChevronDown, ChevronRight } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
 
 import type { Module } from "@/lib/services"
 import { cn } from "@/lib/utils"
@@ -60,13 +61,21 @@ export function CategoryChips({
   )
 }
 
+// Rows drawn per category in the grouped view, and per step in a flat one:
+// a full Ansible install has thousands of modules, and drawing them all at
+// once freezes the page.
+const GROUP_ROWS = 6
+const PAGE_ROWS = 60
+
 // The modules to show: grouped by category when nothing narrows them, with
-// the usual picks on top (`withPopular`), else one ranked list.
+// the usual picks on top (`withPopular`), else one ranked list drawn a page at
+// a time. A category's "Show all" picks it (`onCategory`).
 export function ModuleList({
   items,
   grouped,
   withPopular,
   onPick,
+  onCategory,
   selected,
   className,
 }: {
@@ -74,16 +83,18 @@ export function ModuleList({
   grouped: boolean
   withPopular?: Module[]
   onPick: (m: Module) => void
+  onCategory: (category: string) => void
   selected?: string
   className?: string
 }) {
   if (!grouped) {
     return (
-      <ul className={cn("divide-y divide-border", className)}>
-        {items.map((m) => (
-          <ModuleRow key={m.name} m={m} onPick={onPick} selected={selected} />
-        ))}
-      </ul>
+      <PagedList
+        items={items}
+        onPick={onPick}
+        selected={selected}
+        className={className}
+      />
     )
   }
   const groups = categories
@@ -100,12 +111,95 @@ export function ModuleList({
       )}
       {groups.map(({ c, list }) => (
         <Group key={c.key} title={c.label} hint={c.hint}>
-          {list.map((m) => (
+          {list.slice(0, GROUP_ROWS).map((m) => (
             <ModuleRow key={m.name} m={m} onPick={onPick} selected={selected} />
           ))}
+          {list.length > GROUP_ROWS && (
+            <li>
+              <MoreButton onClick={() => onCategory(c.key)}>
+                Show all {list.length} in {c.label}
+              </MoreButton>
+            </li>
+          )}
         </Group>
       ))}
     </div>
+  )
+}
+
+function PagedList({
+  items,
+  onPick,
+  selected,
+  className,
+}: {
+  items: Module[]
+  onPick: (m: Module) => void
+  selected?: string
+  className?: string
+}) {
+  const [shown, setShown] = useState(PAGE_ROWS)
+  const [seen, setSeen] = useState(items)
+  // A new search or category starts from the top again.
+  if (seen !== items) {
+    setSeen(items)
+    setShown(PAGE_ROWS)
+  }
+  const more = () => setShown((n) => n + PAGE_ROWS)
+  const left = items.length - shown
+  return (
+    <ul className={cn("divide-y divide-border", className)}>
+      {items.slice(0, shown).map((m) => (
+        <ModuleRow key={m.name} m={m} onPick={onPick} selected={selected} />
+      ))}
+      {left > 0 && (
+        <li>
+          <NearEnd onNear={more} />
+          <MoreButton onClick={more}>Show more ({left} left)</MoreButton>
+        </li>
+      )}
+    </ul>
+  )
+}
+
+// Calls `onNear` when it scrolls close to view, so the list grows by itself.
+function NearEnd({ onNear }: { onNear: () => void }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const latest = useRef(onNear)
+  useEffect(() => {
+    latest.current = onNear
+  })
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) latest.current()
+      },
+      { rootMargin: "400px 0px" },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+  return <div ref={ref} aria-hidden />
+}
+
+function MoreButton({
+  onClick,
+  children,
+}: {
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex min-h-11 w-full items-center gap-2 px-4 text-start text-body-sm text-brand outline-none hover:bg-subtle focus-visible:bg-subtle md:min-h-10"
+    >
+      <ChevronDown className="size-4 shrink-0" />
+      {children}
+    </button>
   )
 }
 

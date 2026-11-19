@@ -156,6 +156,9 @@ export function refreshAfterJob(qc: QueryClient, job: Job) {
   if (job.kind.startsWith("database-backup")) {
     qc.invalidateQueries({ queryKey: ["database-backups"] })
   }
+  if (job.kind === "database-sync") {
+    qc.invalidateQueries({ queryKey: ["database-syncs"] })
+  }
   // A measurement: Insights shows it, nothing in the files changed.
   if (job.kind === "storage-scan") {
     qc.invalidateQueries({ queryKey: ["storage-insights"] })

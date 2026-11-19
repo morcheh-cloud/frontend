@@ -1315,6 +1315,19 @@ export function useDeleteRegistry() {
   })
 }
 
+// docker login (or logout) on the servers a registry is for, as a job.
+// remove = sign out everywhere, then forget the registry.
+export function useSignInRegistry() {
+  return useMutation({
+    mutationFn: (v: { ws: string; id: string; remove?: boolean }) =>
+      api.containers.signInDockerRegistry(
+        v.ws,
+        v.id,
+        v.remove ? { remove: true } : {},
+      ),
+  })
+}
+
 export function useTestRegistry() {
   return useMutation({
     mutationFn: (v: {
@@ -1773,9 +1786,19 @@ export function useAutoUpdate(ws: string | undefined, id: string | undefined) {
 }
 
 // Every write answers the fresh policy: put it in both caches.
+// Which policies cover a server (a project page's Auto-update tab) follows
+// every policy change.
+function invalidateServerCovers(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({
+    predicate: (q) =>
+      q.queryKey[0] === "docker" && q.queryKey[2] === "auto-update",
+  })
+}
+
 function usePutAutoUpdate() {
   const qc = useQueryClient()
   return (ws: string, p: DockerAutoUpdate) => {
+    invalidateServerCovers(qc)
     qc.setQueryData(dockerKeys.autoUpdate(ws, p.id), p)
     qc.setQueryData<{ items: DockerAutoUpdate[] }>(
       dockerKeys.autoUpdates(ws),
@@ -1840,6 +1863,7 @@ export function useDeleteAutoUpdate() {
           old && { ...old, items: old.items.filter((x) => x.id !== v.id) },
       )
       qc.removeQueries({ queryKey: dockerKeys.autoUpdate(v.ws, v.id) })
+      invalidateServerCovers(qc)
     },
     onSettled: (_d, _e, v) =>
       qc.invalidateQueries({ queryKey: dockerKeys.autoUpdates(v.ws) }),

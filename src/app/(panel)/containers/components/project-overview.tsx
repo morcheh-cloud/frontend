@@ -17,6 +17,7 @@ import {
   Network,
   Pencil,
   Plug,
+  RefreshCcwDot,
   ScrollText,
   ShieldCheck,
   Timer,
@@ -78,6 +79,7 @@ export type ProjectTab =
   | "logs"
   | "production"
   | "alerts"
+  | "auto-update"
   | "files"
   | "environment"
   | "history"
@@ -289,6 +291,7 @@ function Hero({
     { tab: "logs", label: "Logs", icon: ScrollText },
     { tab: "production", label: "Production", icon: ShieldCheck },
     { tab: "alerts", label: "Alerts", icon: BellRing },
+    { tab: "auto-update", label: "Auto-update", icon: RefreshCcwDot },
   ]
   if (canFiles) links.push({ tab: "files", label: "Files", icon: FileCode2 })
 

@@ -9,7 +9,8 @@ import {
   Plus,
 } from "lucide-react"
 import Link from "next/link"
-import { useQueryStates } from "nuqs"
+import { useRouter } from "next/navigation"
+import { parseAsString, useQueryStates } from "nuqs"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 
 import { Callout } from "@/app/(panel)/ansible/components/run-layer"
@@ -37,6 +38,7 @@ import {
   useRestores,
 } from "../../../api"
 import { Blank, type Col, Rows, useDashboard } from "../parts"
+import { syncsHref } from "../syncs/meta"
 import {
   BackupActionsProvider,
   newPlanHref,
@@ -69,9 +71,25 @@ const listLabels: Record<BackupList, string> = {
 export function BackupsTab() {
   return (
     <BackupActionsProvider>
+      <OldSyncsLink />
       <Backups />
     </BackupActionsProvider>
   )
+}
+
+// Syncs used to be a list here (`?tab=backups&list=syncs`): send old links
+// to their own tab.
+function OldSyncsLink() {
+  const { database: d } = useDashboard()
+  const router = useRouter()
+  const [{ list, run }] = useQueryStates({
+    list: parseAsString,
+    run: parseAsString,
+  })
+  useEffect(() => {
+    if (list === "syncs") router.replace(syncsHref(d.id, run ?? undefined))
+  }, [list, run, d.id, router])
+  return null
 }
 
 const pagesOf = (total: number) => Math.max(1, Math.ceil(total / BACKUP_PAGE))
@@ -129,19 +147,22 @@ function Backups() {
     )
   }
 
-  if (total.plans + total.backups + total.restores === 0) {
-    return (
-      <div className={cn(phone && "px-4 pt-6")}>
-        <Blank
-          title="No backups yet"
-          body={
-            owner
-              ? "A plan says which databases to copy, to which storages, when, and how long to keep them. A database can have several plans."
-              : "No plan has been set up for this database. An Owner can add one."
-          }
-          action={
-            owner ? (
-              <div className="flex flex-wrap justify-center gap-2 max-md:w-full max-md:flex-col">
+  // Nothing anywhere yet: the tabs stay, the list area explains what a plan
+  // is.
+  const empty = total.plans + total.backups + total.restores === 0
+  const blank = (
+    <div className={cn(phone && "px-4 pt-6")}>
+      <Blank
+        title="No backups yet"
+        body={
+          owner
+            ? "A plan says which databases to copy, to which storages, when, and how long to keep them. A database can have several plans."
+            : "No plan has been set up for this database. An Owner can add one."
+        }
+        action={
+          owner ? (
+            <div className="flex flex-wrap justify-center gap-2 max-md:w-full max-md:flex-col">
+              {owner && (
                 <Button
                   className="max-md:h-11"
                   render={<Link href={newPlanHref(d.id)} />}
@@ -150,14 +171,14 @@ function Backups() {
                   <Plus />
                   New plan
                 </Button>
-                {fromFile && <RestoreFileButton />}
-              </div>
-            ) : undefined
-          }
-        />
-      </div>
-    )
-  }
+              )}
+              {owner && fromFile && <RestoreFileButton />}
+            </div>
+          ) : undefined
+        }
+      />
+    </div>
+  )
 
   const onPage = (next: number) => {
     void setView({ page: next })
@@ -201,7 +222,8 @@ function Backups() {
           </Button>
         )}
       </div>
-      {list === "plans" && (
+      {empty && blank}
+      {!empty && list === "plans" && (
         <>
           <PlanProblems plans={broken} />
           <Plans
@@ -211,10 +233,10 @@ function Backups() {
           />
         </>
       )}
-      {list === "backups" && (
+      {!empty && list === "backups" && (
         <History items={backups.data?.items ?? []} pager={pager} />
       )}
-      {list === "restores" && (
+      {!empty && list === "restores" && (
         <Restores items={restores.data?.items ?? []} pager={pager} />
       )}
     </div>

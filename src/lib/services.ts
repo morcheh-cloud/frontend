@@ -1729,6 +1729,12 @@ export interface Certificate {
   source: "certbot" | "morche";
 }
 
+export interface Change {
+  key: string[];
+  op: "insert" | "update" | "delete" | "keep";
+  values?: Value[];
+}
+
 export interface ChangePasswordBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -2349,6 +2355,19 @@ export interface CloudVolume {
   type: string;
   zone: string;
   zone_name: string;
+}
+
+export interface Column {
+  /** Computed by the database; never written */
+  generated: boolean;
+  /** PostgreSQL GENERATED ALWAYS identity */
+  identity?: boolean;
+  kind: "number" | "text" | "binary" | "time" | "other";
+  name: string;
+  nullable: boolean;
+  /** Filled from a sequence or auto_increment */
+  serial?: boolean;
+  type: string;
 }
 
 export interface CommandLogEntry {
@@ -4282,6 +4301,270 @@ export interface DatabaseSource {
   lag_seconds: number | null;
   /** Receiving and applying changes */
   running: boolean;
+}
+
+export interface DatabaseSync {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format date-time */
+  created_at: string;
+  cron: string;
+  /**
+   * incremental: when every row was last compared
+   * @format date-time
+   */
+  full_at: string | null;
+  /** @format uuid */
+  id: string;
+  /** @format int64 */
+  interval_minutes: number;
+  last_run: DatabaseSyncRunBrief;
+  mode: "tables" | "mirror" | "incremental" | "replace";
+  name: string;
+  /** @format date-time */
+  next_run_at: string | null;
+  options: DatabaseSyncOptions;
+  paused: boolean;
+  problem: string;
+  /** Whose access runs use: the person who saved it last */
+  runs_as: string;
+  source: DatabaseSyncEnd;
+  target: DatabaseSyncEnd;
+  timezone: string;
+  trigger: "manual" | "schedule" | "interval";
+  /** @format date-time */
+  updated_at: string;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface DatabaseSyncBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * The target's name, when this can delete or replace data there
+   * @maxLength 128
+   */
+  confirm?: string;
+  /** @maxLength 200 */
+  cron?: string;
+  /**
+   * @format int64
+   * @min 0
+   * @max 10080
+   */
+  interval_minutes?: number;
+  mode: "tables" | "mirror" | "incremental" | "replace";
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  options?: DatabaseSyncOptions;
+  paused?: boolean;
+  /**
+   * updated_at as read; a newer save is refused
+   * @format date-time
+   */
+  revision?: string;
+  /** @format uuid */
+  source_database_id: string;
+  /**
+   * @minLength 1
+   * @maxLength 128
+   */
+  source_name: string;
+  /** @format uuid */
+  target_database_id: string;
+  /**
+   * @minLength 1
+   * @maxLength 128
+   */
+  target_name: string;
+  /** @maxLength 64 */
+  timezone?: string;
+  trigger?: "manual" | "schedule" | "interval";
+}
+
+export interface DatabaseSyncEnd {
+  /** @format uuid */
+  database_id: string;
+  engine: string;
+  /** The database connection's name in Morche */
+  label: string;
+  /** direct or server */
+  mode: string;
+  /** The database inside it */
+  name: string;
+}
+
+export interface DatabaseSyncListOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: DatabaseSync[];
+}
+
+export interface DatabaseSyncOptions {
+  /**
+   * Rows per page (default 1000)
+   * @format int64
+   * @min 0
+   * @max 10000
+   */
+  batch?: number;
+  /** Rows on both sides that differ: overwrite (default), keep_target, newer_wins, stop */
+  conflict?: string;
+  /** Create tables the target lacks */
+  create?: boolean;
+  /** tables: delete target rows the source lacks */
+  delete?: boolean;
+  /**
+   * mirror: tables left out (schema.name or name)
+   * @maxItems 1000
+   */
+  exclude?: string[];
+  /**
+   * incremental: compare every row once in this many hours (0 = never)
+   * @format int64
+   * @min 0
+   * @max 8760
+   */
+  full_every_hours?: number;
+  /** tables: add rows the target lacks */
+  insert?: boolean;
+  /**
+   * incremental: read again this far behind the mark (time columns)
+   * @format int64
+   * @min 0
+   * @max 86400
+   */
+  lookback_seconds?: number;
+  /**
+   * newer_wins: the column holding when a row last changed
+   * @maxLength 128
+   */
+  newer_column?: string;
+  /** Tables without a key: skip (default) or reload (emptied and copied again) */
+  no_key?: string;
+  /** A row the target refuses: skip (default), stop_table, stop */
+  on_error?: string;
+  /**
+   * tables/incremental: which source table goes to which target table
+   * @maxItems 1000
+   */
+  pairs?: Pair[];
+  /** Foreign key checks off while writing */
+  pause_checks?: boolean;
+  /** replace, direct source: a server id, or "local" / empty = Morche's machine */
+  source_runner?: string;
+  /** replace, direct target: a server id, or "local" / empty = Morche's machine */
+  target_runner?: string;
+}
+
+export interface DatabaseSyncReplace {
+  /**
+   * Dump size moved
+   * @format int64
+   */
+  bytes: number;
+  /** The target database was there before */
+  existed: boolean;
+}
+
+export interface DatabaseSyncResult {
+  /** incremental: this run compared every row */
+  full?: boolean;
+  notes?: string[];
+  replace?: DatabaseSyncReplace;
+  tables: TableResult[];
+}
+
+export interface DatabaseSyncRun {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format date-time */
+  created_at: string;
+  created_by_name: string;
+  /** A preview: compared, nothing written */
+  dry_run: boolean;
+  error: string;
+  /** @format date-time */
+  finished_at: string | null;
+  /** @format uuid */
+  id: string;
+  job_id: string | null;
+  phase: string;
+  /** While it runs */
+  progress: Progress;
+  result: DatabaseSyncResult;
+  /** @format int64 */
+  rows_written: number;
+  /** @format date-time */
+  started_at: string | null;
+  state: string;
+  /** @format uuid */
+  sync_id: string;
+  trigger: string;
+}
+
+export interface DatabaseSyncRunBrief {
+  /** @format date-time */
+  at: string;
+  dry_run: boolean;
+  error: string;
+  /** @format date-time */
+  finished_at: string | null;
+  /** @format uuid */
+  id: string;
+  state: string;
+}
+
+export interface DatabaseSyncRunListOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: DatabaseSyncRun[];
+}
+
+export interface DatabaseSyncRunOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** null when the run was skipped */
+  job: Job;
+  /** null when an interval run was left for the next turn */
+  run: DatabaseSyncRun;
+}
+
+export interface DatabaseSyncTables {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Databases on this connection */
+  databases: string[];
+  name: string;
+  /** Row-by-row modes work on this engine */
+  rows: boolean;
+  /** Tables of name (PostgreSQL and MySQL only) */
+  tables: Table[];
 }
 
 export interface DatabaseTable {
@@ -6730,7 +7013,15 @@ export interface DockerRegistry {
   has_password: boolean;
   /** @format uuid */
   id: string;
+  /** Where Morche signed Docker in (or tried to), last time */
+  logins: DockerRegistryLogin[];
   name: string;
+  /** The chosen servers (servers = chosen) */
+  server_ids: string[];
+  /** Which servers it's for: every server of the workspace, or server_ids */
+  servers: "all" | "chosen";
+  /** Also sign each server's own Docker in (docker login), not only Morche's pulls */
+  sign_in_on_servers: boolean;
   /** @format date-time */
   updated_at: string;
   username: string;
@@ -6757,8 +7048,35 @@ export interface DockerRegistryBody {
    * @maxLength 4000
    */
   password?: string;
+  /** @maxItems 1000 */
+  server_ids?: string[];
+  /** Default all */
+  servers?: "all" | "chosen";
+  /** Also docker login on the servers (start it with the sign-in action) */
+  sign_in_on_servers?: boolean;
   /** @maxLength 200 */
   username: string;
+}
+
+export interface DockerRegistryLogin {
+  /** Whose Docker config holds it: root, or the login user */
+  as_user?: string;
+  /** @format date-time */
+  at: string;
+  message?: string;
+  ok: boolean;
+  /** @format uuid */
+  server_id: string;
+}
+
+export interface DockerRegistrySignInBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Sign out everywhere Morche signed in, then forget the registry */
+  remove?: boolean;
 }
 
 export interface DockerRegistryTest {
@@ -8215,6 +8533,12 @@ export interface Fail2BanUninstallBody {
   purge?: boolean;
 }
 
+export interface Failure {
+  error: string;
+  key?: string[];
+  op: "insert" | "update" | "delete" | "reload" | "table";
+}
+
 export interface FetchBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -9382,6 +9706,11 @@ export interface JobPlace {
   name?: string;
   path: string;
   /**
+   * The container registry login it signs in or out
+   * @format uuid
+   */
+  registry?: string;
+  /**
    * The Ansible or cron job run it belongs to
    * @format uuid
    */
@@ -10138,6 +10467,14 @@ export interface MakeFolderRequest {
   $schema?: string;
   /** @minLength 1 */
   path: string;
+}
+
+export interface Mark {
+  /** @format date-time */
+  at: string;
+  column: string;
+  key?: string[];
+  value: string | null;
 }
 
 export interface Memory {
@@ -12200,6 +12537,17 @@ export interface PackagesOverview {
   warnings: string[];
 }
 
+export interface Pair {
+  /** Only these columns; empty = every column both tables have */
+  columns?: string[];
+  from: Ref;
+  /** Columns that identify a row; empty = the table's key */
+  key?: string[];
+  to: Ref;
+  /** Incremental: the column that grows with each new or changed row */
+  track?: string;
+}
+
 export interface PanelApproveBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -12528,6 +12876,15 @@ export interface PathRule {
   /** proxy: where requests go; empty = the site's own upstream (proxy sites) */
   upstream?: string;
   websockets?: boolean;
+}
+
+export interface PauseDatabaseSyncRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  paused: boolean;
 }
 
 export interface PauseMonitorRequest {
@@ -14407,6 +14764,16 @@ export interface Redirects {
   strict_slash?: boolean;
 }
 
+export interface Ref {
+  /**
+   * @minLength 1
+   * @maxLength 128
+   */
+  name: string;
+  /** @maxLength 128 */
+  schema?: string;
+}
+
 export interface Region {
   city: string;
   code: string;
@@ -14880,6 +15247,16 @@ export interface Rule {
   text: string;
   /** User names, %group, %#gid, #uid or ALL */
   who: string[];
+}
+
+export interface RunDatabaseSyncRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Compare and report what would change; write nothing */
+  dry_run?: boolean;
 }
 
 export interface RunEvent {
@@ -18695,6 +19072,63 @@ export interface SubnetMember {
   server_id: string;
 }
 
+export interface Table {
+  /** @format int64 */
+  bytes: number;
+  columns: Column[];
+  /** Primary key, or a unique index on non-null columns */
+  key: string[];
+  key_from: "primary" | "unique" | "none";
+  /**
+   * @minLength 1
+   * @maxLength 128
+   */
+  name: string;
+  /**
+   * Estimate
+   * @format int64
+   */
+  rows: number;
+  /** @maxLength 128 */
+  schema?: string;
+}
+
+export interface TableResult {
+  columns: string[];
+  created?: boolean;
+  /** @format int64 */
+  deleted: number;
+  error?: string;
+  /** @format int64 */
+  failed: number;
+  failures?: Failure[];
+  from: Ref;
+  /** @format int64 */
+  inserted: number;
+  /**
+   * Rows that differ but were left as the target has them
+   * @format int64
+   */
+  kept: number;
+  key: string[];
+  /** Source columns the target doesn't have */
+  left_out?: string[];
+  mark?: Mark;
+  /** @format int64 */
+  ms: number;
+  note?: string;
+  /** @format int64 */
+  read: number;
+  reloaded?: boolean;
+  /** @format int64 */
+  same: number;
+  samples?: Change[];
+  state: "done" | "failed" | "skipped" | "stopped";
+  to: Ref;
+  /** @format int64 */
+  updated: number;
+}
+
 export interface TaskResult {
   /** @format int64 */
   attempts?: number;
@@ -19291,6 +19725,14 @@ export interface UsersOverview {
   uid_min: number;
   users: User[];
   warnings: string[];
+}
+
+export interface Value {
+  /** On the target now */
+  from?: string;
+  name: string;
+  /** From the source */
+  to?: string;
 }
 
 export interface WAF {
@@ -22491,6 +22933,246 @@ export class Api<
         ...params,
       }),
   };
+  databaseSyncs = {
+    /**
+     * No description
+     *
+     * @tags Database syncs
+     * @name CancelDatabaseSyncRun
+     * @summary Stop a database sync run
+     * @request POST:/database-sync-runs/{id}/cancel
+     */
+    cancelDatabaseSyncRun: (id: string, params: RequestParams = {}) =>
+      this.request<DatabaseSyncRun, ErrorModel>({
+        path: `/database-sync-runs/${id}/cancel`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Database syncs
+     * @name CreateDatabaseSync
+     * @summary Create a database sync
+     * @request POST:/workspaces/{id}/database-syncs
+     */
+    createDatabaseSync: (
+      id: string,
+      data: DatabaseSyncBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<DatabaseSync, ErrorModel>({
+        path: `/workspaces/${id}/database-syncs`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Database syncs
+     * @name DeleteDatabaseSync
+     * @summary Delete a database sync and its runs
+     * @request DELETE:/database-syncs/{id}
+     */
+    deleteDatabaseSync: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/database-syncs/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Database syncs
+     * @name GetDatabaseSync
+     * @summary Get a database sync
+     * @request GET:/database-syncs/{id}
+     */
+    getDatabaseSync: (id: string, params: RequestParams = {}) =>
+      this.request<DatabaseSync, ErrorModel>({
+        path: `/database-syncs/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Database syncs
+     * @name GetDatabaseSyncRun
+     * @summary Get one database sync run
+     * @request GET:/database-sync-runs/{id}
+     */
+    getDatabaseSyncRun: (id: string, params: RequestParams = {}) =>
+      this.request<DatabaseSyncRun, ErrorModel>({
+        path: `/database-sync-runs/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Database syncs
+     * @name ListDatabaseSyncPlans
+     * @summary List the syncs reading from or writing into a database
+     * @request GET:/databases/{id}/syncs
+     */
+    listDatabaseSyncPlans: (id: string, params: RequestParams = {}) =>
+      this.request<DatabaseSyncListOutputBody, ErrorModel>({
+        path: `/databases/${id}/syncs`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Database syncs
+     * @name ListDatabaseSyncRuns
+     * @summary List a database sync's runs, newest first
+     * @request GET:/database-syncs/{id}/runs
+     */
+    listDatabaseSyncRuns: (
+      id: string,
+      query?: {
+        /**
+         * @format int64
+         * @min 1
+         * @max 200
+         * @default 50
+         */
+        limit?: number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<DatabaseSyncRunListOutputBody, ErrorModel>({
+        path: `/database-syncs/${id}/runs`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Database syncs
+     * @name ListDatabaseSyncs
+     * @summary List a workspace's database syncs
+     * @request GET:/workspaces/{id}/database-syncs
+     */
+    listDatabaseSyncs: (id: string, params: RequestParams = {}) =>
+      this.request<DatabaseSyncListOutputBody, ErrorModel>({
+        path: `/workspaces/${id}/database-syncs`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Database syncs
+     * @name ListDatabaseSyncTables
+     * @summary List a database's databases and the tables of one, for a sync
+     * @request GET:/databases/{id}/sync-tables
+     */
+    listDatabaseSyncTables: (
+      id: string,
+      query?: {
+        /**
+         * The database to list the tables of
+         * @maxLength 128
+         */
+        name?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<DatabaseSyncTables, ErrorModel>({
+        path: `/databases/${id}/sync-tables`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Database syncs
+     * @name PauseDatabaseSync
+     * @summary Pause or resume a database sync
+     * @request POST:/database-syncs/{id}/pause
+     */
+    pauseDatabaseSync: (
+      id: string,
+      data: PauseDatabaseSyncRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<DatabaseSync, ErrorModel>({
+        path: `/database-syncs/${id}/pause`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Database syncs
+     * @name RunDatabaseSync
+     * @summary Run a database sync now, or compare only (dry_run)
+     * @request POST:/database-syncs/{id}/run
+     */
+    runDatabaseSync: (
+      id: string,
+      data: RunDatabaseSyncRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<DatabaseSyncRunOutputBody, ErrorModel>({
+        path: `/database-syncs/${id}/run`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Database syncs
+     * @name UpdateDatabaseSync
+     * @summary Save changes to a database sync
+     * @request PUT:/database-syncs/{id}
+     */
+    updateDatabaseSync: (
+      id: string,
+      data: DatabaseSyncBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<DatabaseSync, ErrorModel>({
+        path: `/database-syncs/${id}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
   databases = {
     /**
      * @description Connects afresh, runs every check and records the result.
@@ -25165,6 +25847,29 @@ export class Api<
       this.request<DockerProject, ErrorModel>({
         path: `/servers/${id}/docker/projects/${project}/meta`,
         method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Runs as a background job (kind `docker-registry-login`): `docker login` on every server the registry is for when `sign_in_on_servers` is on, and `docker logout` where Morche signed in before but the registry no longer covers (or signing in is off). With `remove`, signs out everywhere and then forgets the registry. The password goes in on stdin, never a command line.
+     *
+     * @tags Containers
+     * @name SignInDockerRegistry
+     * @summary Sign the servers' Docker in to a registry
+     * @request POST:/workspaces/{id}/docker/registries/{registry}/sign-in
+     */
+    signInDockerRegistry: (
+      id: string,
+      registry: string,
+      data: DockerRegistrySignInBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/workspaces/${id}/docker/registries/${registry}/sign-in`,
+        method: "POST",
         body: data,
         type: ContentType.Json,
         format: "json",

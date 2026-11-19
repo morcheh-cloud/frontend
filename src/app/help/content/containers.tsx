@@ -3,6 +3,7 @@ import {
   Code,
   Example,
   type GuideSection,
+  Keys,
   P,
   Recommended,
   See,
@@ -1277,7 +1278,10 @@ export const containers: GuideSection[] = [
             Open <UI>Auto-update</UI> and press <UI>New policy</UI> (or{" "}
             <UI>Keep up to date…</UI> in a container's menu, or{" "}
             <UI>Set up auto-update</UI> on a server's Updates page: the server
-            and container are filled in).
+            and container are filled in). A project page's <UI>Auto-update</UI>{" "}
+            tab lists the policies that take its containers in (or leave it
+            out), what each container gets, and its recent updates;{" "}
+            <UI>New policy</UI> there starts one for the whole project.
           </>
           <>
             Tick the servers, then say which containers it takes in. The list
@@ -1358,9 +1362,19 @@ export const containers: GuideSection[] = [
         <P>
           A name can be a container (<C>web</C>), a compose project (<C>shop</C>
           ), a project's service (<C>shop/api</C>) or an image (<C>nginx</C>,{" "}
-          <C>ghcr.io/acme/*</C>); <C>*</C> and <C>?</C> work. <UI>Leave out</UI>{" "}
-          takes the same names and always wins. Containers built on the server,
-          pinned to a digest, paused or (unless ticked) stopped are never taken.
+          <C>ghcr.io/acme/*</C>); <C>*</C> and <C>?</C> work.{" "}
+          <UI>Never touch</UI> takes the same names and always wins. Containers
+          built on the server, pinned to a digest, paused or (unless ticked)
+          stopped are never taken.
+        </P>
+        <P>
+          You don't have to type them: both lists show what runs on the picked
+          servers under <UI>Projects</UI>, <UI>Containers</UI> and{" "}
+          <UI>Images</UI>. Search, tick, and the name lands as a chip with how
+          many containers it takes in now. Type a pattern such as <C>web-*</C>{" "}
+          to see what it would match, then press <Keys>Enter</Keys> to add it. A
+          row already taken by a project or a pattern shows <UI>Via …</UI>.{" "}
+          <UI>Edit as text</UI> gives the plain list, one name per line.
         </P>
         <P>
           Labels on a container tune it from its compose file. Watchtower's{" "}
@@ -1599,10 +1613,11 @@ export const containers: GuideSection[] = [
     body: (
       <>
         <P>
-          <UI>Customization</UI> › <UI>Registries</UI> keeps the workspace's
+          <UI>All servers</UI> › <UI>Registries</UI> keeps the workspace's
           logins to private registries (GitHub, GitLab, Docker Hub, your own…).
-          Morche uses the matching one whenever it pulls an image from there:
-          deploys, updates and pulls. Public images need none.
+          Morche uses the matching one whenever it pulls an image from there on
+          a server the login is for: deploys, updates, auto-update and pulls.
+          Public images need none.
         </P>
         <Steps>
           {[
@@ -1612,12 +1627,33 @@ export const containers: GuideSection[] = [
               and a password or access token.
             </>,
             <>
+              Under <UI>Servers</UI>, pick <UI>All servers</UI> or{" "}
+              <UI>Chosen ones</UI> and tick them. A server left out pulls from
+              that registry without a login.
+            </>,
+            <>
+              Turn on <UI>Also sign in on the servers</UI> when tools on the
+              server itself pull too (the <C>docker</C> CLI, compose run by
+              hand, Watchtower, a CI runner). On save, Morche runs{" "}
+              <C>docker login</C> on each chosen server as a background task (as
+              root when it can, the password goes in on stdin, never a command
+              line). Servers without Docker are skipped.
+            </>,
+            <>
               <UI>Try it</UI> logs in from the current environment before
               saving. From a saved login's menu, <UI>Test the login</UI> does
               the same.
             </>,
           ]}
         </Steps>
+        <P>
+          The <UI>On the servers</UI> column says how the last sign-in went;
+          each server's state shows in the form, with the error on hover. Taking
+          a server out of the list, or turning sign-in off, signs that server
+          out on the next save. <UI>Sign the servers in again</UI> in the menu
+          runs it again (after a server was rebuilt, or the token changed).
+          Removing a login signs every server out first, then forgets it.
+        </P>
         <Recommended
           rows={[
             {
@@ -1625,8 +1661,18 @@ export const containers: GuideSection[] = [
               value: "A read-only access token",
               why: "Pulling needs nothing more, and a token can be revoked alone",
             },
+            {
+              setting: "Also sign in on the servers",
+              value: "Off, unless something on the server pulls by itself",
+              why: "Morche's own pulls and auto-update carry the login with them; signing in writes the token into the server's Docker config",
+            },
           ]}
         />
+        <Tip>
+          Auto-update says <UI>Couldn't check</UI> for a private image? Check
+          that the registry's login covers that server (<UI>Servers</UI>) and
+          that the address matches how the image name starts.
+        </Tip>
       </>
     ),
   },
