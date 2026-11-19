@@ -6,7 +6,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query"
-
+import { useDemo } from "@/components/demo/demo"
 import { api } from "@/lib/api"
 import type { SecuritySettings, SecuritySettingsBody } from "@/lib/services"
 
@@ -94,7 +94,11 @@ export function useSignIns(q: Omit<SignInQuery, "before">) {
 // ---- new-address alerts ----
 
 export function useSignInAlerts() {
+  // The public demo's shared account has none to answer (and the backend
+  // refuses the list there).
+  const demo = useDemo()
   return useQuery({
+    enabled: !demo,
     queryKey: sessionKeys.alerts,
     queryFn: () => api.auth.listSignInAlerts(),
     select: (d) => d.items,
