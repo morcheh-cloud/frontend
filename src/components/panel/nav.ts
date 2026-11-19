@@ -25,6 +25,7 @@ import {
   type LucideIcon,
   MonitorCog,
   Network,
+  PackageSearch,
   RefreshCcwDot,
   ScrollText,
   Server,
@@ -57,6 +58,21 @@ export type NavGroup = { label?: string; items: NavItem[] }
 // just filter or view one list (proxy hosts vs redirections). Its first
 // child is the section's own page; each other child has its own route.
 export const homeItem: NavItem = { href: "/home", label: "Home", icon: House }
+// The asset inventory: everything the organisation owns or pays for, with
+// owners, dates and how things depend on each other.
+export const assetsItem: NavItem = {
+  href: "/assets",
+  label: "Assets",
+  icon: PackageSearch,
+  children: [
+    { href: "/assets", label: "Inventory", also: ["/assets/*"] },
+    { href: "/assets/coverage", label: "Coverage" },
+    { href: "/assets/discovery", label: "Discovery" },
+    { href: "/assets/map", label: "Map" },
+    { href: "/assets/owners", label: "Owners" },
+    { href: "/assets/settings", label: "Settings" },
+  ],
+}
 export const serversItem: NavItem = {
   href: "/servers",
   label: "Servers",
@@ -313,7 +329,7 @@ export const helpItem: NavItem = {
 
 // Sidebar order. Help and Settings sit apart, pinned to the bottom.
 export const navGroups: NavGroup[] = [
-  { label: "Platform", items: [homeItem, servicesItem] },
+  { label: "Platform", items: [homeItem, assetsItem, servicesItem] },
   {
     label: "Infrastructure",
     items: [

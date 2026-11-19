@@ -33,6 +33,7 @@ import {
   MonitorUp,
   Package,
   PackageOpen,
+  PackageSearch,
   Play,
   RefreshCcwDot,
   SearchCheck,
@@ -87,6 +88,7 @@ const icons: Record<string, LucideIcon> = {
   "proxy-certificate": FileKey,
   "software-run": LayoutGrid,
   "software-scan": FolderSearch,
+  "asset-discovery": PackageSearch,
   "package-action": Package,
   "package-refresh": ListRestart,
   "docker-pull": CloudDownload,
@@ -278,6 +280,7 @@ export function placeHref(job: Job) {
   if (job.kind === "software-run" && t?.run_id) {
     return `/applications/runs/${t.run_id}`
   }
+  if (job.kind === "asset-discovery") return "/assets/discovery"
   if (job.kind === "software-scan") {
     return t?.server_id
       ? `/servers/${t.server_id}/applications`
@@ -315,6 +318,7 @@ export function placeLabel(job: Job) {
   if (job.target?.dataset)
     return job.kind === "log-compact" ? "Open logs" : "Open files"
   if (job.kind === "software-scan") return "Open applications"
+  if (job.kind === "asset-discovery") return "Open discovery"
   if (job.kind.startsWith("proxy-")) return "Open proxy"
   if (job.kind.startsWith("package-")) return "Open packages"
   if (

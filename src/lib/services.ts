@@ -20,6 +20,29 @@ export interface AcknowledgeMonitorIncidentRequest {
   note?: string;
 }
 
+export interface AddAssetRelationRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  kind:
+    | "runs_on"
+    | "uses"
+    | "depends_on"
+    | "stored_in"
+    | "backs_up_to"
+    | "points_to"
+    | "connects_to"
+    | "part_of"
+    | "licensed_for"
+    | "assigned_to";
+  /** @maxLength 500 */
+  note?: string;
+  /** @format uuid */
+  to_id: string;
+}
+
 export interface AddCronJobRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -800,6 +823,496 @@ export interface ArchiveListBody {
   total: number;
 }
 
+export interface Asset {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  asset_tag: string;
+  /** @format uuid */
+  assigned_user_id?: string;
+  assigned_user_name?: string;
+  auto_renew: boolean;
+  billing: string;
+  category: string;
+  /** Channels for reminders and owner alerts about it */
+  channel_ids: string[];
+  classification: string;
+  /** @format double */
+  cost?: number;
+  cost_center: string;
+  /** @format date-time */
+  created_at: string;
+  created_by_name: string;
+  /**
+   * 1 = most critical … 4 = least; 0 = not set
+   * @format int64
+   */
+  criticality: number;
+  currency: string;
+  /** @format uuid */
+  deputy_user_id?: string;
+  description: string;
+  environment: string;
+  /** YYYY-MM-DD: licence, domain, contract or subscription end */
+  expires_on: string;
+  /** What Morche knows about the source: status, address, versions… */
+  facts: Record<string, any>;
+  /** The team's own fields */
+  fields: Record<string, string>;
+  has_license_key: boolean;
+  /** @format uuid */
+  id: string;
+  kind: string;
+  /** @format date-time */
+  last_seen_at?: string;
+  lifecycle: string;
+  links: AssetLink[];
+  location: string;
+  model: string;
+  name: string;
+  /** @format int64 */
+  note_count: number;
+  /** Deprecated: notes are their own list now (list-asset-notes) */
+  notes: string;
+  /** Who answers for it after owner rules */
+  owner: AssetOwner;
+  /** @format uuid */
+  owner_group_id?: string;
+  /** @format uuid */
+  owner_user_id?: string;
+  /** YYYY-MM-DD */
+  purchased_on: string;
+  /**
+   * Ask the owner to confirm it every N days; 0 = never
+   * @format int64
+   */
+  review_days: number;
+  /** @format date-time */
+  reviewed_at?: string;
+  reviewed_by_name: string;
+  /** @format int64 */
+  seats?: number;
+  /** @format int64 */
+  seats_used?: number;
+  serial_number: string;
+  /** It was removed from Morche; the asset stays for its history */
+  source_gone: boolean;
+  /** The Morche section it mirrors; empty = entered by hand */
+  source_kind: string;
+  /** Its id there (server/project for a compose project) */
+  source_ref: string;
+  tags: string[];
+  /**
+   * Send it back as revision when saving
+   * @format date-time
+   */
+  updated_at: string;
+  updated_by_name: string;
+  vendor: string;
+  /** YYYY-MM-DD */
+  warranty_until: string;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface AssetBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 100 */
+  asset_tag?: string;
+  assigned_user_id?: string;
+  auto_renew?: boolean;
+  billing?: "" | "once" | "monthly" | "yearly";
+  /** @maxLength 60 */
+  category?: string;
+  /** @maxItems 20 */
+  channel_ids?: string[];
+  classification?: "" | "public" | "internal" | "confidential" | "restricted";
+  clear_license_key?: boolean;
+  /**
+   * @format double
+   * @min 0
+   */
+  cost?: number;
+  /** @maxLength 100 */
+  cost_center?: string;
+  /**
+   * @format int64
+   * @min 0
+   * @max 4
+   */
+  criticality?: number;
+  /** @maxLength 8 */
+  currency?: string;
+  deputy_user_id?: string;
+  /** @maxLength 2000 */
+  description?: string;
+  environment?: "" | "production" | "staging" | "development" | "test";
+  expires_on?: string;
+  fields?: Record<string, string>;
+  /** @maxLength 40 */
+  kind: string;
+  /**
+   * Empty = keep the saved one
+   * @maxLength 10000
+   */
+  license_key?: string;
+  lifecycle?:
+    | ""
+    | "planned"
+    | "active"
+    | "maintenance"
+    | "deprecated"
+    | "retired";
+  /** @maxItems 20 */
+  links?: AssetLink[];
+  /** @maxLength 200 */
+  location?: string;
+  /** @maxLength 200 */
+  model?: string;
+  /** @maxLength 200 */
+  name: string;
+  /** @maxLength 20000 */
+  notes?: string;
+  owner_group_id?: string;
+  owner_user_id?: string;
+  purchased_on?: string;
+  /**
+   * @format int64
+   * @min 0
+   * @max 3650
+   */
+  review_days?: number;
+  /**
+   * The asset's updated_at when you loaded it: 409 when someone saved in between
+   * @format date-time
+   */
+  revision?: string;
+  /**
+   * @format int64
+   * @min 0
+   */
+  seats?: number;
+  /**
+   * @format int64
+   * @min 0
+   */
+  seats_used?: number;
+  /** @maxLength 200 */
+  serial_number?: string;
+  /** @maxItems 50 */
+  tags?: string[];
+  /** @maxLength 200 */
+  vendor?: string;
+  warranty_until?: string;
+}
+
+export interface AssetBulkBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxItems 20 */
+  add_tags?: string[];
+  classification?: "" | "public" | "internal" | "confidential" | "restricted";
+  /**
+   * @format int64
+   * @min 0
+   * @max 4
+   */
+  criticality?: number;
+  /** Empty string = clear */
+  deputy_user_id?: string;
+  environment?: "" | "production" | "staging" | "development" | "test";
+  /**
+   * @maxItems 1000
+   * @minItems 1
+   */
+  ids: string[];
+  lifecycle?: "planned" | "active" | "maintenance" | "deprecated" | "retired";
+  /** Empty string = clear */
+  owner_group_id?: string;
+  /** Empty string = clear */
+  owner_user_id?: string;
+  /** @maxItems 20 */
+  remove_tags?: string[];
+  /**
+   * @format int64
+   * @min 0
+   * @max 3650
+   */
+  review_days?: number;
+}
+
+export interface AssetChange {
+  field: string;
+  from: string;
+  to: string;
+}
+
+export interface AssetDetail {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  asset: Asset;
+  events: AssetEvent[];
+  /** The assets at the other end of its relations */
+  related: Asset[];
+  relations: AssetRelation[];
+}
+
+export interface AssetDiscovery {
+  /**
+   * The asset it was tracked as
+   * @format uuid
+   */
+  asset_id?: string;
+  /** What's needed to add it: engine, port, addresses… */
+  data: Record<string, any>;
+  detail: string;
+  /** @format date-time */
+  first_seen: string;
+  /** Not seen the last time its source was read */
+  gone: boolean;
+  /** @format uuid */
+  id: string;
+  /** Stable id of what was found, e.g. db:<server>:<port> */
+  key: string;
+  kind: "database" | "virtual_machine" | "cloud_server" | "domain";
+  /** @format date-time */
+  last_seen: string;
+  /** @format uuid */
+  server_id?: string;
+  server_name?: string;
+  source: "ports" | "proxmox" | "cloud" | "dns";
+  state: "new" | "accepted" | "ignored";
+  title: string;
+}
+
+export interface AssetEvent {
+  /** created, updated, found, gone, back, reviewed, key-shown, related, unrelated */
+  action: string;
+  /** @format date-time */
+  at: string;
+  by_name: string;
+  changes: AssetChange[];
+  /** @format uuid */
+  id: string;
+}
+
+export interface AssetGroup {
+  /** @format uuid */
+  id: string;
+  /** @format int64 */
+  members: number;
+  name: string;
+}
+
+export interface AssetImportError {
+  message: string;
+  /**
+   * Index in items
+   * @format int64
+   */
+  row: number;
+}
+
+export interface AssetLink {
+  /** @maxLength 100 */
+  label: string;
+  /** @maxLength 1000 */
+  url: string;
+}
+
+export interface AssetList {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: Asset[];
+}
+
+export interface AssetNote {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Markdown */
+  body: string;
+  /** @format date-time */
+  created_at: string;
+  created_by_name: string;
+  /** @format uuid */
+  id: string;
+  /** Shown on the asset's overview */
+  pinned: boolean;
+  title: string;
+  /**
+   * Send it back as revision when saving
+   * @format date-time
+   */
+  updated_at: string;
+  updated_by_name: string;
+}
+
+export interface AssetNoteBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 100000 */
+  body: string;
+  pinned?: boolean;
+  /** @maxLength 200 */
+  title: string;
+}
+
+export interface AssetNoteUpdate {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 100000 */
+  body: string;
+  pinned?: boolean;
+  /**
+   * The note's updated_at when you loaded it: 409 when someone saved in between
+   * @format date-time
+   */
+  revision?: string;
+  /** @maxLength 200 */
+  title: string;
+}
+
+export interface AssetOwner {
+  /** @format uuid */
+  deputy_id?: string;
+  deputy_name?: string;
+  /** asset: set on the asset; rule: from an owner rule; none: nobody */
+  from: "asset" | "rule" | "none";
+  /** @format uuid */
+  group_id?: string;
+  group_name?: string;
+  rule_name?: string;
+  /** @format uuid */
+  user_id?: string;
+  user_name?: string;
+  /** blocked = the owner can't sign in any more */
+  user_status?: string;
+}
+
+export interface AssetOwnerRule {
+  deputy_name?: string;
+  deputy_user_id?: string;
+  /** @maxItems 5 */
+  environments: string[];
+  group_name?: string;
+  /** @format uuid */
+  id?: string;
+  /** @maxItems 30 */
+  kinds: string[];
+  /** @maxLength 100 */
+  name: string;
+  /**
+   * Matches names; * and ? work, plain text = contains
+   * @maxLength 200
+   */
+  name_pattern: string;
+  owner_group_id?: string;
+  owner_name?: string;
+  owner_user_id?: string;
+  /** @maxItems 30 */
+  tags: string[];
+}
+
+export interface AssetPerson {
+  /** @format uuid */
+  id: string;
+  name: string;
+  status: string;
+  username: string;
+}
+
+export interface AssetRelation {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format date-time */
+  created_at: string;
+  /** @format uuid */
+  from_id: string;
+  /** @format uuid */
+  id: string;
+  kind:
+    | "runs_on"
+    | "uses"
+    | "depends_on"
+    | "stored_in"
+    | "backs_up_to"
+    | "points_to"
+    | "connects_to"
+    | "part_of"
+    | "licensed_for"
+    | "assigned_to";
+  note: string;
+  origin: "manual" | "discovered";
+  /** @format uuid */
+  to_id: string;
+}
+
+export interface AssetRuleList {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: AssetOwnerRule[];
+}
+
+export interface AssetSettings {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Look for unlisted assets on a schedule */
+  auto_discover: boolean;
+  /**
+   * Where reminders go; empty = the workspace's default channels
+   * @maxItems 20
+   */
+  channel_ids: string[];
+  /**
+   * @format int64
+   * @min 1
+   * @max 720
+   */
+  discover_hours: number;
+  /** @format date-time */
+  last_discovery_at?: string;
+  /** Also send alert rule notifications to the channels set on the asset */
+  notify_owners: boolean;
+  /**
+   * Days before an expiry to send a reminder
+   * @maxItems 6
+   */
+  remind_days: number[];
+}
+
 export interface Auth {
   forward?: ForwardAuth;
   /** basic = user names and passwords; forward = ask a sign-in service; empty = off */
@@ -1461,6 +1974,16 @@ export interface BulkTagServersRequest {
   ids: string[];
   /** @maxItems 20 */
   remove?: string[];
+}
+
+export interface BulkUpdateAssetsResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format int64 */
+  changed: number;
 }
 
 export interface CA {
@@ -9127,6 +9650,15 @@ export interface ForwardAuth {
   url?: string;
 }
 
+export interface GetAssetLicenseKeyResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  key: string;
+}
+
 export interface GetProxyLogsResponse {
   /**
    * A URL to the JSON Schema for this object.
@@ -9552,6 +10084,30 @@ export interface Images {
   sizes?: number[];
 }
 
+export interface ImportAssetsRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * @maxItems 1000
+   * @minItems 1
+   */
+  items: AssetBody[];
+}
+
+export interface ImportAssetsResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format int64 */
+  created: number;
+  errors: AssetImportError[];
+}
+
 export interface IncidentsOutBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -9824,6 +10380,45 @@ export interface ListAnsibleModulesResponse {
   items: Module[];
   /** ansible-core version */
   version: string;
+}
+
+export interface ListAssetDiscoveriesResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: AssetDiscovery[];
+  /** @format date-time */
+  last_discovery_at?: string;
+}
+
+export interface ListAssetNotesResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: AssetNote[];
+}
+
+export interface ListAssetPeopleResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  groups: AssetGroup[];
+  users: AssetPerson[];
+}
+
+export interface ListAssetRelationsResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: AssetRelation[];
 }
 
 export interface ListDnsServersResponse {
@@ -12912,6 +13507,15 @@ export interface PeriodsOutBody {
    */
   $schema?: string;
   periods: LogPeriod[];
+}
+
+export interface PinAssetNoteRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  pinned: boolean;
 }
 
 export interface PinServerNoteRequest {
@@ -17247,6 +17851,30 @@ export interface SetAlertRuleEnabledRequest {
   enabled: boolean;
 }
 
+export interface SetAssetDiscoveryStateRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * @maxItems 1000
+   * @minItems 1
+   */
+  ids: string[];
+  state: "new" | "ignored";
+}
+
+export interface SetAssetOwnerRulesRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxItems 100 */
+  items: AssetOwnerRule[];
+}
+
 export interface SetCloudAccountFavoriteRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -19256,6 +19884,16 @@ export interface TestProxyUpstreamRequest {
   /** @maxLength 500 */
   upstream: string;
   upstream_tls?: UpstreamTLS;
+}
+
+export interface TrackAssetDiscoveryRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format uuid */
+  id: string;
 }
 
 export interface TransferFilesBody {
@@ -21679,6 +22317,489 @@ export class Api<
       this.request<AppCategory, ErrorModel>({
         path: `/workspaces/${id}/app-categories/${categoryId}`,
         method: "PATCH",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  assets = {
+    /**
+     * @description The asset in the path is the from side: it runs on, uses, depends on… the other.
+     *
+     * @tags Assets
+     * @name AddAssetRelation
+     * @summary Relate an asset to another
+     * @request POST:/assets/{id}/relations
+     */
+    addAssetRelation: (
+      id: string,
+      data: AddAssetRelationRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<AssetRelation, ErrorModel>({
+        path: `/assets/${id}/relations`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Sets the owner, environment, criticality, classification, lifecycle or review period, or adds and removes tags, on every asset listed.
+     *
+     * @tags Assets
+     * @name BulkUpdateAssets
+     * @summary Change several assets at once
+     * @request POST:/workspaces/{id}/assets/bulk
+     */
+    bulkUpdateAssets: (
+      id: string,
+      data: AssetBulkBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<BulkUpdateAssetsResponse, ErrorModel>({
+        path: `/workspaces/${id}/assets/bulk`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Hardware, a licence, a domain, a subscription… Things Morche manages are added in their own section and show up here by themselves.
+     *
+     * @tags Assets
+     * @name CreateAsset
+     * @summary Add an asset by hand
+     * @request POST:/workspaces/{id}/assets
+     */
+    createAsset: (id: string, data: AssetBody, params: RequestParams = {}) =>
+      this.request<Asset, ErrorModel>({
+        path: `/workspaces/${id}/assets`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Operator on the workspace, or the asset's owner, deputy or a member of its owning group.
+     *
+     * @tags Assets
+     * @name CreateAssetNote
+     * @summary Write a note on an asset
+     * @request POST:/assets/{id}/notes
+     */
+    createAssetNote: (
+      id: string,
+      data: AssetNoteBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<AssetNote, ErrorModel>({
+        path: `/assets/${id}/notes`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Only assets entered by hand, or linked ones whose source is gone; the rest go when removed from their section.
+     *
+     * @tags Assets
+     * @name DeleteAsset
+     * @summary Delete an asset
+     * @request DELETE:/assets/{id}
+     */
+    deleteAsset: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/assets/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Assets
+     * @name DeleteAssetNote
+     * @summary Delete an asset note
+     * @request DELETE:/assets/{id}/notes/{note}
+     */
+    deleteAssetNote: (id: string, note: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/assets/${id}/notes/${note}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * @description A discovered relation comes back while Morche still sees it.
+     *
+     * @tags Assets
+     * @name DeleteAssetRelation
+     * @summary Remove a relation
+     * @request DELETE:/assets/{id}/relations/{relation}
+     */
+    deleteAssetRelation: (
+      id: string,
+      relation: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, ErrorModel>({
+        path: `/assets/${id}/relations/${relation}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Assets
+     * @name GetAsset
+     * @summary Read an asset with its relations and history
+     * @request GET:/assets/{id}
+     */
+    getAsset: (id: string, params: RequestParams = {}) =>
+      this.request<AssetDetail, ErrorModel>({
+        path: `/assets/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Owner on the workspace; each look is written to the asset's history.
+     *
+     * @tags Assets
+     * @name GetAssetLicenseKey
+     * @summary Show an asset's licence key
+     * @request GET:/assets/{id}/license-key
+     */
+    getAssetLicenseKey: (id: string, params: RequestParams = {}) =>
+      this.request<GetAssetLicenseKeyResponse, ErrorModel>({
+        path: `/assets/${id}/license-key`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description An asset with no owner of its own takes the first rule that matches it.
+     *
+     * @tags Assets
+     * @name GetAssetOwnerRules
+     * @summary List the owner rules
+     * @request GET:/workspaces/{id}/asset-owner-rules
+     */
+    getAssetOwnerRules: (id: string, params: RequestParams = {}) =>
+      this.request<AssetRuleList, ErrorModel>({
+        path: `/workspaces/${id}/asset-owner-rules`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Assets
+     * @name GetAssetSettings
+     * @summary Read the inventory settings
+     * @request GET:/workspaces/{id}/asset-settings
+     */
+    getAssetSettings: (id: string, params: RequestParams = {}) =>
+      this.request<AssetSettings, ErrorModel>({
+        path: `/workspaces/${id}/asset-settings`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Each item is added like create-asset; rows that fail are listed and the rest are kept.
+     *
+     * @tags Assets
+     * @name ImportAssets
+     * @summary Add many assets at once
+     * @request POST:/workspaces/{id}/assets/import
+     */
+    importAssets: (
+      id: string,
+      data: ImportAssetsRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<ImportAssetsResponse, ErrorModel>({
+        path: `/workspaces/${id}/assets/import`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description New first. A finding Morche now manages (its database was added, its machine became a server) is accepted by itself.
+     *
+     * @tags Assets
+     * @name ListAssetDiscoveries
+     * @summary List what discovery found
+     * @request GET:/workspaces/{id}/asset-discoveries
+     */
+    listAssetDiscoveries: (id: string, params: RequestParams = {}) =>
+      this.request<ListAssetDiscoveriesResponse, ErrorModel>({
+        path: `/workspaces/${id}/asset-discoveries`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Pinned first, then the most recently changed.
+     *
+     * @tags Assets
+     * @name ListAssetNotes
+     * @summary List an asset's notes
+     * @request GET:/assets/{id}/notes
+     */
+    listAssetNotes: (id: string, params: RequestParams = {}) =>
+      this.request<ListAssetNotesResponse, ErrorModel>({
+        path: `/assets/${id}/notes`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Assets
+     * @name ListAssetPeople
+     * @summary People and groups who can own assets
+     * @request GET:/workspaces/{id}/asset-people
+     */
+    listAssetPeople: (id: string, params: RequestParams = {}) =>
+      this.request<ListAssetPeopleResponse, ErrorModel>({
+        path: `/workspaces/${id}/asset-people`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description For the map and impact analysis.
+     *
+     * @tags Assets
+     * @name ListAssetRelations
+     * @summary List every relation between the workspace's assets
+     * @request GET:/workspaces/{id}/asset-relations
+     */
+    listAssetRelations: (id: string, params: RequestParams = {}) =>
+      this.request<ListAssetRelationsResponse, ErrorModel>({
+        path: `/workspaces/${id}/asset-relations`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Everything in the inventory: assets entered by hand plus one linked asset per server, database, storage, DNS server, proxy, site, Proxmox cluster, cloud account, web service, compose project and installed application, kept in step with Morche on every read.
+     *
+     * @tags Assets
+     * @name ListAssets
+     * @summary List the workspace's assets
+     * @request GET:/workspaces/{id}/assets
+     */
+    listAssets: (id: string, params: RequestParams = {}) =>
+      this.request<AssetList, ErrorModel>({
+        path: `/workspaces/${id}/assets`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Assets
+     * @name PinAssetNote
+     * @summary Pin an asset note to its overview, or unpin it
+     * @request PUT:/assets/{id}/notes/{note}/pinned
+     */
+    pinAssetNote: (
+      id: string,
+      note: string,
+      data: PinAssetNoteRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<AssetNote, ErrorModel>({
+        path: `/assets/${id}/notes/${note}/pinned`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description For the owner, their deputy, a member of the owning group, or an Operator on the workspace.
+     *
+     * @tags Assets
+     * @name ReviewAsset
+     * @summary Confirm an asset is still owned and needed
+     * @request POST:/assets/{id}/review
+     */
+    reviewAsset: (id: string, params: RequestParams = {}) =>
+      this.request<Asset, ErrorModel>({
+        path: `/assets/${id}/review`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Reads each online server's open ports and the workspace's Proxmox clusters, cloud accounts and DNS servers. Runs as a background job (kind `asset-discovery`).
+     *
+     * @tags Assets
+     * @name RunAssetDiscovery
+     * @summary Look for unlisted assets now
+     * @request POST:/workspaces/{id}/asset-discovery
+     */
+    runAssetDiscovery: (id: string, params: RequestParams = {}) =>
+      this.request<Job, ErrorModel>({
+        path: `/workspaces/${id}/asset-discovery`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Assets
+     * @name SetAssetDiscoveryState
+     * @summary Ignore findings, or bring them back
+     * @request POST:/workspaces/{id}/asset-discoveries/state
+     */
+    setAssetDiscoveryState: (
+      id: string,
+      data: SetAssetDiscoveryStateRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, ErrorModel>({
+        path: `/workspaces/${id}/asset-discoveries/state`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        ...params,
+      }),
+
+    /**
+     * @description In order: the first match wins.
+     *
+     * @tags Assets
+     * @name SetAssetOwnerRules
+     * @summary Replace the owner rules
+     * @request PUT:/workspaces/{id}/asset-owner-rules
+     */
+    setAssetOwnerRules: (
+      id: string,
+      data: SetAssetOwnerRulesRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<AssetRuleList, ErrorModel>({
+        path: `/workspaces/${id}/asset-owner-rules`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Assets
+     * @name SetAssetSettings
+     * @summary Save the inventory settings
+     * @request PUT:/workspaces/{id}/asset-settings
+     */
+    setAssetSettings: (
+      id: string,
+      data: AssetSettings,
+      params: RequestParams = {},
+    ) =>
+      this.request<AssetSettings, ErrorModel>({
+        path: `/workspaces/${id}/asset-settings`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Adds an asset entered by hand from what was found (an unmanaged database, a machine, a domain). To manage it in Morche instead, add it in its own section: the finding is accepted by itself on the next look.
+     *
+     * @tags Assets
+     * @name TrackAssetDiscovery
+     * @summary List a finding as an asset without managing it
+     * @request POST:/workspaces/{id}/asset-discoveries/track
+     */
+    trackAssetDiscovery: (
+      id: string,
+      data: TrackAssetDiscoveryRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<Asset, ErrorModel>({
+        path: `/workspaces/${id}/asset-discoveries/track`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description A linked asset keeps the kind and name of its source.
+     *
+     * @tags Assets
+     * @name UpdateAsset
+     * @summary Save changes to an asset
+     * @request PUT:/assets/{id}
+     */
+    updateAsset: (id: string, data: AssetBody, params: RequestParams = {}) =>
+      this.request<Asset, ErrorModel>({
+        path: `/assets/${id}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Assets
+     * @name UpdateAssetNote
+     * @summary Save changes to an asset note
+     * @request PUT:/assets/{id}/notes/{note}
+     */
+    updateAssetNote: (
+      id: string,
+      note: string,
+      data: AssetNoteUpdate,
+      params: RequestParams = {},
+    ) =>
+      this.request<AssetNote, ErrorModel>({
+        path: `/assets/${id}/notes/${note}`,
+        method: "PUT",
         body: data,
         type: ContentType.Json,
         format: "json",

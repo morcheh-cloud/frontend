@@ -106,6 +106,10 @@ export function refreshAfterJob(qc: QueryClient, job: Job) {
     qc.invalidateQueries({ queryKey: ["ansible"] })
     return
   }
+  if (job.kind === "asset-discovery") {
+    qc.invalidateQueries({ queryKey: ["assets"] })
+    return
+  }
   if (job.kind === "software-run" || job.kind === "software-scan") {
     qc.invalidateQueries({ queryKey: ["software"] })
     return

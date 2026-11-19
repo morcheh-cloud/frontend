@@ -195,6 +195,15 @@ export const addCommands: Command[] = [
     keywords: "new create nginx site domain https ssl vhost web server",
   },
   {
+    key: "action:add-asset",
+    label: "Add asset",
+    icon: Plus,
+    tile: "brand",
+    href: "/assets/new",
+    keywords:
+      "new create inventory hardware laptop licence license domain subscription contract certificate",
+  },
+  {
     key: "action:add-service",
     label: "Add service",
     icon: Plus,
