@@ -1376,6 +1376,7 @@ export interface AuthState {
   address: string;
   /** False when the allowlist keeps this address out; nothing else is said then. */
   address_allowed: boolean;
+  demo?: DemoState;
   /** No user exists yet: show the first-run form. */
   needs_setup: boolean;
   registration_open: boolean;
@@ -5243,6 +5244,16 @@ export interface DeleteCronJobsRequest {
    * @maxLength 300
    */
   table: string;
+}
+
+export interface DemoState {
+  /** @format int64 */
+  interval_seconds: number;
+  /**
+   * When the demo's data is next put back.
+   * @format date-time
+   */
+  reset_at: string;
 }
 
 export interface DetectedContainer {
@@ -22825,6 +22836,22 @@ export class Api<
         method: "POST",
         body: data,
         type: ContentType.Json,
+        ...params,
+      }),
+
+    /**
+     * @description Signs in as the shared demo account. Only on a panel started with DEMO_MODE.
+     *
+     * @tags Auth
+     * @name AuthDemo
+     * @summary Enter the public demo
+     * @request POST:/auth/demo
+     */
+    authDemo: (params: RequestParams = {}) =>
+      this.request<PanelUser, ErrorModel>({
+        path: `/auth/demo`,
+        method: "POST",
+        format: "json",
         ...params,
       }),
 

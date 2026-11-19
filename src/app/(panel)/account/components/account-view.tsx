@@ -10,6 +10,7 @@ import { signInsHref } from "@/app/(panel)/recordings/components/command-meta"
 import { useAuth } from "@/components/auth/auth"
 import { ChangePasswordForm } from "@/components/auth/change-password"
 import { meKey } from "@/components/auth/keys"
+import { useDemo } from "@/components/demo/demo"
 import { Field } from "@/components/field"
 import { PageHeader } from "@/components/panel/page-header"
 import { ConfirmDialog } from "@/components/responsive-dialog"
@@ -30,6 +31,8 @@ import { useOpen } from "@/hooks/useOpen"
 import { api, fieldErrors } from "@/lib/api"
 
 export function AccountView() {
+  const demo = useDemo()
+  if (demo) return <DemoAccount />
   return (
     <>
       <PageHeader title="Account" guide="access" />
@@ -75,6 +78,39 @@ export function AccountView() {
           note="Ends every session, this one included, and closes your open terminals."
         >
           <SignOutEverywhere />
+        </Section>
+      </div>
+    </>
+  )
+}
+
+// Everyone in the public demo shares one account, so what belongs to it
+// (profile, password, devices, sign-ins) is closed; only the look stays.
+function DemoAccount() {
+  return (
+    <>
+      <PageHeader title="Account" guide="getting-started" />
+      <div className="flex w-full flex-col gap-4 py-5 md:px-6">
+        <Section
+          title="Demo account"
+          note="Everyone trying the demo shares this account, so its profile, password, devices and sign-in history are closed here. On your own Morche, this page is where you change them."
+        >
+          <p className="text-body-sm text-muted-foreground">
+            Read more in{" "}
+            <Link
+              href="/help/getting-started#demo"
+              className="font-medium text-brand underline-offset-4 hover:underline"
+            >
+              the demo guide
+            </Link>
+            .
+          </p>
+        </Section>
+        <Section
+          title="Appearance"
+          note="Saved in this browser. System follows your device's light or dark setting."
+        >
+          <ThemePicker />
         </Section>
       </div>
     </>

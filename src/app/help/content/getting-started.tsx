@@ -308,4 +308,49 @@ export const gettingStarted: GuideSection[] = [
       </Example>
     ),
   },
+  {
+    id: "demo",
+    title: "The live demo",
+    body: (
+      <>
+        <P>
+          The public demo is a real Morche panel with a few throwaway servers,
+          databases and storages to try things on. Nobody needs an account: the
+          sign-in page has one button, <UI>Enter the live demo</UI>, and
+          everyone who presses it shares the same demo account.
+        </P>
+        <List>
+          <li>
+            <strong>Try anything.</strong> Open a terminal, edit files, start
+            and stop services, add monitors and alert rules. The servers are
+            containers on a network with no way out to the internet, so installs
+            that download packages fail there.
+          </li>
+          <li>
+            <strong>It resets every hour.</strong> The strip under the header
+            counts down; at zero every change is put back and you land on the
+            sign-in page, which takes you straight in again. The charts keep
+            their history through resets.
+          </li>
+          <li>
+            <strong>What&apos;s closed.</strong> The shared account&apos;s
+            password, profile, signed-in devices and sign-in history, giving
+            access to others, and running Ansible playbooks. Your terminals are
+            yours alone, even on the shared account, and the audit log keeps no
+            visitor&apos;s address.
+          </li>
+          <li>
+            <strong>Access level.</strong> The demo account is an Engineer, so
+            what only an Owner may do (seeing saved passwords, deleting a
+            server) shows as unavailable, just as it would for an Engineer on
+            your own panel.
+          </li>
+        </List>
+        <Tip>
+          Ready for your own? <UI>Install your own</UI> in the strip leads to
+          the install steps; one command sets it up with Docker.
+        </Tip>
+      </>
+    ),
+  },
 ]

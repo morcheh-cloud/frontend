@@ -8,14 +8,17 @@ import { useEffect } from "react"
 import { AddressBlocked } from "@/components/auth/address"
 import { authStateKey, meKey } from "@/components/auth/keys"
 import { safeNext } from "@/components/auth/local-data"
+import { DemoEntry } from "@/components/demo/demo-entry"
 import { api } from "@/lib/api"
 import type { PanelUser } from "@/lib/services"
 import { LoginForm } from "./login-form"
 import { SignupForm } from "./signup-form"
 
 const params = {
-  view: parseAsStringLiteral(["register"]),
+  view: parseAsStringLiteral(["register", "signin"]),
   next: parseAsString,
+  // The website's "Live demo" link: enter at once.
+  demo: parseAsString,
 }
 
 // The one screen before the panel: creates the first admin on a new install,
@@ -23,7 +26,7 @@ const params = {
 export function AuthScreen() {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const [{ view, next }, setParams] = useQueryStates(params)
+  const [{ view, next, demo }, setParams] = useQueryStates(params)
 
   const me = useQuery({
     queryKey: meKey,
@@ -48,6 +51,30 @@ export function AuthScreen() {
 
   if (state.data?.address_allowed === false) {
     return <AddressBlocked address={state.data.address} />
+  }
+
+  if (state.data?.demo && view !== "signin") {
+    return (
+      <Panel
+        title="Try Morche"
+        note="A live panel with real servers to play with. No account needed: everything you change goes back to how it was every hour."
+        footer={
+          <>
+            Running this demo?{" "}
+            <TextLink onClick={() => setParams({ view: "signin" })}>
+              Sign in with an account
+            </TextLink>
+          </>
+        }
+      >
+        <DemoEntry
+          // Straight in from the website's link, or after a reset ended the
+          // visitor's session in the middle of the panel.
+          auto={demo !== null || next !== null}
+          onDone={enter}
+        />
+      </Panel>
+    )
   }
 
   if (state.data?.needs_setup) {
@@ -90,6 +117,14 @@ export function AuthScreen() {
       footer={
         <>
           Forgot your password? Ask your Morche admin to reset it.
+          {state.data?.demo && (
+            <span className="mt-1 block">
+              Just looking?{" "}
+              <TextLink onClick={() => setParams({ view: null })}>
+                Enter the demo
+              </TextLink>
+            </span>
+          )}
           {state.data?.registration_open && (
             <span className="mt-1 block">
               New here?{" "}

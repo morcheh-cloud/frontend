@@ -1,5 +1,6 @@
 import { Suspense } from "react"
 import { AuthGate } from "@/components/auth/auth"
+import { DemoBanner } from "@/components/demo/demo"
 import { JobsProvider } from "@/components/jobs/jobs-provider"
 import { AppSidebar } from "@/components/panel/app-sidebar"
 import { CommandProvider } from "@/components/panel/command/command-palette"
@@ -24,6 +25,7 @@ export default function PanelLayout({ children }: LayoutProps<"/">) {
               <AppSidebar />
               <SidebarInset className="pb-[calc(--spacing(16)+env(safe-area-inset-bottom))] md:pb-0">
                 <PanelHeader />
+                <DemoBanner />
                 <SignInAlertBanner />
                 {children}
               </SidebarInset>
