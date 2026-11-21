@@ -630,9 +630,9 @@ export const access: GuideSection[] = [
     body: (
       <>
         <P>
-          The panel comes in a light and a dark theme. <UI>System</UI>, the
-          default, follows your device's setting and switches by itself when the
-          device does (for example at sunset).
+          The panel comes in a light and a dark theme. <UI>Light</UI> is the
+          default; <UI>System</UI> follows your device's setting and switches by
+          itself when the device does (for example at sunset).
         </P>
         <Steps>
           {[

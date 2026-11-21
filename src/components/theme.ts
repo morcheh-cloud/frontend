@@ -4,8 +4,8 @@ import { useSyncExternalStore } from "react"
 
 import { DARK_QUERY, THEME_KEY, themeColors } from "@/lib/theme-script"
 
-// Light / dark theme. The choice lives in localStorage (absent = follow the
-// system); the `dark` class on <html> switches the tokens in globals.css.
+// Light / dark theme. The choice lives in localStorage (absent = light, the
+// default; "system" = follow the device); the `dark` class on <html> switches the tokens in globals.css.
 // `themeScript` (`@/lib/theme-script`, root layout <head>) sets it before the
 // first paint.
 
@@ -23,9 +23,9 @@ function readChoice(): ThemeChoice {
   if (choice) return choice
   try {
     const v = localStorage.getItem(KEY)
-    choice = v === "light" || v === "dark" ? v : "system"
+    choice = v === "dark" || v === "system" ? v : "light"
   } catch {
-    choice = "system"
+    choice = "light"
   }
   return choice
 }
@@ -88,7 +88,7 @@ function subscribe(listener: () => void) {
 export function setTheme(next: ThemeChoice) {
   choice = next
   try {
-    if (next === "system") localStorage.removeItem(KEY)
+    if (next === "light") localStorage.removeItem(KEY)
     else localStorage.setItem(KEY, next)
   } catch {}
   apply(resolve(next))
@@ -102,7 +102,7 @@ const snapshot = () => {
 
 /** The saved choice and the theme actually showing. Light until mounted. */
 export function useTheme() {
-  const value = useSyncExternalStore(subscribe, snapshot, () => "system:light")
+  const value = useSyncExternalStore(subscribe, snapshot, () => "light:light")
   const [theme, resolved] = value.split(":") as [ThemeChoice, Theme]
   return { theme, resolved, setTheme }
 }
