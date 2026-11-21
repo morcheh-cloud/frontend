@@ -56,12 +56,14 @@ export const databases: GuideSection[] = [
           ]}
         />
         <P>
-          Morche only reads. It never browses or changes your data or schema.
-          The only things it can do to a database are stop a session (
-          <UI>Kill</UI>) and ask for a query plan without running the query (
-          <UI>Explain</UI>). <A href="#backups">Backups</A> only read too; the
-          one exception is <A href="#restore">restoring a backup</A>, which an
-          Owner starts and confirms.
+          Monitoring only reads. Engineers can also{" "}
+          <A href="#data">browse the data</A> and{" "}
+          <A href="#query">run their own queries</A>, read only. Changing data
+          is an Owner's, and only on purpose: a query run with{" "}
+          <A href="#query-changes">Allow changes</A>, or{" "}
+          <A href="#restore">restoring a backup</A>. Besides that Morche can
+          stop a session (<UI>Kill</UI>) and ask for a query plan without
+          running the query (<UI>Explain</UI>).
         </P>
       </>
     ),
@@ -557,6 +559,294 @@ db.createUser({
           A sequential scan (or <C>COLLSCAN</C>) over a big table in a query
           that runs often is the usual reason for a slow app.
         </Tip>
+      </>
+    ),
+  },
+  {
+    id: "data",
+    title: "Browse the data",
+    body: (
+      <>
+        <P>
+          The <UI>Data</UI> tab shows what the database holds and lets you read
+          any table without writing a query. Everything on it only reads: rows
+          are fetched inside a read-only transaction, so nothing you do there
+          can change the data. It needs <UI>Engineer</UI> access, since it shows
+          the data itself.
+        </P>
+        <Steps>
+          <li>
+            Pick the database inside the connection at the top of the list
+            (PostgreSQL, MySQL and SQL Server can hold several).
+          </li>
+          <li>
+            Find the table (MongoDB: the collection) and click it. Its rows open
+            100 at a time, with how many match in all.
+          </li>
+          <li>
+            Type in <UI>Search every column</UI> to find a value anywhere in the
+            row, or press <UI>Filter</UI> to narrow by column: is, contains,
+            starts with, greater than, is one of, is empty… Combine them with
+            all or any.
+          </li>
+          <li>
+            Click a column's name to sort by it (again for descending, a third
+            time to stop). Hold <Keys>Shift</Keys> to sort by several columns.
+          </li>
+          <li>
+            Click a row to see every value in full, copy one, or step through
+            the rows with <Keys>↑</Keys> <Keys>↓</Keys>. MongoDB shows the whole
+            document too.
+          </li>
+        </Steps>
+        <P>
+          <UI>Structure</UI> lists the columns with their types, defaults and
+          the primary key, the indexes, foreign keys and checks, and a view's
+          definition. For MongoDB it lists the fields found in a sample of 100
+          documents. <UI>Query it</UI> opens a ready <C>SELECT</C> in the{" "}
+          <UI>Query</UI> tab. <UI>Export</UI> copies the page as a table (paste
+          it into a spreadsheet) or JSON, or downloads it as CSV or JSON.
+        </P>
+        <Example title="Orders over 100 from this week">
+          <P>
+            Filter <C>total</C> › <C>&gt;</C> › <C>100</C>, then{" "}
+            <UI>Write a condition</UI>:{" "}
+            <C>{"created_at > now() - interval '7 days'"}</C>. A condition is
+            plain SQL after <C>WHERE</C> (MongoDB: a filter as JSON, e.g.{" "}
+            <C>{'{ "total": { "$gt": 100 } }'}</C>) and still runs read only.
+          </P>
+        </Example>
+        <P>
+          Redis: the tab lists keys by pattern (<C>user:*</C>), with their type,
+          size and expiry, and shows a key's value: a string in full (JSON
+          formatted), a hash's fields, a list, a set or a sorted set with
+          scores, a stream's newest entries. Keys are read with <C>SCAN</C>, so
+          even a big database stays responsive; <UI>Look further</UI> reads the
+          next batch.
+        </P>
+      </>
+    ),
+  },
+  {
+    id: "saved-filters",
+    title: "Saved filters",
+    body: (
+      <>
+        <P>
+          Filters you use often can be kept per table: set the search, filters,
+          condition and sort, then <UI>Saved filters</UI> ›{" "}
+          <UI>Save these filters…</UI> and give them a name. Tick{" "}
+          <UI>Share with the team</UI> so everyone who can browse this database
+          sees them on this table. Next time pick it from the same menu and the
+          rows open filtered and sorted. <UI>All rows, no filters</UI> clears
+          everything.
+        </P>
+        <P>
+          Change a saved filter's settings and a dot appears beside its name;{" "}
+          <UI>Update “…”</UI> keeps the change, <UI>Save as new…</UI> keeps
+          both. Only whoever saved it (or an Owner, for a shared one) can
+          update, rename or delete it.
+        </P>
+      </>
+    ),
+  },
+  {
+    id: "edit-rows",
+    title: "Add, edit and delete rows",
+    body: (
+      <>
+        <P>
+          An <UI>Owner</UI> of the database can change rows right in the{" "}
+          <UI>Data</UI> tab, without writing SQL. Before anything runs you see
+          the exact statements, and they run together: if one fails, nothing is
+          saved.
+        </P>
+        <Steps>
+          <li>
+            <UI>Add row</UI>: fill in the fields you want. A field left on{" "}
+            <UI>Default</UI> gets the table's default (an id counter, now()…);{" "}
+            <UI>NULL</UI> leaves it empty.
+          </li>
+          <li>
+            Edit: click a row, then <UI>Edit</UI>. Only the fields you change
+            are written; changed ones are tinted.
+          </li>
+          <li>
+            Delete: click a row, then the bin. Only a backup brings it back.
+          </li>
+          <li>
+            Press <UI>Review and save</UI>, check the statements, then{" "}
+            <UI>Save</UI>.
+          </li>
+        </Steps>
+        <List>
+          <li>
+            A row is found by its primary key. A table without one can only get
+            new rows here; change it with a query. Views can't be changed.
+          </li>
+          <li>
+            If someone changed or removed the row since you read it, nothing is
+            saved and you're told to read the rows again.
+          </li>
+          <li>
+            MongoDB: edit the whole document as JSON; it replaces the stored
+            one. A new document gets an <C>_id</C> when it has none.
+          </li>
+          <li>
+            Every save lands in the query <UI>History</UI> with its statements,
+            so it's clear who changed what.
+          </li>
+        </List>
+      </>
+    ),
+  },
+  {
+    id: "query",
+    title: "Run queries",
+    body: (
+      <>
+        <P>
+          The <UI>Query</UI> tab (Redis: <UI>Console</UI>) is an editor for your
+          own queries, with the results below it and your saved queries and
+          history beside it. Table names complete as you type.
+        </P>
+        <Table
+          head={["Engine", "What to type"]}
+          rows={[
+            [
+              "PostgreSQL, MySQL, SQL Server",
+              "SQL. Several statements separated by ; (SQL Server: also GO) each get their own result.",
+            ],
+            [
+              "MongoDB",
+              'db.orders.find({ status: "open" }).sort({ _id: -1 }).limit(20), also aggregate, countDocuments, distinct. Or the JSON form: { "collection": "orders", "find": { … } }',
+            ],
+            [
+              "Redis",
+              "One command per line, e.g. HGETALL user:42 or SCAN 0 MATCH session:* COUNT 100",
+            ],
+          ]}
+        />
+        <List>
+          <li>
+            <UI>New</UI> (at the start of the toolbar) clears the editor for a
+            fresh query; it asks first when the text isn't saved.
+          </li>
+          <li>
+            <Keys>Ctrl+Enter</Keys> (<Keys>⌘+Enter</Keys> on a Mac) runs it.
+            Select part of the text to run only that.
+          </li>
+          <li>
+            <UI>Stop</UI> cancels a query that runs too long; the database stops
+            it too. A query also stops by itself after 30 seconds.
+          </li>
+          <li>
+            Each result keeps up to 500 rows (change it beside the database
+            picker, up to 10,000). Click a row to see it in full;{" "}
+            <UI>Export</UI> copies or downloads the result.
+          </li>
+          <li>
+            Drag the line between the editor and the results to give either more
+            room.
+          </li>
+        </List>
+        <P>
+          <span className="font-medium">Read only by default.</span> Every
+          statement is checked and run inside a read-only transaction (SQL
+          Server: one that is rolled back), so <C>INSERT</C>, <C>UPDATE</C>,{" "}
+          <C>DELETE</C>, <C>CREATE</C>, <C>DROP</C> and the like are refused
+          with a short explanation. MongoDB only finds, aggregates (without{" "}
+          <C>$out</C>/<C>$merge</C>) and counts; Redis only reads.
+        </P>
+      </>
+    ),
+  },
+  {
+    id: "query-changes",
+    title: "Change data with a query",
+    body: (
+      <>
+        <P>
+          An <UI>Owner</UI> of the database can turn on <UI>Allow changes</UI>{" "}
+          beside the Run button. The button turns red and reads{" "}
+          <UI>Run with changes</UI>; it turns itself off again when you leave
+          the page.
+        </P>
+        <List>
+          <li>
+            PostgreSQL and SQL Server run the whole script in one transaction:
+            if a statement fails, nothing of it is kept. MySQL runs statement by
+            statement (its schema changes can't be undone).
+          </li>
+          <li>
+            A script that drops or empties data (<C>DROP</C>, <C>TRUNCATE</C>,{" "}
+            <C>DELETE</C> or <C>UPDATE</C> without <C>WHERE</C>, a MongoDB
+            delete with an empty filter, <C>FLUSHDB</C>…) or changes who may do
+            what (<C>GRANT</C>) asks you to type the database's name first.
+          </li>
+          <li>The result says how many rows each statement changed.</li>
+        </List>
+        <Warn>
+          Allow changes runs with the database login saved in Morche. Take a
+          backup first when the change is big (
+          <See guide="databases" section="backups" />
+          ).
+        </Warn>
+        <Recommended
+          rows={[
+            {
+              setting: "Morche's database login",
+              value: "Read only",
+              why: (
+                <>
+                  e.g. PostgreSQL's <C>pg_read_all_data</C> role. Unless you
+                  really want to change data from here, then even an Owner can't
+                  write by mistake.
+                </>
+              ),
+            },
+            {
+              setting: "Allow changes",
+              value: "Off",
+              why: "Turn it on only for the change you mean to run; it turns itself off when you leave.",
+            },
+          ]}
+        />
+      </>
+    ),
+  },
+  {
+    id: "saved-queries",
+    title: "Saved queries and history",
+    body: (
+      <>
+        <P>
+          Press <UI>Save…</UI> (<Keys>Ctrl+S</Keys>) to keep a query with a name
+          and notes. It stays yours, or tick <UI>Share with the team</UI> so
+          everyone who can query this database sees it and can run it. Pin the
+          ones you use most to the top. Opening a saved query, changing it and
+          pressing <Keys>Ctrl+S</Keys> saves the change straight away;{" "}
+          <UI>Save as new</UI> keeps the original.
+        </P>
+        <P>
+          <UI>History</UI> lists every query you ran here (kept 90 days), with
+          whether it worked, the rows and the time it took; click one to open it
+          again. Owners can switch to <UI>Everyone's</UI>: the history is also
+          the record of who looked at or changed what.
+        </P>
+        <Table
+          head={["Who", "Can"]}
+          rows={[
+            [
+              "Engineer",
+              "Browse the data, run read-only queries, save their own and see shared ones",
+            ],
+            [
+              "Owner",
+              "Also run changes, add, edit and delete rows in the Data tab, see everyone's history, edit or delete shared queries and filters",
+            ],
+          ]}
+        />
       </>
     ),
   },
@@ -1266,11 +1556,11 @@ db.createUser({
             ["Operator", "Also check now and mark favorites"],
             [
               "Engineer",
-              "Also see query text, Kill, Explain, pause, mute and change limits",
+              "Also see query text, browse the data, run read-only queries, Kill, Explain, pause, mute and change limits",
             ],
             [
               "Owner",
-              "Also edit, remove, see the credentials, manage backup plans and restore backups",
+              "Also edit, remove, see the credentials, run queries that change data, manage backup plans and restore backups",
             ],
           ]}
         />

@@ -56,6 +56,8 @@ import { BackupsTab } from "./backups/backups-tab"
 import { ClientsTab } from "./clients"
 import { DashboardActionsProvider } from "./dashboard-actions"
 import { DetailsTab } from "./details"
+import { DataTab } from "./explorer/data-tab"
+import { QueryTab } from "./explorer/query-tab"
 import { ms } from "./format"
 import { OverviewTab } from "./overview"
 import { DashboardProvider, useDashboard } from "./parts"
@@ -66,6 +68,8 @@ import { SyncsTab } from "./syncs/syncs-tab"
 
 const tabs = [
   "overview",
+  "data",
+  "query",
   "sessions",
   "queries",
   "space",
@@ -80,6 +84,8 @@ type Tab = (typeof tabs)[number]
 
 const tabLabels = (d: Database): Record<Tab, string> => ({
   overview: "Overview",
+  data: "Data",
+  query: d.engine === "redis" ? "Console" : "Query",
   sessions: "Sessions",
   queries: d.engine === "redis" ? "Slow log" : "Queries",
   space: d.engine === "redis" ? "Keys" : "Tables & space",
@@ -176,8 +182,16 @@ function useDeleted() {
   return () => router.replace("/databases")
 }
 
+// The data explorer is an Engineer's (the data itself); others don't see it.
+const explorerTabs: readonly Tab[] = ["data", "query"]
+const useTabsFor = () => {
+  const { engineer } = useDashboard()
+  return engineer ? tabs : tabs.filter((t) => !explorerTabs.includes(t))
+}
+
 function DesktopPage() {
   const { database: d, operator, owner } = useDashboard()
+  const shown = useTabsFor()
   const actions = useDatabaseActions()
   const checking = useCheckingDatabases().has(d.id)
   const onDeleted = useDeleted()
@@ -185,8 +199,10 @@ function DesktopPage() {
   const labels = tabLabels(d)
   const state = stateOf(d)
 
+  const bench = explorerTabs.includes(tab)
+
   return (
-    <div className="flex flex-col pb-24">
+    <div className={cn("flex flex-col", bench ? "pb-6" : "pb-24")}>
       <div className="flex w-full items-center gap-4 px-6 pt-5 pb-3">
         <EngineTile
           engine={d.engine}
@@ -284,7 +300,7 @@ function DesktopPage() {
         className="sticky top-[calc(3rem+1px)] z-20 flex items-center gap-1 border-b border-border bg-background/90 px-4 backdrop-blur-md"
       >
         <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
-          {tabs.map((t) => (
+          {shown.map((t) => (
             <button
               key={t}
               type="button"
@@ -314,6 +330,7 @@ function PhonePage() {
   const [tab, setTab] = useTab()
   const labels = tabLabels(d)
   const guide = guideForPath(`/databases/${d.id}`)
+  const shown = useTabsFor()
 
   // Links lead straight to a later tab (Home's backup issue): show its chip.
   const chips = useRef<HTMLElement>(null)
@@ -368,7 +385,7 @@ function PhonePage() {
           aria-label="Database sections"
           className="flex [scrollbar-width:none] gap-2 overflow-x-auto px-4 pb-2.5"
         >
-          {tabs.map((t) => (
+          {shown.map((t) => (
             <button
               key={t}
               type="button"
@@ -398,7 +415,12 @@ function PhonePage() {
 }
 
 function TabBody({ tab }: { tab: Tab }) {
+  const { engineer } = useDashboard()
   switch (tab) {
+    case "data":
+      return engineer ? <DataTab /> : <OverviewTab />
+    case "query":
+      return engineer ? <QueryTab /> : <OverviewTab />
     case "sessions":
       return <ActivityTab />
     case "queries":

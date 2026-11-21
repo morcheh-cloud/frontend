@@ -2,11 +2,14 @@
 
 import {
   type QueryClient,
+  useInfiniteQuery,
   useMutation,
   useMutationState,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query"
+
+import { useRef } from "react"
 
 import { type InsightsRange, timeZone } from "@/components/insights/format"
 import { STATUS_POLL } from "@/components/panel/problems"
@@ -17,12 +20,19 @@ import type {
   BackupRestore,
   Database,
   DatabaseBody,
+  DatabaseChangeRequest,
   DatabaseHistory,
+  DatabaseSavedQuery,
+  DatabaseSavedQueryBody,
+  DatabaseSavedView,
+  DatabaseSavedViewBody,
   DatabaseSyncBody,
   DatabaseTestBody,
+  EditRequest,
   RestoreBody,
   RestoreFileBody,
   RestoreFileSource,
+  RowsRequest,
   UpdateDatabaseMonitoringRequest,
 } from "@/lib/services"
 
@@ -587,3 +597,285 @@ export const useRunSync = () =>
 
 export const useCancelSyncRun = () =>
   useSyncWrite((id: string) => api.databaseSyncs.cancelDatabaseSyncRun(id))
+
+// ---- Data explorer: what a database holds, its rows, typed queries ----
+
+export const explorerKeys = {
+  all: (id: string) => ["database-explorer", id] as const,
+  overview: (id: string, database: string) =>
+    ["database-explorer", id, "overview", database] as const,
+  object: (id: string, database: string, schema: string, name: string) =>
+    ["database-explorer", id, "object", database, schema, name] as const,
+  rows: (id: string, req: RowsRequest) =>
+    ["database-explorer", id, "rows", req] as const,
+  key: (id: string, database: string, key: string) =>
+    ["database-explorer", id, "key", database, key] as const,
+  saved: (id: string) => ["database-saved-queries", id] as const,
+  runs: (id: string, who: "mine" | "all") =>
+    ["database-query-runs", id, who] as const,
+}
+
+export function useExplorer(id: string, database: string, enabled = true) {
+  return useQuery({
+    queryKey: explorerKeys.overview(id, database),
+    queryFn: () =>
+      api.databaseExplorer.getDatabaseExplorer(id, {
+        database: database || undefined,
+      }),
+    staleTime: 60_000,
+    enabled,
+    retry: false,
+  })
+}
+
+export function useObjectInfo(
+  id: string,
+  database: string,
+  schema: string,
+  name: string,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: explorerKeys.object(id, database, schema, name),
+    queryFn: () =>
+      api.databaseExplorer.describeDatabaseObject(id, {
+        database: database || undefined,
+        schema: schema || undefined,
+        name,
+      }),
+    enabled: enabled && !!name,
+    staleTime: 60_000,
+    retry: false,
+  })
+}
+
+export function useRows(id: string, req: RowsRequest, enabled = true) {
+  return useQuery({
+    queryKey: explorerKeys.rows(id, req),
+    queryFn: ({ signal }) =>
+      api.databaseExplorer.listDatabaseRows(id, req, { signal }),
+    enabled,
+    placeholderData: (prev) => prev,
+    staleTime: 15_000,
+    retry: false,
+  })
+}
+
+export function useRedisKey(id: string, database: string, key: string) {
+  return useQuery({
+    queryKey: explorerKeys.key(id, database, key),
+    queryFn: () =>
+      api.databaseExplorer.getDatabaseKey(id, {
+        database: database || undefined,
+        key,
+      }),
+    enabled: !!key,
+    retry: false,
+  })
+}
+
+export type RunInput = {
+  change: boolean
+  body: DatabaseChangeRequest
+}
+
+// One run at a time; stop() cancels the request, and the backend stops the
+// statement with it.
+export function useRunQuery(id: string) {
+  const queryClient = useQueryClient()
+  const ctrl = useRef<AbortController | null>(null)
+  const mutation = useMutation({
+    mutationFn: ({ change, body }: RunInput) => {
+      ctrl.current?.abort()
+      const c = new AbortController()
+      ctrl.current = c
+      const { confirm, ...read } = body
+      return change
+        ? api.databaseExplorer.runDatabaseChange(id, body, { signal: c.signal })
+        : api.databaseExplorer.runDatabaseQuery(id, read, { signal: c.signal })
+    },
+    onSettled: (_data, _err, input) => {
+      queryClient.invalidateQueries({ queryKey: ["database-query-runs", id] })
+      if (input.body.saved_id) {
+        queryClient.invalidateQueries({ queryKey: explorerKeys.saved(id) })
+      }
+      // A change may have altered tables and rows.
+      if (input.change) {
+        queryClient.invalidateQueries({ queryKey: explorerKeys.all(id) })
+      }
+    },
+  })
+  return { ...mutation, stop: () => ctrl.current?.abort() }
+}
+
+export function useQueryRuns(id: string, who: "mine" | "all", enabled = true) {
+  return useInfiniteQuery({
+    queryKey: explorerKeys.runs(id, who),
+    queryFn: ({ pageParam }) =>
+      api.databaseExplorer.listDatabaseQueryRuns(id, {
+        who,
+        limit: 50,
+        before: pageParam || undefined,
+      }),
+    initialPageParam: "",
+    getNextPageParam: (last) =>
+      last.items.length === 50 ? last.items[last.items.length - 1].at : null,
+    enabled,
+  })
+}
+
+export function useSavedQueries(id: string) {
+  return useQuery({
+    queryKey: explorerKeys.saved(id),
+    queryFn: () => api.databaseExplorer.listDatabaseSavedQueries(id),
+  })
+}
+
+export function useSaveQuery(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      queryId,
+      body,
+    }: {
+      queryId?: string
+      body: DatabaseSavedQueryBody
+    }) =>
+      queryId
+        ? api.databaseExplorer.updateDatabaseSavedQuery(id, queryId, body)
+        : api.databaseExplorer.createDatabaseSavedQuery(id, body),
+    onSuccess: (saved) => {
+      queryClient.setQueryData<{ items: DatabaseSavedQuery[] }>(
+        explorerKeys.saved(id),
+        (old) =>
+          old && {
+            items: [saved, ...old.items.filter((s) => s.id !== saved.id)].sort(
+              (a, b) =>
+                Number(b.pinned) - Number(a.pinned) ||
+                a.title.localeCompare(b.title),
+            ),
+          },
+      )
+      queryClient.invalidateQueries({ queryKey: explorerKeys.saved(id) })
+    },
+  })
+}
+
+export function useDeleteSavedQuery(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (queryId: string) =>
+      api.databaseExplorer.deleteDatabaseSavedQuery(id, queryId),
+    onSuccess: (_d, queryId) => {
+      queryClient.setQueryData<{ items: DatabaseSavedQuery[] }>(
+        explorerKeys.saved(id),
+        (old) => old && { items: old.items.filter((s) => s.id !== queryId) },
+      )
+    },
+  })
+}
+
+// Redis keys by pattern, page after page by the SCAN cursor.
+export function useRedisKeys(
+  id: string,
+  database: string,
+  pattern: string,
+  type: string,
+) {
+  return useInfiniteQuery({
+    queryKey: [...explorerKeys.all(id), "keys", database, pattern, type],
+    queryFn: ({ pageParam, signal }) =>
+      api.databaseExplorer.listDatabaseRows(
+        id,
+        {
+          database: database || undefined,
+          where: pattern || undefined,
+          filters: type
+            ? [{ column: "type", op: "eq", value: type }]
+            : undefined,
+          cursor: pageParam || undefined,
+          limit: 200,
+          count: !pageParam,
+        },
+        { signal },
+      ),
+    initialPageParam: "",
+    getNextPageParam: (last) => last.next_cursor || null,
+    retry: false,
+  })
+}
+
+// Add, change or remove rows (Owner). preview = only the statements.
+export function useEditRows(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: EditRequest) =>
+      api.databaseExplorer.editDatabaseRows(id, body),
+    onSuccess: (res) => {
+      if (!res.ran) return
+      queryClient.invalidateQueries({ queryKey: explorerKeys.all(id) })
+      queryClient.invalidateQueries({ queryKey: ["database-query-runs", id] })
+    },
+  })
+}
+
+type ViewTarget = { database: string; schema: string; table: string }
+
+const viewsKey = (id: string, t: ViewTarget) =>
+  ["database-saved-views", id, t.database, t.schema, t.table] as const
+
+// A table's saved filters.
+export function useSavedViews(id: string, t: ViewTarget) {
+  return useQuery({
+    queryKey: viewsKey(id, t),
+    queryFn: () =>
+      api.databaseExplorer.listDatabaseSavedViews(id, {
+        database: t.database || undefined,
+        schema: t.schema || undefined,
+        table: t.table,
+      }),
+    enabled: !!t.table,
+  })
+}
+
+export function useSaveView(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      viewId,
+      body,
+    }: {
+      viewId?: string
+      body: DatabaseSavedViewBody
+    }) =>
+      viewId
+        ? api.databaseExplorer.updateDatabaseSavedView(id, viewId, body)
+        : api.databaseExplorer.createDatabaseSavedView(id, body),
+    onSuccess: (v: DatabaseSavedView) => {
+      queryClient.invalidateQueries({
+        queryKey: viewsKey(id, {
+          database: v.database,
+          schema: v.schema,
+          table: v.table,
+        }),
+      })
+    },
+  })
+}
+
+export function useDeleteView(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (v: DatabaseSavedView) =>
+      api.databaseExplorer.deleteDatabaseSavedView(id, v.id),
+    onSuccess: (_d, v) => {
+      queryClient.invalidateQueries({
+        queryKey: viewsKey(id, {
+          database: v.database,
+          schema: v.schema,
+          table: v.table,
+        }),
+      })
+    },
+  })
+}

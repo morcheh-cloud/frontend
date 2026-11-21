@@ -4083,6 +4083,40 @@ export interface DatabaseBody {
   username?: string;
 }
 
+export interface DatabaseChangeRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * The database's name, when the query drops or empties data (the 422 for body.confirm says why)
+   * @maxLength 200
+   */
+  confirm?: string;
+  /** @maxLength 128 */
+  database?: string;
+  /**
+   * @format int64
+   * @min 1
+   * @max 10000
+   */
+  limit?: number;
+  /**
+   * @minLength 1
+   * @maxLength 100000
+   */
+  query: string;
+  /** @maxLength 36 */
+  saved_id?: string;
+  /**
+   * @format int64
+   * @min 1
+   * @max 600
+   */
+  timeout_seconds?: number;
+}
+
 export interface DatabaseCheck {
   /** What to do about it */
   action?: string;
@@ -4581,6 +4615,25 @@ export interface DatabaseNote {
   message: string;
 }
 
+export interface DatabaseObject {
+  /** @format int64 */
+  bytes: number | null;
+  kind:
+    | "table"
+    | "view"
+    | "materialized_view"
+    | "foreign_table"
+    | "collection"
+    | "timeseries";
+  name: string;
+  /**
+   * The engine's estimate
+   * @format int64
+   */
+  rows: number | null;
+  schema: string;
+}
+
 export interface DatabaseOutboundIP {
   /**
    * A URL to the JSON Schema for this object.
@@ -4589,6 +4642,30 @@ export interface DatabaseOutboundIP {
   $schema?: string;
   /** Empty when it couldn't be found out */
   ip: string;
+}
+
+export interface DatabaseOverview {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** More objects than listed */
+  capped?: boolean;
+  /** The one listed below */
+  database: string;
+  /** Every database the login can open */
+  databases: string[];
+  engine: string;
+  /**
+   * Redis: keys in the database
+   * @format int64
+   */
+  keys?: number | null;
+  notes: string[];
+  objects: DatabaseObject[];
+  /** Postgres/SQL Server schemas in it */
+  schemas: string[];
 }
 
 export interface DatabasePersist {
@@ -4640,6 +4717,76 @@ export interface DatabaseQuery {
   rows: number | null;
   /** @format double */
   total_ms: number;
+}
+
+export interface DatabaseQueryRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * The database inside the connection (Redis: its number); empty = the connection's
+   * @maxLength 128
+   */
+  database?: string;
+  /**
+   * Rows kept per result, default 500
+   * @format int64
+   * @min 1
+   * @max 10000
+   */
+  limit?: number;
+  /**
+   * SQL; MongoDB: JSON or db.coll.find(…); Redis: one command per line
+   * @minLength 1
+   * @maxLength 100000
+   */
+  query: string;
+  /**
+   * The saved query this runs, to count it
+   * @maxLength 36
+   */
+  saved_id?: string;
+  /**
+   * Default 30
+   * @format int64
+   * @min 1
+   * @max 600
+   */
+  timeout_seconds?: number;
+}
+
+export interface DatabaseQueryResult {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** What the database said when a statement failed; results holds the ones before it */
+  error?: string;
+  mode: "read" | "change";
+  /** @format int64 */
+  ms: number;
+  results: QueryResult[];
+  run_id: string;
+}
+
+export interface DatabaseQueryRun {
+  /** @format date-time */
+  at: string;
+  database: string;
+  error?: string;
+  id: string;
+  mine: boolean;
+  mode: "read" | "change";
+  /** @format int64 */
+  ms: number;
+  ok: boolean;
+  query: string;
+  /** @format int64 */
+  rows: number;
+  user_name: string;
 }
 
 export interface DatabaseRates {
@@ -4698,6 +4845,110 @@ export interface DatabaseReplication {
   slots: DatabaseSlot[];
   /** Replica: where it copies from */
   source?: DatabaseSource;
+}
+
+export interface DatabaseSavedQuery {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  can_edit: boolean;
+  /** @format date-time */
+  created_at: string;
+  created_by_name: string;
+  database: string;
+  description: string;
+  id: string;
+  /** @format date-time */
+  last_run_at: string | null;
+  mine: boolean;
+  pinned: boolean;
+  query: string;
+  /** @format int32 */
+  run_count: number;
+  shared: boolean;
+  title: string;
+  /**
+   * Send it back as revision when saving
+   * @format date-time
+   */
+  updated_at: string;
+  updated_by_name: string;
+}
+
+export interface DatabaseSavedQueryBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 128 */
+  database?: string;
+  /** @maxLength 2000 */
+  description?: string;
+  pinned?: boolean;
+  /**
+   * @minLength 1
+   * @maxLength 100000
+   */
+  query: string;
+  /**
+   * updated_at when you loaded it: 409 when someone saved in between
+   * @format date-time
+   */
+  revision?: string;
+  /** Everyone who can query this database sees it */
+  shared?: boolean;
+  /**
+   * @minLength 1
+   * @maxLength 200
+   */
+  title: string;
+}
+
+export interface DatabaseSavedView {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  can_edit: boolean;
+  created_by_name: string;
+  database: string;
+  id: string;
+  mine: boolean;
+  schema: string;
+  shared: boolean;
+  state: DatabaseViewState;
+  table: string;
+  title: string;
+  /** @format date-time */
+  updated_at: string;
+}
+
+export interface DatabaseSavedViewBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 128 */
+  database?: string;
+  /** @maxLength 128 */
+  schema?: string;
+  shared?: boolean;
+  state: DatabaseViewState;
+  /**
+   * @minLength 1
+   * @maxLength 256
+   */
+  table: string;
+  /**
+   * @minLength 1
+   * @maxLength 200
+   */
+  title: string;
 }
 
 export interface DatabaseSecurity {
@@ -5218,6 +5469,24 @@ export interface DatabaseUser {
   name: string;
   /** Signs in without a password */
   no_password?: boolean;
+}
+
+export interface DatabaseViewState {
+  /** @maxItems 50 */
+  filters?: RowFilter[];
+  match?: "all" | "any";
+  /**
+   * @format int64
+   * @min 0
+   * @max 1000
+   */
+  page_size?: number;
+  /** @maxLength 1000 */
+  search?: string;
+  /** @maxItems 10 */
+  sort?: RowSort[];
+  /** @maxLength 20000 */
+  where?: string;
 }
 
 export interface DatabaseWait {
@@ -8673,6 +8942,45 @@ export interface DockerWastedPath {
   path: string;
 }
 
+export interface EditRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * @maxItems 500
+   * @minItems 1
+   */
+  changes: RowChange[];
+  /** @maxLength 128 */
+  database?: string;
+  /** Only write out the statements, run nothing */
+  preview?: boolean;
+  /** @maxLength 128 */
+  schema?: string;
+  /**
+   * @minLength 1
+   * @maxLength 256
+   */
+  table: string;
+}
+
+export interface EditResult {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format int64 */
+  affected: number;
+  /** @format int64 */
+  ms: number;
+  ran: boolean;
+  /** What runs, values written in */
+  statements: string[];
+}
+
 export interface EnableCronJobsRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -10432,6 +10740,33 @@ export interface ListAssetRelationsResponse {
   items: AssetRelation[];
 }
 
+export interface ListDatabaseQueryRunsResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: DatabaseQueryRun[];
+}
+
+export interface ListDatabaseSavedQueriesResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: DatabaseSavedQuery[];
+}
+
+export interface ListDatabaseSavedViewsResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: DatabaseSavedView[];
+}
+
 export interface ListDnsServersResponse {
   /**
    * A URL to the JSON Schema for this object.
@@ -11930,6 +12265,53 @@ export interface OSFacet {
   label: string;
   /** OS id; 'unknown' for servers never detected */
   value: string;
+}
+
+export interface ObjectColumn {
+  comment?: string;
+  default: string | null;
+  /** e.g. auto_increment, identity */
+  extra?: string;
+  /** Part of the primary key */
+  key: boolean;
+  name: string;
+  nullable: boolean;
+  type: string;
+}
+
+export interface ObjectConstraint {
+  definition: string;
+  kind: "foreign_key" | "check" | "unique";
+  name: string;
+}
+
+export interface ObjectIndex {
+  definition: string;
+  name: string;
+  primary: boolean;
+  unique: boolean;
+}
+
+export interface ObjectInfo {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  columns: ObjectColumn[];
+  constraints: ObjectConstraint[];
+  /** CREATE statement or view body, when the engine gives one */
+  definition?: string;
+  indexes: ObjectIndex[];
+  key: string[];
+  kind: string;
+  name: string;
+  /**
+   * MongoDB: documents the fields were read from
+   * @format int64
+   */
+  sampled?: number;
+  schema: string;
 }
 
 export interface OpenPort {
@@ -14986,6 +15368,26 @@ export interface PushOutputBody {
   ok: boolean;
 }
 
+export interface QueryResult {
+  /**
+   * Rows a change touched
+   * @format int64
+   */
+  affected: number | null;
+  columns: ResultColumn[];
+  /** MongoDB: each row's whole document as JSON */
+  documents?: string[];
+  message?: string;
+  /** @format int64 */
+  ms: number;
+  /** Values as text; null is null */
+  rows: (string | null)[][];
+  /** The statement this answers, shortened */
+  statement: string;
+  /** There were more rows than the limit */
+  truncated: boolean;
+}
+
 export interface RaiseStorageSyncWatchLimitRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -15377,6 +15779,31 @@ export interface Redirects {
   rules?: RedirectRule[];
   /** Treat /old and /old/ as different addresses (exact rules) */
   strict_slash?: boolean;
+}
+
+export interface RedisKey {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  key: string;
+  /**
+   * Length, items or members
+   * @format int64
+   */
+  size: number;
+  /** A string's value */
+  text: string | null;
+  truncated: boolean;
+  /**
+   * -1 = never expires
+   * @format int64
+   */
+  ttl_ms: number;
+  type: string;
+  /** Other types as rows */
+  value?: QueryResult;
 }
 
 export interface Ref {
@@ -15806,6 +16233,12 @@ export interface RestorePveGuestRequest {
   volid: string;
 }
 
+export interface ResultColumn {
+  name: string;
+  /** The engine's type name, when it gives one */
+  type: string;
+}
+
 export interface ResyncState {
   /** @format int64 */
   bytes: number;
@@ -15838,6 +16271,138 @@ export interface RollbackPveSnapshotRequest {
   $schema?: string;
   /** Start the machine afterwards (when the snapshot has no memory) */
   start?: boolean;
+}
+
+export interface RowChange {
+  /** @maxLength 1000000 */
+  document?: string;
+  key?: Record<string, string | null>;
+  op: "insert" | "update" | "delete";
+  values?: Record<string, string | null>;
+}
+
+export interface RowFilter {
+  /**
+   * @minLength 1
+   * @maxLength 256
+   */
+  column: string;
+  op:
+    | "eq"
+    | "ne"
+    | "gt"
+    | "gte"
+    | "lt"
+    | "lte"
+    | "contains"
+    | "not_contains"
+    | "starts"
+    | "ends"
+    | "in"
+    | "null"
+    | "not_null";
+  /** @maxLength 10000 */
+  value?: string;
+  /**
+   * For in
+   * @maxItems 1000
+   */
+  values?: string[];
+}
+
+export interface RowSort {
+  /**
+   * @minLength 1
+   * @maxLength 256
+   */
+  column: string;
+  desc?: boolean;
+}
+
+export interface RowsPage {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Rows a change touched
+   * @format int64
+   */
+  affected: number | null;
+  columns: ResultColumn[];
+  /** MongoDB: each row's whole document as JSON */
+  documents?: string[];
+  /** total is the engine's estimate */
+  estimated?: boolean;
+  message?: string;
+  /** @format int64 */
+  ms: number;
+  /** Redis: pass it back for the next page; empty = no more */
+  next_cursor?: string;
+  /** Values as text; null is null */
+  rows: (string | null)[][];
+  /** The statement this answers, shortened */
+  statement: string;
+  /**
+   * Rows matching the filters, when counted
+   * @format int64
+   */
+  total: number | null;
+  /** There were more rows than the limit */
+  truncated: boolean;
+}
+
+export interface RowsRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Count every matching row too */
+  count?: boolean;
+  /**
+   * Redis: next_cursor from the last page
+   * @maxLength 64
+   */
+  cursor?: string;
+  /** @maxLength 128 */
+  database?: string;
+  /** @maxItems 50 */
+  filters?: RowFilter[];
+  /**
+   * Default 100
+   * @format int64
+   * @min 1
+   * @max 1000
+   */
+  limit?: number;
+  /** all (default) or any filter */
+  match?: "all" | "any";
+  /**
+   * @format int64
+   * @min 0
+   */
+  offset?: number;
+  /** @maxLength 128 */
+  schema?: string;
+  /**
+   * Text looked for in every column
+   * @maxLength 1000
+   */
+  search?: string;
+  /** @maxItems 10 */
+  sort?: RowSort[];
+  /**
+   * Redis: leave empty
+   * @maxLength 256
+   */
+  table?: string;
+  /**
+   * Your own condition: SQL after WHERE, MongoDB a filter as JSON, Redis a key pattern. Run read only.
+   * @maxLength 20000
+   */
+  where?: string;
 }
 
 export interface Rule {
@@ -24705,6 +25270,393 @@ export class Api<
     ) =>
       this.request<Database, ErrorModel>({
         path: `/databases/${id}/monitoring`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  databaseExplorer = {
+    /**
+     * No description
+     *
+     * @tags Database explorer
+     * @name CreateDatabaseSavedQuery
+     * @summary Save a query
+     * @request POST:/databases/{id}/saved-queries
+     */
+    createDatabaseSavedQuery: (
+      id: string,
+      data: DatabaseSavedQueryBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<DatabaseSavedQuery, ErrorModel>({
+        path: `/databases/${id}/saved-queries`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Database explorer
+     * @name CreateDatabaseSavedView
+     * @summary Save a table's filters
+     * @request POST:/databases/{id}/saved-views
+     */
+    createDatabaseSavedView: (
+      id: string,
+      data: DatabaseSavedViewBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<DatabaseSavedView, ErrorModel>({
+        path: `/databases/${id}/saved-views`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Your own, or a shared one as an Owner of the database.
+     *
+     * @tags Database explorer
+     * @name DeleteDatabaseSavedQuery
+     * @summary Delete a saved query
+     * @request DELETE:/databases/{id}/saved-queries/{query}
+     */
+    deleteDatabaseSavedQuery: (
+      id: string,
+      query: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, ErrorModel>({
+        path: `/databases/${id}/saved-queries/${query}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Database explorer
+     * @name DeleteDatabaseSavedView
+     * @summary Delete a saved filter
+     * @request DELETE:/databases/{id}/saved-views/{view}
+     */
+    deleteDatabaseSavedView: (
+      id: string,
+      view: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, ErrorModel>({
+        path: `/databases/${id}/saved-views/${view}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * @description MongoDB: fields seen in a sample of 100 documents. Not for Redis. Engineer.
+     *
+     * @tags Database explorer
+     * @name DescribeDatabaseObject
+     * @summary A table's columns, keys and indexes
+     * @request GET:/databases/{id}/explore/object
+     */
+    describeDatabaseObject: (
+      id: string,
+      query: {
+        /** @maxLength 128 */
+        database?: string;
+        /**
+         * @minLength 1
+         * @maxLength 256
+         */
+        name: string;
+        /** @maxLength 128 */
+        schema?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ObjectInfo, ErrorModel>({
+        path: `/databases/${id}/explore/object`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description By primary key (MongoDB: _id), all in one transaction on SQL engines; a change or removal that doesn't match exactly one row undoes everything. preview = only write out the statements. Owner. Every run lands in the query history.
+     *
+     * @tags Database explorer
+     * @name EditDatabaseRows
+     * @summary Add, change or remove rows of a table
+     * @request POST:/databases/{id}/explore/edit
+     */
+    editDatabaseRows: (
+      id: string,
+      data: EditRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<EditResult, ErrorModel>({
+        path: `/databases/${id}/explore/edit`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Its databases, schemas and tables (MongoDB: collections; Redis: numbered databases and their key count). Engineer.
+     *
+     * @tags Database explorer
+     * @name GetDatabaseExplorer
+     * @summary What a database holds
+     * @request GET:/databases/{id}/explore
+     */
+    getDatabaseExplorer: (
+      id: string,
+      query?: {
+        /**
+         * Which database inside the connection; empty = the connection's own
+         * @maxLength 128
+         */
+        database?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<DatabaseOverview, ErrorModel>({
+        path: `/databases/${id}/explore`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Strings up to 64 KiB, the first 1000 items of other types (streams: the newest 200). Engineer.
+     *
+     * @tags Database explorer
+     * @name GetDatabaseKey
+     * @summary One Redis key's value
+     * @request GET:/databases/{id}/explore/key
+     */
+    getDatabaseKey: (
+      id: string,
+      query: {
+        /** @maxLength 16 */
+        database?: string;
+        /**
+         * @minLength 1
+         * @maxLength 10000
+         */
+        key: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<RedisKey, ErrorModel>({
+        path: `/databases/${id}/explore/key`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Newest first, kept 90 days. who=all (everyone's) needs Owner; otherwise your own.
+     *
+     * @tags Database explorer
+     * @name ListDatabaseQueryRuns
+     * @summary Queries run on a database
+     * @request GET:/databases/{id}/query-runs
+     */
+    listDatabaseQueryRuns: (
+      id: string,
+      query?: {
+        /**
+         * Older than this (the last item's at)
+         * @format date-time
+         */
+        before?: string;
+        /**
+         * @format int32
+         * @min 1
+         * @max 200
+         * @default 50
+         */
+        limit?: number;
+        /** @default "mine" */
+        who?: "mine" | "all";
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ListDatabaseQueryRunsResponse, ErrorModel>({
+        path: `/databases/${id}/query-runs`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Filters, search, sort and paging, always read only (Redis: keys by pattern, paged by cursor). Engineer.
+     *
+     * @tags Database explorer
+     * @name ListDatabaseRows
+     * @summary A page of a table's rows
+     * @request POST:/databases/{id}/explore/rows
+     */
+    listDatabaseRows: (
+      id: string,
+      data: RowsRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<RowsPage, ErrorModel>({
+        path: `/databases/${id}/explore/rows`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Shared ones and your own; pinned first. Engineer.
+     *
+     * @tags Database explorer
+     * @name ListDatabaseSavedQueries
+     * @summary Saved queries
+     * @request GET:/databases/{id}/saved-queries
+     */
+    listDatabaseSavedQueries: (id: string, params: RequestParams = {}) =>
+      this.request<ListDatabaseSavedQueriesResponse, ErrorModel>({
+        path: `/databases/${id}/saved-queries`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Shared ones and your own. Engineer.
+     *
+     * @tags Database explorer
+     * @name ListDatabaseSavedViews
+     * @summary A table's saved filters
+     * @request GET:/databases/{id}/saved-views
+     */
+    listDatabaseSavedViews: (
+      id: string,
+      query: {
+        /** @maxLength 128 */
+        database?: string;
+        /** @maxLength 128 */
+        schema?: string;
+        /**
+         * @minLength 1
+         * @maxLength 256
+         */
+        table: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ListDatabaseSavedViewsResponse, ErrorModel>({
+        path: `/databases/${id}/saved-views`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Postgres and SQL Server run the whole script in one transaction (all or nothing); MySQL statement by statement; MongoDB and Redis as sent. A script that drops or empties data, or changes who may do what, needs confirm = the database's name. Owner.
+     *
+     * @tags Database explorer
+     * @name RunDatabaseChange
+     * @summary Run a query that may change data
+     * @request POST:/databases/{id}/query/change
+     */
+    runDatabaseChange: (
+      id: string,
+      data: DatabaseChangeRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<DatabaseQueryResult, ErrorModel>({
+        path: `/databases/${id}/query/change`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Each statement is checked and run inside a read-only transaction (SQL Server: one that's rolled back); writes are refused. A failing statement comes back in error with the results before it. Cancel the request to stop it. Engineer.
+     *
+     * @tags Database explorer
+     * @name RunDatabaseQuery
+     * @summary Run a query, read only
+     * @request POST:/databases/{id}/query
+     */
+    runDatabaseQuery: (
+      id: string,
+      data: DatabaseQueryRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<DatabaseQueryResult, ErrorModel>({
+        path: `/databases/${id}/query`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Your own, or a shared one as an Owner of the database.
+     *
+     * @tags Database explorer
+     * @name UpdateDatabaseSavedQuery
+     * @summary Change a saved query
+     * @request PUT:/databases/{id}/saved-queries/{query}
+     */
+    updateDatabaseSavedQuery: (
+      id: string,
+      query: string,
+      data: DatabaseSavedQueryBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<DatabaseSavedQuery, ErrorModel>({
+        path: `/databases/${id}/saved-queries/${query}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Your own, or a shared one as an Owner of the database. The table stays.
+     *
+     * @tags Database explorer
+     * @name UpdateDatabaseSavedView
+     * @summary Change a saved filter
+     * @request PUT:/databases/{id}/saved-views/{view}
+     */
+    updateDatabaseSavedView: (
+      id: string,
+      view: string,
+      data: DatabaseSavedViewBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<DatabaseSavedView, ErrorModel>({
+        path: `/databases/${id}/saved-views/${view}`,
         method: "PUT",
         body: data,
         type: ContentType.Json,
