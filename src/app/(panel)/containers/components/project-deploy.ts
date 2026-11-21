@@ -27,8 +27,21 @@ export type DeployLog = {
   containers: Map<string, string>
   // Service → compose's pull/build word ("Building").
   services: Map<string, string>
+  // Services updated without downtime (start-first), in log order.
+  rollouts: Map<string, Rollout>
   lines: string[]
 }
+
+export type RolloutState =
+  | "starting"
+  | "waiting"
+  | "moving"
+  | "stopping"
+  | "done"
+  | "failed"
+  | "skipped"
+
+export type Rollout = { state: RolloutState; why?: string }
 
 export type Deploy = {
   job: Job
@@ -102,6 +115,7 @@ export function parseDeployLog(log: string, services: Set<string>) {
     images: new Map(),
     containers: new Map(),
     services: new Map(),
+    rollouts: new Map(),
     lines,
   }
   for (const line of lines) {
@@ -111,8 +125,16 @@ export function parseDeployLog(log: string, services: Set<string>) {
       else if (rest.startsWith("Pulling images")) out.step = "pull"
       else if (rest.startsWith("docker compose")) out.step = "compose"
       else if (rest === "Done") out.step = "done"
+      else {
+        const r = /^Updating (\S+) without downtime$/.exec(rest)
+        if (r) {
+          out.step = "compose"
+          out.rollouts.set(r[1], { state: "starting" })
+        }
+      }
       continue
     }
+    if (rolloutLine(out.rollouts, line)) continue
     let m = /^Using (\S+) \(already/.exec(line)
     if (m) {
       out.images.set(imageKey(m[1]), "ready")
@@ -137,6 +159,39 @@ export function parseDeployLog(log: string, services: Set<string>) {
     if (m && services.has(m[1])) out.services.set(m[1], m[2])
   }
   return out
+}
+
+// The backend's lines about a start-first update (docker_rollout.go).
+const rolloutLines: [RegExp, RolloutState][] = [
+  [/^Waiting for the new (\S+) to turn healthy/, "waiting"],
+  [/^The new (\S+) has no healthcheck/, "waiting"],
+  [/^The new (\S+) is healthy; both serve/, "moving"],
+  [/^Stopping the old (\S+) \(/, "stopping"],
+  [/^(\S+) updated without downtime/, "done"],
+]
+
+function rolloutLine(map: Map<string, Rollout>, line: string) {
+  for (const [re, state] of rolloutLines) {
+    const m = re.exec(line)
+    if (m && map.has(m[1])) {
+      map.set(m[1], { state })
+      return true
+    }
+  }
+  let m = /^The new (\S+) isn't healthy \((.*)\): removing it/.exec(line)
+  if (m) {
+    map.set(m[1], { state: "failed", why: m[2] })
+    return true
+  }
+  m =
+    /^(\S+) asks for updates without downtime, but (.*): it's updated the usual way/.exec(
+      line,
+    )
+  if (m) {
+    map.set(m[1], { state: "skipped", why: m[2] })
+    return true
+  }
+  return false
 }
 
 // "nginx" and "nginx:latest" are one image.

@@ -9,6 +9,7 @@ import {
   Loader2,
   Lock,
   Pencil,
+  RefreshCcw,
   Rocket,
   Save,
   ScrollText,
@@ -46,10 +47,12 @@ import {
   type PortSpec,
   portText,
   readCompose,
+  type ServiceInfo,
 } from "./compose-edit"
 import { healthMeta } from "./meta"
 import { Quiet } from "./parts"
 import { Ring } from "./project-overview"
+import { type RolloutBlocker, rolloutBlocker, rolloutOn } from "./rollout"
 
 // --- Checks -----------------------------------------------------------------
 // What a service should have before it carries real traffic. Read from the
@@ -223,6 +226,8 @@ export type ServiceReport = {
   checks: CheckResult[]
   // Defined in the (first) compose file, so it can be edited here.
   editable: boolean
+  // Updates without downtime, when the compose file could be read.
+  rollout: { on: boolean; blocker: RolloutBlocker | null } | null
 }
 
 // The compose file's view of a service, when the file can be read.
@@ -279,6 +284,11 @@ export function readiness(
   compose?: string,
 ) {
   const services = composeServices(compose)
+  const infos = new Map<string, ServiceInfo>()
+  if (services && compose) {
+    const m = readCompose(compose)
+    if (m.ok) for (const i of m.services) infos.set(i.name, i)
+  }
   const groups = new Map<string, DockerProjectContainer[]>()
   for (const c of containers) {
     const k = c.service || c.name
@@ -315,12 +325,19 @@ export function readiness(
         pending: waiting,
       }
     })
+    const health = checks.some((c) => c.key === "health" && (c.ok || c.pending))
     reports.push({
       service,
       sample,
       count: list.length,
       checks,
       editable: !!s,
+      rollout: s
+        ? {
+            on: rolloutOn(s),
+            blocker: rolloutBlocker(infos.get(service), health),
+          }
+        : null,
     })
   }
   misses.sort((a, b) => b.weight - a.weight)
@@ -378,6 +395,7 @@ type Form = {
   user: string
   readOnly: boolean
   privileged: boolean
+  rollout: boolean
 }
 
 function testText(test: unknown) {
@@ -414,6 +432,7 @@ function formOf(s: Json): Form {
     user: str(s.user),
     readOnly: !!s.read_only,
     privileged: !!s.privileged,
+    rollout: rolloutOn(s),
   }
 }
 
@@ -491,6 +510,11 @@ function applyForm(compose: string, service: string, was: Form, f: Form) {
   }
   if (f.privileged !== was.privileged && !f.privileged)
     unset(doc, [...base, "privileged"])
+  if (f.rollout !== was.rollout) {
+    const path = [...base, "deploy", "update_config", "order"]
+    if (f.rollout) put(doc, path, "start-first")
+    else unset(doc, path)
+  }
   return doc.toString()
 }
 
@@ -663,6 +687,21 @@ export function ProjectProduction({
             .map((s) => s.service),
         },
         {
+          key: "rollout" as const,
+          label: "Update without downtime",
+          body: "Sets deploy.update_config.order: start-first, so an update starts the new container beside the old one and stops the old one only once the new one is healthy.",
+          services: r.services
+            .filter(
+              (s) =>
+                s.editable &&
+                s.rollout &&
+                !s.rollout.on &&
+                !s.rollout.blocker &&
+                s.sample.state === "running",
+            )
+            .map((s) => s.service),
+        },
+        {
           key: "logs" as const,
           label: "Rotate their logs",
           body: "Keeps at most 3 files of 10 MB per container (json-file), so logs can't fill the disk.",
@@ -764,7 +803,13 @@ export function ProjectProduction({
                 setFixOpen(true)
               }}
             >
-              {q.key === "logs" ? <ScrollText /> : <Wrench />}
+              {q.key === "logs" ? (
+                <ScrollText />
+              ) : q.key === "rollout" ? (
+                <RefreshCcw />
+              ) : (
+                <Wrench />
+              )}
               {q.label}
               <span className="text-muted-foreground tabular-nums">
                 {q.services.length}
@@ -839,7 +884,7 @@ export function ProjectProduction({
 }
 
 type Quick = {
-  key: "restart" | "logs"
+  key: "restart" | "logs" | "rollout"
   label: string
   body: string
   services: string[]
@@ -898,6 +943,7 @@ function ServiceCard({
         {s.checks.map((c) => (
           <CheckRow key={c.key} c={c} />
         ))}
+        {s.rollout && <RolloutRow r={s.rollout} />}
       </ul>
     </section>
   )
@@ -934,6 +980,45 @@ function CheckRow({ c }: { c: CheckResult }) {
             {c.pending
               ? "Fixed in the compose file; Apply to put it into effect."
               : meta.why}
+          </p>
+        )}
+      </div>
+    </li>
+  )
+}
+
+function RolloutRow({
+  r,
+}: {
+  r: { on: boolean; blocker: RolloutBlocker | null }
+}) {
+  const blocked = r.on && r.blocker
+  const Icon = r.on && !blocked ? CircleCheck : blocked ? CircleX : CircleAlert
+  const tone =
+    r.on && !blocked
+      ? "text-success"
+      : blocked
+        ? "text-destructive"
+        : "text-ash"
+  return (
+    <li className="flex min-h-11 items-start gap-3 px-4 py-2.5">
+      <Icon className={cn("mt-0.5 size-4 shrink-0", tone)} />
+      <div className="min-w-0 flex-1">
+        <p className="flex items-baseline gap-2 text-body-sm">
+          <span className="min-w-0 flex-1 truncate">
+            Updates without downtime
+          </span>
+          <span className="max-w-[45%] shrink-0 truncate font-mono text-caption text-muted-foreground">
+            {r.on ? (blocked ? r.blocker?.short : "On") : "Off"}
+          </span>
+        </p>
+        {(!r.on || blocked) && (
+          <p className="mt-0.5 text-caption text-muted-foreground">
+            {blocked
+              ? `Asked for, but updates still stop it first. ${r.blocker?.why}`
+              : r.blocker
+                ? `Not possible yet. ${r.blocker.why}`
+                : "An update stops it before the new one starts, so it's down for a moment. Turn this on to start the new one first."}
           </p>
         )}
       </div>
@@ -1033,11 +1118,18 @@ function ServiceEditor({
   const set = (patch: Partial<Form>) => setF((old) => ({ ...old, ...patch }))
   const { write, save, refused } = useWriteCompose(p, serverId, onApply)
   const c = report.sample
-  const errors = problems(f, cores)
+  const imageHealth = c.healthcheck && !s.healthcheck
+  const info = readCompose(p.compose).services.find(
+    (i) => i.name === report.service,
+  )
+  const blocker = rolloutBlocker(info, f.health || imageHealth)
+  const errors: Partial<Record<keyof Form, string>> = problems(f, cores)
+  if (f.rollout && !was.rollout && blocker?.health)
+    errors.rollout =
+      "Turn the health check on above, or updates still stop it first"
   const bad = Object.keys(errors).length > 0
   const dirty = JSON.stringify(f) !== JSON.stringify(was)
   const driver = str(obj(s.logging).driver)
-  const imageHealth = c.healthcheck && !s.healthcheck
   const next = dirty && !bad ? applyForm(p.compose, report.service, was, f) : ""
   const after = next
     ? stringify({
@@ -1316,6 +1408,40 @@ function ServiceEditor({
           )}
         </Group>
 
+        <Group
+          title="Updates without downtime"
+          hint={
+            blocker && !blocker.health
+              ? blocker.why
+              : "The new container starts beside the old one; the old one stops only once the new one is healthy. If it never turns healthy, the old one keeps running."
+          }
+          aside={
+            <Switch
+              checked={f.rollout}
+              disabled={!!blocker && !blocker.health && !f.rollout}
+              onCheckedChange={(v) => set({ rollout: v })}
+              aria-label="Updates without downtime"
+            />
+          }
+        >
+          {errors.rollout && (
+            <p className="text-caption text-destructive">{errors.rollout}</p>
+          )}
+          {f.rollout && !blocker && (
+            <p className="text-caption text-ash">
+              Whatever sends it traffic must find it by its service name on a
+              Docker network (Traefik, Caddy, or nginx with a resolver), not by
+              a host port.{" "}
+              <Link
+                href="/help/containers#zero-downtime"
+                className="text-brand underline-offset-4 hover:underline"
+              >
+                How it works
+              </Link>
+            </p>
+          )}
+        </Group>
+
         <Group title="Security">
           <Field
             label="Run as user"
@@ -1420,7 +1546,9 @@ function QuickFix({
       const f: Form =
         fix.key === "restart"
           ? { ...was, restart: "unless-stopped" }
-          : { ...was, rotate: true, maxSize: "10m", maxFile: "3" }
+          : fix.key === "rollout"
+            ? { ...was, rollout: true }
+            : { ...was, rotate: true, maxSize: "10m", maxFile: "3" }
       text = applyForm(text, name, was, f)
     }
     return text

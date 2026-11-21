@@ -428,6 +428,10 @@ export const guides: GuideMeta[] = [
     keywords: [
       "logs",
       "production",
+      "zero downtime",
+      "rolling update",
+      "blue green",
+      "start-first",
       "healthcheck",
       "alert",
       "docker",

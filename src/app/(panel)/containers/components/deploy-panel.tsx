@@ -26,6 +26,8 @@ import {
   type Deploy,
   type DeployAction,
   isErrorLine,
+  type Rollout,
+  type RolloutState,
   type Step,
   stepOf,
 } from "./project-deploy"
@@ -287,6 +289,10 @@ export function DeployPanel({
         <Steps steps={steps} step={step} d={d} phone={phone} />
       )}
 
+      {d.log && d.log.rollouts.size > 0 && (
+        <Rollouts rollouts={d.log.rollouts} d={d} />
+      )}
+
       {d.failed && message && (
         <div className="flex flex-col gap-2 rounded-xl bg-destructive/5 p-3">
           <pre className="max-h-40 overflow-auto font-mono text-caption break-words whitespace-pre-wrap text-destructive">
@@ -455,6 +461,76 @@ function Steps({
         )
       })}
     </ol>
+  )
+}
+
+const rolloutText: Record<RolloutState, string> = {
+  starting: "Starting the new copy beside the old one",
+  waiting: "Waiting for the new copy to turn healthy",
+  moving: "Both copies serve while traffic moves over",
+  stopping: "Stopping the old copy",
+  done: "Updated without downtime",
+  failed: "The new copy wasn't healthy: the old one keeps running",
+  skipped: "Updated the usual way (stop, then start)",
+}
+
+// Services updated start-first: where each one is, and why one fell back
+// or failed.
+function Rollouts({
+  rollouts,
+  d,
+}: {
+  rollouts: Map<string, Rollout>
+  d: Deploy
+}) {
+  return (
+    <ul className="flex flex-col divide-y divide-border rounded-xl border border-border">
+      {[...rollouts].map(([service, r]) => {
+        // A step the job never got past when it ended.
+        const stuck =
+          !d.active &&
+          r.state !== "done" &&
+          r.state !== "failed" &&
+          r.state !== "skipped"
+        const Icon =
+          r.state === "done"
+            ? CircleCheck
+            : r.state === "failed" || stuck
+              ? CircleX
+              : r.state === "skipped"
+                ? CircleAlert
+                : Loader2
+        return (
+          <li
+            key={service}
+            className="flex min-h-11 items-start gap-3 px-3 py-2"
+          >
+            <Icon
+              className={cn(
+                "mt-0.5 size-4 shrink-0",
+                r.state === "done" && "text-success",
+                (r.state === "failed" || stuck) && "text-destructive",
+                r.state === "skipped" && "text-warning",
+                Icon === Loader2 && "animate-spin text-brand",
+              )}
+            />
+            <div className="min-w-0 flex-1">
+              <p className="flex flex-wrap items-baseline gap-x-2 text-body-sm">
+                <span className="font-mono font-medium">{service}</span>
+                <span className="text-muted-foreground">
+                  {stuck ? "Stopped before it finished" : rolloutText[r.state]}
+                </span>
+              </p>
+              {r.why && (
+                <p className="mt-0.5 text-caption break-words text-muted-foreground">
+                  {r.state === "skipped" ? `Because ${r.why}.` : r.why}
+                </p>
+              )}
+            </div>
+          </li>
+        )
+      })}
+    </ul>
   )
 }
 

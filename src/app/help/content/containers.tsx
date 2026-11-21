@@ -1418,14 +1418,125 @@ export const containers: GuideSection[] = [
     ),
   },
   {
+    id: "zero-downtime",
+    title: "Updates without downtime",
+    body: (
+      <>
+        <P>
+          Normally an update stops a service's container and then starts the new
+          one, so the app is down for a few seconds and visitors get errors. A
+          service set to update <UI>without downtime</UI> gets its new container
+          started <em>beside</em> the old one; the old one stops only once the
+          new one is healthy. If the new one never turns healthy it's removed
+          and the old one keeps serving, so a broken release never takes the app
+          down.
+        </P>
+        <P>
+          It's used everywhere Morche updates a service: <UI>Deploy</UI> /{" "}
+          <UI>Redeploy</UI> of a project, deploys from git, <UI>Updates</UI> and
+          auto-update policies. Services that didn&apos;t change are left alone.
+        </P>
+        <Steps>
+          {[
+            <>
+              Open the project&apos;s <UI>Production</UI> tab. Each service has
+              a row <UI>Updates without downtime</UI>: On, Off, or why it
+              isn&apos;t possible yet.
+            </>,
+            <>
+              Press <UI>Edit</UI> on the service and turn on{" "}
+              <UI>Updates without downtime</UI>, or use the{" "}
+              <UI>Update without downtime</UI> button above the cards to turn it
+              on for every service that's ready.
+            </>,
+            <>
+              <UI>Save</UI>. It takes effect from the next update; nothing is
+              restarted for it.
+            </>,
+          ]}
+        </Steps>
+        <P>
+          It's written into the compose file as Swarm's own setting, so the file
+          stays standard:
+        </P>
+        <Code>{`services:
+  web:
+    image: ghcr.io/acme/web:1.4
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
+      interval: 5s
+      retries: 3
+    deploy:
+      update_config:
+        order: start-first
+        delay: 10s   # both copies serve this long before the old one stops (default 5s)`}</Code>
+        <Table
+          head={["Needs", "Why"]}
+          rows={[
+            [
+              "A health check (its own or the image's)",
+              "It's how Morche knows the new copy is ready for traffic",
+            ],
+            ["No container_name", "Two containers can't share one name"],
+            [
+              "No fixed host port (8080:3000)",
+              "Only one container can hold a host port; random host ports and plain expose are fine",
+            ],
+            [
+              "Not network_mode: host, one copy",
+              "Two copies would clash on the host's ports",
+            ],
+          ]}
+        />
+        <P>
+          Traffic moves from the old copy to the new one through Docker&apos;s
+          network: both answer to the service&apos;s name while they overlap. So
+          what sends it traffic must sit on the same Docker network and find it
+          by name, like Traefik or Caddy with their Docker support, or nginx in
+          a container.
+        </P>
+        <Warn>
+          nginx looks a name up once, when it starts. Behind nginx in a
+          container, give it Docker&apos;s resolver and a variable, or it keeps
+          sending to the old container&apos;s address after the update:
+        </Warn>
+        <Code>{`resolver 127.0.0.11 valid=5s;
+set $app http://web:3000;
+location / {
+  proxy_pass $app;
+}`}</Code>
+        <Example title="A Next.js front end">
+          Drop <C>ports: [&quot;3000:3000&quot;]</C> and put the app on the same
+          network as your reverse proxy, add a health check on <C>/</C>, and
+          turn the setting on. Next.js also needs its old files for visitors who
+          still have the previous version open: set a <C>deploymentId</C> in{" "}
+          <C>next.config</C> and keep earlier builds&apos; <C>_next/static</C>{" "}
+          files on a shared volume or CDN, or reload the page when a chunk fails
+          to load.
+        </Example>
+        <Tip>
+          The deploy panel above the project&apos;s tabs shows each such
+          service: starting the new copy, waiting for it to turn healthy, both
+          serving, stopping the old one. A service that asked for it but
+          can&apos;t (say, a fixed host port) is updated the usual way, and the
+          panel says why.
+        </Tip>
+      </>
+    ),
+  },
+  {
     id: "auto-update-safety",
     title: "Auto-update: safety settings",
     body: (
       <>
         <P>
           Compose containers are recreated through <C>docker compose</C> (one
-          service, <C>--no-deps</C>), others with their exact settings. Around
-          that:
+          service, <C>--no-deps</C>), others with their exact settings. A
+          service set to{" "}
+          <See guide="containers" section="zero-downtime">
+            update without downtime
+          </See>{" "}
+          gets its new container started before the old one stops. Around that:
         </P>
         <Table
           head={["Setting", "Does"]}

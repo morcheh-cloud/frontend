@@ -468,6 +468,17 @@ export function AutoUpdateEditor({
             hint="How long a container gets to shut down cleanly before it's killed."
             onChange={(stop_timeout) => setD({ stop_timeout })}
           />
+          <p className="text-caption text-muted-foreground">
+            Compose services set to update without downtime (on the
+            project&apos;s Production tab) start the new container first and
+            stop the old one once it&apos;s healthy.{" "}
+            <Link
+              href="/help/containers#zero-downtime"
+              className="text-brand underline-offset-4 hover:underline"
+            >
+              How it works
+            </Link>
+          </p>
           <ToggleRow
             id="au-cleanup"
             label="Remove the old image"
