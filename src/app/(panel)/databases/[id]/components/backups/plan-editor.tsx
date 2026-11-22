@@ -210,7 +210,7 @@ function runnerHint(runner: string, local?: LocalTools) {
   }
   if (local && !local.supported) return local.note
   if (local?.missing.length) {
-    return `Morche's own machine runs it, but it lacks ${local.missing.join(", ")}. Install them there (the Docker image has them), or choose a server.`
+    return `Morche's own machine lacks ${local.missing.join(", ")}, so it can't run this backup. Choose a server that has ${local.missing.length > 1 ? "them" : "it"}, or install ${local.missing.length > 1 ? "them" : "it"} where Morche runs.`
   }
   return "Morche's own machine runs the dump, the same way it reaches the database to watch it."
 }
@@ -471,8 +471,15 @@ function Editor({
     if (draft.storages.length === 0) e.storages = "Pick at least one storage"
     const tmp = tempDirProblem(draft.tempDir)
     if (usesTempDir(db.engine, draft.workers) && tmp) e.tempDir = tmp
-    if (!db.server_id && !draft.runner && local && !local.supported) {
-      e.runner = "Choose the server that runs it"
+    if (
+      !db.server_id &&
+      !draft.runner &&
+      local &&
+      (!local.supported || local.missing.length > 0)
+    ) {
+      e.runner = local.supported
+        ? `Morche's own machine lacks ${local.missing.join(", ")}: choose a server that has it`
+        : "Choose the server that runs it"
     }
     const f = folderProblem(draft.folder)
     if (f) e.folder = f
@@ -844,7 +851,7 @@ function Editor({
                   {
                     value: "",
                     label:
-                      local && !local.supported
+                      local && (!local.supported || local.missing.length > 0)
                         ? "Choose a server"
                         : LOCAL_RUNNER,
                   },
