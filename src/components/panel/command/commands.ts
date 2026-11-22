@@ -4,6 +4,7 @@ import {
   ArrowUpCircle,
   BookOpen,
   CircleHelp,
+  KeyRound,
   LayoutGrid,
   Link2,
   type LucideIcon,
@@ -222,6 +223,15 @@ export const addCommands: Command[] = [
       "create schedule sync backup copy mirror snapshot storage server timer",
   },
   {
+    key: "action:add-automation",
+    label: "New automation",
+    icon: Plus,
+    tile: "brand",
+    href: "/automations/new",
+    keywords:
+      "create automation event trigger when alert fires restart service self healing runbook incoming webhook ci",
+  },
+  {
     key: "action:add-monitor",
     label: "New monitor",
     icon: Plus,
@@ -284,6 +294,15 @@ export const addCommands: Command[] = [
     intent: "run-command",
     keywords: "script shell bash exec execute many servers bulk ad hoc",
   },
+  {
+    key: "action:add-webhook",
+    label: "New webhook",
+    icon: Plus,
+    tile: "brand",
+    href: "/automations/webhooks/new",
+    keywords:
+      "outgoing webhook http post json event integration notify signed hmac",
+  },
 ]
 
 export function actions(
@@ -295,6 +314,17 @@ export function actions(
   const guide = guideForPath(pathname)
   return [
     ...(canAdd ? addCommands : []),
+    // Anyone can make one for themselves (not in the demo: Account hides it).
+    {
+      key: "action:new-api-token",
+      label: "New API token",
+      hint: "Account",
+      icon: KeyRound,
+      tile: "brand",
+      href: "/account#api-tokens",
+      intent: "new-api-token",
+      keywords: "personal access token pat api key cli bearer script ci",
+    },
     {
       key: "action:guide",
       label: guide ? `How ${guide.guide.title} works` : "Open help",

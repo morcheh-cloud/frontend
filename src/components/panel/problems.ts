@@ -5,6 +5,7 @@ import { queryOptions, useQuery } from "@tanstack/react-query"
 import { api } from "@/lib/api"
 import type {
   AlertRule,
+  Automation,
   CloudAccount,
   Database,
   DNSServer,
@@ -20,6 +21,7 @@ import type {
 import {
   alertsItem,
   applicationsItem,
+  automationsItem,
   cloudItem,
   cronjobsItem,
   databasesItem,
@@ -145,6 +147,12 @@ export const cronjobBroken = (
   (!!s.problem ||
     (!!s.last_run &&
       ["failed", "partial", "interrupted"].includes(s.last_run.state)))
+
+// An automation needs a look when it can't run or its last run failed. Off
+// ones don't count.
+export const automationBroken = (
+  a: Pick<Automation, "enabled" | "problem" | "last_status">,
+) => a.enabled && (!!a.problem || a.last_status === "failed")
 
 // A storage sync or migration that can't run, or whose last real run (not a
 // test) didn't fully work. Paused ones don't count.
@@ -319,6 +327,20 @@ export function useCronjobProblems() {
   return data ?? 0
 }
 
+// Same key and request as useAutomations() in automations/api.ts.
+export function useAutomationProblems() {
+  const { workspace } = useWorkspace()
+  const ws = workspace?.id ?? ""
+  const { data } = useQuery({
+    queryKey: ["automations", "list", ws],
+    queryFn: () => api.automations.listAutomations(ws),
+    enabled: !!ws,
+    refetchInterval: STATUS_POLL,
+    select: (list) => list.items.filter(automationBroken).length,
+  })
+  return data ?? 0
+}
+
 // Backups that failed on their last run, across the workspace (Home and the
 // menu). Paused plans aren't counted. Under the backups' own root, so a
 // finished job refreshes it too.
@@ -345,6 +367,7 @@ export function useNavAlerts() {
   const databases = useDatabaseProblems()
   const backups = useBackupProblems()
   const cronjobs = useCronjobProblems()
+  const automations = useAutomationProblems()
   const dns = useDNSProblems()
   const proxies = useProxyProblems()
   const pve = usePVEProblems()
@@ -430,6 +453,12 @@ export function useNavAlerts() {
     alerts.set(cronjobsItem.href, {
       count: cronjobs,
       label: `${plural(cronjobs, "cron job", "cron jobs")} failing`,
+    })
+  }
+  if (automations > 0) {
+    alerts.set(automationsItem.href, {
+      count: automations,
+      label: `${plural(automations, "automation", "automations")} failing`,
     })
   }
   return alerts

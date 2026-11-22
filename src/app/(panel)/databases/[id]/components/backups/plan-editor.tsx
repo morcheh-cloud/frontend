@@ -108,6 +108,7 @@ import {
   slug,
   workersText,
 } from "./meta"
+import { TempDirField, tempDirProblem } from "./temp-dir-field"
 
 const MAX_STORAGES = 10
 
@@ -121,6 +122,7 @@ type Draft = {
   compression: Compression
   level: Level
   workers: number
+  tempDir: string
   storages: string[]
   runner: string
   folder: string
@@ -149,6 +151,7 @@ const fromSaved = (p: BackupPlan): Draft => ({
   compression: p.compression,
   level: p.compression_level,
   workers: p.workers || 1,
+  tempDir: p.temp_dir,
   storages: p.storages.map((s) => s.id),
   runner: p.runner_server_id ?? "",
   folder: p.folder,
@@ -176,6 +179,7 @@ const fresh = (name: string): Draft => ({
   compression: "zstd",
   level: "balanced",
   workers: 1,
+  tempDir: "",
   storages: [],
   runner: "",
   folder: "/backups/{year}-{month}-{day}",
@@ -219,6 +223,9 @@ function toBody(d: Draft, db: Database): BackupPlanBody {
     compression: d.compression,
     compression_level: d.level,
     workers: d.workers,
+    ...(db.engine === "postgres" && d.workers > 1
+      ? { temp_dir: d.tempDir.trim() }
+      : {}),
     storage_ids: d.storages,
     runner_server_id: db.server_id ? undefined : d.runner || undefined,
     folder: d.folder.trim(),
@@ -243,6 +250,7 @@ type Errors = Partial<
     | "pattern"
     | "method"
     | "compression"
+    | "tempDir"
     | "storages"
     | "runner"
     | "folder"
@@ -265,6 +273,7 @@ const errorKey: Record<string, keyof Errors> = {
   compression: "compression",
   compression_level: "compression",
   workers: "compression",
+  temp_dir: "tempDir",
   storage_ids: "storages",
   runner_server_id: "runner",
   folder: "folder",
@@ -455,6 +464,8 @@ function Editor({
       }
     }
     if (draft.storages.length === 0) e.storages = "Pick at least one storage"
+    const tmp = tempDirProblem(draft.tempDir)
+    if (db.engine === "postgres" && draft.workers > 1 && tmp) e.tempDir = tmp
     if (!db.server_id && !draft.runner && local && !local.supported) {
       e.runner = "Choose the server that runs it"
     }
@@ -598,6 +609,14 @@ function Editor({
         draft.workers > 1 ? ` · ${workersText(draft.workers)}` : ""
       }`,
     ],
+    ...(db.engine === "postgres" && draft.workers > 1
+      ? [
+          ["Written first to", draft.tempDir.trim() || "/tmp"] as [
+            string,
+            string,
+          ],
+        ]
+      : []),
     [
       "Stored on",
       draft.storages.length
@@ -766,6 +785,15 @@ function Editor({
       <SpeedSection
         draft={draft}
         engine={db.engine}
+        size={db.size_bytes}
+        container={db.server_id ? db.container || undefined : undefined}
+        runner={(() => {
+          const id = db.server_id ?? draft.runner
+          const s = id && servers.data?.items.find((x) => x.id === id)
+          return s ? { id: s.id, name: s.name } : undefined
+        })()}
+        tempDirError={errors.tempDir}
+        onTempDir={(tempDir) => set({ tempDir }, "tempDir")}
         note={opts?.compression_note}
         parallel={parallel}
         phone={phone}
@@ -1278,6 +1306,11 @@ const workerChoices = [1, 2, 4, 8, 16]
 function SpeedSection({
   draft,
   engine,
+  size,
+  container,
+  runner,
+  tempDirError,
+  onTempDir,
   note,
   parallel,
   phone,
@@ -1286,6 +1319,11 @@ function SpeedSection({
 }: {
   draft: Draft
   engine: Database["engine"]
+  size: number | null
+  container?: string
+  runner?: { id: string; name: string }
+  tempDirError?: string
+  onTempDir: (dir: string) => void
   note?: string
   parallel?: { supported: boolean; note: string }
   phone: boolean
@@ -1372,6 +1410,17 @@ function SpeedSection({
           {engine === "postgres" &&
             ` It needs ${draft.workers + 1} free connections while it runs.`}
         </Note>
+      )}
+      {parallel?.supported && draft.workers > 1 && engine === "postgres" && (
+        <TempDirField
+          id="plan"
+          value={draft.tempDir}
+          onChange={onTempDir}
+          server={runner}
+          container={container}
+          size={size}
+          error={tempDirError}
+        />
       )}
       <FieldError text={error} />
     </Section>

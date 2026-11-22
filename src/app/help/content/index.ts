@@ -2,8 +2,10 @@ import type { GuideSection } from "../components/prose"
 import { access } from "./access"
 import { alerts } from "./alerts"
 import { ansible } from "./ansible"
+import { api } from "./api"
 import { applications } from "./applications"
 import { assets } from "./assets"
+import { automations } from "./automations"
 import { cloud } from "./cloud"
 import { commandLog } from "./command-log"
 import { containers } from "./containers"
@@ -71,9 +73,11 @@ export const content: Record<string, GuideSection[]> = {
   applications,
   ansible,
   cronjobs,
+  automations,
   scripts,
   storage,
   tasks,
   access,
   "log-retention": logRetention,
+  api,
 }

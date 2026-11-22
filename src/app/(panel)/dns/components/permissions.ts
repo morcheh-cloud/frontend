@@ -20,3 +20,13 @@ export function useCanAddDns() {
   const { workspace } = useWorkspace()
   return !!workspace && atLeast(workspaceLevel(workspace.id), "engineer")
 }
+
+// A change also needs the connection to allow changes (an ArvanCloud account
+// starts read only); the backend refuses it otherwise.
+export function useDnsWrite() {
+  const can = useDnsCan()
+  return (
+    server: Pick<DNSServer, "workspace_id" | "allow_changes">,
+    min: Level,
+  ) => server.allow_changes && can(server, min)
+}

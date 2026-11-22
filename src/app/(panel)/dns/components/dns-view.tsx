@@ -1,6 +1,7 @@
 "use client"
 
 import {
+  Cloud,
   CloudOff,
   Ellipsis,
   Globe,
@@ -38,15 +39,16 @@ import {
 } from "../api"
 import { useDnsActions, useServerMenu, useZoneMenu } from "./dns-actions"
 import {
+  cdnPending,
+  connectionLabel,
   DnsStatusDot,
   dnsStatusMeta,
-  hostOf,
   serverHref,
   sortServers,
   zoneDisplayName,
   zoneHref,
+  zoneKind,
   zoneProblem,
-  zoneTypeLabel,
 } from "./meta"
 import {
   ActionSheet,
@@ -56,7 +58,7 @@ import {
   Tag,
   Th,
 } from "./parts"
-import { useCanAddDns, useDnsCan } from "./permissions"
+import { useCanAddDns, useDnsCan, useDnsWrite } from "./permissions"
 
 const tabs = ["zones", "servers"] as const
 
@@ -86,6 +88,10 @@ function groupState(g: DNSZoneGroup): {
     if (p) return { label: `${p} on ${c.server_name}`, tone: "destructive" }
   }
   if (g.out_of_sync) return { label: "Out of sync", tone: "warning" }
+  for (const c of g.copies) {
+    const pending = cdnPending(c)
+    if (pending) return { label: pending, tone: "warning" }
+  }
   if (g.copies.every((c) => c.disabled))
     return { label: "Disabled", tone: "muted" }
   return null
@@ -127,8 +133,8 @@ function useData() {
 }
 
 function useCanNewZone(all: DNSServer[]) {
-  const can = useDnsCan()
-  return all.some((s) => s.status === "online" && can(s, "engineer"))
+  const write = useDnsWrite()
+  return all.some((s) => s.status === "online" && write(s, "engineer"))
 }
 
 export function DnsView() {
@@ -375,7 +381,7 @@ function CopyChip({
     >
       {server && <DnsStatusDot status={server.status} />}
       <span className="font-medium">{c.server_name}</span>
-      <span className="text-muted-foreground">{zoneTypeLabel(c.type)}</span>
+      <span className="text-muted-foreground">{zoneKind(c)}</span>
       {problem && <span className="text-destructive">· {problem}</span>}
     </Link>
   )
@@ -479,7 +485,7 @@ function ServerRow({
         </Link>
       </td>
       <td className="max-w-72 truncate px-3 font-mono text-caption text-muted-foreground">
-        {hostOf(s.url)}
+        {connectionLabel(s)}
       </td>
       <td className="px-3 tabular-nums">
         {s.status === "online" || s.zone_count > 0 ? s.zone_count : "—"}
@@ -707,7 +713,7 @@ function DnsMobile() {
                         <span className="block truncate text-body-sm text-muted-foreground">
                           {s.zone_count} zone{s.zone_count === 1 ? "" : "s"} ·{" "}
                           <span className="font-mono text-caption">
-                            {hostOf(s.url)}
+                            {connectionLabel(s)}
                           </span>
                         </span>
                       </span>
@@ -763,6 +769,12 @@ function DnsMobile() {
               icon: <Server />,
               onSelect: () => actions.addServer(),
             },
+            {
+              key: "arvan",
+              label: "Connect ArvanCloud",
+              icon: <Cloud />,
+              onSelect: () => actions.addServer("arvan"),
+            },
           ],
         ]}
       />
@@ -811,9 +823,7 @@ function ZoneGroupItem({
           {state && <Tag tone={state.tone}>{state.label}</Tag>}
         </span>
         <span className="truncate text-body-sm text-muted-foreground">
-          {g.copies
-            .map((c) => `${c.server_name} (${zoneTypeLabel(c.type)})`)
-            .join(" · ")}
+          {g.copies.map((c) => `${c.server_name} (${zoneKind(c)})`).join(" · ")}
         </span>
       </Link>
       <button

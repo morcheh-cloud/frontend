@@ -9,6 +9,7 @@ import { BottomSheet } from "@/components/bottom-sheet"
 import { Field } from "@/components/field"
 import { ResponsiveDialog } from "@/components/responsive-dialog"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import {
   Sheet,
@@ -57,6 +58,9 @@ export function NewZoneDialog({
   const [name, setName] = useState("")
   const [kind, setKind] = useState<ZoneKind>("Primary")
   const [primaries, setPrimaries] = useState("")
+  const [setup, setSetup] = useState<"full" | "partial">("full")
+  const [importRecords, setImportRecords] = useState(true)
+  const arvan = server?.kind === "arvan"
   const [errors, setErrors] = useState<Record<string, string>>({})
   const create = useCreateZone(server?.id ?? "")
   const focusName = useCallback(focusOnPointer, [])
@@ -67,21 +71,31 @@ export function NewZoneDialog({
     const zone = name.trim().replace(/\.$/, "")
     if (!zone) return setErrors({ name: "Enter the domain, like example.com" })
     create.mutate(
-      {
-        name: zone,
-        type: kind,
-        ...(kind === "Secondary" && {
-          primary_addresses: splitList(primaries),
-        }),
-      },
+      arvan
+        ? { name: zone, setup, import_records: importRecords }
+        : {
+            name: zone,
+            type: kind,
+            ...(kind === "Secondary" && {
+              primary_addresses: splitList(primaries),
+            }),
+          },
       {
         onSuccess: (out) => {
-          toast.success(`Created ${zoneDisplayName(out.name)}`, {
-            description:
-              kind === "Secondary"
-                ? "Copying it from the primary…"
-                : `On ${server.name}`,
-          })
+          toast.success(
+            arvan
+              ? `Added ${out.name} to ArvanCloud`
+              : `Created ${zoneDisplayName(out.name)}`,
+            {
+              description: arvan
+                ? setup === "full"
+                  ? "Point its nameservers at ArvanCloud to activate it."
+                  : "Point the names you want at ArvanCloud by CNAME."
+                : kind === "Secondary"
+                  ? "Copying it from the primary…"
+                  : `On ${server.name}`,
+            },
+          )
           onCreated(server, out.name)
         },
         onError: (error) => {
@@ -97,8 +111,12 @@ export function NewZoneDialog({
     <ResponsiveDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="New zone"
-      description="A domain this DNS server answers for."
+      title={arvan ? "Add a domain" : "New zone"}
+      description={
+        arvan
+          ? "A domain ArvanCloud answers for and serves through its CDN."
+          : "A domain this DNS server answers for."
+      }
       footer={
         <>
           <Button
@@ -117,7 +135,7 @@ export function NewZoneDialog({
             disabled={create.isPending || !server}
           >
             {create.isPending && <Loader2 className="animate-spin" />}
-            Create zone
+            {arvan ? "Add domain" : "Create zone"}
           </Button>
         </>
       }
@@ -138,7 +156,7 @@ export function NewZoneDialog({
                 items={servers.map((s) => ({
                   value: s.id,
                   label: s.name,
-                  detail: hostOf(s.url),
+                  detail: s.kind === "arvan" ? "ArvanCloud" : hostOf(s.url),
                 }))}
               />
             )}
@@ -147,7 +165,11 @@ export function NewZoneDialog({
         <Field
           label="Domain"
           error={errors.name}
-          hint="A network like 10.0.0.0/24 makes its reverse zone."
+          hint={
+            arvan
+              ? "The domain itself, without www."
+              : "A network like 10.0.0.0/24 makes its reverse zone."
+          }
         >
           {(p) => (
             <Input
@@ -166,23 +188,61 @@ export function NewZoneDialog({
             />
           )}
         </Field>
-        <div className="flex flex-col gap-1.5">
-          <Segmented
-            label="Zone type"
-            value={kind}
-            onChange={setKind}
-            options={[
-              { value: "Primary", label: "Primary" },
-              { value: "Secondary", label: "Secondary" },
-            ]}
-          />
-          <p className="text-caption text-muted-foreground">
-            {kind === "Primary"
-              ? "You edit the records here. Starts with SOA and NS records."
-              : "A read-only copy kept in step with another server (the primary)."}
-          </p>
-        </div>
-        {kind === "Secondary" && (
+        {arvan ? (
+          <>
+            <div className="flex flex-col gap-1.5">
+              <Segmented
+                label="Setup"
+                value={setup}
+                onChange={setSetup}
+                options={[
+                  { value: "full", label: "Nameservers" },
+                  { value: "partial", label: "CNAME only" },
+                ]}
+              />
+              <p className="text-caption text-muted-foreground">
+                {setup === "full"
+                  ? "ArvanCloud answers for the whole domain: you set its two nameservers at the registrar."
+                  : "Your current DNS stays; only the names you point at ArvanCloud by CNAME go through it."}
+              </p>
+            </div>
+            {setup === "full" && (
+              // biome-ignore lint/a11y/noLabelWithoutControl: the Base UI checkbox renders the control inside
+              <label className="flex items-start gap-2.5 text-body-sm max-md:min-h-11">
+                <Checkbox
+                  checked={importRecords}
+                  onCheckedChange={(on) => setImportRecords(on)}
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="font-medium">Bring the current records</span>
+                  <span className="block text-caption text-muted-foreground">
+                    ArvanCloud reads the records the domain has now, so nothing
+                    stops working when the nameservers change.
+                  </span>
+                </span>
+              </label>
+            )}
+          </>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            <Segmented
+              label="Zone type"
+              value={kind}
+              onChange={setKind}
+              options={[
+                { value: "Primary", label: "Primary" },
+                { value: "Secondary", label: "Secondary" },
+              ]}
+            />
+            <p className="text-caption text-muted-foreground">
+              {kind === "Primary"
+                ? "You edit the records here. Starts with SOA and NS records."
+                : "A read-only copy kept in step with another server (the primary)."}
+            </p>
+          </div>
+        )}
+        {!arvan && kind === "Secondary" && (
           <Field
             label="Primary server addresses"
             error={errors.primary_addresses}

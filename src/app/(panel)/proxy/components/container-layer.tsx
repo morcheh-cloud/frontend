@@ -55,7 +55,11 @@ export function ContainerLayer({
             "Morche couldn't read the container on the last check."}
         </p>
       )}
-      <Differences c={c} />
+      <Differences
+        c={c}
+        resolves={inspection.data?.resolves_names}
+        version={inspection.data?.version}
+      />
     </div>
   )
 
@@ -176,7 +180,15 @@ function Fact({
 }
 
 // How managing nginx in a container differs, in short.
-function Differences({ c }: { c?: ContainerInfo }) {
+function Differences({
+  c,
+  resolves,
+  version,
+}: {
+  c?: ContainerInfo
+  resolves?: boolean
+  version?: string
+}) {
   const gateway = c?.networks.find((n) => n.gateway)?.gateway
   const host = c?.network_mode === "host"
   const items: ReactNode[] = [
@@ -186,6 +198,11 @@ function Differences({ c }: { c?: ContainerInfo }) {
     host
       ? null
       : "Port forwards answer only on ports the container publishes. Morche warns on the ones it doesn't.",
+    host || resolves === undefined
+      ? null
+      : resolves
+        ? "Apps reached by name are looked up again every 10 seconds, so a recreated app container (a new address) keeps answering without a reload."
+        : `nginx${version ? ` ${version}` : ""} looks names up only when it starts: once an app's container is recreated, sites reaching it by name answer 502 until nginx reloads. nginx 1.27.3 or newer (a current nginx image) looks them up again by itself.`,
     "Certificates are kept on the server and copied in; certbot runs on the server and copies renewals in too.",
     "Static sites can only serve folders mounted into the container.",
     "Modules (Brotli, firewall, image resizing, countries) come with the image: Morche doesn't change images.",

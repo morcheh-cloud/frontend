@@ -43,6 +43,19 @@ export interface AddAssetRelationRequest {
   to_id: string;
 }
 
+export interface AddCdnWafPackageRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  id: string;
+}
+
 export interface AddCronJobRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -594,6 +607,65 @@ export interface AnswerSignInInputBody {
    */
   $schema?: string;
   answer: "me" | "not_me";
+}
+
+export interface ApiToken {
+  /** @format date-time */
+  created_at: string;
+  expired: boolean;
+  /** @format date-time */
+  expires_at?: string;
+  /** @format uuid */
+  id: string;
+  /** @format date-time */
+  last_used_at?: string;
+  last_used_ip?: string;
+  name: string;
+  /** The first characters after morche_, to tell tokens apart */
+  prefix: string;
+  read_only: boolean;
+}
+
+export interface ApiTokenCreateBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * 0 = never expires
+   * @format int64
+   * @min 0
+   * @max 3650
+   */
+  expires_in_days?: number;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  /** Only GET requests */
+  read_only?: boolean;
+}
+
+export interface ApiTokenCreated {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** The token (morche_…). Shown only now; send it as Authorization: Bearer <secret>. */
+  secret: string;
+  token: ApiToken;
+}
+
+export interface ApiTokenListBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: ApiToken[];
 }
 
 export interface App {
@@ -1398,6 +1470,478 @@ export interface AuthUser {
   password?: string;
 }
 
+export interface Automation {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  actions: AutomationAction[];
+  /**
+   * After a run for a subject, events about the same subject are skipped this long
+   * @format int32
+   */
+  cooldown_seconds: number;
+  /** @format date-time */
+  created_at: string;
+  description: string;
+  enabled: boolean;
+  /** An incoming URL is set (its token is only shown when made) */
+  has_hook: boolean;
+  /** @format uuid */
+  id: string;
+  /** @format date-time */
+  last_run_at: string | null;
+  /** How its last run (not a skipped one) ended: succeeded, failed, canceled; '' = never ran */
+  last_status: string;
+  /**
+   * 0 = no limit
+   * @format int32
+   */
+  max_runs_per_hour: number;
+  name: string;
+  /** Why it can't run (lost access, a removed person…); '' = fine */
+  problem: string;
+  /** Its last 10 runs, newest first */
+  recent: AutomationRunBrief[];
+  /**
+   * Whoever saved it last: it runs with their access
+   * @format uuid
+   */
+  run_as_id: string | null;
+  run_as_name: string;
+  trigger: AutomationTrigger;
+  /** @format date-time */
+  updated_at: string;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface AutomationAction {
+  /** service: what to do */
+  action?: "start" | "stop" | "restart" | "reload" | "";
+  /** webhook: allow a private or loopback address. System admins only */
+  allow_internal?: boolean;
+  /** script: run command as root (sudo -n) */
+  as_root?: boolean;
+  /**
+   * webhook: the body (templates); blank = the event as JSON
+   * @maxLength 65536
+   */
+  body?: string;
+  /**
+   * notify: notification channels of the workspace
+   * @maxItems 20
+   */
+  channel_ids?: string[];
+  /**
+   * script: what to run when no script_id. The event reaches it as env vars MORCHE_EVENT_TYPE, MORCHE_EVENT_TITLE, MORCHE_SUBJECT_NAME… (never spliced into the text)
+   * @maxLength 262144
+   */
+  command?: string;
+  /** Go on with the next steps when this one fails */
+  continue_on_error?: boolean;
+  /** webhook: extra headers, values may use templates. Answers carry the names with blank values (they're sealed); on save a blank value keeps the saved one */
+  headers?: Record<string, string>;
+  /**
+   * The step's own id, kept across edits (made when empty)
+   * @maxLength 64
+   */
+  id?: string;
+  /** script: for command; default bash */
+  interpreter?: "bash" | "sh" | "python3" | "";
+  kind:
+    | "notify"
+    | "webhook"
+    | "script"
+    | "service"
+    | "cronjob"
+    | "check"
+    | "wait";
+  /**
+   * A name for the step in runs; blank = said from the kind
+   * @maxLength 100
+   */
+  label?: string;
+  /** webhook: default POST */
+  method?: "POST" | "PUT" | "GET" | "";
+  /** script/service/check: event = the server the event happened on (default); servers = server_ids */
+  on?: "event" | "servers" | "";
+  /**
+   * cronjob: the cron job to run now; the step waits for it
+   * @maxLength 36
+   */
+  schedule_id?: string;
+  /**
+   * script: a saved script of the workspace; else command
+   * @maxLength 36
+   */
+  script_id?: string;
+  /**
+   * wait: 1–3600
+   * @format int32
+   * @min 0
+   * @max 3600
+   */
+  seconds?: number;
+  /**
+   * script/service/check with on = servers
+   * @maxItems 200
+   */
+  server_ids?: string[];
+  /**
+   * notify: the message (templates; blank = {{event.text}})
+   * @maxLength 4000
+   */
+  text?: string;
+  /**
+   * script: for command; 0 = 600
+   * @format int32
+   * @min 0
+   * @max 86400
+   */
+  timeout_seconds?: number;
+  /**
+   * notify: the message's title (templates; blank = {{event.title}})
+   * @maxLength 500
+   */
+  title?: string;
+  /**
+   * service: the unit (templates allowed, e.g. {{data.detail}}; must come out a unit name)
+   * @maxLength 256
+   */
+  unit?: string;
+  /**
+   * webhook: http(s) address (never templated)
+   * @maxLength 2000
+   */
+  url?: string;
+}
+
+export interface AutomationBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * @maxItems 10
+   * @minItems 1
+   */
+  actions: AutomationAction[];
+  /**
+   * Default 300
+   * @format int32
+   * @min 0
+   * @max 86400
+   */
+  cooldown_seconds?: number;
+  /** @maxLength 2000 */
+  description?: string;
+  /** Default true */
+  enabled?: boolean;
+  /**
+   * Default 20; 0 = no limit
+   * @format int32
+   * @min 0
+   * @max 1000
+   */
+  max_runs_per_hour?: number;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  trigger: AutomationTrigger;
+}
+
+export interface AutomationDryRun {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  event: PanelEvent;
+  /** Why it wouldn't start now even though it matches (cooldown, runs per hour); '' = it would */
+  gate: string;
+  /** The trigger would start it for this event */
+  matches: boolean;
+  /** Why it couldn't run at all (lost access…) */
+  problem: string;
+  steps: AutomationDryStep[];
+}
+
+export interface AutomationDryStep {
+  body?: string;
+  /** script: the MORCHE_* variables it would get */
+  env?: Record<string, string>;
+  /** @format int64 */
+  index: number;
+  kind: string;
+  label: string;
+  /** Why it would fail; '' = fine */
+  problem: string;
+  /** The servers (names) it would act on */
+  servers: string[];
+  /** In plain words */
+  summary: string;
+  text?: string;
+  title?: string;
+  unit?: string;
+}
+
+export interface AutomationEventInput {
+  data?: Record<string, any>;
+  /**
+   * The server it happened on (steps with on = event act there)
+   * @maxLength 36
+   */
+  server_id?: string;
+  severity?: "info" | "warning" | "critical" | "";
+  subject?: Subject;
+  /** @maxLength 4000 */
+  text?: string;
+  /** @maxLength 500 */
+  title?: string;
+  /**
+   * Default: the trigger's first event type (with its sample's values)
+   * @maxLength 100
+   */
+  type?: string;
+  /** @maxLength 2000 */
+  url?: string;
+}
+
+export interface AutomationFilter {
+  /**
+   * Only events whose title contains this text (any case)
+   * @maxLength 200
+   */
+  match?: string;
+  /**
+   * Only events on these servers (server_id)
+   * @maxItems 200
+   */
+  servers?: string[];
+  /**
+   * Only these severities: info, warning, critical
+   * @maxItems 3
+   */
+  severity?: string[];
+  /**
+   * Only events about these subjects (subject.id: a monitor, database, cron job…)
+   * @maxItems 200
+   */
+  subjects?: string[];
+  /**
+   * Only events on a server with one of these tags
+   * @maxItems 50
+   */
+  tags?: string[];
+}
+
+export interface AutomationHook {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** POST JSON here (≤64 KB, it becomes event.data): the API's address + this path */
+  path: string;
+  /** Shown only now */
+  token: string;
+}
+
+export interface AutomationHookOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  message: string;
+  ok: boolean;
+  run_id?: string;
+  /** queued, or skipped (see message) */
+  status?: string;
+}
+
+export interface AutomationListBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: Automation[];
+}
+
+export interface AutomationPreviewBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  automation: AutomationBody;
+  event?: AutomationEventInput;
+}
+
+export interface AutomationRun {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format uuid */
+  automation_id: string;
+  automation_name: string;
+  /** @format date-time */
+  created_at: string;
+  event: PanelEvent;
+  /** @format date-time */
+  finished_at: string | null;
+  /** @format uuid */
+  id: string;
+  /** @format uuid */
+  job_id: string | null;
+  /** Why it was skipped or failed */
+  reason: string;
+  /** @format date-time */
+  started_at: string | null;
+  /** Who pressed Run or Test; '' for event and webhook runs */
+  started_by_name: string;
+  status:
+    | "queued"
+    | "running"
+    | "succeeded"
+    | "failed"
+    | "skipped"
+    | "canceled";
+  steps: AutomationStep[];
+  trigger_kind: "event" | "webhook" | "manual" | "test";
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface AutomationRunBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** The event to run for; none = a manual run without one (steps with on = event then fail) */
+  event?: AutomationEventInput;
+}
+
+export interface AutomationRunBrief {
+  /** @format date-time */
+  created_at: string;
+  /** @format uuid */
+  id: string;
+  status: string;
+  trigger_kind: string;
+}
+
+export interface AutomationRunListBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: AutomationRun[];
+  /** @format int64 */
+  total: number;
+}
+
+export interface AutomationRunStarted {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** null when it was skipped */
+  job: Job;
+  run: AutomationRun;
+}
+
+export interface AutomationStep {
+  action_id: string;
+  error: string;
+  /** @format date-time */
+  finished_at: string | null;
+  /** @format int64 */
+  index: number;
+  kind: string;
+  label: string;
+  link: AutomationStepLink;
+  /** ≤16 KB. Blank for script and service steps below Operator */
+  output: string;
+  /** @format date-time */
+  started_at: string | null;
+  status:
+    | "pending"
+    | "running"
+    | "succeeded"
+    | "failed"
+    | "skipped"
+    | "canceled";
+  targets: AutomationStepTarget[];
+}
+
+export interface AutomationStepLink {
+  id: string;
+  /** script-run, schedule-run (parent_id = the cron job), monitor, server */
+  kind: string;
+  parent_id?: string;
+}
+
+export interface AutomationStepTarget {
+  error?: string;
+  /** @format int32 */
+  exit_code?: number;
+  id: string;
+  name: string;
+  output?: string;
+  /** succeeded, failed, skipped, canceled, running, pending */
+  status: string;
+}
+
+export interface AutomationTestBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Say what each step would do, without doing it (no run is recorded) */
+  dry_run?: boolean;
+  /** Default: the sample event of its first event type */
+  event?: AutomationEventInput;
+}
+
+export interface AutomationTestResult {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** With dry_run */
+  dry_run: AutomationDryRun;
+  job: Job;
+  /** Without dry_run: the run started */
+  run: AutomationRun;
+}
+
+export interface AutomationTrigger {
+  /**
+   * event: the event types (GET /events/catalog; not internal ones)
+   * @maxItems 50
+   */
+  events?: string[];
+  filter?: AutomationFilter;
+  /** Also react to alert events published while a mute covers them (data.muted = true) */
+  include_muted?: boolean;
+  /** event = events of the chosen types; webhook = its incoming URL is called; manual = only Run now */
+  kind: "event" | "webhook" | "manual";
+}
+
 export interface Backup {
   sha256: string;
   /**
@@ -1574,6 +2118,7 @@ export interface BackupPlan {
   selection: "all" | "selected" | "pattern";
   storages: BackupPlanStorage[];
   targets: string[];
+  temp_dir: string;
   timezone: string;
   /** @format date-time */
   updated_at: string;
@@ -1682,6 +2227,11 @@ export interface BackupPlanBody {
    * @maxItems 200
    */
   targets?: string[];
+  /**
+   * PostgreSQL with workers > 1: the folder on the machine that runs the dump where it's written before it's sent (room for the whole dump); empty = its temporary folder
+   * @maxLength 512
+   */
+  temp_dir?: string;
   /** @maxLength 64 */
   timezone?: string;
   /**
@@ -1713,7 +2263,8 @@ export interface BackupProblem {
   database_id: string;
   database_name: string;
   error: string;
-  /** @format uuid */
+  /** A plan whose newest run failed, or continuous backup (point in time) needing a look; pitr rows have no plan_id */
+  kind: "plan" | "pitr";
   plan_id: string;
   plan_name: string;
 }
@@ -2029,6 +2580,854 @@ export interface CA {
   note?: string;
   /** Issues untrusted test certificates, with high limits */
   test?: boolean;
+}
+
+export interface CDNAcceleration {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Which: css, js, gif, jpeg, png */
+  extensions: string[];
+  /** Minify and optimise files */
+  status: "inherit" | "on" | "off";
+}
+
+export interface CDNAccelerationBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * css, js, gif, jpeg, png
+   * @maxItems 5
+   */
+  extensions: string[];
+  status: "inherit" | "on" | "off";
+}
+
+export interface CDNAddress {
+  /**
+   * Two-letter code: answer this address to visitors from there
+   * @maxLength 8
+   */
+  country?: string;
+  /**
+   * @minLength 1
+   * @maxLength 64
+   */
+  ip: string;
+  /**
+   * Origin port for this address; blank = the record's default
+   * @format int64
+   * @min 1
+   * @max 65535
+   */
+  port?: number;
+  /**
+   * @format int64
+   * @min 0
+   * @max 1000
+   */
+  weight?: number;
+}
+
+export interface CDNCaching {
+  /** How long to keep 200 answers */
+  cache_page_200: string;
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Those arguments */
+  cache_arg: string;
+  /** Only some query arguments make separate copies */
+  cache_args: boolean;
+  /** Cache time told to browsers; default = the origin's */
+  cache_browser: string;
+  /** Serve the cached copy while the origin is down */
+  cache_consistent_uptime: boolean;
+  /** Cookie names that make separate copies */
+  cache_cookie: string;
+  /** Nothing is cached while it's on */
+  cache_developer_mode: boolean;
+  /** Cache answers even when they set a cookie */
+  cache_ignore_sc: boolean;
+  /**
+   * Largest file the CDN caches, in bytes
+   * @format int64
+   */
+  cache_max_size: number;
+  /** How long to keep other answers */
+  cache_page_any: string;
+  /** off, uri (the path only) or query_string (path + query) */
+  cache_status: string;
+}
+
+export interface CDNCachingPatch {
+  cache_page_200?:
+    | "0s"
+    | "1s"
+    | "2s"
+    | "3s"
+    | "4s"
+    | "5s"
+    | "6s"
+    | "7s"
+    | "8s"
+    | "9s"
+    | "10s"
+    | "30s"
+    | "1m"
+    | "3m"
+    | "5m"
+    | "10m"
+    | "30m"
+    | "45m"
+    | "1h"
+    | "3h"
+    | "5h"
+    | "10h"
+    | "12h"
+    | "24h"
+    | "3d"
+    | "7d"
+    | "10d"
+    | "15d"
+    | "30d";
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 500 */
+  cache_arg?: string;
+  cache_args?: boolean;
+  cache_browser?:
+    | "default"
+    | "0s"
+    | "1s"
+    | "2s"
+    | "3s"
+    | "4s"
+    | "5s"
+    | "6s"
+    | "7s"
+    | "8s"
+    | "9s"
+    | "10s"
+    | "30s"
+    | "1m"
+    | "3m"
+    | "5m"
+    | "10m"
+    | "30m"
+    | "45m"
+    | "1h"
+    | "3h"
+    | "5h"
+    | "10h"
+    | "12h"
+    | "24h"
+    | "3d"
+    | "7d"
+    | "10d"
+    | "15d"
+    | "30d";
+  cache_consistent_uptime?: boolean;
+  /** @maxLength 500 */
+  cache_cookie?: string;
+  cache_developer_mode?: boolean;
+  cache_ignore_sc?: boolean;
+  /**
+   * @format int64
+   * @min 0
+   * @max 2147483648
+   */
+  cache_max_size?: number;
+  cache_page_any?:
+    | "0s"
+    | "1s"
+    | "2s"
+    | "3s"
+    | "4s"
+    | "5s"
+    | "6s"
+    | "7s"
+    | "8s"
+    | "9s"
+    | "10s"
+    | "30s"
+    | "1m"
+    | "3m"
+    | "5m"
+    | "10m"
+    | "30m"
+    | "45m"
+    | "1h"
+    | "3h"
+    | "5h"
+    | "10h"
+    | "12h"
+    | "24h"
+    | "3d"
+    | "7d"
+    | "10d"
+    | "15d"
+    | "30d";
+  cache_status?: "off" | "uri" | "query_string";
+}
+
+export interface CDNCertificate {
+  active: boolean;
+  domain_names: string[];
+  /** @format date-time */
+  expiry_date?: string;
+  id: string;
+  is_revoked: boolean;
+  issuer: string;
+  key_type?: string;
+  /** acme (free, managed), certum, user (uploaded), origin */
+  type: string;
+}
+
+export interface CDNCertificateOrder {
+  /** @format date-time */
+  created_at?: string;
+  domain_names: string[];
+  error?: string;
+  id: string;
+  issuer?: string;
+  status: string;
+}
+
+export interface CDNDNSSEC {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** The DS record to give the registrar */
+  ds?: string;
+  enabled: boolean;
+  /** false = ArvanCloud didn't say (plan or permission) */
+  known: boolean;
+}
+
+export interface CDNFirewall {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  rules: CDNFirewallRule[];
+  settings: CDNFirewallSettings;
+}
+
+export interface CDNFirewallRule {
+  /** An account-wide rule: changed in ArvanCloud's panel */
+  account_level: boolean;
+  action: "allow" | "deny" | "bypass" | "challenge";
+  enabled: boolean;
+  /**
+   * ArvanCloud's filter expression, like ip.geoip.country in {"IR"} and http.request.uri.path contains "/admin"
+   * @minLength 3
+   * @maxLength 5000
+   */
+  filter_expr: string;
+  id: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  /** @maxLength 500 */
+  note?: string;
+  /** @format int64 */
+  priority: number;
+  /** bypass: which protections the matched requests skip */
+  skip?: ("rate_limit" | "challenge" | "waf")[];
+}
+
+export interface CDNFirewallRuleFields {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  action: "allow" | "deny" | "bypass" | "challenge";
+  enabled: boolean;
+  /**
+   * ArvanCloud's filter expression, like ip.geoip.country in {"IR"} and http.request.uri.path contains "/admin"
+   * @minLength 3
+   * @maxLength 5000
+   */
+  filter_expr: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  /** @maxLength 500 */
+  note?: string;
+  /** bypass: which protections the matched requests skip */
+  skip?: ("rate_limit" | "challenge" | "waf")[];
+}
+
+export interface CDNFirewallSettings {
+  /** What happens to a request no rule matched */
+  default_action: "allow" | "deny" | "drop" | "bypass" | "challenge";
+  /** Leave out the account-wide firewall rules */
+  skip_global_firewall: boolean;
+  skip_global_whitelist: boolean;
+  /** Refuse TLS requests whose SNI isn't this domain */
+  verify_sni: boolean;
+}
+
+export interface CDNFirewallSettingsPatch {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  default_action?: "allow" | "deny" | "challenge";
+  skip_global_firewall?: boolean;
+  skip_global_whitelist?: boolean;
+  verify_sni?: boolean;
+}
+
+export interface CDNIPFilter {
+  /** single = one address per answer, multi = all */
+  count: "single" | "multi";
+  geo_filter: "none" | "location" | "country";
+  /** rr = round robin */
+  order: "none" | "weighted" | "rr";
+}
+
+export interface CDNMoveBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Put it just after this rule
+   * @maxLength 64
+   */
+  after?: string;
+  /**
+   * Put it just before this rule
+   * @maxLength 64
+   */
+  before?: string;
+}
+
+export interface CDNRangesOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** The header the CDN puts the visitor's address in */
+  header: string;
+  /** false = ArvanCloud's list couldn't be read; this is Morche's built-in copy */
+  live: boolean;
+  ranges: string[];
+}
+
+export interface CDNRateLimit {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  rules: CDNRateLimitRule[];
+  settings: CDNRateLimitSettings;
+}
+
+export interface CDNRateLimitRule {
+  action: "block" | "challenge";
+  /**
+   * Seconds a visitor over the limit stays limited
+   * @format int64
+   * @min 0
+   * @max 86400
+   */
+  block_duration?: number;
+  /**
+   * Extra requests let through at once
+   * @format int64
+   * @min 1
+   * @max 4000000
+   */
+  burst?: number;
+  enabled: boolean;
+  /** @maxItems 100 */
+  exclude_sources?: string[];
+  id: string;
+  /** Only these methods count; none = all */
+  methods?: ("GET" | "POST" | "PUT" | "HEAD" | "DELETE" | "OPTIONS")[];
+  /** @format int64 */
+  priority: number;
+  /**
+   * Requests allowed per visitor in time_duration
+   * @format int64
+   * @min 1
+   * @max 4000000
+   */
+  rate: number;
+  /**
+   * Seconds
+   * @format int64
+   * @min 1
+   * @max 2592000
+   */
+  time_duration: number;
+  /**
+   * Path pattern; * matches anything, like /api/*
+   * @minLength 1
+   * @maxLength 500
+   */
+  url_pattern: string;
+}
+
+export interface CDNRateLimitRuleFields {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  action: "block" | "challenge";
+  /**
+   * Seconds a visitor over the limit stays limited
+   * @format int64
+   * @min 0
+   * @max 86400
+   */
+  block_duration?: number;
+  /**
+   * Extra requests let through at once
+   * @format int64
+   * @min 1
+   * @max 4000000
+   */
+  burst?: number;
+  enabled: boolean;
+  /** @maxItems 100 */
+  exclude_sources?: string[];
+  /** Only these methods count; none = all */
+  methods?: ("GET" | "POST" | "PUT" | "HEAD" | "DELETE" | "OPTIONS")[];
+  /**
+   * Requests allowed per visitor in time_duration
+   * @format int64
+   * @min 1
+   * @max 4000000
+   */
+  rate: number;
+  /**
+   * Seconds
+   * @format int64
+   * @min 1
+   * @max 2592000
+   */
+  time_duration: number;
+  /**
+   * Path pattern; * matches anything, like /api/*
+   * @minLength 1
+   * @maxLength 500
+   */
+  url_pattern: string;
+}
+
+export interface CDNRateLimitSettings {
+  /** Let ArvanCloud spot request floods by itself */
+  ddos_detection: boolean;
+  /** Addresses or ranges never limited */
+  exclude_sources: string[];
+}
+
+export interface CDNRateLimitSettingsPatch {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  ddos_detection?: boolean;
+  /** @maxItems 100 */
+  exclude_sources?: string[];
+}
+
+export interface CDNRecord {
+  /** @maxItems 50 */
+  addresses?: CDNAddress[];
+  /** @maxLength 8192 */
+  certificate?: string;
+  /** Through the CDN (A, AAAA, CNAME, ANAME): visitors reach ArvanCloud, which reaches the origin */
+  cloud: boolean;
+  /** @format date-time */
+  created_at?: string;
+  editable: boolean;
+  /** @maxLength 255 */
+  host?: string;
+  /** CNAME/ANAME through the CDN: send the visitor's host (source) or the target's (dest) */
+  host_header?: "source" | "dest";
+  id: string;
+  ip_filter?: CDNIPFilter;
+  /**
+   * Relative to the domain: @ for the domain itself, www, *.app…
+   * @minLength 1
+   * @maxLength 250
+   */
+  name: string;
+  /**
+   * @format int64
+   * @min 0
+   * @max 65535
+   */
+  port?: number;
+  /**
+   * @format int64
+   * @min 0
+   * @max 9999
+   */
+  priority?: number;
+  /** ArvanCloud keeps it; it can't be changed or removed */
+  protected: boolean;
+  tag?: "issue" | "issuewild" | "iodef";
+  /** @maxLength 4096 */
+  text?: string;
+  /** @maxLength 255 */
+  tlsa_matching_type?: string;
+  /** @maxLength 255 */
+  tlsa_selector?: string;
+  /** @maxLength 255 */
+  tlsa_usage?: string;
+  /**
+   * Seconds; 120 when left out. ArvanCloud sets its own while the CDN is on.
+   * @format int64
+   */
+  ttl?:
+    | 120
+    | 180
+    | 300
+    | 600
+    | 900
+    | 1800
+    | 3600
+    | 7200
+    | 18000
+    | 43200
+    | 86400
+    | 172800
+    | 432000;
+  type:
+    | "A"
+    | "AAAA"
+    | "CNAME"
+    | "ANAME"
+    | "MX"
+    | "NS"
+    | "TXT"
+    | "SRV"
+    | "SPF"
+    | "DKIM"
+    | "PTR"
+    | "TLSA"
+    | "CAA";
+  /** @format date-time */
+  updated_at?: string;
+  /** How the CDN reaches the origin */
+  upstream_https?: "default" | "auto" | "http" | "https";
+  /** What else uses it at ArvanCloud: transport-layer-proxy, certificate-issuance */
+  usage: string[];
+  /** @maxLength 4096 */
+  value?: string;
+  /**
+   * @format int64
+   * @min 0
+   * @max 1000
+   */
+  weight?: number;
+}
+
+export interface CDNRecordFields {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxItems 50 */
+  addresses?: CDNAddress[];
+  /** @maxLength 8192 */
+  certificate?: string;
+  /** Through the CDN (A, AAAA, CNAME, ANAME): visitors reach ArvanCloud, which reaches the origin */
+  cloud: boolean;
+  /** @maxLength 255 */
+  host?: string;
+  /** CNAME/ANAME through the CDN: send the visitor's host (source) or the target's (dest) */
+  host_header?: "source" | "dest";
+  ip_filter?: CDNIPFilter;
+  /**
+   * Relative to the domain: @ for the domain itself, www, *.app…
+   * @minLength 1
+   * @maxLength 250
+   */
+  name: string;
+  /**
+   * @format int64
+   * @min 0
+   * @max 65535
+   */
+  port?: number;
+  /**
+   * @format int64
+   * @min 0
+   * @max 9999
+   */
+  priority?: number;
+  tag?: "issue" | "issuewild" | "iodef";
+  /** @maxLength 4096 */
+  text?: string;
+  /** @maxLength 255 */
+  tlsa_matching_type?: string;
+  /** @maxLength 255 */
+  tlsa_selector?: string;
+  /** @maxLength 255 */
+  tlsa_usage?: string;
+  /**
+   * Seconds; 120 when left out. ArvanCloud sets its own while the CDN is on.
+   * @format int64
+   */
+  ttl?:
+    | 120
+    | 180
+    | 300
+    | 600
+    | 900
+    | 1800
+    | 3600
+    | 7200
+    | 18000
+    | 43200
+    | 86400
+    | 172800
+    | 432000;
+  type:
+    | "A"
+    | "AAAA"
+    | "CNAME"
+    | "ANAME"
+    | "MX"
+    | "NS"
+    | "TXT"
+    | "SRV"
+    | "SPF"
+    | "DKIM"
+    | "PTR"
+    | "TLSA"
+    | "CAA";
+  /** How the CDN reaches the origin */
+  upstream_https?: "default" | "auto" | "http" | "https";
+  /** @maxLength 4096 */
+  value?: string;
+  /**
+   * @format int64
+   * @min 0
+   * @max 1000
+   */
+  weight?: number;
+}
+
+export interface CDNRecords {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  dnssec: CDNDNSSEC;
+  records: CDNRecord[];
+  /** The connection allows changes */
+  writable: boolean;
+  zone: DNSZone;
+}
+
+export interface CDNRedirect {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** www = example.com → www.example.com; root = the other way */
+  www_redirect: "off" | "www" | "root";
+}
+
+export interface CDNReport {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  period: string;
+  requests: CDNTotals;
+  requests_cached: number[];
+  requests_total: number[];
+  status_codes: CDNStatusCount[];
+  times: string[];
+  /** Bytes */
+  traffic: CDNTotals;
+  traffic_cached: number[];
+  traffic_total: number[];
+}
+
+export interface CDNSSL {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Get and renew a free certificate by itself */
+  auto_issue: boolean;
+  certificate_key_type: string;
+  certificate_mode: string;
+  certificates: CDNCertificate[];
+  fingerprint_status: boolean;
+  hsts_max_age: string;
+  hsts_preload: boolean;
+  hsts_status: boolean;
+  hsts_subdomain: boolean;
+  https_redirect: boolean;
+  managed_certificate_provider: string;
+  orders: CDNCertificateOrder[];
+  /** HTTP/3 */
+  quic_status: boolean;
+  /** Rewrite http:// links in pages to https:// */
+  replace_http: boolean;
+  /** HTTPS on the CDN */
+  ssl_status: boolean;
+  /** Lowest TLS version; blank = ArvanCloud's default */
+  tls_version: string;
+  verify_sni: boolean;
+}
+
+export interface CDNSSLPatch {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  auto_issue?: boolean;
+  certificate_key_type?: "rsa" | "ec";
+  hsts_max_age?:
+    | "1mo"
+    | "2mo"
+    | "3mo"
+    | "4mo"
+    | "5mo"
+    | "6mo"
+    | "12mo"
+    | "24mo";
+  hsts_preload?: boolean;
+  hsts_status?: boolean;
+  hsts_subdomain?: boolean;
+  https_redirect?: boolean;
+  managed_certificate_provider?: "lets_encrypt" | "lite_ssl";
+  quic_status?: boolean;
+  replace_http?: boolean;
+  ssl_status?: boolean;
+  tls_version?: "" | "TLSv1" | "TLSv1.1" | "TLSv1.2" | "TLSv1.3";
+  verify_sni?: boolean;
+}
+
+export interface CDNStatusCount {
+  code: string;
+  /** @format int64 */
+  count: number;
+}
+
+export interface CDNTotals {
+  /**
+   * Served from the CDN's cache
+   * @format int64
+   */
+  cached: number;
+  /** @format int64 */
+  total: number;
+}
+
+export interface CDNWAF {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Packages that can be added */
+  available: CDNWAFPackage[];
+  /** detect = only log what it would block */
+  mode: "off" | "detect" | "protect";
+  packages: CDNWAFPackage[];
+  rules: CDNWAFRule[];
+}
+
+export interface CDNWAFPackage {
+  /**
+   * Rules of the package turned off
+   * @format int64
+   */
+  disabled_rules: number;
+  enabled: boolean;
+  id: string;
+  name: string;
+  provider: string;
+}
+
+export interface CDNWAFRule {
+  /** passthrough = the WAF doesn't look at these requests */
+  action: "protect" | "passthrough";
+  enabled: boolean;
+  /**
+   * Package rules skipped on these requests (changed in ArvanCloud's panel)
+   * @format int64
+   */
+  exceptions: number;
+  id: string;
+  /** @format int64 */
+  priority: number;
+  /**
+   * Only requests from these addresses; none = everyone
+   * @maxItems 20
+   */
+  sources?: string[];
+  /**
+   * Path pattern; * matches anything
+   * @minLength 1
+   * @maxLength 500
+   */
+  url_pattern: string;
+}
+
+export interface CDNWAFRuleFields {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** passthrough = the WAF doesn't look at these requests */
+  action: "protect" | "passthrough";
+  enabled: boolean;
+  /**
+   * Only requests from these addresses; none = everyone
+   * @maxItems 20
+   */
+  sources?: string[];
+  /**
+   * Path pattern; * matches anything
+   * @minLength 1
+   * @maxLength 500
+   */
+  url_pattern: string;
 }
 
 export interface CPU {
@@ -3321,6 +4720,8 @@ export interface CreateDnsZoneRequest {
    * @format uri
    */
   $schema?: string;
+  /** ArvanCloud: read the domain's current records into it. On when left out. */
+  import_records?: boolean;
   /**
    * A domain, or an IP or network for a reverse zone
    * @minLength 1
@@ -3332,8 +4733,10 @@ export interface CreateDnsZoneRequest {
    * @maxItems 10
    */
   primary_addresses?: string[];
-  /** Primary holds the records; Secondary copies them from a primary. */
-  type: "Primary" | "Secondary";
+  /** ArvanCloud: full = its nameservers answer for the domain; partial = only chosen names, by CNAME. full when left out. */
+  setup?: "full" | "partial";
+  /** Technitium: Primary holds the records; Secondary copies them from a primary. */
+  type?: "Primary" | "Secondary";
 }
 
 export interface CreateDnsZoneResponse {
@@ -3616,6 +5019,72 @@ export interface CronUser {
   uid: number;
 }
 
+export interface DNSNameMatch {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** A zone Morche manages covers this name */
+  found: boolean;
+  name: string;
+  /** The zone was found but its records couldn't be read */
+  problem?: string;
+  /** A, AAAA, CNAME and ANAME records of the name */
+  records: DNSNameRecord[];
+  server_id?: string;
+  server_kind?: "technitium" | "arvan" | "";
+  server_name?: string;
+  /** This person may point it from Morche: Engineer, a primary zone, a connection that allows changes */
+  writable: boolean;
+  zone?: string;
+  /** ArvanCloud: the domain's status (active, pending…) */
+  zone_status?: string;
+}
+
+export interface DNSNameRecord {
+  /** Through ArvanCloud's CDN */
+  cloud: boolean;
+  /** ArvanCloud: the record's id */
+  id?: string;
+  /** @format int64 */
+  ttl: number;
+  type: string;
+  values: string[];
+}
+
+export interface DNSNamesOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: DNSNameMatch[];
+}
+
+export interface DNSPointBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** ArvanCloud: through the CDN. Left out: as the record was, off for a new one. */
+  cloud?: boolean;
+  /**
+   * Full name, like shop.example.com
+   * @minLength 1
+   * @maxLength 255
+   */
+  name: string;
+  type: "A" | "AAAA" | "CNAME";
+  /**
+   * The address (A, AAAA) or target name (CNAME)
+   * @minLength 1
+   * @maxLength 255
+   */
+  value: string;
+}
+
 export interface DNSRecord {
   comments: string;
   disabled: boolean;
@@ -3709,6 +5178,8 @@ export interface DNSServer {
    * @format uri
    */
   $schema?: string;
+  /** Morche may change zones, records and settings. Off = read only. */
+  allow_changes: boolean;
   allow_internal: boolean;
   /** @format date-time */
   created_at: string;
@@ -3716,6 +5187,8 @@ export interface DNSServer {
   favorite: boolean;
   /** @format uuid */
   id: string;
+  /** technitium = a DNS server; arvan = an ArvanCloud CDN account, whose domains are the zones */
+  kind: "technitium" | "arvan";
   /** @format date-time */
   last_checked_at?: string;
   /** @format date-time */
@@ -3750,10 +5223,14 @@ export interface DNSServerBody {
    * @format uri
    */
   $schema?: string;
+  /** Let Morche write. Left out: on for Technitium, off for ArvanCloud (and kept as saved on update). */
+  allow_changes?: boolean;
   /** Reach a private or loopback address. System admins only. */
   allow_internal?: boolean;
   /** @maxLength 500 */
   description?: string;
+  /** technitium when left out. Can't change once saved. */
+  kind?: "technitium" | "arvan";
   /**
    * @minLength 1
    * @maxLength 100
@@ -3761,16 +5238,15 @@ export interface DNSServerBody {
   name: string;
   tls_skip_verify?: boolean;
   /**
-   * API token. Blank on update keeps the saved one.
+   * API token (ArvanCloud: the API key). Blank on update keeps the saved one.
    * @maxLength 500
    */
   token?: string;
   /**
-   * The server's web console, like https://ns1.example.com:53443
-   * @minLength 1
+   * Technitium: the server's web console, like https://ns1.example.com:53443. Not used for ArvanCloud.
    * @maxLength 500
    */
-  url: string;
+  url?: string;
 }
 
 export interface DNSServerProblem {
@@ -3787,6 +5263,7 @@ export interface DNSTestBody {
    */
   $schema?: string;
   allow_internal?: boolean;
+  kind?: "technitium" | "arvan";
   /**
    * When editing: the saved server, whose token a blank one stands for.
    * @format uuid
@@ -3795,11 +5272,8 @@ export interface DNSTestBody {
   tls_skip_verify?: boolean;
   /** @maxLength 500 */
   token?: string;
-  /**
-   * @minLength 1
-   * @maxLength 500
-   */
-  url: string;
+  /** @maxLength 500 */
+  url?: string;
 }
 
 export interface DNSTestOutputBody {
@@ -3820,6 +5294,12 @@ export interface DNSTestOutputBody {
 }
 
 export interface DNSZone {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  cdn?: DNSZoneCDN;
   disabled: boolean;
   dnssec_status: string;
   expired: boolean;
@@ -3838,7 +5318,25 @@ export interface DNSZone {
   type: string;
 }
 
+export interface DNSZoneCDN {
+  cname_target?: string;
+  /** The nameservers the domain has now */
+  current_ns: string[];
+  domain_id: string;
+  /** The nameservers to set at the registrar */
+  ns_keys: string[];
+  /** @format int64 */
+  plan_level: number;
+  /** paused, suspended, unfair, charged */
+  restriction: string[];
+  /** full = ArvanCloud's nameservers; partial = chosen names by CNAME */
+  setup: "full" | "partial";
+  /** active = ArvanCloud answers for it; pending = the nameservers (or CNAME) aren't pointed at it yet */
+  status: "initializing" | "pending" | "active" | "moved";
+}
+
 export interface DNSZoneCopy {
+  cdn?: DNSZoneCDN;
   disabled: boolean;
   dnssec_status: string;
   expired: boolean;
@@ -9092,6 +10590,19 @@ export interface Event {
   time: string;
 }
 
+export interface EventType {
+  description: string;
+  group: string;
+  /** Never triggers automations (test.ping, automation.failed) */
+  internal: boolean;
+  label: string;
+  name: string;
+  sample: PanelEvent;
+  server_scoped: boolean;
+  severity: string;
+  subject_kind: string;
+}
+
 export interface EventsOutBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -9127,6 +10638,15 @@ export interface ExplainDatabaseQueryRequest {
    * @maxLength 100000
    */
   query: string;
+}
+
+export interface ExportCdnRecordsResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  text: string;
 }
 
 export interface ExtractArchiveRequest {
@@ -10011,6 +11531,15 @@ export interface GetAssetLicenseKeyResponse {
   key: string;
 }
 
+export interface GetEventCatalogResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: EventType[];
+}
+
 export interface GetProxyLogsResponse {
   /**
    * A URL to the JSON Schema for this object.
@@ -10460,6 +11989,20 @@ export interface ImportAssetsResponse {
   errors: AssetImportError[];
 }
 
+export interface ImportCdnRecordsRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * The zone file's text
+   * @minLength 1
+   * @maxLength 500000
+   */
+  text: string;
+}
+
 export interface IncidentsOutBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -10521,6 +12064,15 @@ export interface InstallsOutputBody {
   items: SoftwareInstall[];
 }
 
+export interface IssueCdnCertificateRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  provider?: "lets_encrypt" | "lite_ssl";
+}
+
 export interface ItemResult {
   /** The item (any JSON value) */
   item: any;
@@ -10562,7 +12114,7 @@ export interface Job {
   finished_at?: string;
   /** @format uuid */
   id: string;
-  /** What it does: transfer, copy, move, storage-copy, storage-move, compress, extract, fetch, fail2ban-install, fail2ban-uninstall, firewall-install, firewall-apply, ansible-run, schedule-sync, schedule-run, script-run, database-backup, database-backup-verify, database-backup-restore, proxy-setup, proxy-geo, proxy-brotli, proxy-waf, proxy-image-filter, proxy-stream-geo, proxy-certificate, software-run, software-scan, package-action, package-refresh, docker-pull, docker-prune, pve-task or pve-create */
+  /** What it does: transfer, copy, move, storage-copy, storage-move, compress, extract, fetch, fail2ban-install, fail2ban-uninstall, firewall-install, firewall-apply, ansible-run, schedule-sync, schedule-run, script-run, database-backup, database-backup-verify, database-backup-restore, database-pitr, proxy-setup, proxy-geo, proxy-brotli, proxy-waf, proxy-image-filter, proxy-stream-geo, proxy-certificate, software-run, software-scan, package-action, package-refresh, docker-pull, docker-prune, pve-task or pve-create */
   kind: string;
   /** What it printed (newest last); only on GET /jobs/{id} */
   log?: string;
@@ -10598,6 +12150,11 @@ export interface JobPlace {
    * @format uuid
    */
   auto_update?: string;
+  /**
+   * The automation it is a run of (run_id = the automation run)
+   * @format uuid
+   */
+  automation_id?: string;
   /**
    * The Proxmox cluster it works on
    * @format uuid
@@ -10991,6 +12548,26 @@ export interface ListTerminalsResponse {
    */
   $schema?: string;
   items: TerminalSession[];
+}
+
+export interface ListWebhookDeliveriesResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: WebhookDelivery[];
+  /** @format int64 */
+  total: number;
+}
+
+export interface ListWebhooksResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: OutgoingWebhook[];
 }
 
 export interface LocalTools {
@@ -12376,6 +13953,43 @@ export interface OpenPveConsoleRequest {
   serial?: string;
 }
 
+export interface OutgoingWebhook {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  allow_internal: boolean;
+  /** @format date-time */
+  created_at: string;
+  created_by_name: string;
+  enabled: boolean;
+  /** Event types it sends; empty = all */
+  events: string[];
+  /**
+   * Every attempt since then failed
+   * @format date-time
+   */
+  failing_since?: string;
+  has_secret: boolean;
+  /** Names of the extra headers (values are never shown) */
+  header_names: string[];
+  /** @format uuid */
+  id: string;
+  /** Also send alert events published while muted (data.muted = true) */
+  include_muted: boolean;
+  /** @format date-time */
+  last_delivery_at?: string;
+  /** delivered or failed: the last attempt; empty = never sent */
+  last_status: string;
+  name: string;
+  /** @format date-time */
+  updated_at: string;
+  url: string;
+  /** @format uuid */
+  workspace_id: string;
+}
+
 export interface PVEBackup {
   /** @format date-time */
   created_at: string;
@@ -13579,6 +15193,23 @@ export interface PanelApproveBody {
   group_ids?: string[];
 }
 
+export interface PanelEvent {
+  /** @format date-time */
+  at: string;
+  data?: Record<string, any>;
+  id: string;
+  origin?: string;
+  server_id?: string;
+  severity: "info" | "warning" | "critical";
+  subject: Subject;
+  text?: string;
+  title: string;
+  /** See GET /events/catalog, e.g. alert.fired */
+  type: string;
+  url?: string;
+  workspace_id: string;
+}
+
 export interface PanelGrant {
   /** @format uuid */
   app_id?: string;
@@ -13951,6 +15582,391 @@ export interface PinServerNoteRequest {
    */
   $schema?: string;
   pinned: boolean;
+}
+
+export interface PitrArchiver {
+  /** @format int64 */
+  archived_count: number;
+  /** @format int64 */
+  failed_count: number;
+  /** @format date-time */
+  last_archived_time: string | null;
+  last_archived_wal: string;
+  /** @format date-time */
+  last_failed_time: string | null;
+  last_failed_wal: string;
+  /** @format date-time */
+  stats_reset: string | null;
+}
+
+export interface PitrBackup {
+  annotation?: string;
+  /** @format int64 */
+  delta: number;
+  /** pgBackRest found a problem in a file while backing up */
+  error: boolean;
+  label: string;
+  lsn_start: string;
+  lsn_stop: string;
+  pg_version: string;
+  /** The backup it builds on (diff/incr) */
+  prior: string;
+  /** @format int64 */
+  repo_delta: number;
+  /** @format int64 */
+  repo_size: number;
+  /** @format int64 */
+  size: number;
+  /** @format date-time */
+  start: string;
+  /** @format date-time */
+  stop: string;
+  type: "full" | "diff" | "incr";
+  wal_start: string;
+  wal_stop: string;
+}
+
+export interface PitrBackupBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  type: "full" | "diff" | "incr";
+}
+
+export interface PitrChangeOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  job?: Job;
+  status: PitrStatus;
+}
+
+export interface PitrCipherOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  passphrase: string;
+}
+
+export interface PitrCluster {
+  archive_command: string;
+  archive_mode: string;
+  /** @format int64 */
+  archive_timeout: number;
+  bin_dir: string;
+  config_file: string;
+  data_dir: string;
+  /** @format int64 */
+  free_bytes: number;
+  hba_file: string;
+  ident_file: string;
+  in_recovery: boolean;
+  package: string;
+  pg_cluster: string;
+  pgbackrest: string;
+  /** @format int64 */
+  port: number;
+  service: string;
+  /** @format int64 */
+  size_bytes: number;
+  socket: string;
+  /** @format int64 */
+  version: number;
+  wal_level: string;
+}
+
+export interface PitrDetectOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  cluster: PitrCluster;
+  /** archive_command is set to something else; saving needs replace_archive_command */
+  foreign_archive_command: boolean;
+  /** archive_mode or wal_level only change with a restart */
+  needs_restart: boolean;
+  warnings: string[];
+}
+
+export interface PitrProblem {
+  kind:
+    | "archive_failing"
+    | "archive_stale"
+    | "no_backup"
+    | "backup_old"
+    | "unreachable"
+    | "restart"
+    | "repo";
+  message: string;
+}
+
+export interface PitrRemoveBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** The database's name, typed again */
+  confirm: string;
+  /** Delete the backups and WAL from the storage too */
+  purge?: boolean;
+}
+
+export interface PitrRestartBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Restart at this time instead of now
+   * @format date-time
+   */
+  at?: string;
+  /** The database's name, typed again */
+  confirm: string;
+}
+
+export interface PitrRestoreBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * The point in time; empty = as far as the WAL goes
+   * @format date-time
+   */
+  at?: string;
+  /** replace: the database's name, typed again */
+  confirm?: string;
+  /** new = a copy beside it on the server (safe); replace = the server's own PostgreSQL goes back in time */
+  mode: "new" | "replace";
+}
+
+export interface PitrRun {
+  /**
+   * The temporary database Morche added for a restored copy
+   * @format uuid
+   */
+  copy_database_id: string | null;
+  /** @format date-time */
+  created_at: string;
+  created_by_name: string;
+  error: string;
+  /** @format date-time */
+  finished_at: string | null;
+  /** @format uuid */
+  id: string;
+  /** @format uuid */
+  job_id: string | null;
+  kind:
+    | "setup"
+    | "restart"
+    | "backup"
+    | "check"
+    | "restore"
+    | "teardown"
+    | "remove";
+  /** A restored copy that's been taken down */
+  removed: boolean;
+  restore_dir: string;
+  /** @format int32 */
+  restore_port: number | null;
+  /** @format date-time */
+  started_at: string | null;
+  state:
+    | "queued"
+    | "running"
+    | "succeeded"
+    | "failed"
+    | "canceled"
+    | "interrupted"
+    | "skipped";
+  /**
+   * restore: the point in time; null = the newest
+   * @format date-time
+   */
+  target_time: string | null;
+  trigger: "manual" | "schedule";
+  /** backup: full, diff or incr; restore: new or replace */
+  variant: string;
+}
+
+export interface PitrRunsOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: PitrRun[];
+  /** @format int64 */
+  total: number;
+}
+
+export interface PitrSettings {
+  /** @format int32 */
+  archive_timeout: number;
+  /** @format int32 */
+  compress_level: number;
+  diff_cron: string;
+  enabled: boolean;
+  encrypted: boolean;
+  folder: string;
+  full_cron: string;
+  incr_cron: string;
+  /** @format date-time */
+  next_diff_at: string | null;
+  /** @format date-time */
+  next_full_at: string | null;
+  /** @format date-time */
+  next_incr_at: string | null;
+  /** @format int32 */
+  process_max: number;
+  /** @format int32 */
+  retention_full: number;
+  /** @format uuid */
+  storage_id: string;
+  /** s3 or sftp */
+  storage_kind: string;
+  storage_name: string;
+  timezone: string;
+}
+
+export interface PitrSettingsBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Seconds after which a WAL file is archived even if it isn't full: the most a quiet database can lose. 0 = only when full (16 MB)
+   * @format int32
+   * @min 0
+   * @max 3600
+   */
+  archive_timeout: number;
+  /**
+   * zstd level
+   * @format int32
+   * @min 1
+   * @max 19
+   * @default 3
+   */
+  compress_level?: number;
+  /**
+   * Differential backups (changes since the last full); empty = none
+   * @maxLength 100
+   */
+  diff_cron?: string;
+  /** Scheduled backups run (archiving goes on regardless) */
+  enabled: boolean;
+  /** Encrypt the repository (AES-256); Morche keeps the passphrase. Fixed once the repository exists */
+  encrypt: boolean;
+  /**
+   * Folder for the repository; for an S3 storage without a fixed bucket, its first part is the bucket
+   * @minLength 1
+   * @maxLength 1024
+   */
+  folder: string;
+  /**
+   * When full backups are taken
+   * @minLength 1
+   * @maxLength 100
+   */
+  full_cron: string;
+  /**
+   * Incremental backups (changes since the last backup of any type); empty = none
+   * @maxLength 100
+   */
+  incr_cron?: string;
+  /**
+   * Parallel processes for backup, restore and archiving
+   * @format int32
+   * @min 1
+   * @max 32
+   * @default 2
+   */
+  process_max?: number;
+  /** PostgreSQL already sends its WAL somewhere else: take archive_command over */
+  replace_archive_command?: boolean;
+  /**
+   * Full backups kept; older ones, their diff/incr and the WAL only they need are deleted
+   * @format int32
+   * @min 1
+   * @max 100
+   */
+  retention_full: number;
+  /**
+   * An S3 storage reached over HTTPS, or an SFTP storage signing in with a key
+   * @format uuid
+   */
+  storage_id: string;
+  /** @maxLength 64 */
+  timezone?: string;
+}
+
+export interface PitrShared {
+  /** @format uuid */
+  id: string;
+  name: string;
+}
+
+export interface PitrStatus {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** What's running or waiting now */
+  active?: PitrRun;
+  archiver?: PitrArchiver;
+  backups: PitrBackup[];
+  /** @format date-time */
+  checked_at: string | null;
+  cluster?: PitrCluster;
+  configured: boolean;
+  /** Restored copies still running on the server */
+  copies: PitrRun[];
+  /** Why it can't be set up, when it can't */
+  note: string;
+  problem: string;
+  problems: PitrProblem[];
+  /**
+   * What the backups take in the storage (WAL aside)
+   * @format int64
+   */
+  repo_bytes: number;
+  /** pgBackRest's word on the repository */
+  repo_status: string;
+  /** @format date-time */
+  restart_at: string | null;
+  server_name: string;
+  settings?: PitrSettings;
+  /** Another database in Morche for the same PostgreSQL that already has it: set up there */
+  shared_with?: PitrShared;
+  state:
+    | "none"
+    | "new"
+    | "setting_up"
+    | "needs_restart"
+    | "ready"
+    | "broken"
+    | "removing";
+  supported: boolean;
+  wal_max: string;
+  wal_min: string;
+  /** @format date-time */
+  window_from: string | null;
+  /** @format date-time */
+  window_to: string | null;
 }
 
 export interface PlanListBody {
@@ -14936,6 +16952,8 @@ export interface ProxyInspection {
   proxy: Proxy;
   /** Hand-written files Morche took default_server from (ports 80 and 443) because one of its sites answers unknown names; they get it back when none does, or when the proxy is removed with its files */
   released_default: string[];
+  /** nginx in a container: upstream names (other containers) are looked up again every 10 s, so a recreated container is found at its new address without a reload. False on the server itself, or with nginx older than 1.27.3 */
+  resolves_names: boolean;
   running: boolean;
   /** The panel's sites are loaded */
   set_up: boolean;
@@ -15392,6 +17410,19 @@ export interface PublishedPort {
   target_port: number;
 }
 
+export interface PurgeCdnCacheRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Full addresses, like https://example.com/app.css. None = everything.
+   * @maxItems 50
+   */
+  urls?: string[];
+}
+
 export interface PushOutputBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -15584,7 +17615,8 @@ export interface RealIP {
     | "X-Forwarded-For"
     | "X-Real-IP"
     | "CF-Connecting-IP"
-    | "True-Client-IP";
+    | "True-Client-IP"
+    | "AR-Real-IP";
 }
 
 export interface Recipe {
@@ -16058,6 +18090,16 @@ export interface ReportWindow {
   uptime?: number;
 }
 
+export interface ResetupDatabasePitrRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Take archive_command over from whatever set it */
+  replace_archive_command?: boolean;
+}
+
 export interface ResizePveGuestDiskRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -16112,6 +18154,11 @@ export interface RestoreBody {
    * @maxLength 128
    */
   target_name: string;
+  /**
+   * For a parallel PostgreSQL backup (format pg_dir): where it's unpacked first, on the machine the restore runs on; empty = the plan's when it runs on the plan's runner, else its temporary folder
+   * @maxLength 512
+   */
+  temp_dir?: string;
   /**
    * A login for this restore only; empty = the database's saved one
    * @maxLength 256
@@ -16170,6 +18217,11 @@ export interface RestoreFileBody {
    * @maxLength 128
    */
   target_name: string;
+  /**
+   * For a parallel PostgreSQL archive (format pg_dir): where it's unpacked first, on the machine the restore runs on; empty = its temporary folder
+   * @maxLength 512
+   */
+  temp_dir?: string;
   /**
    * A login for this restore only; empty = the database's saved one
    * @maxLength 256
@@ -18500,6 +20552,60 @@ export interface SetAssetOwnerRulesRequest {
   items: AssetOwnerRule[];
 }
 
+export interface SetCdnDnssecRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  enabled: boolean;
+}
+
+export interface SetCdnFirewallRuleEnabledRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  enabled: boolean;
+}
+
+export interface SetCdnRateLimitRuleEnabledRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  enabled: boolean;
+}
+
+export interface SetCdnRecordCloudRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  cloud: boolean;
+}
+
+export interface SetCdnWafPackageRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  enabled: boolean;
+}
+
+export interface SetCdnWafRuleEnabledRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  enabled: boolean;
+}
+
 export interface SetCloudAccountFavoriteRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -20301,6 +22407,13 @@ export interface StorageUsagePoint {
   used_bytes: number;
 }
 
+export interface Subject {
+  id: string;
+  /** server, monitor, database, cluster, cronjob, project, alert-rule, automation or webhook */
+  kind: string;
+  name: string;
+}
+
 export interface Subnet {
   /** Empty for the internet */
   cidr: string;
@@ -20565,6 +22678,15 @@ export interface UpdateAppCategoryRequest {
    * @maxLength 64
    */
   name?: string;
+}
+
+export interface UpdateCdnWafModeRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  mode: "off" | "detect" | "protect";
 }
 
 export interface UpdateCronJobRequest {
@@ -21052,6 +23174,89 @@ export interface WAFMatch {
   id: string;
   message: string;
   severity?: string;
+}
+
+export interface WebhookBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Send to a private or loopback address. System admins only. */
+  allow_internal?: boolean;
+  /** Default true */
+  enabled?: boolean;
+  /**
+   * Event types (GET /events/catalog); empty = all
+   * @maxItems 50
+   */
+  events?: string[];
+  /** Extra headers sent with every delivery (sealed). On update: absent = keep all; given = the new set, a blank value keeps that header's saved value. */
+  headers?: Record<string, string>;
+  include_muted?: boolean;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  /**
+   * http(s) address the events are POSTed to
+   * @minLength 1
+   * @maxLength 2000
+   */
+  url: string;
+}
+
+export interface WebhookDelivery {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Attempts made so far
+   * @format int32
+   */
+  attempt: number;
+  /** @format date-time */
+  created_at: string;
+  /** @format int32 */
+  duration_ms: number;
+  error: string;
+  /** @format uuid */
+  event_id: string;
+  event_type: string;
+  /** @format int32 */
+  http_status?: number;
+  /** @format uuid */
+  id: string;
+  /**
+   * When a pending one is tried again
+   * @format date-time
+   */
+  next_try_at?: string;
+  /** @format uuid */
+  redelivery_of?: string;
+  /** The JSON that was sent */
+  request_body: string;
+  /** The start of the answer (up to 4 KB) */
+  response: string;
+  status: "pending" | "delivered" | "failed";
+  /** @format date-time */
+  updated_at: string;
+  /** @format uuid */
+  webhook_id: string;
+}
+
+export interface WebhookWithSecret {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Signs every body: X-Morche-Signature = sha256=HMAC-SHA256(secret, X-Morche-Timestamp + "." + body). Shown only now. */
+  secret: string;
+  webhook: OutgoingWebhook;
 }
 
 export interface WorkspaceAccess {
@@ -21805,6 +24010,21 @@ export class Api<
       }),
 
     /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminDeleteApiToken
+     * @summary Revoke someone's API token
+     * @request DELETE:/admin/tokens/{id}
+     */
+    adminDeleteApiToken: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/admin/tokens/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
      * @description Its members lose the access it gave them.
      *
      * @tags Admin
@@ -21952,6 +24172,22 @@ export class Api<
     adminListUserSessions: (id: string, params: RequestParams = {}) =>
       this.request<PanelSessionsOutputBody, ErrorModel>({
         path: `/admin/users/${id}/sessions`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Admin
+     * @name AdminListUserTokens
+     * @summary Someone's API tokens
+     * @request GET:/admin/users/{id}/tokens
+     */
+    adminListUserTokens: (id: string, params: RequestParams = {}) =>
+      this.request<ApiTokenListBody, ErrorModel>({
+        path: `/admin/users/${id}/tokens`,
         method: "GET",
         format: "json",
         ...params,
@@ -23572,6 +25808,39 @@ export class Api<
       }),
 
     /**
+     * @description The token acts as you (your access, nothing more). It is shown once. At most 50 per person.
+     *
+     * @tags Auth
+     * @name CreateApiToken
+     * @summary Make an API token
+     * @request POST:/auth/tokens
+     */
+    createApiToken: (data: ApiTokenCreateBody, params: RequestParams = {}) =>
+      this.request<ApiTokenCreated, ErrorModel>({
+        path: `/auth/tokens`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Auth
+     * @name DeleteApiToken
+     * @summary Revoke one of your API tokens
+     * @request DELETE:/auth/tokens/{id}
+     */
+    deleteApiToken: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/auth/tokens/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
      * @description Ends every session but this one. Your terminals stay open.
      *
      * @tags Auth
@@ -23653,6 +25922,22 @@ export class Api<
      * No description
      *
      * @tags Auth
+     * @name ListApiTokens
+     * @summary Your API tokens
+     * @request GET:/auth/tokens
+     */
+    listApiTokens: (params: RequestParams = {}) =>
+      this.request<ApiTokenListBody, ErrorModel>({
+        path: `/auth/tokens`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Auth
      * @name ListMySessions
      * @summary Your open sessions
      * @request GET:/auth/sessions
@@ -23695,6 +25980,347 @@ export class Api<
         method: "PATCH",
         body: data,
         type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  automations = {
+    /**
+     * @description No sign-in; the token is the secret. A JSON body (≤64 KB) becomes event.data (a title or severity in it are used for the event). 30 calls a minute at most (429 past that).
+     *
+     * @tags Automations
+     * @name AutomationHook
+     * @summary Start an automation (incoming URL)
+     * @request POST:/automation-hooks/{token}
+     */
+    automationHook: (token: string, data: File, params: RequestParams = {}) =>
+      this.request<AutomationHookOutputBody, ErrorModel>({
+        path: `/automation-hooks/${token}`,
+        method: "POST",
+        body: data,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The step going now is stopped (a cron job it started too); later steps don't run. 409 when it has finished.
+     *
+     * @tags Automations
+     * @name CancelAutomationRun
+     * @summary Stop a run
+     * @request POST:/automation-runs/{id}/cancel
+     */
+    cancelAutomationRun: (id: string, params: RequestParams = {}) =>
+      this.request<AutomationRun, ErrorModel>({
+        path: `/automation-runs/${id}/cancel`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description It runs with the access of whoever saves it last.
+     *
+     * @tags Automations
+     * @name CreateAutomation
+     * @summary Add an automation
+     * @request POST:/workspaces/{id}/automations
+     */
+    createAutomation: (
+      id: string,
+      data: AutomationBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Automation, ErrorModel>({
+        path: `/workspaces/${id}/automations`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description For an automation started by its incoming URL (trigger webhook). The old URL stops at once. Answers the URL once.
+     *
+     * @tags Automations
+     * @name CreateAutomationHook
+     * @summary Make a new incoming URL
+     * @request POST:/automations/{id}/hook
+     */
+    createAutomationHook: (id: string, params: RequestParams = {}) =>
+      this.request<AutomationHook, ErrorModel>({
+        path: `/automations/${id}/hook`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Its runs go with it; a run going now is stopped.
+     *
+     * @tags Automations
+     * @name DeleteAutomation
+     * @summary Remove an automation
+     * @request DELETE:/automations/{id}
+     */
+    deleteAutomation: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/automations/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Automations
+     * @name DeleteAutomationHook
+     * @summary Remove the incoming URL
+     * @request DELETE:/automations/{id}/hook
+     */
+    deleteAutomationHook: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/automations/${id}/hook`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Automations
+     * @name GetAutomation
+     * @summary An automation
+     * @request GET:/automations/{id}
+     */
+    getAutomation: (id: string, params: RequestParams = {}) =>
+      this.request<Automation, ErrorModel>({
+        path: `/automations/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Steps are saved as they go: poll it while status is queued or running.
+     *
+     * @tags Automations
+     * @name GetAutomationRun
+     * @summary An automation run
+     * @request GET:/automation-runs/{id}
+     */
+    getAutomationRun: (id: string, params: RequestParams = {}) =>
+      this.request<AutomationRun, ErrorModel>({
+        path: `/automation-runs/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Automations
+     * @name ListAutomationRuns
+     * @summary An automation's runs, newest first
+     * @request GET:/automations/{id}/runs
+     */
+    listAutomationRuns: (
+      id: string,
+      query?: {
+        /**
+         * @format int32
+         * @min 1
+         * @max 200
+         * @default 50
+         */
+        limit?: number;
+        /**
+         * @format int32
+         * @min 0
+         */
+        offset?: number;
+        status?:
+          | "queued"
+          | "running"
+          | "succeeded"
+          | "failed"
+          | "skipped"
+          | "canceled"
+          | "";
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<AutomationRunListBody, ErrorModel>({
+        path: `/automations/${id}/runs`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Automations
+     * @name ListAutomations
+     * @summary List a workspace's automations
+     * @request GET:/workspaces/{id}/automations
+     */
+    listAutomations: (id: string, params: RequestParams = {}) =>
+      this.request<AutomationListBody, ErrorModel>({
+        path: `/workspaces/${id}/automations`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Automations
+     * @name ListWorkspaceAutomationRuns
+     * @summary Every automation's runs in a workspace, newest first
+     * @request GET:/workspaces/{id}/automation-runs
+     */
+    listWorkspaceAutomationRuns: (
+      id: string,
+      query?: {
+        /** @format uuid */
+        automation_id?: string;
+        /**
+         * @format int32
+         * @min 1
+         * @max 200
+         * @default 50
+         */
+        limit?: number;
+        /**
+         * @format int32
+         * @min 0
+         */
+        offset?: number;
+        status?:
+          | "queued"
+          | "running"
+          | "succeeded"
+          | "failed"
+          | "skipped"
+          | "canceled"
+          | "";
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<AutomationRunListBody, ErrorModel>({
+        path: `/workspaces/${id}/automation-runs`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Checks the body like a save would (422 with field errors) and says what each step would do for the event, as you. Nothing runs.
+     *
+     * @tags Automations
+     * @name PreviewAutomation
+     * @summary Dry-run an unsaved automation
+     * @request POST:/workspaces/{id}/automations/preview
+     */
+    previewAutomation: (
+      id: string,
+      data: AutomationPreviewBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<AutomationDryRun, ErrorModel>({
+        path: `/workspaces/${id}/automations/preview`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description With an event (optional) its steps can use; it runs even when turned off, past the cooldown. 409 while a run of it is going.
+     *
+     * @tags Automations
+     * @name RunAutomation
+     * @summary Run an automation now
+     * @request POST:/automations/{id}/run
+     */
+    runAutomation: (
+      id: string,
+      data: AutomationRunBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<AutomationRunStarted, ErrorModel>({
+        path: `/automations/${id}/run`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description With the sample event of its first event type (or the event given). dry_run: say what each step would do, as the person it runs as, without doing it or recording a run; else run it for real (a run with trigger_kind test).
+     *
+     * @tags Automations
+     * @name TestAutomation
+     * @summary Test an automation
+     * @request POST:/automations/{id}/test
+     */
+    testAutomation: (
+      id: string,
+      data: AutomationTestBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<AutomationTestResult, ErrorModel>({
+        path: `/automations/${id}/test`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Also turns it on or off (enabled). From now on it runs with your access; its problem is cleared.
+     *
+     * @tags Automations
+     * @name UpdateAutomation
+     * @summary Change an automation
+     * @request PUT:/automations/{id}
+     */
+    updateAutomation: (
+      id: string,
+      data: AutomationBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Automation, ErrorModel>({
+        path: `/automations/${id}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  proxies = {
+    /**
+     * @description For a reverse proxy behind ArvanCloud: trust these and read the visitor from AR-Real-IP.
+     *
+     * @tags Proxies
+     * @name GetArvanRanges
+     * @summary ArvanCloud CDN's edge addresses
+     * @request GET:/cdn-ranges/arvan
+     */
+    getArvanRanges: (params: RequestParams = {}) =>
+      this.request<CDNRangesOutputBody, ErrorModel>({
+        path: `/cdn-ranges/arvan`,
+        method: "GET",
         format: "json",
         ...params,
       }),
@@ -25713,7 +28339,405 @@ export class Api<
         ...params,
       }),
   };
+  pointInTimeRecovery = {
+    /**
+     * No description
+     *
+     * @tags Point-in-time recovery
+     * @name BackupDatabasePitr
+     * @summary Take a backup now
+     * @request POST:/databases/{id}/pitr/backup
+     */
+    backupDatabasePitr: (
+      id: string,
+      data: PitrBackupBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/databases/${id}/pitr/backup`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Point-in-time recovery
+     * @name CancelDatabasePitrRestart
+     * @summary Call off a restart set for later
+     * @request DELETE:/databases/{id}/pitr/restart
+     */
+    cancelDatabasePitrRestart: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/databases/${id}/pitr/restart`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Point-in-time recovery
+     * @name CheckDatabasePitr
+     * @summary Make PostgreSQL archive its current WAL and check it reached the storage
+     * @request POST:/databases/{id}/pitr/check
+     */
+    checkDatabasePitr: (id: string, params: RequestParams = {}) =>
+      this.request<Job, ErrorModel>({
+        path: `/databases/${id}/pitr/check`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Point-in-time recovery
+     * @name DetectDatabasePitr
+     * @summary Look at the PostgreSQL on the server before setting continuous backup up
+     * @request POST:/databases/{id}/pitr/detect
+     */
+    detectDatabasePitr: (id: string, params: RequestParams = {}) =>
+      this.request<PitrDetectOutputBody, ErrorModel>({
+        path: `/databases/${id}/pitr/detect`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Point-in-time recovery
+     * @name GetDatabasePitr
+     * @summary Continuous backup (point-in-time recovery) of a PostgreSQL database
+     * @request GET:/databases/{id}/pitr
+     */
+    getDatabasePitr: (id: string, params: RequestParams = {}) =>
+      this.request<PitrStatus, ErrorModel>({
+        path: `/databases/${id}/pitr`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Point-in-time recovery
+     * @name ListDatabasePitrRuns
+     * @summary What's been done for continuous backup
+     * @request GET:/databases/{id}/pitr/runs
+     */
+    listDatabasePitrRuns: (
+      id: string,
+      query?: {
+        /**
+         * @format int32
+         * @min 1
+         * @max 200
+         * @default 50
+         */
+        limit?: number;
+        /**
+         * @format int32
+         * @min 0
+         * @default 0
+         */
+        offset?: number;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<PitrRunsOutputBody, ErrorModel>({
+        path: `/databases/${id}/pitr/runs`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Point-in-time recovery
+     * @name RefreshDatabasePitr
+     * @summary Read the repository and the archiver again
+     * @request POST:/databases/{id}/pitr/refresh
+     */
+    refreshDatabasePitr: (id: string, params: RequestParams = {}) =>
+      this.request<PitrStatus, ErrorModel>({
+        path: `/databases/${id}/pitr/refresh`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Point-in-time recovery
+     * @name RemoveDatabasePitr
+     * @summary Turn continuous backup off (archiving stops; the backups stay unless purge)
+     * @request POST:/databases/{id}/pitr/remove
+     */
+    removeDatabasePitr: (
+      id: string,
+      data: PitrRemoveBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/databases/${id}/pitr/remove`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Point-in-time recovery
+     * @name ResetupDatabasePitr
+     * @summary Run the setup again with the saved settings (rewrites pgBackRest's config and archive_command on the server)
+     * @request POST:/databases/{id}/pitr/setup
+     */
+    resetupDatabasePitr: (
+      id: string,
+      data: ResetupDatabasePitrRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<PitrChangeOutputBody, ErrorModel>({
+        path: `/databases/${id}/pitr/setup`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Point-in-time recovery
+     * @name RestartDatabasePitr
+     * @summary Restart PostgreSQL so archive_mode takes effect, now or at a set time
+     * @request POST:/databases/{id}/pitr/restart
+     */
+    restartDatabasePitr: (
+      id: string,
+      data: PitrRestartBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<PitrChangeOutputBody, ErrorModel>({
+        path: `/databases/${id}/pitr/restart`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Point-in-time recovery
+     * @name RestoreDatabasePitr
+     * @summary Restore to a point in time: a new copy beside it, or the server's own PostgreSQL
+     * @request POST:/databases/{id}/pitr/restore
+     */
+    restoreDatabasePitr: (
+      id: string,
+      data: PitrRestoreBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/databases/${id}/pitr/restore`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Point-in-time recovery
+     * @name RevealDatabasePitrPassphrase
+     * @summary The repository's encryption passphrase (keep a copy: without it the backups can't be read)
+     * @request POST:/databases/{id}/pitr/passphrase
+     */
+    revealDatabasePitrPassphrase: (id: string, params: RequestParams = {}) =>
+      this.request<PitrCipherOutputBody, ErrorModel>({
+        path: `/databases/${id}/pitr/passphrase`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Point-in-time recovery
+     * @name SaveDatabasePitr
+     * @summary Set continuous backup up, or change its settings (installs pgBackRest and writes its config on the server)
+     * @request PUT:/databases/{id}/pitr
+     */
+    saveDatabasePitr: (
+      id: string,
+      data: PitrSettingsBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<PitrChangeOutputBody, ErrorModel>({
+        path: `/databases/${id}/pitr`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Point-in-time recovery
+     * @name TeardownDatabasePitrCopy
+     * @summary Stop a restored copy and delete its folder
+     * @request DELETE:/databases/{id}/pitr/copies/{run}
+     */
+    teardownDatabasePitrCopy: (
+      id: string,
+      run: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/databases/${id}/pitr/copies/${run}`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+  };
   dns = {
+    /**
+     * @description It goes last. Answers with the firewall, fresh.
+     *
+     * @tags DNS
+     * @name AddCdnFirewallRule
+     * @summary Add a firewall rule
+     * @request POST:/dns-servers/{id}/zones/{zone}/cdn/firewall/rules
+     */
+    addCdnFirewallRule: (
+      id: string,
+      zone: string,
+      data: CDNFirewallRuleFields,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNFirewall, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/firewall/rules`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name AddCdnRateLimitRule
+     * @summary Add a rate limit rule
+     * @request POST:/dns-servers/{id}/zones/{zone}/cdn/rate-limit/rules
+     */
+    addCdnRateLimitRule: (
+      id: string,
+      zone: string,
+      data: CDNRateLimitRuleFields,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNRateLimit, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/rate-limit/rules`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Answers with the domain's records, fresh.
+     *
+     * @tags DNS
+     * @name AddCdnRecord
+     * @summary Add a record to an ArvanCloud domain
+     * @request POST:/dns-servers/{id}/zones/{zone}/cdn/records
+     */
+    addCdnRecord: (
+      id: string,
+      zone: string,
+      data: CDNRecordFields,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNRecords, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/records`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name AddCdnWafPackage
+     * @summary Add a WAF rule package
+     * @request POST:/dns-servers/{id}/zones/{zone}/cdn/waf/packages
+     */
+    addCdnWafPackage: (
+      id: string,
+      zone: string,
+      data: AddCdnWafPackageRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNWAF, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/waf/packages`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name AddCdnWafRule
+     * @summary Add a WAF path rule
+     * @request POST:/dns-servers/{id}/zones/{zone}/cdn/waf/rules
+     */
+    addCdnWafRule: (
+      id: string,
+      zone: string,
+      data: CDNWAFRuleFields,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNWAF, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/waf/rules`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
     /**
      * @description Answers with the zone's records, fresh.
      *
@@ -25733,6 +28757,22 @@ export class Api<
         method: "POST",
         body: data,
         type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description For a pending domain: ArvanCloud checks the nameservers (full) or CNAME (partial) now. Answers with the domain.
+     *
+     * @tags DNS
+     * @name CheckCdnDomain
+     * @summary Ask ArvanCloud to look at a domain's nameservers again
+     * @request POST:/dns-servers/{id}/zones/{zone}/cdn/check
+     */
+    checkCdnDomain: (id: string, zone: string, params: RequestParams = {}) =>
+      this.request<DNSZone, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/check`,
+        method: "POST",
         format: "json",
         ...params,
       }),
@@ -25794,6 +28834,111 @@ export class Api<
       }),
 
     /**
+     * No description
+     *
+     * @tags DNS
+     * @name DeleteCdnFirewallRule
+     * @summary Remove a firewall rule
+     * @request DELETE:/dns-servers/{id}/zones/{zone}/cdn/firewall/rules/{rule}
+     */
+    deleteCdnFirewallRule: (
+      id: string,
+      zone: string,
+      rule: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNFirewall, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/firewall/rules/${rule}`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name DeleteCdnRateLimitRule
+     * @summary Remove a rate limit rule
+     * @request DELETE:/dns-servers/{id}/zones/{zone}/cdn/rate-limit/rules/{rule}
+     */
+    deleteCdnRateLimitRule: (
+      id: string,
+      zone: string,
+      rule: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNRateLimit, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/rate-limit/rules/${rule}`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Answers with the domain's records, fresh.
+     *
+     * @tags DNS
+     * @name DeleteCdnRecord
+     * @summary Remove a record from an ArvanCloud domain
+     * @request DELETE:/dns-servers/{id}/zones/{zone}/cdn/records/{record}
+     */
+    deleteCdnRecord: (
+      id: string,
+      zone: string,
+      record: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNRecords, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/records/${record}`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name DeleteCdnWafPackage
+     * @summary Remove a WAF package
+     * @request DELETE:/dns-servers/{id}/zones/{zone}/cdn/waf/packages/{rule}
+     */
+    deleteCdnWafPackage: (
+      id: string,
+      zone: string,
+      rule: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNWAF, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/waf/packages/${rule}`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name DeleteCdnWafRule
+     * @summary Remove a WAF path rule
+     * @request DELETE:/dns-servers/{id}/zones/{zone}/cdn/waf/rules/{rule}
+     */
+    deleteCdnWafRule: (
+      id: string,
+      zone: string,
+      rule: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNWAF, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/waf/rules/${rule}`,
+        method: "DELETE",
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description A POST because the record's data says which one. Answers with the zone's records, fresh.
      *
      * @tags DNS
@@ -25850,6 +28995,186 @@ export class Api<
      * No description
      *
      * @tags DNS
+     * @name ExportCdnRecords
+     * @summary An ArvanCloud domain's records as a BIND zone file
+     * @request GET:/dns-servers/{id}/zones/{zone}/cdn/records/export
+     */
+    exportCdnRecords: (id: string, zone: string, params: RequestParams = {}) =>
+      this.request<ExportCdnRecordsResponse, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/records/export`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description For each name: the most specific zone on any DNS connection in scope, and the name's A/AAAA/CNAME/ANAME records there.
+     *
+     * @tags DNS
+     * @name FindDnsNames
+     * @summary Where names are answered
+     * @request GET:/dns-names
+     */
+    findDnsNames: (
+      query?: {
+        /** @maxItems 50 */
+        name?: string[];
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<DNSNamesOutputBody, ErrorModel>({
+        path: `/dns-names`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name GetCdnAcceleration
+     * @summary An ArvanCloud domain's file optimisation
+     * @request GET:/dns-servers/{id}/zones/{zone}/cdn/acceleration
+     */
+    getCdnAcceleration: (
+      id: string,
+      zone: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNAcceleration, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/acceleration`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name GetCdnCaching
+     * @summary An ArvanCloud domain's cache settings
+     * @request GET:/dns-servers/{id}/zones/{zone}/cdn/caching
+     */
+    getCdnCaching: (id: string, zone: string, params: RequestParams = {}) =>
+      this.request<CDNCaching, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/caching`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Its settings and rules, in the order they're checked.
+     *
+     * @tags DNS
+     * @name GetCdnFirewall
+     * @summary An ArvanCloud domain's firewall
+     * @request GET:/dns-servers/{id}/zones/{zone}/cdn/firewall
+     */
+    getCdnFirewall: (id: string, zone: string, params: RequestParams = {}) =>
+      this.request<CDNFirewall, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/firewall`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name GetCdnRateLimit
+     * @summary An ArvanCloud domain's rate limits
+     * @request GET:/dns-servers/{id}/zones/{zone}/cdn/rate-limit
+     */
+    getCdnRateLimit: (id: string, zone: string, params: RequestParams = {}) =>
+      this.request<CDNRateLimit, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/rate-limit`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name GetCdnRedirect
+     * @summary An ArvanCloud domain's www redirect
+     * @request GET:/dns-servers/{id}/zones/{zone}/cdn/redirect
+     */
+    getCdnRedirect: (id: string, zone: string, params: RequestParams = {}) =>
+      this.request<CDNRedirect, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/redirect`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Requests and bytes, total and served from the cache, plus status codes.
+     *
+     * @tags DNS
+     * @name GetCdnReport
+     * @summary An ArvanCloud domain's traffic
+     * @request GET:/dns-servers/{id}/zones/{zone}/cdn/report
+     */
+    getCdnReport: (
+      id: string,
+      zone: string,
+      query?: {
+        /** @default "24h" */
+        period?: "1h" | "3h" | "6h" | "12h" | "24h" | "7d" | "30d";
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNReport, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/report`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name GetCdnSsl
+     * @summary An ArvanCloud domain's HTTPS settings and certificates
+     * @request GET:/dns-servers/{id}/zones/{zone}/cdn/ssl
+     */
+    getCdnSsl: (id: string, zone: string, params: RequestParams = {}) =>
+      this.request<CDNSSL, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/ssl`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Its mode, rule packages and path rules.
+     *
+     * @tags DNS
+     * @name GetCdnWaf
+     * @summary An ArvanCloud domain's WAF
+     * @request GET:/dns-servers/{id}/zones/{zone}/cdn/waf
+     */
+    getCdnWaf: (id: string, zone: string, params: RequestParams = {}) =>
+      this.request<CDNWAF, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/waf`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
      * @name GetDnsServer
      * @summary Get a DNS server
      * @request GET:/dns-servers/{id}
@@ -25873,6 +29198,68 @@ export class Api<
     getDnsZoneOptions: (id: string, zone: string, params: RequestParams = {}) =>
       this.request<DNSZoneOptions, ErrorModel>({
         path: `/dns-servers/${id}/zones/${zone}/options`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Answers with the domain's records, fresh.
+     *
+     * @tags DNS
+     * @name ImportCdnRecords
+     * @summary Add records from a BIND zone file
+     * @request POST:/dns-servers/{id}/zones/{zone}/cdn/records/import
+     */
+    importCdnRecords: (
+      id: string,
+      zone: string,
+      data: ImportCdnRecordsRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNRecords, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/records/import`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description ArvanCloud orders it (Let's Encrypt by default) and installs it on its edge. Answers with the settings; the order shows under orders until it's ready.
+     *
+     * @tags DNS
+     * @name IssueCdnCertificate
+     * @summary Get a free certificate for an ArvanCloud domain
+     * @request POST:/dns-servers/{id}/zones/{zone}/cdn/ssl/issue
+     */
+    issueCdnCertificate: (
+      id: string,
+      zone: string,
+      data: IssueCdnCertificateRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNSSL, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/ssl/issue`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description With the domain's state and DNSSEC.
+     *
+     * @tags DNS
+     * @name ListCdnRecords
+     * @summary An ArvanCloud domain's records
+     * @request GET:/dns-servers/{id}/zones/{zone}/cdn/records
+     */
+    listCdnRecords: (id: string, zone: string, params: RequestParams = {}) =>
+      this.request<CDNRecords, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/records`,
         method: "GET",
         format: "json",
         ...params,
@@ -25943,6 +29330,123 @@ export class Api<
       }),
 
     /**
+     * @description Rules are checked in order; the first match decides.
+     *
+     * @tags DNS
+     * @name MoveCdnFirewallRule
+     * @summary Move a firewall rule before or after another
+     * @request POST:/dns-servers/{id}/zones/{zone}/cdn/firewall/rules/{rule}/move
+     */
+    moveCdnFirewallRule: (
+      id: string,
+      zone: string,
+      rule: string,
+      data: CDNMoveBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNFirewall, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/firewall/rules/${rule}/move`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Rules are checked in order; the first match decides.
+     *
+     * @tags DNS
+     * @name MoveCdnRateLimitRule
+     * @summary Move a rate limit rule before or after another
+     * @request POST:/dns-servers/{id}/zones/{zone}/cdn/rate-limit/rules/{rule}/move
+     */
+    moveCdnRateLimitRule: (
+      id: string,
+      zone: string,
+      rule: string,
+      data: CDNMoveBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNRateLimit, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/rate-limit/rules/${rule}/move`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Rules are checked in order; the first match decides.
+     *
+     * @tags DNS
+     * @name MoveCdnWafRule
+     * @summary Move a WAF path rule before or after another
+     * @request POST:/dns-servers/{id}/zones/{zone}/cdn/waf/rules/{rule}/move
+     */
+    moveCdnWafRule: (
+      id: string,
+      zone: string,
+      rule: string,
+      data: CDNMoveBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNWAF, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/waf/rules/${rule}/move`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Changes the name's record of that type, or adds one. Refused when the name has a record of another kind (a CNAME next to an A), or several to choose from. Answers with the name's records, fresh.
+     *
+     * @tags DNS
+     * @name PointDnsName
+     * @summary Point a name at an address
+     * @request POST:/dns-servers/{id}/zones/{zone}/point
+     */
+    pointDnsName: (
+      id: string,
+      zone: string,
+      data: DNSPointBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<DNSNameMatch, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/point`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Everything, or up to 50 addresses. The next visitors are served by the origin until the cache fills again.
+     *
+     * @tags DNS
+     * @name PurgeCdnCache
+     * @summary Empty an ArvanCloud domain's CDN cache
+     * @request POST:/dns-servers/{id}/zones/{zone}/cdn/purge
+     */
+    purgeCdnCache: (
+      id: string,
+      zone: string,
+      data: PurgeCdnCacheRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/purge`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        ...params,
+      }),
+
+    /**
      * @description The server fetches the zone from its primary now instead of waiting.
      *
      * @tags DNS
@@ -25954,6 +29458,149 @@ export class Api<
       this.request<void, ErrorModel>({
         path: `/dns-servers/${id}/zones/${zone}/resync`,
         method: "POST",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name SetCdnDnssec
+     * @summary Turn DNSSEC on or off for an ArvanCloud domain
+     * @request PUT:/dns-servers/{id}/zones/{zone}/cdn/dnssec
+     */
+    setCdnDnssec: (
+      id: string,
+      zone: string,
+      data: SetCdnDnssecRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNDNSSEC, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/dnssec`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name SetCdnFirewallRuleEnabled
+     * @summary Turn a firewall rule on or off
+     * @request PUT:/dns-servers/{id}/zones/{zone}/cdn/firewall/rules/{rule}/enabled
+     */
+    setCdnFirewallRuleEnabled: (
+      id: string,
+      zone: string,
+      rule: string,
+      data: SetCdnFirewallRuleEnabledRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNFirewall, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/firewall/rules/${rule}/enabled`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name SetCdnRateLimitRuleEnabled
+     * @summary Turn a rate limit rule on or off
+     * @request PUT:/dns-servers/{id}/zones/{zone}/cdn/rate-limit/rules/{rule}/enabled
+     */
+    setCdnRateLimitRuleEnabled: (
+      id: string,
+      zone: string,
+      rule: string,
+      data: SetCdnRateLimitRuleEnabledRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNRateLimit, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/rate-limit/rules/${rule}/enabled`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Answers with the domain's records, fresh.
+     *
+     * @tags DNS
+     * @name SetCdnRecordCloud
+     * @summary Put a record through the CDN or not
+     * @request PUT:/dns-servers/{id}/zones/{zone}/cdn/records/{record}/cloud
+     */
+    setCdnRecordCloud: (
+      id: string,
+      zone: string,
+      record: string,
+      data: SetCdnRecordCloudRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNRecords, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/records/${record}/cloud`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name SetCdnWafPackage
+     * @summary Turn a WAF package on or off
+     * @request PUT:/dns-servers/{id}/zones/{zone}/cdn/waf/packages/{rule}
+     */
+    setCdnWafPackage: (
+      id: string,
+      zone: string,
+      rule: string,
+      data: SetCdnWafPackageRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNWAF, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/waf/packages/${rule}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name SetCdnWafRuleEnabled
+     * @summary Turn a WAF path rule on or off
+     * @request PUT:/dns-servers/{id}/zones/{zone}/cdn/waf/rules/{rule}/enabled
+     */
+    setCdnWafRuleEnabled: (
+      id: string,
+      zone: string,
+      rule: string,
+      data: SetCdnWafRuleEnabledRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNWAF, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/waf/rules/${rule}/enabled`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
         ...params,
       }),
 
@@ -26036,6 +29683,263 @@ export class Api<
       this.request<DNSTestOutputBody, ErrorModel>({
         path: `/dns-servers/test-connection`,
         method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name UpdateCdnAcceleration
+     * @summary Change an ArvanCloud domain's file optimisation
+     * @request PATCH:/dns-servers/{id}/zones/{zone}/cdn/acceleration
+     */
+    updateCdnAcceleration: (
+      id: string,
+      zone: string,
+      data: CDNAccelerationBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNAcceleration, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/acceleration`,
+        method: "PATCH",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Only the fields sent change. Answers with the settings, fresh.
+     *
+     * @tags DNS
+     * @name UpdateCdnCaching
+     * @summary Change an ArvanCloud domain's cache settings
+     * @request PATCH:/dns-servers/{id}/zones/{zone}/cdn/caching
+     */
+    updateCdnCaching: (
+      id: string,
+      zone: string,
+      data: CDNCachingPatch,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNCaching, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/caching`,
+        method: "PATCH",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name UpdateCdnFirewallRule
+     * @summary Change a firewall rule
+     * @request PUT:/dns-servers/{id}/zones/{zone}/cdn/firewall/rules/{rule}
+     */
+    updateCdnFirewallRule: (
+      id: string,
+      zone: string,
+      rule: string,
+      data: CDNFirewallRuleFields,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNFirewall, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/firewall/rules/${rule}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name UpdateCdnFirewallSettings
+     * @summary Change an ArvanCloud domain's firewall settings
+     * @request PATCH:/dns-servers/{id}/zones/{zone}/cdn/firewall/settings
+     */
+    updateCdnFirewallSettings: (
+      id: string,
+      zone: string,
+      data: CDNFirewallSettingsPatch,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNFirewall, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/firewall/settings`,
+        method: "PATCH",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name UpdateCdnRateLimitRule
+     * @summary Change a rate limit rule
+     * @request PUT:/dns-servers/{id}/zones/{zone}/cdn/rate-limit/rules/{rule}
+     */
+    updateCdnRateLimitRule: (
+      id: string,
+      zone: string,
+      rule: string,
+      data: CDNRateLimitRuleFields,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNRateLimit, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/rate-limit/rules/${rule}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name UpdateCdnRateLimitSettings
+     * @summary Change an ArvanCloud domain's rate limit settings
+     * @request PATCH:/dns-servers/{id}/zones/{zone}/cdn/rate-limit/settings
+     */
+    updateCdnRateLimitSettings: (
+      id: string,
+      zone: string,
+      data: CDNRateLimitSettingsPatch,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNRateLimit, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/rate-limit/settings`,
+        method: "PATCH",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Answers with the domain's records, fresh.
+     *
+     * @tags DNS
+     * @name UpdateCdnRecord
+     * @summary Change a record of an ArvanCloud domain
+     * @request PUT:/dns-servers/{id}/zones/{zone}/cdn/records/{record}
+     */
+    updateCdnRecord: (
+      id: string,
+      zone: string,
+      record: string,
+      data: CDNRecordFields,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNRecords, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/records/${record}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name UpdateCdnRedirect
+     * @summary Change an ArvanCloud domain's www redirect
+     * @request PUT:/dns-servers/{id}/zones/{zone}/cdn/redirect
+     */
+    updateCdnRedirect: (
+      id: string,
+      zone: string,
+      data: CDNRedirect,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNRedirect, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/redirect`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Only the fields sent change. Answers with the settings, fresh.
+     *
+     * @tags DNS
+     * @name UpdateCdnSsl
+     * @summary Change an ArvanCloud domain's HTTPS settings
+     * @request PATCH:/dns-servers/{id}/zones/{zone}/cdn/ssl
+     */
+    updateCdnSsl: (
+      id: string,
+      zone: string,
+      data: CDNSSLPatch,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNSSL, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/ssl`,
+        method: "PATCH",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name UpdateCdnWafMode
+     * @summary Turn an ArvanCloud domain's WAF off, to log only, or to block
+     * @request PUT:/dns-servers/{id}/zones/{zone}/cdn/waf/mode
+     */
+    updateCdnWafMode: (
+      id: string,
+      zone: string,
+      data: UpdateCdnWafModeRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNWAF, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/waf/mode`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags DNS
+     * @name UpdateCdnWafRule
+     * @summary Change a WAF path rule
+     * @request PUT:/dns-servers/{id}/zones/{zone}/cdn/waf/rules/{rule}
+     */
+    updateCdnWafRule: (
+      id: string,
+      zone: string,
+      rule: string,
+      data: CDNWAFRuleFields,
+      params: RequestParams = {},
+    ) =>
+      this.request<CDNWAF, ErrorModel>({
+        path: `/dns-servers/${id}/zones/${zone}/cdn/waf/rules/${rule}`,
+        method: "PUT",
         body: data,
         type: ContentType.Json,
         format: "json",
@@ -28355,6 +32259,23 @@ export class Api<
         method: "PUT",
         body: data,
         type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  events = {
+    /**
+     * @description Every event type webhooks and automations can react to, with a sample event each.
+     *
+     * @tags Events
+     * @name GetEventCatalog
+     * @summary Event types
+     * @request GET:/events/catalog
+     */
+    getEventCatalog: (params: RequestParams = {}) =>
+      this.request<GetEventCatalogResponse, ErrorModel>({
+        path: `/events/catalog`,
+        method: "GET",
         format: "json",
         ...params,
       }),
@@ -36748,6 +40669,198 @@ export class Api<
     ) =>
       this.request<BucketDetails, ErrorModel>({
         path: `/storages/${id}/buckets/${bucket}/versioning`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  webhooks = {
+    /**
+     * @description Answers the signing secret once.
+     *
+     * @tags Webhooks
+     * @name CreateWebhook
+     * @summary Add an outgoing webhook
+     * @request POST:/workspaces/{id}/webhooks
+     */
+    createWebhook: (
+      id: string,
+      data: WebhookBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<WebhookWithSecret, ErrorModel>({
+        path: `/workspaces/${id}/webhooks`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Its deliveries, including pending retries, go with it.
+     *
+     * @tags Webhooks
+     * @name DeleteWebhook
+     * @summary Remove an outgoing webhook
+     * @request DELETE:/webhooks/{id}
+     */
+    deleteWebhook: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/webhooks/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Webhooks
+     * @name GetWebhook
+     * @summary An outgoing webhook
+     * @request GET:/webhooks/{id}
+     */
+    getWebhook: (id: string, params: RequestParams = {}) =>
+      this.request<OutgoingWebhook, ErrorModel>({
+        path: `/webhooks/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Webhooks
+     * @name GetWebhookDelivery
+     * @summary One webhook delivery
+     * @request GET:/webhook-deliveries/{id}
+     */
+    getWebhookDelivery: (id: string, params: RequestParams = {}) =>
+      this.request<WebhookDelivery, ErrorModel>({
+        path: `/webhook-deliveries/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Kept 30 days, at most 1000 per webhook.
+     *
+     * @tags Webhooks
+     * @name ListWebhookDeliveries
+     * @summary A webhook's deliveries, newest first
+     * @request GET:/webhooks/{id}/deliveries
+     */
+    listWebhookDeliveries: (
+      id: string,
+      query?: {
+        /**
+         * @format int32
+         * @min 1
+         * @max 200
+         * @default 50
+         */
+        limit?: number;
+        /**
+         * @format int32
+         * @min 0
+         */
+        offset?: number;
+        /** Only these */
+        status?: "pending" | "delivered" | "failed" | "";
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ListWebhookDeliveriesResponse, ErrorModel>({
+        path: `/webhooks/${id}/deliveries`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Webhooks
+     * @name ListWebhooks
+     * @summary List a workspace's outgoing webhooks
+     * @request GET:/workspaces/{id}/webhooks
+     */
+    listWebhooks: (id: string, params: RequestParams = {}) =>
+      this.request<ListWebhooksResponse, ErrorModel>({
+        path: `/workspaces/${id}/webhooks`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Sends the same body now as a new delivery and answers how it went. Not retried.
+     *
+     * @tags Webhooks
+     * @name RedeliverWebhookDelivery
+     * @summary Send a delivery again
+     * @request POST:/webhook-deliveries/{id}/redeliver
+     */
+    redeliverWebhookDelivery: (id: string, params: RequestParams = {}) =>
+      this.request<WebhookDelivery, ErrorModel>({
+        path: `/webhook-deliveries/${id}/redeliver`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The old one stops at once. Answers the new one once.
+     *
+     * @tags Webhooks
+     * @name RotateWebhookSecret
+     * @summary Make a new signing secret
+     * @request POST:/webhooks/{id}/secret
+     */
+    rotateWebhookSecret: (id: string, params: RequestParams = {}) =>
+      this.request<WebhookWithSecret, ErrorModel>({
+        path: `/webhooks/${id}/secret`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Sends a test.ping now (even when the webhook is off) and answers how it went. Not retried.
+     *
+     * @tags Webhooks
+     * @name TestWebhook
+     * @summary Send a test event
+     * @request POST:/webhooks/{id}/test
+     */
+    testWebhook: (id: string, params: RequestParams = {}) =>
+      this.request<WebhookDelivery, ErrorModel>({
+        path: `/webhooks/${id}/test`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Webhooks
+     * @name UpdateWebhook
+     * @summary Change an outgoing webhook
+     * @request PUT:/webhooks/{id}
+     */
+    updateWebhook: (
+      id: string,
+      data: WebhookBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<OutgoingWebhook, ErrorModel>({
+        path: `/webhooks/${id}`,
         method: "PUT",
         body: data,
         type: ContentType.Json,

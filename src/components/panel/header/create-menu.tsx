@@ -19,6 +19,7 @@ import { addCommands, type Command } from "../command/commands"
 import {
   alertsItem,
   applicationsItem,
+  automationsItem,
   cloudItem,
   cronjobsItem,
   databasesItem,
@@ -67,6 +68,11 @@ const groups: { label: string; items: Entry[] }[] = [
       { key: "run-command", label: "Run a command", icon: scriptsItem.icon },
       { key: "add-script", label: "Script", icon: scriptsItem.icon },
       { key: "add-cronjob", label: "Cron job", icon: cronjobsItem.icon },
+      {
+        key: "add-automation",
+        label: "Automation",
+        icon: automationsItem.icon,
+      },
       {
         key: "install-application",
         label: "Install an application",

@@ -309,14 +309,17 @@ export function useHome() {
     }
   }
   for (const b of backups.data ?? []) {
+    const pitr = b.kind === "pitr"
     issues.push({
-      key: `backup:${b.plan_id}`,
+      key: pitr ? `pitr:${b.database_id}` : `backup:${b.plan_id}`,
       kind: "database",
       name: `${b.database_name} · ${b.plan_name}`,
-      status: "Backup failed",
+      status: pitr ? "Needs a look" : "Backup failed",
       detail: b.error,
-      href: backupsHref(b.database_id),
-      tone: "destructive",
+      href: pitr
+        ? backupsHref(b.database_id, "pitr")
+        : backupsHref(b.database_id),
+      tone: pitr ? "warning" : "destructive",
     })
   }
   issues.sort((a, b) => rank(a.tone) - rank(b.tone))

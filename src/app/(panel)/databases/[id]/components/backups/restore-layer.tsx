@@ -23,10 +23,11 @@ import { useBackupOptions, useRestoreBackup } from "../../../api"
 import { useDashboard } from "../parts"
 import { useBackupCan } from "./backup-actions"
 import { LOCAL_RUNNER, when } from "./meta"
+import { TempDirField, tempDirProblem } from "./temp-dir-field"
 
 type Mode = RestoreBody["mode"]
 type Errors = Partial<
-  Record<"name" | "confirm" | "safety" | "runner" | "login", string>
+  Record<"name" | "confirm" | "safety" | "runner" | "login" | "tempDir", string>
 >
 
 const errorKey: Record<string, keyof Errors> = {
@@ -36,6 +37,7 @@ const errorKey: Record<string, keyof Errors> = {
   runner_server_id: "runner",
   username: "login",
   password: "login",
+  temp_dir: "tempDir",
 }
 
 function localHint(local?: LocalTools) {
@@ -119,7 +121,14 @@ function RestoreForm({
   const [password, setPassword] = useState("")
   const [errors, setErrors] = useState<Errors>({})
   const [workers, setWorkers] = useState(b.workers || 1)
+  const [tempDir, setTempDir] = useState("")
   const parallel = b.format === "pg_dir"
+  // Where it runs, to browse its folders.
+  const runsOn = direct
+    ? runner && runner !== "local"
+      ? servers.data?.items.find((s) => s.id === runner)
+      : undefined
+    : servers.data?.items.find((s) => s.id === d.server_id)
 
   const replace = effectiveMode === "replace"
   const runners = (servers.data?.items ?? [])
@@ -137,6 +146,8 @@ function RestoreForm({
       e.runner = "Choose a server"
     }
     if (ownLogin && !username.trim()) e.login = "Enter the login"
+    const tmp = parallel ? tempDirProblem(tempDir) : ""
+    if (tmp) e.tempDir = tmp
     setErrors(e)
     if (Object.keys(e).length) return
     const body: RestoreBody = {
@@ -147,6 +158,7 @@ function RestoreForm({
       ...(direct && runner ? { runner_server_id: runner } : {}),
       ...(ownLogin ? { username: username.trim(), password } : {}),
       ...(parallel ? { workers } : {}),
+      ...(parallel && tempDir.trim() ? { temp_dir: tempDir.trim() } : {}),
     }
     restore.mutate(
       { id: b.id, body },
@@ -293,6 +305,24 @@ function RestoreForm({
           phone={phone}
           replace={replace}
           safety={safety}
+        />
+      )}
+      {parallel && (
+        <TempDirField
+          id="restore"
+          value={tempDir}
+          onChange={(v) => {
+            setTempDir(v)
+            setErrors((e) => ({ ...e, tempDir: undefined }))
+          }}
+          server={runsOn ? { id: runsOn.id, name: runsOn.name } : undefined}
+          container={direct ? undefined : d.container || undefined}
+          place={
+            direct && !runner && b.plan_id ? "where the plan runs" : undefined
+          }
+          restore
+          placeholder={b.plan_id ? "Empty = the plan's, else /tmp" : undefined}
+          error={errors.tempDir}
         />
       )}
 

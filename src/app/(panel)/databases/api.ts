@@ -29,6 +29,14 @@ import type {
   DatabaseSyncBody,
   DatabaseTestBody,
   EditRequest,
+  Job,
+  PitrBackupBody,
+  PitrChangeOutputBody,
+  PitrRemoveBody,
+  PitrRestartBody,
+  PitrRestoreBody,
+  PitrSettingsBody,
+  PitrStatus,
   RestoreBody,
   RestoreFileBody,
   RestoreFileSource,
@@ -879,3 +887,133 @@ export function useDeleteView(id: string) {
     },
   })
 }
+
+// ---- Continuous backup (point-in-time recovery, pgBackRest) ----
+
+// Everything under one root: a finished database-pitr job refreshes it all
+// (`refreshAfterJob`).
+export const pitrKeys = {
+  all: ["database-pitr"] as const,
+  one: (id: string) => ["database-pitr", id] as const,
+  runs: (id: string) => ["database-pitr", id, "runs"] as const,
+  detect: (id: string) => ["database-pitr", id, "detect"] as const,
+}
+
+const pitrBusy = (s?: PitrStatus) => !!s?.active || s?.state === "setting_up"
+
+export function usePitr(id: string) {
+  return useQuery({
+    queryKey: pitrKeys.one(id),
+    queryFn: () => api.pointInTimeRecovery.getDatabasePitr(id),
+    refetchInterval: (q) => (pitrBusy(q.state.data) ? 3_000 : 30_000),
+  })
+}
+
+export function usePitrRuns(id: string, enabled = true) {
+  return useQuery({
+    queryKey: pitrKeys.runs(id),
+    queryFn: () =>
+      api.pointInTimeRecovery.listDatabasePitrRuns(id, { limit: 50 }),
+    enabled,
+    refetchInterval: (q) =>
+      q.state.data?.items.some(
+        (r) => r.state === "running" || r.state === "queued",
+      )
+        ? 3_000
+        : 30_000,
+  })
+}
+
+// What setting it up would change on the server. Owner + Engineer on it.
+export function usePitrDetect(id: string, enabled = true) {
+  return useQuery({
+    queryKey: pitrKeys.detect(id),
+    queryFn: () => api.pointInTimeRecovery.detectDatabasePitr(id),
+    enabled,
+    staleTime: 60_000,
+    retry: false,
+    refetchOnWindowFocus: false,
+  })
+}
+
+// Writes the answered status straight into the cache.
+function usePitrChange<T, R extends PitrStatus | PitrChangeOutputBody>(
+  id: string,
+  fn: (v: T) => Promise<R>,
+) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (out) => {
+      qc.setQueryData(pitrKeys.one(id), "status" in out ? out.status : out)
+      qc.invalidateQueries({ queryKey: pitrKeys.runs(id) })
+    },
+  })
+}
+
+export const useSavePitr = (id: string) =>
+  usePitrChange(id, (body: PitrSettingsBody) =>
+    api.pointInTimeRecovery.saveDatabasePitr(id, body),
+  )
+
+export const useResetupPitr = (id: string) =>
+  usePitrChange(id, (replace: boolean) =>
+    api.pointInTimeRecovery.resetupDatabasePitr(id, {
+      replace_archive_command: replace,
+    }),
+  )
+
+export const useRestartPitr = (id: string) =>
+  usePitrChange(id, (body: PitrRestartBody) =>
+    api.pointInTimeRecovery.restartDatabasePitr(id, body),
+  )
+
+export const useRefreshPitr = (id: string) =>
+  usePitrChange(id, () => api.pointInTimeRecovery.refreshDatabasePitr(id))
+
+export function useCancelPitrRestart(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.pointInTimeRecovery.cancelDatabasePitrRestart(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: pitrKeys.all }),
+  })
+}
+
+// The ones that answer a job: hand it to `useJobActions().track`.
+function usePitrJob<T>(fn: (v: T) => Promise<Job>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () => qc.invalidateQueries({ queryKey: pitrKeys.all }),
+  })
+}
+
+export const usePitrBackup = (id: string) =>
+  usePitrJob((type: PitrBackupBody["type"]) =>
+    api.pointInTimeRecovery.backupDatabasePitr(id, { type }),
+  )
+
+export const usePitrCheck = (id: string) =>
+  usePitrJob(() => api.pointInTimeRecovery.checkDatabasePitr(id))
+
+export const usePitrRestore = (id: string) =>
+  usePitrJob((body: PitrRestoreBody) =>
+    api.pointInTimeRecovery.restoreDatabasePitr(id, body),
+  )
+
+export const usePitrTeardown = (id: string) =>
+  usePitrJob((run: string) =>
+    api.pointInTimeRecovery.teardownDatabasePitrCopy(id, run),
+  )
+
+export const usePitrRemove = (id: string) =>
+  usePitrJob((body: PitrRemoveBody) =>
+    api.pointInTimeRecovery.removeDatabasePitr(id, body),
+  )
+
+// A mutation, never cached: the passphrase lives only where it's shown.
+export const useRevealPitrPassphrase = (id: string) =>
+  useMutation({
+    mutationFn: () => api.pointInTimeRecovery.revealDatabasePitrPassphrase(id),
+    gcTime: 0,
+  })

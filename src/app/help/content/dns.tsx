@@ -289,6 +289,130 @@ export const dns: GuideSection[] = [
     ),
   },
   {
+    id: "arvancloud",
+    title: "ArvanCloud domains and CDN",
+    body: (
+      <>
+        <P>
+          Besides Technitium servers, a DNS connection can be an{" "}
+          <UI>ArvanCloud</UI> account. Its domains show up as zones next to the
+          others, and each domain's page has its DNS records plus the CDN:
+          traffic, HTTPS, caching, the www redirect and file optimisation.
+        </P>
+        <Steps>
+          <P>
+            In the ArvanCloud panel make an API key (Profile › Machine users or
+            API keys) with access to CDN. A key that can only read is enough to
+            look around.
+          </P>
+          <P>
+            In Morche open <UI>DNS</UI> › <UI>Add DNS server</UI>, pick{" "}
+            <UI>ArvanCloud</UI>, paste the key (with or without <C>Apikey</C>)
+            and press <UI>Test connection</UI>.
+          </P>
+          <P>
+            Leave <UI>Allow changes from Morche</UI> off to start read only.
+            Turn it on (Owner) when you want to edit records and settings here.
+          </P>
+        </Steps>
+        <Warn>
+          Changes go straight to the live domains. A wrong record, or HTTPS
+          turned off, takes a site down for everyone.
+        </Warn>
+        <Table
+          head={["On a domain's page", "What it does"]}
+          rows={[
+            [
+              "DNS records",
+              "Add, edit and delete records. The CDN switch on A, AAAA, CNAME and ANAME records sends visitors through ArvanCloud (hides and protects the origin) or straight to the address. Several addresses on one name can be answered by weight, round robin or the visitor's country.",
+            ],
+            [
+              "DNSSEC",
+              "Turn it on, then give the DS record shown to your registrar.",
+            ],
+            [
+              "Zone file",
+              "Download the records as a BIND file, or add records from one.",
+            ],
+            [
+              "Traffic",
+              "Requests and data over 1 hour to 30 days, the share the cache answered, and the status codes.",
+            ],
+            [
+              "HTTPS",
+              "The certificate (a free one renews by itself), https redirect, HTTP/3, lowest TLS version, HSTS.",
+            ],
+            [
+              "Caching",
+              "Cache by path or path and query, how long to keep answers, development mode, Always online, cookies and query arguments that make separate copies.",
+            ],
+            [
+              "Clear cache",
+              "Empties the CDN cache: everything, or up to 50 addresses.",
+            ],
+            [
+              "Firewall",
+              "What happens when no rule matches (let in, challenge, block), and rules checked from the top: a name, a condition in ArvanCloud's filter language (the Add a condition helper writes it for country, address, path, host, user agent and method), and Let in / Challenge / Block / Skip protections.",
+            ],
+            [
+              "WAF",
+              "Off, Log only (records attacks, blocks nothing: start here) or Block; rule packages to add or turn off (the general set plus one for your app); path rules that let some paths through unchecked, like webhooks.",
+            ],
+            [
+              "Rate limit",
+              "Rules per path (/login, /api/*): so many requests a minute per visitor, then blocked for a while or challenged; methods counted, burst, addresses never limited; plus ArvanCloud's own flood detection.",
+            ],
+          ]}
+        />
+        <Tip>
+          Rules are checked in order and the first match decides: move them with
+          the arrows (or the ⋯ menu on a phone). Before setting the firewall's
+          default to Block, add the Let in rules for your own addresses and
+          tools.
+        </Tip>
+        <P>
+          A new domain added from Morche (<UI>Add domain</UI>) stays{" "}
+          <UI>Not active yet</UI> until its nameservers at the registrar are
+          ArvanCloud's two (shown on the page, click to copy) or, for a CNAME
+          setup, until the names point at ArvanCloud. <UI>Check now</UI> asks
+          ArvanCloud to look again.
+        </P>
+        <Tip>
+          Keep one connection per ArvanCloud account. Plans, billing, DDoS
+          rules, page rules and load balancers stay in ArvanCloud's own panel (⋯
+          › <UI>Open in ArvanCloud</UI>).
+        </Tip>
+      </>
+    ),
+  },
+  {
+    id: "proxy-sites",
+    title: "DNS for reverse proxy sites",
+    body: (
+      <>
+        <P>
+          In a reverse proxy site's <UI>General</UI> tab, each domain shows what
+          its DNS says when a zone Morche manages (Technitium or ArvanCloud)
+          covers it: <UI>Points here</UI>, the address it points at instead, or
+          that there's no record yet.
+        </P>
+        <P>
+          <UI>Point it here</UI> changes the name's A (or AAAA) record to the
+          proxy's server, or adds one. It needs Engineer access and a connection
+          that allows changes; a name with a CNAME, or several addresses, is
+          left for you to change in the zone.
+        </P>
+        <Tip>
+          A name <UI>Through ArvanCloud CDN</UI> reaches the proxy from
+          ArvanCloud's addresses. In the site's <UI>Advanced</UI> tab, under{" "}
+          <UI>Behind a CDN or load balancer</UI>, press{" "}
+          <UI>Use ArvanCloud's</UI>: logs, allow lists, countries and rate
+          limits then see the real visitor (from the <C>AR-Real-IP</C> header).
+        </Tip>
+      </>
+    ),
+  },
+  {
     id: "access",
     title: "Who can do what",
     body: (
@@ -303,8 +427,18 @@ export const dns: GuideSection[] = [
           rows={[
             ["Viewer", "See servers, zones, records and settings"],
             ["Operator", "Check servers, favorites, copy a Secondary again"],
-            ["Engineer", "Add, change and delete zones and records"],
-            ["Owner", "Edit a server's connection, remove it"],
+            [
+              "Operator",
+              "ArvanCloud: check a domain's nameservers again, clear the CDN cache",
+            ],
+            [
+              "Engineer",
+              "Add, change and delete zones and records; ArvanCloud CDN settings",
+            ],
+            [
+              "Owner",
+              "Edit a server's connection (and Allow changes), remove it; remove a domain from ArvanCloud",
+            ],
           ]}
         />
       </>

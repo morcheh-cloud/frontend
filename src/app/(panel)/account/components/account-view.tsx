@@ -23,6 +23,7 @@ import {
 import { SessionList } from "@/components/sessions/session-list"
 import { SignInRows, SignInTable } from "@/components/sessions/sign-in-list"
 import { ThemePicker } from "@/components/theme-picker"
+import { MyApiTokens } from "@/components/tokens/api-tokens"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -61,6 +62,13 @@ export function AccountView() {
           <RecentSignIns />
         </Section>
         <Section
+          id="api-tokens"
+          title="API tokens"
+          note="For scripts, the morche CLI and other tools. Each token acts as you, with your access; read-only ones can only look."
+        >
+          <MyApiTokens />
+        </Section>
+        <Section
           id="password"
           title="Password"
           note="Changing it signs out your other browsers and closes your open terminals."
@@ -93,7 +101,7 @@ function DemoAccount() {
       <div className="flex w-full flex-col gap-4 py-5 md:px-6">
         <Section
           title="Demo account"
-          note="Everyone trying the demo shares this account, so its profile, password, devices and sign-in history are closed here. On your own Morche, this page is where you change them."
+          note="Everyone trying the demo shares this account, so its profile, password, devices, API tokens and sign-in history are closed here. On your own Morche, this page is where you change them."
         >
           <p className="text-body-sm text-muted-foreground">
             Read more in{" "}

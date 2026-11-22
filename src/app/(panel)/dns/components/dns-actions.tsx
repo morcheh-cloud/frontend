@@ -23,6 +23,7 @@ import { toast } from "sonner"
 
 import type { Item } from "@/app/(panel)/servers/[id]/components/parts"
 import { ConfirmDialog } from "@/components/responsive-dialog"
+import { Input } from "@/components/ui/input"
 import { useIntent } from "@/hooks/useIntent"
 import { useOpen } from "@/hooks/useOpen"
 import type { DNSRecord, DNSServer } from "@/lib/services"
@@ -38,6 +39,7 @@ import {
   useSetZoneEnabled,
 } from "../api"
 import {
+  arvanPanelHref,
   consoleHref,
   copiedZone,
   dnsStatusMeta,
@@ -46,7 +48,7 @@ import {
   zoneDisplayName,
   zoneHref,
 } from "./meta"
-import { useDnsCan } from "./permissions"
+import { useDnsCan, useDnsWrite } from "./permissions"
 import { RecordEditorLayer } from "./record-editor"
 import { DnsServerFormLayer } from "./server-form"
 import { NewZoneDialog, ZoneSettingsLayer } from "./zone-dialogs"
@@ -55,7 +57,7 @@ import { NewZoneDialog, ZoneSettingsLayer } from "./zone-dialogs"
 export type ZoneInfo = { name: string; type: string; disabled: boolean }
 
 type Actions = {
-  addServer: () => void
+  addServer: (kind?: DNSServer["kind"]) => void
   editServer: (server: DNSServer) => void
   check: (server: DNSServer) => void
   toggleFavorite: (server: DNSServer) => void
@@ -101,12 +103,13 @@ function whenClosed(close: (open: boolean) => void, fn?: () => void) {
 // and a zone's page start the same flows.
 export function DnsActionsProvider({ children }: { children: ReactNode }) {
   const router = useRouter()
-  const can = useDnsCan()
+  const write = useDnsWrite()
   const servers = useDnsServers()
 
   const [formOpen, setFormOpen] = useOpen("dns-server-form")
   const [formServer, setFormServer] = useState<DNSServer>()
   const [formKey, setFormKey] = useState(0)
+  const [formKind, setFormKind] = useState<DNSServer["kind"]>("technitium")
 
   const [deleteOpen, setDeleteOpen] = useOpen("dns-server-delete")
   const [toDelete, setToDelete] = useState<{
@@ -131,6 +134,7 @@ export function DnsActionsProvider({ children }: { children: ReactNode }) {
     done?: () => void
   }>()
 
+  const [typedZone, setTypedZone] = useState("")
   const [recordOpen, setRecordOpen] = useOpen("dns-record")
   const [recordFor, setRecordFor] = useState<{
     server: DNSServer
@@ -156,8 +160,9 @@ export function DnsActionsProvider({ children }: { children: ReactNode }) {
   const recordChange = useRecordChange()
 
   const actions: Actions = {
-    addServer: () => {
+    addServer: (kind = "technitium") => {
       setFormServer(undefined)
+      setFormKind(kind)
       setFormKey((k) => k + 1)
       setFormOpen(true)
     },
@@ -172,8 +177,11 @@ export function DnsActionsProvider({ children }: { children: ReactNode }) {
           if (s.status === "online") {
             toast.success(`${s.name} is online`, {
               description: [
-                s.version && `Technitium ${s.version}`,
-                `${s.zone_count} zone${s.zone_count === 1 ? "" : "s"}`,
+                s.version &&
+                  (s.kind === "arvan"
+                    ? `ArvanCloud ${s.version}`
+                    : `Technitium ${s.version}`),
+                `${s.zone_count} ${s.kind === "arvan" ? "domain" : "zone"}${s.zone_count === 1 ? "" : "s"}`,
                 s.latency_ms != null && `${s.latency_ms} ms`,
               ]
                 .filter(Boolean)
@@ -201,7 +209,7 @@ export function DnsActionsProvider({ children }: { children: ReactNode }) {
       const list = server
         ? [server]
         : (servers.data?.items ?? []).filter(
-            (s) => s.status === "online" && can(s, "engineer"),
+            (s) => s.status === "online" && write(s, "engineer"),
           )
       if (list.length === 0) {
         toast.error("No connected DNS server you can add zones to")
@@ -243,6 +251,7 @@ export function DnsActionsProvider({ children }: { children: ReactNode }) {
         },
       ),
     deleteZone: (server, zone, done) => {
+      setTypedZone("")
       setZoneToDelete({ server, zone, done })
       setZoneDeleteOpen(true)
     },
@@ -297,6 +306,7 @@ export function DnsActionsProvider({ children }: { children: ReactNode }) {
         open={formOpen}
         onOpenChange={setFormOpen}
         server={formServer}
+        kind={formKind}
         onSaved={(saved) =>
           whenClosed(
             setFormOpen,
@@ -342,27 +352,65 @@ export function DnsActionsProvider({ children }: { children: ReactNode }) {
           server={settingsFor.server}
           zone={settingsFor.zone.name}
           type={settingsFor.zone.type}
-          canEdit={can(settingsFor.server, "engineer")}
+          canEdit={write(settingsFor.server, "engineer")}
         />
       )}
 
       <ConfirmDialog
         open={zoneDeleteOpen}
         onOpenChange={setZoneDeleteOpen}
-        title={`Delete ${zoneDisplayName(zoneToDelete?.zone ?? "")}?`}
-        description={
-          <>
-            <p>
-              {zoneToDelete?.server.name} stops answering for this domain and
-              all its records are deleted. This can't be undone.
-            </p>
-            <p className="mt-2">
-              Copies on other servers (Secondary) stay, but stop updating.
-            </p>
-          </>
+        title={
+          zoneToDelete?.server.kind === "arvan"
+            ? `Remove ${zoneToDelete.zone} from ArvanCloud?`
+            : `Delete ${zoneDisplayName(zoneToDelete?.zone ?? "")}?`
         }
-        confirmLabel="Delete zone"
-        pending={removeZone.isPending}
+        description={
+          zoneToDelete?.server.kind === "arvan" ? (
+            <>
+              <p>
+                ArvanCloud stops answering for this domain and forgets its
+                records, certificates and CDN settings. Visitors can't reach the
+                site until its nameservers point somewhere else.
+              </p>
+              <p className="mt-2">
+                This can't be undone. Type{" "}
+                <span className="font-mono text-foreground">
+                  {zoneToDelete.zone}
+                </span>{" "}
+                to confirm.
+              </p>
+              <Input
+                aria-label="Domain name, to confirm"
+                value={typedZone}
+                onChange={(e) => setTypedZone(e.target.value)}
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                className="mt-3 font-mono"
+              />
+            </>
+          ) : (
+            <>
+              <p>
+                {zoneToDelete?.server.name} stops answering for this domain and
+                all its records are deleted. This can't be undone.
+              </p>
+              <p className="mt-2">
+                Copies on other servers (Secondary) stay, but stop updating.
+              </p>
+            </>
+          )
+        }
+        confirmLabel={
+          zoneToDelete?.server.kind === "arvan"
+            ? "Remove domain"
+            : "Delete zone"
+        }
+        pending={
+          removeZone.isPending ||
+          (zoneToDelete?.server.kind === "arvan" &&
+            typedZone.trim().toLowerCase() !== zoneToDelete.zone.toLowerCase())
+        }
         onConfirm={() =>
           zoneToDelete &&
           removeZone.mutate(
@@ -444,6 +492,7 @@ export function DnsActionsProvider({ children }: { children: ReactNode }) {
 export function useServerMenu() {
   const a = useDnsActions()
   const can = useDnsCan()
+  const write = useDnsWrite()
   const router = useRouter()
   return (
     server: DNSServer,
@@ -465,11 +514,11 @@ export function useServerMenu() {
           ]
         : [],
       [
-        ...(can(server, "engineer") && online
+        ...(write(server, "engineer") && online
           ? [
               {
                 key: "new-zone",
-                label: "New zone",
+                label: server.kind === "arvan" ? "Add domain" : "New zone",
                 icon: <Plus />,
                 onSelect: () => a.newZone(server),
               },
@@ -495,23 +544,33 @@ export function useServerMenu() {
             ]
           : []),
       ],
-      [
-        {
-          key: "console",
-          label: "Open Technitium console",
-          icon: <ExternalLink />,
-          onSelect: () => {
-            const href = consoleHref(server.url)
-            if (href) window.open(href, "_blank", "noopener,noreferrer")
-          },
-        },
-        {
-          key: "copy",
-          label: "Copy address",
-          icon: <Copy />,
-          onSelect: () => copy(server.url, "Address"),
-        },
-      ],
+      server.kind === "arvan"
+        ? [
+            {
+              key: "console",
+              label: "Open ArvanCloud panel",
+              icon: <ExternalLink />,
+              onSelect: () =>
+                window.open(arvanPanelHref(), "_blank", "noopener,noreferrer"),
+            },
+          ]
+        : [
+            {
+              key: "console",
+              label: "Open Technitium console",
+              icon: <ExternalLink />,
+              onSelect: () => {
+                const href = consoleHref(server.url)
+                if (href) window.open(href, "_blank", "noopener,noreferrer")
+              },
+            },
+            {
+              key: "copy",
+              label: "Copy address",
+              icon: <Copy />,
+              onSelect: () => copy(server.url, "Address"),
+            },
+          ],
       can(server, "owner")
         ? [
             {
@@ -537,6 +596,7 @@ export function useServerMenu() {
 export function useZoneMenu() {
   const a = useDnsActions()
   const can = useDnsCan()
+  const write = useDnsWrite()
   const router = useRouter()
   return (
     server: DNSServer,
@@ -546,7 +606,51 @@ export function useZoneMenu() {
       onDeleted,
     }: { open?: boolean; onDeleted?: () => void } = {},
   ): Item[][] => {
-    const engineer = can(server, "engineer")
+    const engineer = write(server, "engineer")
+    if (server.kind === "arvan") {
+      return [
+        open
+          ? [
+              {
+                key: "open",
+                label: "Open",
+                icon: <ListTree />,
+                onSelect: () => router.push(zoneHref(server.id, zone.name)),
+              },
+            ]
+          : [],
+        [
+          {
+            key: "copy",
+            label: "Copy name",
+            icon: <Copy />,
+            onSelect: () => copy(zone.name, "Domain"),
+          },
+          {
+            key: "panel",
+            label: "Open in ArvanCloud",
+            icon: <ExternalLink />,
+            onSelect: () =>
+              window.open(
+                arvanPanelHref(zone.name),
+                "_blank",
+                "noopener,noreferrer",
+              ),
+          },
+        ],
+        write(server, "owner")
+          ? [
+              {
+                key: "delete",
+                label: "Remove from ArvanCloud",
+                icon: <Trash2 />,
+                destructive: true,
+                onSelect: () => a.deleteZone(server, zone.name, onDeleted),
+              },
+            ]
+          : [],
+      ]
+    }
     return [
       open
         ? [
@@ -611,8 +715,8 @@ export function useRecordMenu(
   readOnly: boolean,
 ) {
   const a = useDnsActions()
-  const can = useDnsCan()
-  const engineer = can(server, "engineer") && !readOnly
+  const write = useDnsWrite()
+  const engineer = write(server, "engineer") && !readOnly
   return (record: DNSRecord): Item[][] => {
     const edit = engineer && record.editable
     return [

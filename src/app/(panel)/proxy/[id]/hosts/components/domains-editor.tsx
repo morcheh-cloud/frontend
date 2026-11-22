@@ -13,11 +13,13 @@ import {
 import { type ClipboardEvent, type KeyboardEvent, useState } from "react"
 
 import { FieldError } from "@/app/(panel)/cronjobs/components/editor-parts"
+import { useDnsNames } from "@/app/(panel)/dns/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import type { Certificate } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { copyText } from "../../../components/proxy-actions"
+import { DnsStatus } from "./dns-status"
 import { covers, domainList } from "./draft"
 
 // The same rule the backend checks: a name (a leading *. allowed) or an
@@ -79,6 +81,12 @@ export function DomainsEditor({
   phone: boolean
 }) {
   const domains = domainList(value)
+  const names = useDnsNames(domains.filter((d) => !d.startsWith("*.")))
+  const matchOf = (d: string) =>
+    names.data?.items.find((m) => m.name === d.toLowerCase())
+  const behindCdn = names.data?.items.some((m) =>
+    m.records.some((r) => r.cloud),
+  )
   const [text, setText] = useState("")
   const [problem, setProblem] = useState("")
   const write = (list: string[]) => onChange(list.join("\n"))
@@ -193,6 +201,13 @@ export function DomainsEditor({
                         </span>
                       </span>
                     </p>
+                  )}
+                  {!wildcard && (
+                    <DnsStatus
+                      match={matchOf(d)}
+                      serverHost={serverHost}
+                      readOnly={readOnly}
+                    />
                   )}
                 </div>
                 <div className="flex shrink-0 items-center">
@@ -320,6 +335,8 @@ export function DomainsEditor({
             {serverHost}
           </button>
           , the proxy's server.
+          {behindCdn &&
+            " Names through ArvanCloud's CDN reach the proxy from ArvanCloud's addresses: in Advanced › Behind a CDN, use ArvanCloud's list so logs and limits see the real visitor."}
         </p>
       )}
     </div>

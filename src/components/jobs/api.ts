@@ -142,6 +142,14 @@ export function refreshAfterJob(qc: QueryClient, job: Job) {
   if (job.kind === "schedule-sync") {
     qc.invalidateQueries({ queryKey: ["cronjobs"] })
   }
+  // An automation's run: its steps may have run scripts or cron jobs and
+  // checked servers.
+  if (job.kind === "automation-run") {
+    for (const root of ["automations", "cronjobs", "scripts", "servers"]) {
+      qc.invalidateQueries({ queryKey: [root] })
+    }
+    return
+  }
   // Any other cron job: it may have started a script or Ansible run, checked
   // backups or rebooted servers.
   if (job.kind === "schedule-run") {
@@ -162,6 +170,11 @@ export function refreshAfterJob(qc: QueryClient, job: Job) {
   }
   if (job.kind === "database-sync") {
     qc.invalidateQueries({ queryKey: ["database-syncs"] })
+  }
+  // Continuous backup: its state, and a restored copy is a new database.
+  if (job.kind === "database-pitr") {
+    qc.invalidateQueries({ queryKey: ["database-pitr"] })
+    qc.invalidateQueries({ queryKey: ["databases"] })
   }
   // A measurement: Insights shows it, nothing in the files changed.
   if (job.kind === "storage-scan") {

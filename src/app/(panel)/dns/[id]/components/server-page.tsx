@@ -38,15 +38,17 @@ import {
   useZoneMenu,
 } from "../../components/dns-actions"
 import {
+  arvanPanelHref,
+  cdnPending,
+  connectionLabel,
   consoleHref,
   copiedZone,
   DnsStatusDot,
   dnsStatusMeta,
-  hostOf,
   zoneDisplayName,
   zoneHref,
+  zoneKind,
   zoneProblem,
-  zoneTypeLabel,
 } from "../../components/meta"
 import {
   ActionSheet,
@@ -59,7 +61,7 @@ import {
   Tag,
   Th,
 } from "../../components/parts"
-import { useDnsCan } from "../../components/permissions"
+import { useDnsCan, useDnsWrite } from "../../components/permissions"
 
 // Zones are only asked for while the server may answer.
 const reachable = (s: DNSServer) =>
@@ -123,12 +125,13 @@ function useRemoved() {
 function DesktopPage({ server: s }: { server: DNSServer }) {
   const actions = useDnsActions()
   const can = useDnsCan()
+  const write = useDnsWrite()
   const menu = useServerMenu()
   const checking = useCheckingDnsServers().has(s.id)
   const onRemoved = useRemoved()
   const z = useZones(s)
   const operator = can(s, "operator")
-  const canNewZone = can(s, "engineer") && s.status === "online"
+  const canNewZone = write(s, "engineer") && s.status === "online"
 
   return (
     <div className="flex flex-col pb-24">
@@ -156,14 +159,19 @@ function DesktopPage({ server: s }: { server: DNSServer }) {
             <span className="text-foreground">
               <ServerStatus server={s} checking={checking} />
             </span>
-            {s.version && <span>Technitium {s.version}</span>}
+            {s.version && (
+              <span>
+                {s.kind === "arvan" ? "ArvanCloud" : "Technitium"} {s.version}
+              </span>
+            )}
+            {!s.allow_changes && <Tag>Read only</Tag>}
             <a
-              href={consoleHref(s.url)}
+              href={s.kind === "arvan" ? arvanPanelHref() : consoleHref(s.url)}
               target="_blank"
               rel="noopener noreferrer"
               className="font-mono text-caption hover:text-brand hover:underline"
             >
-              {hostOf(s.url)}
+              {connectionLabel(s)}
             </a>
             {s.server_domain && <span>{s.server_domain}</span>}
             {s.description && <span className="truncate">{s.description}</span>}
@@ -183,7 +191,7 @@ function DesktopPage({ server: s }: { server: DNSServer }) {
           {canNewZone && (
             <Button onClick={() => actions.newZone(s)}>
               <Plus />
-              New zone
+              {s.kind === "arvan" ? "Add domain" : "New zone"}
             </Button>
           )}
           <ItemMenu
@@ -272,11 +280,19 @@ function ZonesBody({
     return (
       <Empty
         icon={Globe}
-        title={z.q ? "No zone matches" : "No zones on this server"}
+        title={
+          z.q
+            ? "No zone matches"
+            : s.kind === "arvan"
+              ? "No domains on this account"
+              : "No zones on this server"
+        }
         body={
           z.q
             ? "Try another name."
-            : "Create a Primary zone to hold a domain's records, or a Secondary one to copy it from another server."
+            : s.kind === "arvan"
+              ? "Add a domain to serve its DNS and site through ArvanCloud's CDN."
+              : "Create a Primary zone to hold a domain's records, or a Secondary one to copy it from another server."
         }
         action={
           !z.q &&
@@ -301,6 +317,8 @@ function ZoneState({ zone }: { zone: DNSZone }) {
   const problem = zoneProblem(zone)
   if (problem) return <Tag tone="destructive">{problem}</Tag>
   if (zone.disabled) return <Tag>Disabled</Tag>
+  const pending = cdnPending(zone)
+  if (pending) return <Tag tone="warning">{pending}</Tag>
   return null
 }
 
@@ -343,14 +361,14 @@ function ZonesTable({
                 </Link>
               </td>
               <td className="px-3 whitespace-nowrap">
-                {zoneTypeLabel(z.type)}
+                {zoneKind(z)}
                 {copiedZone(z.type) && (
                   <span className="text-ash"> · read-only</span>
                 )}
               </td>
               <td className="px-3">
                 <ZoneState zone={z} />
-                {!zoneProblem(z) && !z.disabled && (
+                {!zoneProblem(z) && !z.disabled && !cdnPending(z) && (
                   <span className="text-muted-foreground">OK</span>
                 )}
               </td>
@@ -408,7 +426,7 @@ function ZoneList({
               <ZoneState zone={z} />
             </span>
             <span className="truncate text-body-sm text-muted-foreground">
-              {zoneTypeLabel(z.type)}
+              {zoneKind(z)}
               {z.last_modified &&
                 ` · changed ${timeAgo(z.last_modified).toLowerCase()}`}
             </span>
@@ -453,14 +471,14 @@ function ZonesSkeleton({ phone }: { phone: boolean }) {
 
 function PhonePage({ server: s }: { server: DNSServer }) {
   const actions = useDnsActions()
-  const can = useDnsCan()
+  const write = useDnsWrite()
   const serverMenu = useServerMenu()
   const zoneMenu = useZoneMenu()
   const checking = useCheckingDnsServers().has(s.id)
   const back = useBack("/dns/servers")
   const onRemoved = useRemoved()
   const z = useZones(s)
-  const canNewZone = can(s, "engineer") && s.status === "online"
+  const canNewZone = write(s, "engineer") && s.status === "online"
   const [menuOpen, setMenuOpen] = useOpen("dns-server-sheet")
   const [zoneOpen, setZoneOpen] = useOpen("dns-zone-sheet")
   const [zoneName, setZoneName] = useState<string | null>(null)
@@ -528,7 +546,7 @@ function PhonePage({ server: s }: { server: DNSServer }) {
         title={s.name}
         head={
           <p className="px-4 pb-3 text-center font-mono text-caption text-muted-foreground">
-            {hostOf(s.url)}
+            {connectionLabel(s)}
             {s.version && ` · Technitium ${s.version}`}
           </p>
         }

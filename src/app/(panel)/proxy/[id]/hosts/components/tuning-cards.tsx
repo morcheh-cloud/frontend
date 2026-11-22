@@ -1,11 +1,13 @@
 "use client"
 
 import { Cloud, Copy, Gauge, Info, ShieldAlert } from "lucide-react"
+import { toast } from "sonner"
 
 import {
   Callout,
   ToggleRow,
 } from "@/app/(panel)/cronjobs/components/editor-parts"
+import { useArvanRanges } from "@/app/(panel)/dns/api"
 import { ListInput } from "@/app/(panel)/dns/components/fields"
 import { Field } from "@/components/field"
 import { Button } from "@/components/ui/button"
@@ -24,6 +26,7 @@ const headerItems: { value: RealIpHeader; label: string }[] = [
   { value: "X-Real-IP", label: "X-Real-IP" },
   { value: "CF-Connecting-IP", label: "CF-Connecting-IP (Cloudflare)" },
   { value: "True-Client-IP", label: "True-Client-IP (Akamai, Cloudflare)" },
+  { value: "AR-Real-IP", label: "AR-Real-IP (ArvanCloud)" },
 ]
 
 // Cloudflare's published ranges (cloudflare.com/ips).
@@ -128,6 +131,7 @@ export function PerformanceCard({
 }
 
 export function RealIpCard({ proxy: p, draft, set, errors, phone }: Props) {
+  const arvan = useArvanRanges()
   if (!typeUses(draft.type).realIp) return null
   const from = draft.realIpFrom.trim()
   return (
@@ -136,21 +140,49 @@ export function RealIpCard({ proxy: p, draft, set, errors, phone }: Props) {
       hint={`When visitors come through Cloudflare or a load balancer, ${p.kind_label} only sees its address. List those addresses so logs, allow/deny lists, countries and rate limits use the visitor's real one.`}
       phone={phone}
       action={
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-9 shrink-0 md:h-8"
-          onClick={() =>
-            set({
-              realIpFrom: cloudflare.join("\n"),
-              realIpHeader: "CF-Connecting-IP",
-            })
-          }
-        >
-          <Cloud />
-          Use Cloudflare's
-        </Button>
+        <div className="flex shrink-0 flex-wrap justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9 shrink-0 md:h-8"
+            disabled={arvan.isPending}
+            onClick={() =>
+              arvan.mutate(undefined, {
+                onSuccess: (r) => {
+                  set({
+                    realIpFrom: r.ranges.join("\n"),
+                    realIpHeader: "AR-Real-IP",
+                  })
+                  if (!r.live)
+                    toast.warning("ArvanCloud's list couldn't be read", {
+                      description:
+                        "Morche's built-in copy was used; press again later to refresh it.",
+                    })
+                },
+                onError: (e) => toast.error(e.message),
+              })
+            }
+          >
+            <Cloud />
+            Use ArvanCloud's
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9 shrink-0 md:h-8"
+            onClick={() =>
+              set({
+                realIpFrom: cloudflare.join("\n"),
+                realIpHeader: "CF-Connecting-IP",
+              })
+            }
+          >
+            <Cloud />
+            Use Cloudflare's
+          </Button>
+        </div>
       }
     >
       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:items-start">
@@ -189,6 +221,8 @@ export function RealIpCard({ proxy: p, draft, set, errors, phone }: Props) {
           be any visitor.
           {draft.realIpHeader === "CF-Connecting-IP" &&
             " Cloudflare changes its list now and then; press the button again to refresh it."}
+          {draft.realIpHeader === "AR-Real-IP" &&
+            " ArvanCloud changes its list now and then; press the button again to refresh it."}
         </Callout>
       )}
     </Card>

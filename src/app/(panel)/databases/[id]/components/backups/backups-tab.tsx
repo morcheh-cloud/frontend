@@ -38,6 +38,7 @@ import {
   useRestores,
 } from "../../../api"
 import { Blank, type Col, Rows, useDashboard } from "../parts"
+import { PitrTab } from "../pitr/pitr-tab"
 import { syncsHref } from "../syncs/meta"
 import {
   BackupActionsProvider,
@@ -66,7 +67,11 @@ const listLabels: Record<BackupList, string> = {
   plans: "Plans",
   backups: "Backups",
   restores: "Restores",
+  pitr: "Point in time",
 }
+
+// Phones: four segments share the width.
+const shortLabels: Record<BackupList, string> = { ...listLabels, pitr: "PITR" }
 
 export function BackupsTab() {
   return (
@@ -112,9 +117,9 @@ function Backups() {
     backups: backups.data?.total ?? 0,
     restores: restores.data?.total ?? 0,
   }
-  const pages = pagesOf(total[list])
+  const pages = list === "pitr" ? 1 : pagesOf(total[list])
   const settled =
-    list === "plans"
+    list === "pitr" || list === "plans"
       ? plans.isSuccess
       : list === "backups"
         ? backups.isSuccess && !backups.isPlaceholderData
@@ -155,9 +160,25 @@ function Backups() {
       <Blank
         title="No backups yet"
         body={
-          owner
-            ? "A plan says which databases to copy, to which storages, when, and how long to keep them. A database can have several plans."
-            : "No plan has been set up for this database. An Owner can add one."
+          <>
+            {owner
+              ? "A plan says which databases to copy, to which storages, when, and how long to keep them. A database can have several plans."
+              : "No plan has been set up for this database. An Owner can add one."}
+            {d.engine === "postgres" && (
+              <>
+                {" "}
+                For a big or busy PostgreSQL, see{" "}
+                <button
+                  type="button"
+                  className="text-brand hover:underline"
+                  onClick={() => void setView({ list: "pitr", page: 1 })}
+                >
+                  Point in time
+                </button>
+                : every change kept, restore to any second.
+              </>
+            )}
+          </>
         }
         action={
           owner ? (
@@ -188,8 +209,14 @@ function Backups() {
   }
   const planRows = plans.data ?? []
   const broken = planRows.filter((p) => p.problem)
+  const pitr = d.engine === "postgres"
   const pager = (
-    <Pager page={page} pages={pages} total={total[list]} onPage={onPage} />
+    <Pager
+      page={page}
+      pages={pages}
+      total={list === "pitr" ? 0 : total[list]}
+      onPage={onPage}
+    />
   )
 
   return (
@@ -204,13 +231,14 @@ function Backups() {
         <ListTabs
           value={list}
           counts={total}
+          lists={pitr ? backupLists : backupLists.filter((l) => l !== "pitr")}
           warn={broken.length > 0}
           onChange={(next) => void setView({ list: next, page: 1 })}
         />
-        {fromFile && !phone && (
+        {list !== "pitr" && fromFile && !phone && (
           <RestoreFileButton size="sm" className="ms-auto" />
         )}
-        {owner && !phone && (
+        {list !== "pitr" && owner && !phone && (
           <Button
             size="sm"
             className={cn(!fromFile && "ms-auto")}
@@ -222,7 +250,8 @@ function Backups() {
           </Button>
         )}
       </div>
-      {empty && blank}
+      {list === "pitr" && pitr && <PitrTab />}
+      {empty && list !== "pitr" && blank}
       {!empty && list === "plans" && (
         <>
           <PlanProblems plans={broken} />
@@ -276,18 +305,21 @@ function PlanProblems({ plans }: { plans: BackupPlan[] }) {
 function ListTabs({
   value,
   counts,
+  lists,
   warn,
   onChange,
 }: {
   value: BackupList
-  counts: Record<BackupList, number>
+  counts: Record<Exclude<BackupList, "pitr">, number>
+  lists: readonly BackupList[]
   warn: boolean
   onChange: (list: BackupList) => void
 }) {
+  const phone = useDashboard().phone
   return (
     <fieldset className="flex shrink-0 rounded-lg bg-muted p-0.5">
       <legend className="sr-only">Show</legend>
-      {backupLists.map((l) => (
+      {lists.map((l) => (
         <button
           key={l}
           type="button"
@@ -295,10 +327,12 @@ function ListTabs({
           onClick={() => onChange(l)}
           className="flex h-11 items-center justify-center gap-1.5 rounded-md px-3 text-body-sm whitespace-nowrap text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 aria-pressed:bg-card aria-pressed:font-medium aria-pressed:text-foreground aria-pressed:shadow-sm max-md:flex-1 md:h-8"
         >
-          {listLabels[l]}
-          <span className="text-caption font-normal text-ash tabular-nums">
-            {counts[l]}
-          </span>
+          {phone ? shortLabels[l] : listLabels[l]}
+          {l !== "pitr" && (
+            <span className="text-caption font-normal text-ash tabular-nums">
+              {counts[l]}
+            </span>
+          )}
           {l === "plans" && warn && (
             <span
               role="img"

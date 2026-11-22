@@ -15,6 +15,7 @@ import {
   alertsItem,
   ansibleItem,
   applicationsItem,
+  automationsItem,
   cloudItem,
   containersItem,
   cronjobsItem,
@@ -55,6 +56,7 @@ const moreItems = [
   ansibleItem,
   scriptsItem,
   cronjobsItem,
+  automationsItem,
   alertsItem,
   recordingsItem,
 ]

@@ -9,7 +9,8 @@ import type { Backup, BackupPlan, Database } from "@/lib/services"
 
 // The Backups tab's own tabs and page, kept in the URL so links land on the
 // right list (`?tab=backups&list=restores&page=2`).
-export const backupLists = ["plans", "backups", "restores"] as const
+// "pitr" = continuous backup (point-in-time recovery), PostgreSQL only.
+export const backupLists = ["plans", "backups", "restores", "pitr"] as const
 export type BackupList = (typeof backupLists)[number]
 
 export const backupListParsers = {

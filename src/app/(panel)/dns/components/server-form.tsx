@@ -1,6 +1,6 @@
 "use client"
 
-import { Loader2, PlugZap, TriangleAlert } from "lucide-react"
+import { Cloud, Loader2, PlugZap, Server, TriangleAlert } from "lucide-react"
 import { type FormEvent, type ReactNode, useCallback, useState } from "react"
 import { toast } from "sonner"
 
@@ -37,7 +37,11 @@ const focusOnPointer = (el: HTMLInputElement | null) => {
   if (el && matchMedia("(pointer: fine)").matches) el.focus()
 }
 
+type Kind = DNSServer["kind"]
+
 type Values = {
+  kind: Kind
+  allow_changes: boolean
   name: string
   url: string
   token: string
@@ -50,11 +54,14 @@ export function DnsServerFormLayer({
   open,
   onOpenChange,
   server,
+  kind: startKind = "technitium",
   onSaved,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   server?: DNSServer
+  // What a new connection starts as.
+  kind?: Kind
   onSaved: (server: DNSServer) => void
 }) {
   const isMobile = useIsMobile()
@@ -63,8 +70,9 @@ export function DnsServerFormLayer({
   const update = useUpdateDnsServer()
   const test = useTestDns()
   const pending = create.isPending || update.isPending
-  const title = server ? `Edit ${server.name}` : "Add DNS server"
   const [values, setValues] = useState<Values>(() => ({
+    kind: server?.kind ?? startKind,
+    allow_changes: server?.allow_changes ?? startKind !== "arvan",
     name: server?.name ?? "",
     url: server?.url ?? "",
     token: "",
@@ -72,6 +80,12 @@ export function DnsServerFormLayer({
     tls_skip_verify: server?.tls_skip_verify ?? false,
     allow_internal: server?.allow_internal ?? false,
   }))
+  const arvan = values.kind === "arvan"
+  const title = server
+    ? `Edit ${server.name}`
+    : arvan
+      ? "Connect ArvanCloud"
+      : "Add DNS server"
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [tested, setTested] = useState<DNSTestOutputBody | null>(null)
   const focusName = useCallback(focusOnPointer, [])
@@ -79,16 +93,21 @@ export function DnsServerFormLayer({
   function set<K extends keyof Values>(key: K, value: Values[K]) {
     setValues((v) => ({ ...v, [key]: value }))
     setErrors(({ [key]: _, ...rest }) => rest)
-    if (key !== "name" && key !== "description") setTested(null)
+    if (key !== "name" && key !== "description" && key !== "allow_changes")
+      setTested(null)
   }
 
   function body(): DNSServerBody {
     const b: DNSServerBody = {
+      kind: values.kind,
       name: values.name.trim(),
-      url: values.url.trim(),
       description: values.description.trim(),
-      tls_skip_verify: values.tls_skip_verify,
-      allow_internal: values.allow_internal,
+      allow_changes: values.allow_changes,
+    }
+    if (!arvan) {
+      b.url = values.url.trim()
+      b.tls_skip_verify = values.tls_skip_verify
+      b.allow_internal = values.allow_internal
     }
     if (values.token.trim()) b.token = values.token.trim()
     return b
@@ -102,12 +121,14 @@ export function DnsServerFormLayer({
 
   function runTest() {
     const missing: Record<string, string> = {}
-    if (!values.url.trim()) missing.url = "Enter the server's address"
-    if (!server && !values.token.trim()) missing.token = "Paste an API token"
+    if (!arvan && !values.url.trim()) missing.url = "Enter the server's address"
+    if (!server && !values.token.trim())
+      missing.token = arvan ? "Paste the API key" : "Paste an API token"
     if (Object.keys(missing).length) return setErrors(missing)
-    const { url, token, tls_skip_verify, allow_internal } = body()
+    const { kind, url, token, tls_skip_verify, allow_internal } = body()
     test.mutate(
       {
+        kind,
         url,
         token,
         tls_skip_verify,
@@ -123,8 +144,9 @@ export function DnsServerFormLayer({
     e.preventDefault()
     const missing: Record<string, string> = {}
     if (!values.name.trim()) missing.name = "Give it a name"
-    if (!values.url.trim()) missing.url = "Enter the server's address"
-    if (!server && !values.token.trim()) missing.token = "Paste an API token"
+    if (!arvan && !values.url.trim()) missing.url = "Enter the server's address"
+    if (!server && !values.token.trim())
+      missing.token = arvan ? "Paste the API key" : "Paste an API token"
     if (Object.keys(missing).length) return setErrors(missing)
     if (server) {
       update.mutate(
@@ -142,7 +164,7 @@ export function DnsServerFormLayer({
         onSuccess: (saved) => {
           if (saved.status === "online") {
             toast.success(`Added ${saved.name}`, {
-              description: `${saved.zone_count} zone${saved.zone_count === 1 ? "" : "s"}`,
+              description: `${saved.zone_count} ${arvan ? "domain" : "zone"}${saved.zone_count === 1 ? "" : "s"}`,
             })
           } else {
             toast.warning(`Added ${saved.name}, but it isn't connected`, {
@@ -160,6 +182,31 @@ export function DnsServerFormLayer({
 
   const fields = (
     <>
+      {!server && (
+        <fieldset className="grid grid-cols-2 gap-2">
+          <legend className="mb-1.5 text-body-sm font-medium">Kind</legend>
+          <KindTile
+            icon={<Server />}
+            label="Technitium DNS"
+            text="Your own DNS server"
+            selected={!arvan}
+            onSelect={() => {
+              set("kind", "technitium")
+              set("allow_changes", true)
+            }}
+          />
+          <KindTile
+            icon={<Cloud />}
+            label="ArvanCloud"
+            text="Domains, DNS and CDN"
+            selected={arvan}
+            onSelect={() => {
+              set("kind", "arvan")
+              set("allow_changes", false)
+            }}
+          />
+        </fieldset>
+      )}
       <Field label="Name" error={errors.name}>
         {(p) => (
           <Input
@@ -167,50 +214,60 @@ export function DnsServerFormLayer({
             ref={server ? undefined : focusName}
             value={values.name}
             onChange={(e) => set("name", e.target.value)}
-            placeholder="ns1"
+            placeholder={arvan ? "ArvanCloud" : "ns1"}
             autoComplete="off"
           />
         )}
       </Field>
+      {!arvan && (
+        <Field
+          label="Address"
+          error={errors.url}
+          hint={
+            plainHttp
+              ? "Plain http sends the token unencrypted: fine on a private network, use https otherwise."
+              : "The address of its web console, with the port."
+          }
+        >
+          {(p) => (
+            <Input
+              {...p}
+              value={values.url}
+              onChange={(e) => set("url", e.target.value)}
+              placeholder="https://ns1.example.com:53443"
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              className="font-mono"
+            />
+          )}
+        </Field>
+      )}
       <Field
-        label="Address"
-        error={errors.url}
-        hint={
-          plainHttp
-            ? "Plain http sends the token unencrypted: fine on a private network, use https otherwise."
-            : "The address of its web console, with the port."
-        }
-      >
-        {(p) => (
-          <Input
-            {...p}
-            value={values.url}
-            onChange={(e) => set("url", e.target.value)}
-            placeholder="https://ns1.example.com:53443"
-            inputMode="url"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            className="font-mono"
-          />
-        )}
-      </Field>
-      <Field
-        label="API token"
+        label={arvan ? "API key" : "API token"}
         error={errors.token}
         hint={
           server
-            ? "Leave blank to keep the saved token."
-            : "In Technitium: your user menu › Create API Token. Stored encrypted."
+            ? `Leave blank to keep the saved ${arvan ? "key" : "token"}.`
+            : arvan
+              ? "In the ArvanCloud panel: Profile › Machine users (or API keys), with access to CDN. Starts with Apikey. Stored encrypted."
+              : "In Technitium: your user menu › Create API Token. Stored encrypted."
         }
       >
         {(p) => (
           <SecretInput
             {...p}
-            label="token"
+            label={arvan ? "key" : "token"}
             value={values.token}
             onChange={(e) => set("token", e.target.value)}
-            placeholder={server ? "Saved, leave blank to keep" : ""}
+            placeholder={
+              server
+                ? "Saved, leave blank to keep"
+                : arvan
+                  ? "Apikey 0000…"
+                  : ""
+            }
             autoComplete="off"
           />
         )}
@@ -228,19 +285,41 @@ export function DnsServerFormLayer({
       </Field>
       <div className="flex flex-col gap-3">
         <CheckRow
-          checked={values.tls_skip_verify}
-          onChange={(on) => set("tls_skip_verify", on)}
-          label="Accept a self-signed certificate"
-          text="Skip checking the https certificate. Only for a server you control."
+          checked={values.allow_changes}
+          onChange={(on) => set("allow_changes", on)}
+          label="Allow changes from Morche"
+          text={
+            arvan
+              ? "Off = read only: Morche shows domains, records, settings and traffic, and changes nothing. Turn on to edit them here."
+              : "Off = read only: zones and records are shown but not changed from Morche."
+          }
         />
-        {(admin || values.allow_internal) && (
-          <CheckRow
-            checked={values.allow_internal}
-            onChange={(on) => set("allow_internal", on)}
-            label="Allow a private address"
-            text="10.x, 192.168.x, 127.0.0.1 and the like. System admins only."
-            error={errors.allow_internal}
-          />
+        {arvan && values.allow_changes && (
+          <p className="flex items-start gap-2 rounded-lg bg-warning/5 px-3 py-2 text-caption text-muted-foreground">
+            <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-warning" />
+            Changes go straight to the live domains: a wrong record or setting
+            takes a site down. The key's own access policy at ArvanCloud still
+            applies.
+          </p>
+        )}
+        {!arvan && (
+          <>
+            <CheckRow
+              checked={values.tls_skip_verify}
+              onChange={(on) => set("tls_skip_verify", on)}
+              label="Accept a self-signed certificate"
+              text="Skip checking the https certificate. Only for a server you control."
+            />
+            {(admin || values.allow_internal) && (
+              <CheckRow
+                checked={values.allow_internal}
+                onChange={(on) => set("allow_internal", on)}
+                label="Allow a private address"
+                text="10.x, 192.168.x, 127.0.0.1 and the like. System admins only."
+                error={errors.allow_internal}
+              />
+            )}
+          </>
         )}
       </div>
     </>
@@ -311,7 +390,9 @@ export function DnsServerFormLayer({
         <SheetHeader className="border-b border-border px-6 py-4">
           <SheetTitle className="text-body">{title}</SheetTitle>
           <SheetDescription>
-            A Technitium DNS Server, reached through its HTTP API.
+            {arvan
+              ? "An ArvanCloud account: its domains, their DNS records and CDN settings."
+              : "A Technitium DNS Server, reached through its HTTP API."}
           </SheetDescription>
         </SheetHeader>
         <form
@@ -336,7 +417,7 @@ export function DnsServerFormLayer({
                 Cancel
               </Button>
               <Button type="submit" disabled={pending}>
-                {server ? "Save" : "Add server"}
+                {server ? "Save" : arvan ? "Connect" : "Add server"}
               </Button>
             </div>
           </div>
@@ -383,10 +464,14 @@ function TestResult({ result }: { result: DNSTestOutputBody }) {
     result.status in dnsStatusMeta ? result.status : "error"
   ) as DnsStatus
   const details: ReactNode[] = []
+  const arvan = result.version.startsWith("CDN")
   if (result.ok) {
-    if (result.version) details.push(`Technitium ${result.version}`)
+    if (result.version)
+      details.push(
+        arvan ? `ArvanCloud ${result.version}` : `Technitium ${result.version}`,
+      )
     details.push(
-      `${result.zone_count} zone${result.zone_count === 1 ? "" : "s"}`,
+      `${result.zone_count} ${arvan ? "domain" : "zone"}${result.zone_count === 1 ? "" : "s"}`,
     )
     details.push(`${result.latency_ms} ms`)
   }
@@ -411,5 +496,36 @@ function TestResult({ result }: { result: DNSTestOutputBody }) {
         </p>
       </div>
     </div>
+  )
+}
+
+function KindTile({
+  icon,
+  label,
+  text,
+  selected,
+  onSelect,
+}: {
+  icon: ReactNode
+  label: string
+  text: string
+  selected: boolean
+  onSelect: () => void
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onSelect}
+      className="flex min-w-0 items-start gap-2.5 rounded-xl border border-border p-3 text-start outline-none hover:bg-subtle focus-visible:ring-3 focus-visible:ring-ring/50 aria-pressed:border-brand aria-pressed:bg-brand-soft/60 [&_svg]:size-4"
+    >
+      <span className="mt-0.5 text-brand">{icon}</span>
+      <span className="min-w-0">
+        <span className="block truncate text-body-sm font-medium">{label}</span>
+        <span className="block truncate text-caption text-muted-foreground">
+          {text}
+        </span>
+      </span>
+    </button>
   )
 }

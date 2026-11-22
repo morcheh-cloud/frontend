@@ -53,6 +53,7 @@ import {
 import { useDashboard } from "../parts"
 import { LOCAL_RUNNER } from "./meta"
 import { RestoreJobs } from "./restore-layer"
+import { TempDirField, tempDirProblem } from "./temp-dir-field"
 
 type Mode = RestoreFileBody["mode"]
 type Errors = Partial<
@@ -65,7 +66,8 @@ type Errors = Partial<
     | "safetyStorage"
     | "safetyFolder"
     | "runner"
-    | "login",
+    | "login"
+    | "tempDir",
     string
   >
 >
@@ -82,6 +84,7 @@ const errorKey: Record<string, keyof Errors> = {
   runner_server_id: "runner",
   username: "login",
   password: "login",
+  temp_dir: "tempDir",
 }
 
 // The last place a file was taken from, so the next restore opens there.
@@ -583,7 +586,12 @@ function RestoreFileForm({
   const [password, setPassword] = useState("")
   const [errors, setErrors] = useState<Errors>({})
   const [workers, setWorkers] = useState(4)
+  const [tempDir, setTempDir] = useState("")
   const parallel = info.format === "pg_dir"
+  // Where it runs, to browse its folders ("" = Morche's own machine).
+  const runsOn = servers.data?.items.find(
+    (s) => s.id === (direct ? runner : d.server_id),
+  )
 
   const runners = (servers.data?.items ?? [])
     .filter((s) =>
@@ -611,6 +619,8 @@ function RestoreFileForm({
       e.runner = "Choose a server"
     }
     if (ownLogin && !username.trim()) e.login = "Enter the login"
+    const tmp = parallel ? tempDirProblem(tempDir) : ""
+    if (tmp) e.tempDir = tmp
     setErrors(e)
     if (Object.keys(e).length) return
     const body: RestoreFileBody = {
@@ -630,6 +640,7 @@ function RestoreFileForm({
       ...(direct && runner ? { runner_server_id: runner } : {}),
       ...(ownLogin ? { username: username.trim(), password } : {}),
       ...(parallel ? { workers } : {}),
+      ...(parallel && tempDir.trim() ? { temp_dir: tempDir.trim() } : {}),
     }
     restore.mutate(
       { id: d.id, body },
@@ -889,6 +900,20 @@ function RestoreFileForm({
           phone={phone}
           replace={replace}
           safety={safety}
+        />
+      )}
+      {parallel && (
+        <TempDirField
+          id="restore-file"
+          value={tempDir}
+          onChange={(v) => {
+            setTempDir(v)
+            setErrors((e) => ({ ...e, tempDir: undefined }))
+          }}
+          server={runsOn ? { id: runsOn.id, name: runsOn.name } : undefined}
+          container={direct ? undefined : d.container || undefined}
+          restore
+          error={errors.tempDir}
         />
       )}
 

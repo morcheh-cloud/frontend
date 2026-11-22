@@ -277,6 +277,18 @@ export const reverseProxy: GuideSection[] = [
               </>,
             ],
             [
+              "Recreated apps",
+              <>
+                With nginx 1.27.3 or newer, an app reached by name is looked up
+                again every 10 seconds (Morche writes{" "}
+                <C>server app:3000 resolve</C> with the container's DNS server).
+                So when <C>compose up</C> or an update recreates the app's
+                container with a new address, the site keeps working without a
+                reload, and nginx starts even while an app is down. Older nginx
+                looks names up only when it starts or reloads.
+              </>,
+            ],
+            [
               "Ports",
               "Visitors reach only the ports the container publishes. A port forward on a port it doesn't publish is tagged Port not published. A container on the server's network (network_mode: host) has neither limit.",
             ],
@@ -377,6 +389,14 @@ networks:
             <UI>The container … isn't running</UI>: press <UI>Start</UI>, or
             start it with Docker. Without a restart policy it stays down after a
             reboot.
+          </li>
+          <li>
+            502 after an app's container was recreated: nginx still sends to its
+            old address. The container panel says whether names are looked up
+            again; if not, update the image to nginx 1.27.3 or newer (or Reload
+            for now). An address in <C>/etc/hosts</C> (like{" "}
+            <C>host.docker.internal</C>) isn't looked up again: it doesn't
+            change.
           </li>
           <li>
             502 for an app on the server: the server's firewall may block the

@@ -22,6 +22,7 @@ import {
   GitBranch,
   HardDriveDownload,
   HardDriveUpload,
+  History,
   Image as ImageIcon,
   KeyRound,
   Layers,
@@ -44,6 +45,7 @@ import {
   Shrink,
   Split,
   Truck,
+  Zap,
 } from "lucide-react"
 import { envHref, volumeHref } from "@/app/(panel)/containers/components/meta"
 import { backupsHref } from "@/app/(panel)/databases/[id]/components/backups/meta"
@@ -79,6 +81,7 @@ const icons: Record<string, LucideIcon> = {
   "database-backup-verify": ShieldCheck,
   "database-backup-restore": ArchiveRestore,
   "database-sync": ArrowLeftRight,
+  "database-pitr": History,
   "proxy-setup": Split,
   "proxy-geo": Earth,
   "proxy-brotli": Gauge,
@@ -113,6 +116,7 @@ const icons: Record<string, LucideIcon> = {
   "log-compact": Shrink,
   "pve-task": MonitorCog,
   "pve-create": MonitorUp,
+  "automation-run": Zap,
 }
 
 // Which Containers page a Docker job's results are on.
@@ -249,6 +253,12 @@ export function tookText(job: Job) {
 // Ansible or cron job run it belongs to.
 export function placeHref(job: Job) {
   const t = job.target
+  if (job.kind === "automation-run" && t?.automation_id) {
+    return `/automations/${t.automation_id}${t.run_id ? `?run=${t.run_id}` : ""}`
+  }
+  if (job.kind === "database-pitr" && t?.database_id) {
+    return backupsHref(t.database_id, "pitr")
+  }
   if (job.kind === "database-sync" && t?.database_id) {
     return syncsHref(t.database_id, t.run_id ?? undefined)
   }
@@ -351,11 +361,13 @@ export function canRetry(job: Job) {
     job.kind !== "software-run" &&
     job.kind !== "schedule-sync" &&
     job.kind !== "schedule-run" &&
+    job.kind !== "automation-run" &&
     job.kind !== "storage-sync" &&
     job.kind !== "storage-migrate" &&
     job.kind !== "database-backup" &&
     job.kind !== "database-backup-restore" &&
     job.kind !== "database-sync" &&
+    job.kind !== "database-pitr" &&
     !job.kind.startsWith("log-") &&
     // A Proxmox task already ran on the cluster: start it again from there.
     !job.kind.startsWith("pve-")

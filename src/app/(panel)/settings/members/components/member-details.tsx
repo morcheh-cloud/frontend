@@ -12,6 +12,7 @@ import { timeAgo } from "@/app/(panel)/servers/components/meta"
 import { AccessLayer, PrincipalAccess } from "@/components/access/grants"
 import { useEndUserSession, useUserSessions } from "@/components/sessions/api"
 import { SessionList } from "@/components/sessions/session-list"
+import { MemberApiTokens } from "@/components/tokens/api-tokens"
 import { Button } from "@/components/ui/button"
 import { useIsPhone } from "@/hooks/useIsPhone"
 import type { PanelUser } from "@/lib/services"
@@ -120,6 +121,7 @@ function Layer({
           onManage={() => afterClose(onOpenChange, () => a.manageAccess(user))}
         />
         <MemberSessions user={user} open={open} />
+        <MemberApiTokens user={user} open={open} name={displayName(user)} />
         {phone && <SheetItems groups={menu} onOpenChange={onOpenChange} />}
       </div>
     </AccessLayer>

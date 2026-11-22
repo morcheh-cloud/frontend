@@ -36,6 +36,7 @@ import {
   Warehouse,
   Waypoints,
   Workflow,
+  Zap,
 } from "lucide-react"
 
 // A sub-page link. Every child is a page of its own (a route, never a tab of
@@ -269,6 +270,18 @@ export const cronjobsItem: NavItem = {
   label: "Cron jobs",
   icon: CalendarClock,
 }
+// Automations: when something happens (or a URL is called, or by hand), do
+// steps. Outgoing webhooks live beside them.
+export const automationsItem: NavItem = {
+  href: "/automations",
+  label: "Automations",
+  icon: Zap,
+  children: [
+    { href: "/automations", label: "Automations", also: ["/automations/new"] },
+    { href: "/automations/runs", label: "Runs" },
+    { href: "/automations/webhooks", label: "Webhooks" },
+  ],
+}
 // Uptime monitors (websites, ports, certificates, queues…), their incidents,
 // and the alert rules + channels (the /alerts pages sit under it).
 export const monitoringItem: NavItem = {
@@ -344,7 +357,13 @@ export const navGroups: NavGroup[] = [
   { label: "Network", items: [networkMapItem, dnsItem, proxyItem] },
   {
     label: "Automation",
-    items: [applicationsItem, ansibleItem, scriptsItem, cronjobsItem],
+    items: [
+      applicationsItem,
+      ansibleItem,
+      scriptsItem,
+      cronjobsItem,
+      automationsItem,
+    ],
   },
   {
     label: "Observability",

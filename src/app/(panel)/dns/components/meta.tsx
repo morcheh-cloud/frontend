@@ -52,6 +52,16 @@ export function DnsStatusDot({
 }
 
 export const serverHref = (id: string) => `/dns/${id}`
+
+// ArvanCloud's own panel, for what Morche doesn't show (plans, billing, WAF…).
+export const arvanPanelHref = (domain?: string) =>
+  domain
+    ? `https://panel.arvancloud.ir/cdn/${encodeURIComponent(domain)}`
+    : "https://panel.arvancloud.ir/cdn"
+
+// What a connection is, for lists: the address, or the provider.
+export const connectionLabel = (s: Pick<DNSServer, "kind" | "url">) =>
+  s.kind === "arvan" ? "ArvanCloud" : hostOf(s.url)
 export const zoneHref = (id: string, zone: string) =>
   `/dns/${id}/zones/${zoneParam(zone)}`
 
@@ -101,8 +111,27 @@ export const zoneTypeLabel = (type: string) => zoneTypes[type] ?? type
 export const copiedZone = (type: string) =>
   type.startsWith("Secondary") || type === "Stub"
 
+// What a zone is, for lists: its type, or how it reaches ArvanCloud.
+export function zoneKind(z: Pick<DNSZone, "type" | "cdn">) {
+  if (z.cdn)
+    return z.cdn.setup === "partial" ? "ArvanCloud · CNAME" : "ArvanCloud"
+  return zoneTypeLabel(z.type)
+}
+
+// An ArvanCloud domain that doesn't serve yet: its nameservers (or CNAME)
+// aren't pointed at ArvanCloud.
+export function cdnPending(z: Pick<DNSZone, "cdn">): string | null {
+  const st = z.cdn?.status
+  if (!st || st === "active" || st === "moved") return null
+  return z.cdn?.setup === "partial"
+    ? "CNAME not set yet"
+    : "Nameservers not set yet"
+}
+
 // What's wrong with a zone, worst first; null when it's fine.
 export function zoneProblem(z: DNSZone): string | null {
+  if (z.cdn?.status === "moved") return "Moved away"
+  if (z.cdn?.restriction.includes("suspended")) return "Suspended"
   if (z.expired) return "Expired"
   if (z.sync_failed) return "Sync failed"
   if (z.notify_failed) return "Notify failed"

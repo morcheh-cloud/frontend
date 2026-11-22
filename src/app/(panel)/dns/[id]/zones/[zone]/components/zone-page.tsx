@@ -58,7 +58,8 @@ import {
   Tag,
   Th,
 } from "../../../../components/parts"
-import { useDnsCan } from "../../../../components/permissions"
+import { useDnsWrite } from "../../../../components/permissions"
+import { CdnZonePage } from "./cdn/cdn-page"
 
 const filters = {
   type: parseAsString.withDefault(""),
@@ -89,7 +90,8 @@ export function ZonePageView() {
   const id = params.id
   const zoneName = zoneFromParam(params.zone)
   const server = useDnsServer(id)
-  const records = useDnsRecords(id, zoneName)
+  const arvan = server.data?.kind === "arvan"
+  const records = useDnsRecords(id, zoneName, !!server.data && !arvan)
   const isPhone = useIsPhone()
   const s = server.data
 
@@ -104,6 +106,8 @@ export function ZonePageView() {
   useFollowWorkspace(s?.workspace_id)
 
   if (isPhone === null) return null
+  if (s && arvan)
+    return <CdnZonePage server={s} zoneName={zoneName} phone={isPhone} />
   const error = server.error ?? (records.data ? null : records.error)
   if (!s || (!records.data && error)) {
     if (error) {
@@ -152,7 +156,7 @@ type PageProps = {
 }
 
 function useRecordsView(p: PageProps) {
-  const can = useDnsCan()
+  const write = useDnsWrite()
   const [{ type, q }, setFilters] = useQueryStates(filters, {
     history: "replace",
   })
@@ -174,7 +178,7 @@ function useRecordsView(p: PageProps) {
   const zoneType = p.zone?.type ?? ""
   const readOnly = copiedZone(zoneType)
   const editable =
-    !readOnly && can(p.server, "engineer") && p.server.status === "online"
+    !readOnly && write(p.server, "engineer") && p.server.status === "online"
   return { type, q, setFilters, all, counts, types, shown, readOnly, editable }
 }
 

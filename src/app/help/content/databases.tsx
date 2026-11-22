@@ -1235,6 +1235,19 @@ db.createUser({
           + 1 free connections. A restore of such a backup can use parallel jobs
           too: pick them under <UI>Parallel jobs</UI> in the restore window.
         </P>
+        <P>
+          The folder is the system's temporary one (<C>/tmp</C>) unless the plan
+          names another under <UI>Temporary folder</UI>. On a big database pick
+          a folder on a disk with room for the whole dump, since <C>/tmp</C> is
+          often small or kept in memory; <UI>Browse</UI> lists the folders when
+          a server runs the dump. The login Morche uses there must be able to
+          write to it. A restore unpacks the file the same way: its window has
+          the same field, and left empty it uses the plan's folder when it runs
+          where the plan does. The run's log says how much room the folder had.
+          For a database in a container, the path is one inside the container:
+          pick a folder it has mounted from the server, since its own files sit
+          on Docker's disk.
+        </P>
         <Recommended
           rows={[
             {
@@ -1252,6 +1265,11 @@ db.createUser({
               value: "No more than half its cores",
               why: "Each job is a full backend process on the database",
             },
+            {
+              setting: "Temporary folder",
+              value: "A big disk, e.g. /var/backups/tmp",
+              why: "Needs room for the whole compressed dump; /tmp often doesn't have it",
+            },
           ]}
         />
         <Warn>
@@ -1264,10 +1282,223 @@ db.createUser({
         <Code>{`mkdir dump && tar -xf shop_2026-11-22.tar -C dump
 pg_restore -j 4 --no-owner -d shop dump`}</Code>
         <Tip>
-          If a parallel backup fails with a full temporary folder, free some
-          space there, set <C>TMPDIR</C> for Morche, or go back to one job: that
-          one streams straight to the storages and needs no room.
+          If a parallel backup fails with a full temporary folder, pick a
+          <UI>Temporary folder</UI> on a bigger disk in the plan, free some
+          space, or go back to one job: that one streams straight to the
+          storages and needs no room.
         </Tip>
+      </>
+    ),
+  },
+  {
+    id: "pitr",
+    title: "Point-in-time recovery (PostgreSQL)",
+    body: (
+      <>
+        <P>
+          A plan's backups are dumps: a snapshot of a moment, taken on a
+          schedule. For a big or busy PostgreSQL that's slow to restore and
+          loses everything since the last dump. <UI>Point in time</UI> (in the{" "}
+          <UI>Backups</UI> tab) keeps a copy of every change instead, with{" "}
+          <A href="https://pgbackrest.org">pgBackRest</A>: a full backup now and
+          then, smaller ones in between, and every WAL file (PostgreSQL's log of
+          changes) sent to a storage within a minute. You can then go back to
+          any second.
+        </P>
+        <Table
+          head={["Question", "Answer"]}
+          rows={[
+            [
+              "What can it restore",
+              "Any second since the oldest full backup kept",
+            ],
+            [
+              "How much can be lost",
+              "Up to the archive interval (1 minute by default)",
+            ],
+            [
+              "How fast a restore is",
+              "File copy + replay of the WAL since the backup: minutes to an hour for 150 GB, instead of hours of pg_restore",
+            ],
+            [
+              "What it covers",
+              "The whole PostgreSQL (every database on it), not one database",
+            ],
+            [
+              "Where it works",
+              "PostgreSQL 12+ installed on a server Morche reaches over SSH (not in a container, not by address only)",
+            ],
+            [
+              "Where it stores",
+              "An S3 storage over HTTPS, or an SFTP storage that signs in with a key",
+            ],
+          ]}
+        />
+        <P>
+          Dumps still have their place: one database on its own, a file to take
+          elsewhere, another PostgreSQL version. Keep a weekly plan beside Point
+          in time if you need those.
+        </P>
+        <P>To set it up (Owner of the database, Engineer on its server):</P>
+        <Steps>
+          <P>
+            Open the database, <UI>Backups</UI> › <UI>Point in time</UI> and
+            press <UI>Set it up</UI>.
+          </P>
+          <P>
+            Read <UI>What changes on the server</UI>: Morche installs pgBackRest
+            if it's missing, writes its own config to{" "}
+            <C>/etc/pgbackrest/morche.conf</C> and sets <C>archive_command</C>,{" "}
+            <C>archive_mode</C> and <C>archive_timeout</C>. Another tool's{" "}
+            <C>archive_command</C> is only replaced if you tick{" "}
+            <UI>Replace it</UI>.
+          </P>
+          <P>
+            Pick the storage and a folder of its own. For S3 without a fixed
+            bucket the folder starts with the bucket, which must exist.
+          </P>
+          <P>
+            Pick the schedule, how many full backups to keep, encryption and
+            speed, then <UI>Set up</UI>.
+          </P>
+          <P>
+            If <C>archive_mode</C> was off, PostgreSQL needs one restart: press{" "}
+            <UI>Restart PostgreSQL…</UI> and choose <UI>Now</UI> or{" "}
+            <UI>At a quiet time</UI>. The first full backup follows by itself.
+          </P>
+        </Steps>
+        <Recommended
+          rows={[
+            {
+              setting: "Full backups",
+              value: "Weekly, at night",
+              why: "The starting points; a full one reads the whole database",
+            },
+            {
+              setting: "Differential",
+              value: "The other nights",
+              why: "Small; a restore needs at most one full + one differential",
+            },
+            {
+              setting: "Incremental",
+              value: "Every 6 hours on a busy database",
+              why: "Less WAL to replay in a restore",
+            },
+            {
+              setting: "Full backups kept",
+              value: "2 (about two weeks back)",
+              why: "Each one more is one more stretch you can reach",
+            },
+            {
+              setting: "Archive at least every",
+              value: "1 minute",
+              why: "The most a quiet database can lose",
+            },
+            {
+              setting: "Encryption",
+              value: "On",
+              why: "The storage only ever sees encrypted files",
+            },
+          ]}
+        />
+        <Warn>
+          The storage's keys live on the database's server (PostgreSQL sends
+          each WAL file itself), readable by the postgres user only. Give Point
+          in time a bucket and a key of its own, allowed only there.
+        </Warn>
+        <Tip>
+          With encryption on, open the tab's <UI>⋯</UI> ›{" "}
+          <UI>Encryption passphrase</UI> and keep a copy away from Morche.
+          Without it the backups can't be read if Morche's own server is lost.
+        </Tip>
+      </>
+    ),
+  },
+  {
+    id: "pitr-restore",
+    title: "Restore to a point in time",
+    body: (
+      <>
+        <P>
+          Press <UI>Restore to a point in time</UI>, a backup's{" "}
+          <UI>Restore to here</UI>, or click the timeline. Pick{" "}
+          <UI>The newest point</UI> or <UI>A moment in time</UI> (your own time
+          zone; everything committed up to that second comes back), then where
+          it goes:
+        </P>
+        <Table
+          head={["Where", "What happens"]}
+          rows={[
+            [
+              "A copy beside it (recommended)",
+              "A second PostgreSQL starts on the same server, on its own port (from 15432), reachable from localhost only. It shows up in Morche as a database, so you can browse it in Data, copy rows back with a sync or a query, then press Take down. The live one isn't touched",
+            ],
+            [
+              "Over the server's own PostgreSQL",
+              "Every database on it stops, goes back to that moment and starts again. Type the name to confirm. The current point is archived first, so you could come back to it",
+            ],
+          ]}
+        />
+        <Example title="A DELETE without a WHERE">
+          Someone ran <C>DELETE FROM orders</C> without a <C>WHERE</C> at 14:32.
+          Restore a copy to 14:31:59, open it in Data, check the rows, then copy
+          them back into the live database with a sync from the copy. Nothing
+          else in the live database is lost.
+        </Example>
+        <P>
+          A copy needs room for the whole database beside the data folder;
+          Morche checks before it starts. If nothing changed between the moment
+          you picked and the newest WAL, PostgreSQL can't tell where to stop, so
+          the copy is restored to the newest point instead: it's the same data,
+          and the run's log says so.
+        </P>
+      </>
+    ),
+  },
+  {
+    id: "pitr-troubleshoot",
+    title: "Point in time: when something's wrong",
+    body: (
+      <>
+        <Table
+          head={["It says", "What to do"]}
+          rows={[
+            [
+              "WAL can't reach the storage",
+              "Check the storage from the server (address, keys, free space). Until it works PostgreSQL keeps the WAL on its own disk, which can fill it",
+            ],
+            [
+              "The last check failed",
+              "Press Set up again: it rewrites pgBackRest's config and archive_command on the server (someone may have changed them)",
+            ],
+            [
+              "pgBackRest talks to S3 only over HTTPS",
+              "Give the storage an https:// address. A self-signed certificate works with Skip TLS check on",
+            ],
+            [
+              "pgBackRest signs in with a key only",
+              "SFTP storages need a private key, and Morche must have checked the storage once to trust its host key",
+            ],
+            [
+              "Waiting for a PostgreSQL restart",
+              "archive_mode only changes with a restart: press Restart PostgreSQL…, now or at a set time",
+            ],
+            [
+              "There isn't room for the copy",
+              "Free space next to the data folder, or restore over the server instead",
+            ],
+          ]}
+        />
+        <P>
+          The server must reach the storage at the same address Morche uses.
+          pgBackRest's own logs are in <C>/var/log/pgbackrest</C> on the server.
+        </P>
+        <P>
+          To turn it off: <UI>⋯</UI> › <UI>Turn off</UI>. Archiving stops, the
+          backups stay in the storage unless you tick{" "}
+          <UI>Delete the backups too</UI>, and <C>archive_mode</C> goes back to
+          off at PostgreSQL's next restart.
+        </P>
       </>
     ),
   },

@@ -40,6 +40,7 @@ export function CodeEditor({
   readOnly,
   className,
   height = "100%",
+  onCreateEditor,
 }: {
   value: string
   onChange?: (value: string) => void
@@ -47,6 +48,8 @@ export function CodeEditor({
   readOnly?: boolean
   className?: string
   height?: string
+  // The editor's view, e.g. to insert text at the cursor.
+  onCreateEditor?: (view: EditorView) => void
 }) {
   const codeTheme = useCodeTheme()
   const lang = interpreter === "python3" ? "python" : "shell"
@@ -64,6 +67,7 @@ export function CodeEditor({
       indentWithTab={!readOnly}
       className={cn("min-h-0 overflow-hidden", className)}
       height={height}
+      onCreateEditor={onCreateEditor}
     />
   )
 }
