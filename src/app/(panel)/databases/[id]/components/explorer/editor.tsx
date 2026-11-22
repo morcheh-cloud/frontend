@@ -10,13 +10,18 @@ import {
 } from "@codemirror/lang-sql"
 import CodeMirror, { EditorView, keymap, Prec } from "@uiw/react-codemirror"
 import { useLayoutEffect, useMemo, useRef } from "react"
-
 import { editorTheme } from "@/app/(panel)/servers/[id]/components/ini-editor"
 import { useCodeTheme } from "@/components/code-theme"
 import { cn } from "@/lib/utils"
+import { ClickHouseSQL } from "./clickhouse-dialect"
 import type { Engine } from "./meta"
 
-const dialects = { postgres: PostgreSQL, mysql: MySQL, mssql: MSSQL }
+const dialects = {
+  postgres: PostgreSQL,
+  mysql: MySQL,
+  mssql: MSSQL,
+  clickhouse: ClickHouseSQL,
+}
 
 function language(engine: Engine, schema: SQLNamespace) {
   if (engine === "mongodb") return [javascript()]

@@ -46,6 +46,9 @@ export function useCanEditRows(info?: ObjectInfo) {
   const { database: d, owner } = useDashboard()
   const demo = useDemo()
   if (!owner || demo || !info) return { insert: false, change: false, why: "" }
+  // The backend's own reason (ClickHouse: engines that can't be changed).
+  if (info.read_only)
+    return { insert: false, change: false, why: info.read_only }
   const mongo = d.engine === "mongodb"
   const table = info.kind === "table" || info.kind === "collection"
   const keyed = mongo || info.key.length > 0

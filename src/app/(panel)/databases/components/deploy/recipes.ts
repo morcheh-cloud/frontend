@@ -10,6 +10,7 @@ export type Kind =
   | "mssql"
   | "mongodb"
   | "redis"
+  | "clickhouse"
 
 export type Recipe = {
   kind: Kind
@@ -127,6 +128,22 @@ export const recipes: Recipe[] = [
     dbname: "",
     blurb: "Cache, queues and sessions",
   },
+  {
+    kind: "clickhouse",
+    label: "ClickHouse",
+    engine: "clickhouse",
+    versions: [
+      { tag: "25.8", label: "25.8 LTS" },
+      { tag: "25.3", label: "25.3 LTS" },
+    ],
+    port: 9000,
+    user: "admin",
+    userFixed: false,
+    firstDatabase: true,
+    dbname: "default",
+    minMemory: 1024,
+    blurb: "Analytics on billions of rows",
+  },
 ]
 
 export const recipeOf = Object.fromEntries(
@@ -171,6 +188,8 @@ export function imageOf(s: Pick<DeploySpec, "kind" | "version">) {
       return `mcr.microsoft.com/mssql/server:${s.version}`
     case "mongodb":
       return `mongo:${s.version}`
+    case "clickhouse":
+      return `clickhouse/clickhouse-server:${s.version}`
     default:
       return `${s.kind}:${s.version}`
   }
@@ -217,6 +236,16 @@ function environment(s: DeploySpec): [string, string][] {
       ]
     case "redis":
       return [["REDIS_PASSWORD", "${DB_PASSWORD}"]]
+    case "clickhouse":
+      return [
+        ["CLICKHOUSE_USER", s.username],
+        ["CLICKHOUSE_PASSWORD", "${DB_PASSWORD}"],
+        // The first user may create others and grant them access.
+        ["CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT", "1"],
+        ...(s.dbname && s.dbname !== "default"
+          ? ([["CLICKHOUSE_DB", s.dbname]] as [string, string][])
+          : []),
+      ]
   }
 }
 
@@ -236,6 +265,8 @@ function dataPath(s: DeploySpec) {
       return "/data/db"
     case "redis":
       return "/data"
+    case "clickhouse":
+      return "/var/lib/clickhouse"
   }
 }
 
@@ -267,6 +298,11 @@ function healthcheck(s: DeploySpec): string[] {
         "CMD-SHELL",
         'redis-cli -a "$${REDIS_PASSWORD}" --no-auth-warning ping | grep -q PONG',
       ]
+    case "clickhouse":
+      return [
+        "CMD-SHELL",
+        'clickhouse-client -u "$${CLICKHOUSE_USER}" --password "$${CLICKHOUSE_PASSWORD}" -q "SELECT 1"',
+      ]
   }
 }
 
@@ -290,6 +326,15 @@ export function composeOf(s: DeploySpec) {
         "--appendonly",
         "yes",
       ].map((a) => `      - ${q(a)}`),
+    )
+  }
+  if (s.kind === "clickhouse") {
+    // ClickHouse opens many files at once and warns below this.
+    lines.push(
+      "    ulimits:",
+      "      nofile:",
+      "        soft: 262144",
+      "        hard: 262144",
     )
   }
   lines.push("    environment:")

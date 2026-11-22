@@ -55,6 +55,7 @@ import {
   useTestDatabase,
 } from "../api"
 import {
+  defaultPort,
   type Engine,
   EngineTile,
   engineMeta,
@@ -107,7 +108,8 @@ function initialValues(
     container: d?.container ?? "",
     // The backend stores 127.0.0.1 for "on the server itself".
     host: d && !(d.mode === "server" && d.host === "127.0.0.1") ? d.host : "",
-    port: d?.port && d.port !== engineMeta[d.engine].port ? String(d.port) : "",
+    port:
+      d?.port && d.port !== defaultPort(d.engine, d.tls) ? String(d.port) : "",
     username: d?.username ?? engineMeta.postgres.user,
     password: "",
     clear_password: false,
@@ -301,7 +303,9 @@ export function DatabaseForm({
       engine: p.engine,
       host: p.host || v.host,
       port:
-        p.port && p.port !== engineMeta[p.engine].port ? String(p.port) : "",
+        p.port && p.port !== defaultPort(p.engine, p.tls ?? v.tls)
+          ? String(p.port)
+          : "",
       username: p.username ?? (v.engine === p.engine ? v.username : ""),
       password: p.password ?? v.password,
       dbname: p.dbname ?? v.dbname,
@@ -531,7 +535,7 @@ export function DatabaseForm({
               {...f}
               value={values.port}
               onChange={(e) => set("port", e.target.value.replace(/\D/g, ""))}
-              placeholder={String(meta.port)}
+              placeholder={String(defaultPort(values.engine, values.tls))}
               inputMode="numeric"
               maxLength={5}
               enterKeyHint="next"
@@ -877,11 +881,11 @@ export function DatabaseForm({
       "Address",
       direct
         ? values.host
-          ? `${values.host}:${values.port || meta.port}`
+          ? `${values.host}:${values.port || defaultPort(values.engine, values.tls)}`
           : ""
         : values.container
-          ? `${values.container}:${values.port || meta.port}`
-          : `${values.host || "127.0.0.1"}:${values.port || meta.port}`,
+          ? `${values.container}:${values.port || defaultPort(values.engine, values.tls)}`
+          : `${values.host || "127.0.0.1"}:${values.port || defaultPort(values.engine, values.tls)}`,
       true,
     ],
     [

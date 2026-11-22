@@ -1322,8 +1322,34 @@ function StructureView({
     )
   }
   const mongo = d.engine === "mongodb"
+  const facts = info.facts ?? []
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-4 md:p-5">
+      {facts.length > 0 && (
+        <section aria-label="About this table">
+          <dl className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,12rem),1fr))] gap-2">
+            {facts.map((f) => (
+              <div
+                key={f.label}
+                className="min-w-0 rounded-2xl border border-border bg-card px-3.5 py-2.5"
+              >
+                <dt className="text-caption text-ash">{f.label}</dt>
+                <dd
+                  title={f.value}
+                  className="truncate font-mono text-body-sm text-foreground"
+                >
+                  {f.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      )}
+      {info.read_only && (
+        <p className="rounded-2xl border border-border bg-subtle px-4 py-3 text-body-sm text-muted-foreground">
+          {info.read_only}
+        </p>
+      )}
       <section>
         <h3 className="mb-2 flex items-center gap-2 text-body-sm font-medium">
           {mongo ? "Fields" : "Columns"}

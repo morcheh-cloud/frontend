@@ -357,7 +357,7 @@ export interface AlertRuleBody {
   /** scope tags: servers with any of them */
   tags?: string[];
   /**
-   * Percent for cpu, iowait, memory, swap, disk and container_memory (of its limit); load per core; bytes per second for net_rx/net_tx; percent of one core for container_cpu; stops in 10 minutes for container_restarts; findings in the image's last scan for container_vulns_critical (critical) and container_vulns_high (high or critical); percent used for pve_storage_full; percent used for db_disk, db_connections (of the limit) and db_memory (Redis maxmemory); milliseconds for db_latency; seconds behind for db_replication_lag; hours since the last good backup for db_backup_age; ignored for offline, service, db_down, db_health, container_down, container_unhealthy, docker_engine, pve_node_down and pve_vm_stopped
+   * Percent for cpu, iowait, memory, swap, disk and container_memory (of its limit); load per core; bytes per second for net_rx/net_tx; percent of one core for container_cpu; stops in 10 minutes for container_restarts; findings in the image's last scan for container_vulns_critical (critical) and container_vulns_high (high or critical); percent used for pve_storage_full; percent used for db_disk, db_connections (of the limit) and db_memory (Redis maxmemory, ClickHouse max_server_memory_usage); milliseconds for db_latency; seconds behind for db_replication_lag; hours since the last good backup for db_backup_age; ignored for offline, service, db_down, db_health, container_down, container_unhealthy, docker_engine, pve_node_down and pve_vm_stopped
    * @format double
    */
   threshold: number;
@@ -5460,7 +5460,7 @@ export interface Database {
   /** Database it signs in to */
   dbname: string;
   description: string;
-  engine: "postgres" | "mysql" | "mssql" | "redis" | "mongodb";
+  engine: "postgres" | "mysql" | "mssql" | "redis" | "mongodb" | "clickhouse";
   favorite: boolean;
   flavor: string;
   has_password: boolean;
@@ -5570,7 +5570,7 @@ export interface DatabaseBody {
   dbname?: string;
   /** @maxLength 500 */
   description?: string;
-  engine: "postgres" | "mysql" | "mssql" | "redis" | "mongodb";
+  engine: "postgres" | "mysql" | "mssql" | "redis" | "mongodb" | "clickhouse";
   favorite?: boolean;
   /**
    * mode server: as that server sees it (empty = 127.0.0.1, or the container's own address when a container is set). direct: public IP or domain
@@ -5753,7 +5753,7 @@ export interface DatabaseCredentials {
    */
   $schema?: string;
   dbname: string;
-  engine: "postgres" | "mysql" | "mssql" | "redis" | "mongodb";
+  engine: "postgres" | "mysql" | "mssql" | "redis" | "mongodb" | "clickhouse";
   /** As the server it goes through sees it, when mode is server */
   host: string;
   password: string;
@@ -6141,6 +6141,30 @@ export interface DatabaseMemory {
   used_bytes: number;
 }
 
+export interface DatabaseMutations {
+  command: string;
+  error?: string;
+  /**
+   * Retried after an error; they hold back later mutations on their table
+   * @format int32
+   */
+  failed: number;
+  id: string;
+  /** @format int64 */
+  parts_to_do: number;
+  /**
+   * Not done yet, failing ones included
+   * @format int32
+   */
+  running: number;
+  /**
+   * Since it was created
+   * @format double
+   */
+  seconds: number;
+  table: string;
+}
+
 export interface DatabaseNote {
   area: string;
   message: string;
@@ -6155,7 +6179,8 @@ export interface DatabaseObject {
     | "materialized_view"
     | "foreign_table"
     | "collection"
-    | "timeseries";
+    | "timeseries"
+    | "dictionary";
   name: string;
   /**
    * The engine's estimate
@@ -6197,6 +6222,24 @@ export interface DatabaseOverview {
   objects: DatabaseObject[];
   /** Postgres/SQL Server schemas in it */
   schemas: string[];
+}
+
+export interface DatabaseParts {
+  /** @format int64 */
+  count: number;
+  database: string;
+  /**
+   * parts_to_delay_insert
+   * @format int64
+   */
+  delay_at: number;
+  partition: string;
+  table: string;
+  /**
+   * parts_to_throw_insert
+   * @format int64
+   */
+  throw_at: number;
 }
 
 export interface DatabasePersist {
@@ -6545,10 +6588,10 @@ export interface DatabaseSnapshot {
   disk?: DatabaseDisk;
   /** SQL Server edition, managed-service hints */
   edition?: string;
-  engine: "postgres" | "mysql" | "mssql" | "redis" | "mongodb";
+  engine: "postgres" | "mysql" | "mssql" | "redis" | "mongodb" | "clickhouse";
   /** Engine-specific numbers */
   facts: DatabaseFact[];
-  /** What it really is: PostgreSQL, MySQL, MariaDB, SQL Server, Redis, Valkey, MongoDB */
+  /** What it really is: PostgreSQL, MySQL, MariaDB, SQL Server, Redis, Valkey, MongoDB, ClickHouse */
   flavor: string;
   /** Auto-increment columns, fullest first */
   id_columns: DatabaseIDColumn[];
@@ -6562,8 +6605,12 @@ export interface DatabaseSnapshot {
   /** Write-ahead log, binary log, transaction log or oplog */
   log?: DatabaseLog;
   memory?: DatabaseMemory;
+  /** ClickHouse: ALTER UPDATE/DELETE still being applied */
+  mutations?: DatabaseMutations;
   /** What couldn't be read, and why */
   notes: DatabaseNote[];
+  /** ClickHouse: the partition with the most active parts */
+  parts?: DatabaseParts;
   /** Redis: snapshots and the append-only file */
   persistence?: DatabasePersist;
   /** Statements that took the most time in all */
@@ -6869,7 +6916,9 @@ export interface DatabaseSyncTables {
   name: string;
   /** Row-by-row modes work on this engine */
   rows: boolean;
-  /** Tables of name (PostgreSQL and MySQL only) */
+  /** Engines this database's rows can be synced into (tables, mirror, incremental) */
+  rows_into: string[];
+  /** Tables of name (engines with row modes only) */
   tables: Table[];
 }
 
@@ -6950,7 +6999,7 @@ export interface DatabaseTestBody {
    * @maxLength 128
    */
   dbname?: string;
-  engine: "postgres" | "mysql" | "mssql" | "redis" | "mongodb";
+  engine: "postgres" | "mysql" | "mssql" | "redis" | "mongodb" | "clickhouse";
   /**
    * mode server: as that server sees it (empty = 127.0.0.1, or the container's own address when a container is set). direct: public IP or domain
    * @maxLength 255
@@ -13348,7 +13397,14 @@ export interface MonitorConfig {
    */
   degraded_ms?: number;
   /** database: which one */
-  engine?: "postgres" | "mysql" | "mssql" | "redis" | "mongodb" | "";
+  engine?:
+    | "postgres"
+    | "mysql"
+    | "mssql"
+    | "redis"
+    | "mongodb"
+    | "clickhouse"
+    | "";
   /**
    * tcp/udp/websocket: what the answer must contain
    * @maxLength 1000
@@ -13895,6 +13951,11 @@ export interface ObjectConstraint {
   name: string;
 }
 
+export interface ObjectFact {
+  label: string;
+  value: string;
+}
+
 export interface ObjectIndex {
   definition: string;
   name: string;
@@ -13912,10 +13973,16 @@ export interface ObjectInfo {
   constraints: ObjectConstraint[];
   /** CREATE statement or view body, when the engine gives one */
   definition?: string;
+  /** ClickHouse: engine, sorting/partition key, TTL, parts and sizes */
+  facts?: ObjectFact[];
   indexes: ObjectIndex[];
   key: string[];
+  /** false = the key may match several rows (ClickHouse): a change that matches more than one is refused */
+  key_unique?: boolean | null;
   kind: string;
   name: string;
+  /** Why its rows can't be added, changed or removed here; empty = they can (by key) */
+  read_only?: string;
   /**
    * MongoDB: documents the fields were read from
    * @format int64
@@ -22442,9 +22509,12 @@ export interface Table {
   /** @format int64 */
   bytes: number;
   columns: Column[];
+  /** ClickHouse: the table engine (MergeTree, ReplacingMergeTree…) */
+  engine?: string;
   /** Primary key, or a unique index on non-null columns */
   key: string[];
-  key_from: "primary" | "unique" | "none";
+  /** sorting = ClickHouse ReplacingMergeTree ORDER BY */
+  key_from: "primary" | "unique" | "sorting" | "none";
   /**
    * @minLength 1
    * @maxLength 128
@@ -22457,6 +22527,8 @@ export interface Table {
   rows: number;
   /** @maxLength 128 */
   schema?: string;
+  /** ClickHouse: ORDER BY columns. Only a ReplacingMergeTree's identify a row; on other engines a sync may still name them as its key when they're unique */
+  sorting?: string[];
 }
 
 export interface TableResult {
@@ -27637,7 +27709,7 @@ export class Api<
       }),
 
     /**
-     * @description Asks the database how it would run the statement, without running it (EXPLAIN without ANALYZE, SHOWPLAN, explain queryPlanner). Not available for Redis.
+     * @description Asks the database how it would run the statement, without running it (EXPLAIN without ANALYZE, SHOWPLAN, explain queryPlanner, ClickHouse EXPLAIN indexes = 1). Not available for Redis.
      *
      * @tags Databases
      * @name ExplainDatabaseQuery
@@ -27731,7 +27803,7 @@ export class Api<
       }),
 
     /**
-     * @description connection=false cancels what it runs (where the engine can); true closes the connection and rolls back its transaction.
+     * @description connection=false cancels what it runs (where the engine can); true closes the connection and rolls back its transaction (MongoDB and ClickHouse can't close one connection: true cancels its operation or query).
      *
      * @tags Databases
      * @name KillDatabaseSession
@@ -28067,7 +28139,7 @@ export class Api<
       }),
 
     /**
-     * @description By primary key (MongoDB: _id), all in one transaction on SQL engines; a change or removal that doesn't match exactly one row undoes everything. preview = only write out the statements. Owner. Every run lands in the query history.
+     * @description By primary key (MongoDB: _id), all in one transaction on SQL engines; a change or removal that doesn't match exactly one row undoes everything. ClickHouse (MergeTree tables only, no transactions): every change and removal is counted first and nothing runs unless each matches exactly one row; then ALTER TABLE … UPDATE / lightweight DELETE one by one, waited for; sorting/partition key columns can't be changed. preview = only write out the statements. Owner. Every run lands in the query history.
      *
      * @tags Database explorer
      * @name EditDatabaseRows
@@ -28250,7 +28322,7 @@ export class Api<
       }),
 
     /**
-     * @description Postgres and SQL Server run the whole script in one transaction (all or nothing); MySQL statement by statement; MongoDB and Redis as sent. A script that drops or empties data, or changes who may do what, needs confirm = the database's name. Owner.
+     * @description Postgres and SQL Server run the whole script in one transaction (all or nothing); MySQL and ClickHouse statement by statement (ClickHouse waits for mutations: mutations_sync = 2); MongoDB and Redis as sent. A script that drops or empties data, or changes who may do what, needs confirm = the database's name. Owner.
      *
      * @tags Database explorer
      * @name RunDatabaseChange
@@ -28272,7 +28344,7 @@ export class Api<
       }),
 
     /**
-     * @description Each statement is checked and run inside a read-only transaction (SQL Server: one that's rolled back); writes are refused. A failing statement comes back in error with the results before it. Cancel the request to stop it. Engineer.
+     * @description Each statement is checked and run inside a read-only transaction (SQL Server: one that's rolled back; ClickHouse: sent with readonly = 2, table functions that reach outside the database refused); writes are refused. A failing statement comes back in error with the results before it. Cancel the request to stop it. Engineer.
      *
      * @tags Database explorer
      * @name RunDatabaseQuery

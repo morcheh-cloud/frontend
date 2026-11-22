@@ -3,7 +3,7 @@ import type { Database, QueryResult, RowFilter } from "@/lib/services"
 export type Engine = Database["engine"]
 
 export const sqlEngine = (e: Engine) =>
-  e === "postgres" || e === "mysql" || e === "mssql"
+  e === "postgres" || e === "mysql" || e === "mssql" || e === "clickhouse"
 
 // Databases an engine keeps for itself: listed last, never opened first.
 export const systemDatabases: Record<string, string[]> = {
@@ -12,6 +12,7 @@ export const systemDatabases: Record<string, string[]> = {
   mssql: ["master", "model", "msdb", "tempdb"],
   mongodb: ["admin", "local", "config"],
   redis: [],
+  clickhouse: ["system", "information_schema"],
 }
 
 export const isSystemDb = (e: Engine, name: string) =>
@@ -47,6 +48,11 @@ export const numericType = (t: string) =>
 
 // How a name is written in a query.
 export function quoteName(engine: Engine, name: string) {
+  if (engine === "clickhouse")
+    // Backslash escapes work inside ClickHouse's backticks too.
+    return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name)
+      ? name
+      : `\`${name.replaceAll("\\", "\\\\").replaceAll("`", "\\`")}\``
   if (engine === "mysql") return `\`${name.replaceAll("`", "``")}\``
   if (engine === "mssql") return `[${name.replaceAll("]", "]]")}]`
   return /^[a-z_][a-z0-9_]*$/.test(name)
@@ -73,6 +79,8 @@ export const placeholders: Record<Engine, string> = {
   mssql: "SELECT name FROM sys.tables;",
   mongodb: 'db.collection.find({ status: "open" }).sort({ _id: -1 }).limit(50)',
   redis: "SCAN 0 MATCH user:* COUNT 100\nGET some:key",
+  clickhouse:
+    "SELECT database, name, total_rows\nFROM system.tables\nWHERE database = currentDatabase();",
 }
 
 export const kindLabel: Record<string, string> = {
@@ -82,6 +90,7 @@ export const kindLabel: Record<string, string> = {
   foreign_table: "Foreign table",
   collection: "Collection",
   timeseries: "Time series",
+  dictionary: "Dictionary",
 }
 
 // ---- export ----

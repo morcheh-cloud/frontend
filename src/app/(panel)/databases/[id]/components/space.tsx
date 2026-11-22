@@ -28,6 +28,7 @@ const nouns: Record<DatabaseSnapshot["engine"], [string, string]> = {
   mssql: ["Table", "Tables"],
   mongodb: ["Collection", "Collections"],
   redis: ["Key", "Keys"],
+  clickhouse: ["Table", "Tables"],
 }
 
 const size = (n: number | null | undefined) => (n == null ? "—" : formatSize(n))

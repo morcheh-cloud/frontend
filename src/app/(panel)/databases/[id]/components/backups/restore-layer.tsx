@@ -123,6 +123,8 @@ function RestoreForm({
   const [workers, setWorkers] = useState(b.workers || 1)
   const [tempDir, setTempDir] = useState("")
   const parallel = b.format === "pg_dir"
+  // A ClickHouse file may be unpacked first (when tar can't stream it).
+  const unpacks = parallel || b.format === "ch_tar"
   // Where it runs, to browse its folders.
   const runsOn = direct
     ? runner && runner !== "local"
@@ -146,7 +148,7 @@ function RestoreForm({
       e.runner = "Choose a server"
     }
     if (ownLogin && !username.trim()) e.login = "Enter the login"
-    const tmp = parallel ? tempDirProblem(tempDir) : ""
+    const tmp = unpacks ? tempDirProblem(tempDir) : ""
     if (tmp) e.tempDir = tmp
     setErrors(e)
     if (Object.keys(e).length) return
@@ -158,7 +160,7 @@ function RestoreForm({
       ...(direct && runner ? { runner_server_id: runner } : {}),
       ...(ownLogin ? { username: username.trim(), password } : {}),
       ...(parallel ? { workers } : {}),
-      ...(parallel && tempDir.trim() ? { temp_dir: tempDir.trim() } : {}),
+      ...(unpacks && tempDir.trim() ? { temp_dir: tempDir.trim() } : {}),
     }
     restore.mutate(
       { id: b.id, body },
@@ -307,7 +309,7 @@ function RestoreForm({
           safety={safety}
         />
       )}
-      {parallel && (
+      {unpacks && (
         <TempDirField
           id="restore"
           value={tempDir}

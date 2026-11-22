@@ -588,6 +588,8 @@ function RestoreFileForm({
   const [workers, setWorkers] = useState(4)
   const [tempDir, setTempDir] = useState("")
   const parallel = info.format === "pg_dir"
+  // A ClickHouse file may be unpacked first (when tar can't stream it).
+  const unpacks = parallel || info.format === "ch_tar"
   // Where it runs, to browse its folders ("" = Morche's own machine).
   const runsOn = servers.data?.items.find(
     (s) => s.id === (direct ? runner : d.server_id),
@@ -619,7 +621,7 @@ function RestoreFileForm({
       e.runner = "Choose a server"
     }
     if (ownLogin && !username.trim()) e.login = "Enter the login"
-    const tmp = parallel ? tempDirProblem(tempDir) : ""
+    const tmp = unpacks ? tempDirProblem(tempDir) : ""
     if (tmp) e.tempDir = tmp
     setErrors(e)
     if (Object.keys(e).length) return
@@ -640,7 +642,7 @@ function RestoreFileForm({
       ...(direct && runner ? { runner_server_id: runner } : {}),
       ...(ownLogin ? { username: username.trim(), password } : {}),
       ...(parallel ? { workers } : {}),
-      ...(parallel && tempDir.trim() ? { temp_dir: tempDir.trim() } : {}),
+      ...(unpacks && tempDir.trim() ? { temp_dir: tempDir.trim() } : {}),
     }
     restore.mutate(
       { id: d.id, body },
@@ -902,7 +904,7 @@ function RestoreFileForm({
           safety={safety}
         />
       )}
-      {parallel && (
+      {unpacks && (
         <TempDirField
           id="restore-file"
           value={tempDir}

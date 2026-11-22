@@ -127,6 +127,10 @@ function connectionUrl(c: DatabaseCredentials, port: number) {
       }`
     case "redis":
       return `${c.tls === "disable" ? "redis" : "rediss"}://${at}/${c.dbname || "0"}`
+    case "clickhouse":
+      return `clickhouse://${at}/${enc(c.dbname || "default")}${
+        c.tls === "disable" ? "" : "?secure=true"
+      }`
   }
 }
 
@@ -155,5 +159,9 @@ function command(c: DatabaseCredentials, port: number) {
       return `redis-cli -h ${h} -p ${port}${c.username ? ` --user ${c.username}` : ""}${
         c.password ? " --askpass" : ""
       }${c.tls === "disable" ? "" : " --tls"}${c.dbname && c.dbname !== "0" ? ` -n ${c.dbname}` : ""}`
+    case "clickhouse":
+      return `clickhouse-client --host ${h} --port ${port} --user ${c.username || "default"} --password${
+        c.dbname ? ` --database ${c.dbname}` : ""
+      }${c.tls === "disable" ? "" : c.tls === "require" ? " --secure --accept-invalid-certificate" : " --secure"}`
   }
 }

@@ -31,7 +31,7 @@ export const modeMeta: Record<
     short: "Compare the tables you pick, row by row, and apply the difference.",
     long: "Like Navicat's Data Sync: rows are matched by key, new ones are inserted, changed ones updated and, if you allow it, extra ones deleted. You pick what wins when both sides changed.",
     destructive: false,
-    engines: ["postgres", "mysql"],
+    engines: ["postgres", "mysql", "clickhouse"],
   },
   mirror: {
     label: "Mirror",
@@ -39,7 +39,7 @@ export const modeMeta: Record<
     short: "Keep the whole database identical, row by row, with no downtime.",
     long: "Every table is compared and the target is made to match: inserts, updates and deletes. Tables missing on the target are created. The target stays online the whole time.",
     destructive: true,
-    engines: ["postgres", "mysql"],
+    engines: ["postgres", "mysql", "clickhouse"],
   },
   incremental: {
     label: "Only new data",
@@ -47,7 +47,7 @@ export const modeMeta: Record<
     short: "Copy only rows added or changed since the last run.",
     long: "Each table needs a column that grows (an id, or an updated_at time). Morche remembers where it stopped and reads only past it. Deletes aren't seen; a full check now and then catches up.",
     destructive: false,
-    engines: ["postgres", "mysql"],
+    engines: ["postgres", "mysql", "clickhouse"],
   },
   replace: {
     label: "Replace",
@@ -55,7 +55,7 @@ export const modeMeta: Record<
     short: "Wipe the target and load a fresh dump of the source.",
     long: "A dump of the source is streamed into the target, which is dropped and recreated first. Simple and exact, but the target is empty for a moment and everything on it is lost.",
     destructive: true,
-    engines: ["postgres", "mysql", "mongodb"],
+    engines: ["postgres", "mysql", "mongodb", "clickhouse"],
   },
 }
 

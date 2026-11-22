@@ -464,10 +464,18 @@ export function QueryTab() {
               className="font-mono"
             />
           </label>
-          {sqlEngine(d.engine) && d.engine !== "mysql" && (
+          {sqlEngine(d.engine) &&
+            d.engine !== "mysql" &&
+            d.engine !== "clickhouse" && (
+              <p className="text-caption text-muted-foreground">
+                The whole script runs in one transaction: if a statement fails,
+                nothing is kept.
+              </p>
+            )}
+          {d.engine === "clickhouse" && (
             <p className="text-caption text-muted-foreground">
-              The whole script runs in one transaction: if a statement fails,
-              nothing is kept.
+              ClickHouse has no transactions: statements that ran before a
+              failing one stay done.
             </p>
           )}
         </div>
@@ -704,6 +712,7 @@ function Results({
               {change &&
                 sqlEngine(d.engine) &&
                 d.engine !== "mysql" &&
+                d.engine !== "clickhouse" &&
                 list.length > 0 && (
                   <span className="font-normal text-muted-foreground">
                     {" "}
@@ -837,6 +846,7 @@ function StartHint() {
               d.engine !== "postgres" &&
                 d.engine !== "mysql" &&
                 d.engine !== "mssql" &&
+                d.engine !== "clickhouse" &&
                 "font-mono",
             )}
           >

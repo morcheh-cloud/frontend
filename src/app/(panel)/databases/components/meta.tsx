@@ -70,11 +70,28 @@ export const engines: {
     dbPlaceholder: "0",
     dbHint: "Only matters for the key counts shown first.",
   },
+  {
+    value: "clickhouse",
+    label: "ClickHouse",
+    port: 9000,
+    user: "default",
+    dbLabel: "Database",
+    dbPlaceholder: "default",
+    dbHint:
+      "The one to sign in to. Every database on the server is watched. Morche speaks the native protocol (9000, or 9440 with TLS), not HTTP (8123).",
+  },
 ]
 
 export const engineMeta = Object.fromEntries(
   engines.map((e) => [e.value, e]),
 ) as Record<Engine, (typeof engines)[number]>
+
+// The port Morche uses when none is typed (ClickHouse moves to 9440 with
+// TLS, as the backend does).
+export function defaultPort(engine: Engine, tls?: Database["tls"]) {
+  if (engine === "clickhouse" && tls && tls !== "disable") return 9440
+  return engineMeta[engine].port
+}
 
 // "MariaDB 11.4", "PostgreSQL 17.2": the flavor the backend found wins over
 // the engine picked in the form.
@@ -90,6 +107,7 @@ const logos: Record<string, string> = {
   mariadb: "mariadb",
   redis: "redis",
   mongodb: "mongodb",
+  clickhouse: "clickhouse",
 }
 
 // Brand logo from Simple Icons (public/db), or a monogram where there is none.
@@ -322,6 +340,9 @@ const schemes: Record<string, Engine> = {
   "mongodb+srv": "mongodb",
   redis: "redis",
   rediss: "redis",
+  clickhouse: "clickhouse",
+  clickhouses: "clickhouse",
+  tcp: "clickhouse",
 }
 
 const decode = (s: string) => {
@@ -334,7 +355,7 @@ const decode = (s: string) => {
 
 // Reads the connection strings apps and providers hand out:
 // postgres://user:pass@host:5432/db?sslmode=require, mysql://…, mongodb://…,
-// redis:// and rediss://, sqlserver://host:1433;database=x, jdbc: prefixes,
+// redis:// and rediss://, clickhouse:// (tcp://), sqlserver://host:1433;database=x, jdbc: prefixes,
 // and ADO.NET "Server=…;User Id=…;Password=…". Null when it isn't one.
 export function parseConnectionString(raw: string): Parsed | null {
   const text = raw.trim().replace(/^jdbc:/i, "")
@@ -375,6 +396,19 @@ export function parseConnectionString(raw: string): Parsed | null {
       out.username = out.username || params.get("user id") || params.get("user")
       out.password = out.password ?? params.get("password")
       out.tls = sqlServerTls(params)
+    } else if (engine === "clickhouse") {
+      out.dbname = path || params.get("database") || undefined
+      const secure = params.get("secure") ?? params.get("ssl")
+      if (
+        url[1].toLowerCase() === "clickhouses" ||
+        secure === "true" ||
+        secure === "1"
+      ) {
+        out.tls = "require"
+      }
+      // An HTTP port pasted by habit: the native one is what Morche speaks.
+      if (port === 8123) out.port = 9000
+      if (port === 8443) out.port = 9440
     } else if (engine === "redis") {
       out.dbname = path || undefined
       if (url[1].toLowerCase() === "rediss") out.tls = "require"
@@ -459,6 +493,7 @@ export function imageEngine(
   if (name.includes("mssql") || name.includes("azure-sql-edge"))
     return { engine: "mssql" }
   if (last === "mongo" || name.includes("mongodb")) return { engine: "mongodb" }
+  if (name.includes("clickhouse")) return { engine: "clickhouse" }
   if (/^(redis|valkey|keydb|redis-stack(-server)?)$/.test(last))
     return { engine: "redis" }
   return null

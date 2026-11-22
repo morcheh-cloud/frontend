@@ -53,6 +53,10 @@ export const databases: GuideSection[] = [
               "Redis",
               "INFO, client list, SLOWLOG, memory, persistence, a sample of keys",
             ],
+            [
+              "ClickHouse",
+              "system tables: running queries, query_log, parts and table sizes, merges, mutations, replicas, disks",
+            ],
           ]}
         />
         <P>

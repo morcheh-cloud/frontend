@@ -6,6 +6,7 @@ import CodeMirror, { EditorView } from "@uiw/react-codemirror"
 
 import { editorTheme } from "@/app/(panel)/servers/[id]/components/ini-editor"
 import { useCodeTheme } from "@/components/code-theme"
+import { ClickHouseSQL } from "./clickhouse-dialect"
 import type { Engine } from "./meta"
 
 const read = [
@@ -19,6 +20,7 @@ const langs = {
   mssql: [...read, sql({ dialect: MSSQL })],
   mongodb: [...read, javascript()],
   redis: read,
+  clickhouse: [...read, sql({ dialect: ClickHouseSQL })],
 }
 
 // A read-only, highlighted piece of code (a CREATE statement, a view).

@@ -110,6 +110,11 @@ import {
 } from "./meta"
 import { TempDirField, tempDirProblem } from "./temp-dir-field"
 
+// Where the dump is written before it's sent: a parallel PostgreSQL dump,
+// and every ClickHouse one (each table is written there first).
+const usesTempDir = (engine: string, workers: number) =>
+  (engine === "postgres" && workers > 1) || engine === "clickhouse"
+
 const MAX_STORAGES = 10
 
 type Draft = {
@@ -223,7 +228,7 @@ function toBody(d: Draft, db: Database): BackupPlanBody {
     compression: d.compression,
     compression_level: d.level,
     workers: d.workers,
-    ...(db.engine === "postgres" && d.workers > 1
+    ...(usesTempDir(db.engine, d.workers)
       ? { temp_dir: d.tempDir.trim() }
       : {}),
     storage_ids: d.storages,
@@ -465,7 +470,7 @@ function Editor({
     }
     if (draft.storages.length === 0) e.storages = "Pick at least one storage"
     const tmp = tempDirProblem(draft.tempDir)
-    if (db.engine === "postgres" && draft.workers > 1 && tmp) e.tempDir = tmp
+    if (usesTempDir(db.engine, draft.workers) && tmp) e.tempDir = tmp
     if (!db.server_id && !draft.runner && local && !local.supported) {
       e.runner = "Choose the server that runs it"
     }
@@ -609,7 +614,7 @@ function Editor({
         draft.workers > 1 ? ` · ${workersText(draft.workers)}` : ""
       }`,
     ],
-    ...(db.engine === "postgres" && draft.workers > 1
+    ...(usesTempDir(db.engine, draft.workers)
       ? [
           ["Written first to", draft.tempDir.trim() || "/tmp"] as [
             string,
@@ -1411,7 +1416,7 @@ function SpeedSection({
             ` It needs ${draft.workers + 1} free connections while it runs.`}
         </Note>
       )}
-      {parallel?.supported && draft.workers > 1 && engine === "postgres" && (
+      {usesTempDir(engine, draft.workers) && (
         <TempDirField
           id="plan"
           value={draft.tempDir}

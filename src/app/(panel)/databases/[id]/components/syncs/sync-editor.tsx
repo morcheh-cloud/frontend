@@ -402,20 +402,23 @@ function Editor({
     (x) =>
       x.id === draft.source ||
       (x.workspace_id === db.workspace_id &&
-        ["postgres", "mysql", "mongodb"].includes(x.engine) &&
+        ["postgres", "mysql", "mongodb", "clickhouse"].includes(x.engine) &&
         can(x, "operator")),
-  )
-  const targets = dbs.filter(
-    (x) =>
-      x.id === draft.target ||
-      (x.workspace_id === db.workspace_id &&
-        x.engine === engineOf &&
-        can(x, "owner")),
   )
   const rows = draft.mode !== "replace"
   const modes = syncModes.filter((m) => modeMeta[m].engines.includes(engineOf))
 
   const sourceList = useSyncTables(draft.source, "", !!draft.source)
+  // Rows can also go to another engine (PostgreSQL or MySQL into
+  // ClickHouse); a dump only into the same one.
+  const rowsInto = sourceList.data?.rows_into ?? [engineOf]
+  const targets = dbs.filter(
+    (x) =>
+      x.id === draft.target ||
+      (x.workspace_id === db.workspace_id &&
+        (x.engine === engineOf || (rows && rowsInto.includes(x.engine))) &&
+        can(x, "owner")),
+  )
   const targetList = useSyncTables(draft.target, "", !!draft.target)
   const tables = useSyncTables(
     draft.source,

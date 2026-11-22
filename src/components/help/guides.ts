@@ -616,7 +616,7 @@ export const guides: GuideMeta[] = [
     slug: "databases",
     title: "Databases",
     summary:
-      "Watch PostgreSQL, MySQL, SQL Server, MongoDB and Redis: health checks, live sessions, slow queries, replication and backups.",
+      "Watch PostgreSQL, MySQL, SQL Server, MongoDB, Redis and ClickHouse: health checks, live sessions, slow queries, replication and backups.",
     icon: Database,
     group: "Infrastructure",
     keywords: [
@@ -628,6 +628,7 @@ export const guides: GuideMeta[] = [
       "mssql",
       "mongodb",
       "redis",
+      "clickhouse",
       "monitoring",
       "health",
       "check",
