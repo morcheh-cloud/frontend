@@ -32,7 +32,15 @@ import { formatSize } from "@/lib/format"
 import type { Backup, BackupCopy } from "@/lib/services"
 import { useDashboard } from "../parts"
 import { useBackupActions, useBackupCan } from "./backup-actions"
-import { formatLabels, stateLabel, stateTone, whatText, when } from "./meta"
+import {
+  compressionText,
+  formatLabels,
+  stateLabel,
+  stateTone,
+  whatText,
+  when,
+  workersText,
+} from "./meta"
 
 function took(b: Backup) {
   if (!b.started_at || !b.finished_at) return ""
@@ -222,6 +230,18 @@ export function BackupDetails({
                   value: formatLabels[b.format] ?? b.format,
                   wide: true,
                 },
+                ...(b.state === "succeeded"
+                  ? [
+                      {
+                        label: "Compression",
+                        value: compressionText(b.compression),
+                      },
+                      {
+                        label: "Jobs",
+                        value: workersText(b.workers),
+                      },
+                    ]
+                  : []),
                 ...(b.path && b.state === "succeeded"
                   ? [{ label: "File", value: b.path, wide: true, mono: true }]
                   : []),

@@ -50,14 +50,15 @@ export function stateTone(state: string): "success" | "warning" | "muted" {
 
 export const formatLabels: Record<string, string> = {
   pg_custom: "pg_dump, custom format",
-  pg_all: "pg_dumpall, gzipped SQL",
-  mysql_sql: "mysqldump, gzipped SQL",
-  mysql_db: "mysqldump of one database, gzipped",
-  mysql_binlog: "Binary log changes, gzipped",
-  mongo_arch: "mongodump archive, gzipped",
+  pg_dir: "pg_dump, parallel (directory format in a tar)",
+  pg_all: "pg_dumpall, SQL",
+  mysql_sql: "mysqldump, SQL",
+  mysql_db: "mysqldump of one database",
+  mysql_binlog: "Binary log changes",
+  mongo_arch: "mongodump archive",
   redis_rdb: "Redis snapshot (RDB)",
   mssql_bak: "SQL Server backup (.bak)",
-  mssql_diff: "SQL Server differential backup, gzipped",
+  mssql_diff: "SQL Server differential backup",
 }
 
 export const whatText = (target: string, engine: Database["engine"]) =>
@@ -194,6 +195,32 @@ export const methodText = (
   p.method === "incremental"
     ? `Incremental, full every ${plural(p.full_every_days, "day")}`
     : "Full"
+
+export type Compression = BackupPlan["compression"]
+export type Level = BackupPlan["compression_level"]
+
+export const levelLabels: Record<Level, string> = {
+  fast: "Fast",
+  balanced: "Balanced",
+  small: "Smallest",
+}
+
+export const levelHints: Record<Level, string> = {
+  fast: "Least CPU, a bit bigger",
+  balanced: "Good size, still quick",
+  small: "Smallest file, slowest",
+}
+
+// "zstd, balanced" from a plan's or a backup's compression ("zstd:balanced";
+// a backup from before Morche kept it has "" and was gzip).
+export function compressionText(compression: string) {
+  const [method, level] = (compression || "gzip").split(":")
+  const label = levelLabels[level as Level]
+  return label ? `${method}, ${label.toLowerCase()}` : (method ?? "gzip")
+}
+
+export const workersText = (n: number) =>
+  n > 1 ? `${n} parallel jobs` : "One job"
 
 // Every copy that made it, and the ones that didn't.
 export const storedOn = (b: Pick<Backup, "copies">) =>

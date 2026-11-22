@@ -920,6 +920,7 @@ function RestoreFileButton({
 // What an outside file was, briefly (formatLabels describe Morche's own).
 const fileKinds: Record<string, string> = {
   pg_custom: "pg_dump archive",
+  pg_dir: "pg_dump parallel archive",
   pg_sql: "SQL dump",
   mysql_sql: "SQL dump",
   mysql_db: "SQL dump",

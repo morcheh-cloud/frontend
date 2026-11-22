@@ -9,6 +9,7 @@ import {
   DatabaseBackup,
   Database as DatabaseIcon,
   Infinity as Forever,
+  Gauge,
   Info,
   Layers,
   ListChecks,
@@ -17,6 +18,7 @@ import {
   Regex,
   Settings2,
   X,
+  Zap,
 } from "lucide-react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
@@ -37,7 +39,7 @@ import {
   Choice,
   ScheduleField,
 } from "@/app/(panel)/cronjobs/components/schedule-field"
-import { Empty } from "@/app/(panel)/servers/[id]/components/parts"
+import { Empty, Segmented } from "@/app/(panel)/servers/[id]/components/parts"
 import {
   type Builder,
   fromBuilder,
@@ -84,9 +86,14 @@ import {
 import { useDatabaseCan } from "../../../components/permissions"
 import {
   backupsHref,
+  type Compression,
+  compressionText,
   folderProblem,
   folderTokens,
+  type Level,
   LOCAL_RUNNER,
+  levelHints,
+  levelLabels,
   type Method,
   matching,
   methodText,
@@ -99,6 +106,7 @@ import {
   schedulePresets,
   selectionText,
   slug,
+  workersText,
 } from "./meta"
 
 const MAX_STORAGES = 10
@@ -110,6 +118,9 @@ type Draft = {
   pattern: string
   method: Method
   fullEvery: string
+  compression: Compression
+  level: Level
+  workers: number
   storages: string[]
   runner: string
   folder: string
@@ -135,6 +146,9 @@ const fromSaved = (p: BackupPlan): Draft => ({
   pattern: p.pattern,
   method: p.method,
   fullEvery: String(p.full_every_days || 7),
+  compression: p.compression,
+  level: p.compression_level,
+  workers: p.workers || 1,
   storages: p.storages.map((s) => s.id),
   runner: p.runner_server_id ?? "",
   folder: p.folder,
@@ -159,6 +173,9 @@ const fresh = (name: string): Draft => ({
   pattern: "",
   method: "full",
   fullEvery: "7",
+  compression: "zstd",
+  level: "balanced",
+  workers: 1,
   storages: [],
   runner: "",
   folder: "/backups/{year}-{month}-{day}",
@@ -199,6 +216,9 @@ function toBody(d: Draft, db: Database): BackupPlanBody {
     pattern: d.selection === "pattern" ? d.pattern.trim() : "",
     method: d.method,
     full_every_days: num(d.fullEvery) || 7,
+    compression: d.compression,
+    compression_level: d.level,
+    workers: d.workers,
     storage_ids: d.storages,
     runner_server_id: db.server_id ? undefined : d.runner || undefined,
     folder: d.folder.trim(),
@@ -222,6 +242,7 @@ type Errors = Partial<
     | "targets"
     | "pattern"
     | "method"
+    | "compression"
     | "storages"
     | "runner"
     | "folder"
@@ -241,6 +262,9 @@ const errorKey: Record<string, keyof Errors> = {
   pattern: "pattern",
   method: "method",
   full_every_days: "method",
+  compression: "compression",
+  compression_level: "compression",
+  workers: "compression",
   storage_ids: "storages",
   runner_server_id: "runner",
   folder: "folder",
@@ -409,6 +433,7 @@ function Editor({
   const selections = opts?.selections ?? ["all", "selected", "pattern"]
   const databases = opts?.databases ?? []
   const incremental = opts?.incremental
+  const parallel = opts?.parallel
   const local = opts?.local
 
   function check(): Errors {
@@ -534,6 +559,8 @@ function Editor({
         ? `${draft.targets.length} database${draft.targets.length === 1 ? "" : "s"}`
         : selectionText({ ...draft, targets: draft.targets }, db.engine),
     draft.method === "incremental" ? "Incremental" : "",
+    compressionText(`${draft.compression}:${draft.level}`),
+    draft.workers > 1 ? `${draft.workers} jobs` : "",
     retentionText({
       retention: draft.retention,
       keep_days: num(draft.keepDays) || 0,
@@ -564,6 +591,12 @@ function Editor({
         method: draft.method,
         full_every_days: num(draft.fullEvery) || 7,
       }),
+    ],
+    [
+      "Compression",
+      `${compressionText(`${draft.compression}:${draft.level}`)}${
+        draft.workers > 1 ? ` · ${workersText(draft.workers)}` : ""
+      }`,
     ],
     [
       "Stored on",
@@ -729,6 +762,16 @@ function Editor({
         )}
         <FieldError text={errors.method} />
       </Section>
+
+      <SpeedSection
+        draft={draft}
+        engine={db.engine}
+        note={opts?.compression_note}
+        parallel={parallel}
+        phone={phone}
+        error={errors.compression}
+        onChange={(patch) => set(patch, "compression")}
+      />
 
       <Section
         title="Where to store"
@@ -1228,6 +1271,113 @@ function ScheduleChoice({
 }
 
 // A big tappable choice, like a radio button with a body.
+// The parallel jobs a plan can pick from.
+const workerChoices = [1, 2, 4, 8, 16]
+
+// How a plan compresses its files, and how many jobs a dump uses.
+function SpeedSection({
+  draft,
+  engine,
+  note,
+  parallel,
+  phone,
+  error,
+  onChange,
+}: {
+  draft: Draft
+  engine: Database["engine"]
+  note?: string
+  parallel?: { supported: boolean; note: string }
+  phone: boolean
+  error?: string
+  onChange: (patch: Partial<Draft>) => void
+}) {
+  const mongoGzip = engine === "mongodb" && draft.compression === "gzip"
+  return (
+    <Section
+      title="Size and speed"
+      hint="How the files are compressed, and how many parts of a database are dumped at once."
+      phone={phone}
+    >
+      <div className="grid gap-2 md:grid-cols-2">
+        <OptionCard
+          icon={<Zap />}
+          title="zstd (recommended)"
+          hint="Faster and smaller than gzip, on every core."
+          selected={draft.compression === "zstd"}
+          onSelect={() => onChange({ compression: "zstd" })}
+        />
+        <OptionCard
+          icon={<Archive />}
+          title="gzip"
+          hint="Opens anywhere, with tools every system has."
+          selected={draft.compression === "gzip"}
+          onSelect={() => onChange({ compression: "gzip" })}
+        />
+      </div>
+      {note && (
+        <Note icon={<Info />}>
+          {note}{" "}
+          <Link
+            href="/help/databases#size-speed"
+            className="text-brand hover:underline"
+          >
+            Docs
+          </Link>
+        </Note>
+      )}
+      {!mongoGzip && (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-body-sm font-medium">Level</span>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <Segmented
+              label="Compression level"
+              value={draft.level}
+              onChange={(level) => onChange({ level })}
+              items={(["fast", "balanced", "small"] as const).map((l) => ({
+                value: l,
+                label: levelLabels[l],
+              }))}
+            />
+            <span className="text-caption text-muted-foreground">
+              {levelHints[draft.level]}
+            </span>
+          </div>
+        </div>
+      )}
+      {parallel?.supported && (
+        <Field label="Parallel jobs" className="max-w-md">
+          {(p) => (
+            <Choice
+              id={p.id}
+              phone={phone}
+              value={String(draft.workers)}
+              onChange={(v) => onChange({ workers: Number(v) })}
+              items={workerChoices.map((n) => ({
+                value: String(n),
+                label: n === 1 ? "1 — one at a time" : `${n} at once`,
+              }))}
+            />
+          )}
+        </Field>
+      )}
+      {parallel && !parallel.supported && (
+        <p className="text-caption text-ash">
+          {parallel.note} Each backup is dumped in one go.
+        </p>
+      )}
+      {parallel?.supported && draft.workers > 1 && (
+        <Note icon={<Gauge />}>
+          {parallel.note}
+          {engine === "postgres" &&
+            ` It needs ${draft.workers + 1} free connections while it runs.`}
+        </Note>
+      )}
+      <FieldError text={error} />
+    </Section>
+  )
+}
+
 function OptionCard({
   icon,
   title,

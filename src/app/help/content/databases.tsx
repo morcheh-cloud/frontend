@@ -961,12 +961,15 @@ db.createUser({
         <Table
           head={["Engine", "What's made"]}
           rows={[
-            ["PostgreSQL", "pg_dump custom format (.dump), one per database"],
+            [
+              "PostgreSQL",
+              "pg_dump custom format (.dump), one per database; with parallel jobs, its directory format in a .tar",
+            ],
             [
               "MySQL / MariaDB",
-              "mysqldump of each database, gzipped; incrementals = binary log",
+              "mysqldump of each database, compressed (.sql.zst or .sql.gz); incrementals = binary log",
             ],
-            ["MongoDB", "mongodump archive of each database, gzipped"],
+            ["MongoDB", "mongodump archive of each database, compressed"],
             ["Redis", "A snapshot of everything (.rdb); no choice of database"],
             [
               "SQL Server",
@@ -1182,6 +1185,89 @@ db.createUser({
           A MySQL binary log names its database, so a MySQL incremental can only
           be restored into the database it came from.
         </Warn>
+      </>
+    ),
+  },
+  {
+    id: "size-speed",
+    title: "Compression and parallel jobs",
+    body: (
+      <>
+        <P>
+          A plan's <UI>Size and speed</UI> section says how its files are
+          compressed and, for PostgreSQL and MongoDB, how many parts of a
+          database are dumped at once. Both only change new backups; older ones
+          restore as they always did.
+        </P>
+        <Table
+          head={["Choice", "What it does"]}
+          rows={[
+            [
+              "zstd",
+              "Faster and smaller than gzip, and spread over every core. The default for new plans. Files end in .zst",
+            ],
+            [
+              "gzip",
+              "Opens anywhere with tools every system has. Plans from before this choice keep it",
+            ],
+            ["Fast", "Least CPU, slightly bigger files"],
+            ["Balanced", "A good size and still quick"],
+            ["Smallest", "The smallest file, and the slowest to make"],
+            [
+              "Parallel jobs",
+              "How many tables (PostgreSQL) or collections (MongoDB) are read at once",
+            ],
+          ]}
+        />
+        <P>
+          PostgreSQL compresses its own archive, so zstd needs <C>pg_dump</C> 16
+          or newer built with it where the backup runs. An older one uses gzip
+          instead, the run's log says so, and the backup's details show what was
+          used. MySQL, Redis and SQL Server files are compressed by Morche while
+          they're uploaded; MongoDB's gzip is mongodump's own and has no levels.
+        </P>
+        <P>
+          With more than one job, PostgreSQL uses <C>pg_dump</C>'s directory
+          format: the dump is written to a temporary folder where it runs first
+          (Morche's machine, the server, or the database's container), then sent
+          as one <C>.tar</C>. That folder needs room for the compressed dump,
+          and each job holds a connection of its own, so the database needs jobs
+          + 1 free connections. A restore of such a backup can use parallel jobs
+          too: pick them under <UI>Parallel jobs</UI> in the restore window.
+        </P>
+        <Recommended
+          rows={[
+            {
+              setting: "Compression",
+              value: "zstd, Balanced",
+              why: "Usually a third of gzip's size, made faster",
+            },
+            {
+              setting: "Parallel jobs",
+              value: "1 below a few GB, then 4",
+              why: "Jobs help with many big tables; small databases gain nothing",
+            },
+            {
+              setting: "Jobs on a busy server",
+              value: "No more than half its cores",
+              why: "Each job is a full backend process on the database",
+            },
+          ]}
+        />
+        <Warn>
+          A restore with more than one job isn't a single transaction: if it
+          fails half way, the database is left half loaded. Keep{" "}
+          <UI>Back it up first</UI> on when replacing a database, or restore
+          with one job.
+        </Warn>
+        <P>To restore such a file by hand:</P>
+        <Code>{`mkdir dump && tar -xf shop_2026-11-22.tar -C dump
+pg_restore -j 4 --no-owner -d shop dump`}</Code>
+        <Tip>
+          If a parallel backup fails with a full temporary folder, free some
+          space there, set <C>TMPDIR</C> for Morche, or go back to one job: that
+          one streams straight to the storages and needs no room.
+        </Tip>
       </>
     ),
   },

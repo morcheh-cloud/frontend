@@ -1407,6 +1407,8 @@ export interface Backup {
   $schema?: string;
   /** @format int64 */
   bytes: number;
+  /** method:level it was compressed with ("zstd:fast"); empty = before Morche kept it (gzip) */
+  compression: string;
   copies: BackupCopy[];
   /** @format date-time */
   created_at: string;
@@ -1465,6 +1467,11 @@ export interface Backup {
   verified_at: string | null;
   /** What that check found wrong; empty = it passed */
   verify_error: string;
+  /**
+   * Parallel jobs the dump used
+   * @format int32
+   */
+  workers: number;
 }
 
 export interface BackupCopy {
@@ -1501,6 +1508,8 @@ export interface BackupOptions {
    * @format uri
    */
   $schema?: string;
+  /** How this engine's files are compressed */
+  compression_note: string;
   /** The databases on it, without the system ones */
   databases: string[];
   /** Why they couldn't be listed; empty when they could */
@@ -1508,6 +1517,8 @@ export interface BackupOptions {
   incremental: BackupIncremental;
   /** Whether the machine Morche runs on can run its backups and restores */
   local: LocalTools;
+  /** Whether dumps can use several jobs at once */
+  parallel: BackupIncremental;
   /** Why some don't */
   selection_note: string;
   /** Which ways of choosing databases work here */
@@ -1520,6 +1531,8 @@ export interface BackupPlan {
    * @format uri
    */
   $schema?: string;
+  compression: "gzip" | "zstd";
+  compression_level: "fast" | "balanced" | "small";
   /** @format date-time */
   created_at: string;
   cron: string;
@@ -1565,6 +1578,8 @@ export interface BackupPlan {
   /** @format date-time */
   updated_at: string;
   username: string;
+  /** @format int32 */
+  workers: number;
 }
 
 export interface BackupPlanBody {
@@ -1573,6 +1588,16 @@ export interface BackupPlanBody {
    * @format uri
    */
   $schema?: string;
+  /**
+   * How its files are compressed. zstd is faster and smaller; PostgreSQL needs pg_dump 16 for it (older ones fall back to gzip)
+   * @default "gzip"
+   */
+  compression?: "gzip" | "zstd";
+  /**
+   * fast = least CPU, small = smallest file
+   * @default "balanced"
+   */
+  compression_level?: "fast" | "balanced" | "small";
   /**
    * When it runs; empty = only when started by hand
    * @maxLength 128
@@ -1664,6 +1689,14 @@ export interface BackupPlanBody {
    * @maxLength 255
    */
   username?: string;
+  /**
+   * Parallel jobs for each dump (PostgreSQL, MongoDB); see the options' parallel note
+   * @format int32
+   * @min 1
+   * @max 16
+   * @default 1
+   */
+  workers?: number;
 }
 
 export interface BackupPlanStorage {
@@ -16084,6 +16117,13 @@ export interface RestoreBody {
    * @maxLength 256
    */
   username?: string;
+  /**
+   * For a parallel PostgreSQL backup (format pg_dir): jobs for the restore; 0 = as many as the backup used. More than one isn't a single transaction
+   * @format int64
+   * @min 0
+   * @max 16
+   */
+  workers?: number;
 }
 
 export interface RestoreFileBody {
@@ -16135,6 +16175,13 @@ export interface RestoreFileBody {
    * @maxLength 256
    */
   username?: string;
+  /**
+   * For a parallel PostgreSQL archive (format pg_dir): jobs for the restore; 0 = 4. More than one isn't a single transaction
+   * @format int64
+   * @min 0
+   * @max 16
+   */
+  workers?: number;
 }
 
 export interface RestoreFileInfo {
@@ -16143,6 +16190,8 @@ export interface RestoreFileInfo {
    * @format uri
    */
   $schema?: string;
+  /** gzip or zstd around the file; empty = neither */
+  compression: string;
   /** The databases the file names (a MySQL dump's USE, a mongodump archive's); empty = it holds one, unnamed */
   databases: string[];
   /** The database engine it is for; empty when unknown */

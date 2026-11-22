@@ -118,6 +118,8 @@ function RestoreForm({
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [errors, setErrors] = useState<Errors>({})
+  const [workers, setWorkers] = useState(b.workers || 1)
+  const parallel = b.format === "pg_dir"
 
   const replace = effectiveMode === "replace"
   const runners = (servers.data?.items ?? [])
@@ -144,6 +146,7 @@ function RestoreForm({
       ...(can.download.length > 1 && storage ? { storage_id: storage } : {}),
       ...(direct && runner ? { runner_server_id: runner } : {}),
       ...(ownLogin ? { username: username.trim(), password } : {}),
+      ...(parallel ? { workers } : {}),
     }
     restore.mutate(
       { id: b.id, body },
@@ -283,6 +286,16 @@ function RestoreForm({
         </Field>
       )}
 
+      {parallel && (
+        <RestoreJobs
+          value={workers}
+          onChange={setWorkers}
+          phone={phone}
+          replace={replace}
+          safety={safety}
+        />
+      )}
+
       {direct && (
         <Field
           label="Run it from"
@@ -399,5 +412,45 @@ function RestoreForm({
         </Button>
       </div>
     </form>
+  )
+}
+
+// Parallel jobs for a parallel PostgreSQL backup (pg_dir); more than one
+// can't be a single transaction.
+export function RestoreJobs({
+  value,
+  onChange,
+  phone,
+  replace,
+  safety,
+}: {
+  value: number
+  onChange: (n: number) => void
+  phone: boolean
+  replace: boolean
+  safety: boolean
+}) {
+  return (
+    <Field
+      label="Parallel jobs"
+      hint={
+        value > 1
+          ? `Loads ${value} tables at once, so it's much faster on a big database. It isn't one transaction: if it fails half way, the database is left half loaded${replace ? (safety ? ", and the backup taken first brings it back." : ". Back it up first to be able to go back.") : " and is dropped again."}`
+          : "Loads it in one transaction: all of it, or nothing."
+      }
+    >
+      {(p) => (
+        <Choice
+          id={p.id}
+          phone={phone}
+          value={String(value)}
+          onChange={(v) => onChange(Number(v))}
+          items={[1, 2, 4, 8, 16].map((n) => ({
+            value: String(n),
+            label: n === 1 ? "1 — one transaction" : `${n} at once`,
+          }))}
+        />
+      )}
+    </Field>
   )
 }

@@ -52,6 +52,7 @@ import {
 } from "../../../api"
 import { useDashboard } from "../parts"
 import { LOCAL_RUNNER } from "./meta"
+import { RestoreJobs } from "./restore-layer"
 
 type Mode = RestoreFileBody["mode"]
 type Errors = Partial<
@@ -106,7 +107,7 @@ function saveLast(v: Last) {
 
 // Names that dumps usually carry. Only a hint: the backend reads the file.
 const dumpName =
-  /\.(sql|dump|pgdump|psql|bak|backup|archive|rdb)(\.gz)?$|\.(gz|gzip)$/i
+  /\.(sql|dump|pgdump|psql|bak|backup|archive|rdb|tar)(\.(gz|zst))?$|\.(gz|gzip|zst)$/i
 const looksLikeDump = (e: FileEntry) => dumpName.test(e.name)
 
 // "shop_2026-11-17T03-00.sql.gz" → "shop".
@@ -114,7 +115,7 @@ export function stemOf(file: string) {
   let s = basename(file)
   for (;;) {
     const next = s.replace(
-      /\.(gz|gzip|sql|dump|pgdump|psql|bak|backup|archive|tar)$/i,
+      /\.(gz|gzip|zst|sql|dump|pgdump|psql|bak|backup|archive|tar)$/i,
       "",
     )
     if (next === s) break
@@ -581,6 +582,8 @@ function RestoreFileForm({
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [errors, setErrors] = useState<Errors>({})
+  const [workers, setWorkers] = useState(4)
+  const parallel = info.format === "pg_dir"
 
   const runners = (servers.data?.items ?? [])
     .filter((s) =>
@@ -626,6 +629,7 @@ function RestoreFileForm({
         : {}),
       ...(direct && runner ? { runner_server_id: runner } : {}),
       ...(ownLogin ? { username: username.trim(), password } : {}),
+      ...(parallel ? { workers } : {}),
     }
     restore.mutate(
       { id: d.id, body },
@@ -876,6 +880,16 @@ function RestoreFileForm({
             )}
           </div>
         </>
+      )}
+
+      {parallel && (
+        <RestoreJobs
+          value={workers}
+          onChange={setWorkers}
+          phone={phone}
+          replace={replace}
+          safety={safety}
+        />
       )}
 
       {direct && (
