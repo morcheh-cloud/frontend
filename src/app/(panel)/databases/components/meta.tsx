@@ -357,7 +357,11 @@ const decode = (s: string) => {
 // postgres://user:pass@host:5432/db?sslmode=require, mysql://…, mongodb://…,
 // redis:// and rediss://, clickhouse:// (tcp://), sqlserver://host:1433;database=x, jdbc: prefixes,
 // and ADO.NET "Server=…;User Id=…;Password=…". Null when it isn't one.
-export function parseConnectionString(raw: string): Parsed | null {
+export function parseConnectionString(
+  raw: string,
+  // The engine picked in the form: a "Host=…;Port=…" string doesn't say.
+  current?: Engine,
+): Parsed | null {
   const text = raw.trim().replace(/^jdbc:/i, "")
   if (!text) return null
   const url = text.match(
@@ -418,7 +422,7 @@ export function parseConnectionString(raw: string): Parsed | null {
     }
     return out
   }
-  return parseAdo(text)
+  return parseAdo(text, current)
 }
 
 function sslMode(p: Map<string, string>): Database["tls"] | undefined {
@@ -442,7 +446,7 @@ function sqlServerTls(p: Map<string, string>): Database["tls"] | undefined {
 
 // "Server=tcp:db.example.com,1433;Database=shop;User Id=sa;Password=…" (SQL
 // Server) or "Server=…;Port=3306;Uid=…;Pwd=…" (MySQL Connector/NET).
-function parseAdo(text: string): Parsed | null {
+function parseAdo(text: string, current?: Engine): Parsed | null {
   const p = new Map<string, string>()
   for (const pair of text.split(";")) {
     const i = pair.indexOf("=")
@@ -462,13 +466,32 @@ function parseAdo(text: string): Parsed | null {
   const [host, portText] = plain.includes(",")
     ? plain.split(",")
     : [plain, p.get("port")]
+  const username =
+    p.get("user id") ?? p.get("uid") ?? p.get("user") ?? p.get("username")
+  const password = p.get("password") ?? p.get("pwd")
+  const dbname = p.get("database") ?? p.get("initial catalog")
+  // Kept as picked when the string fits it (ClickHouse, PostgreSQL…).
+  if (current && current !== "mysql" && current !== "mssql") {
+    let port = Number(portText) || undefined
+    if (current === "clickhouse" && port === 8123) port = 9000
+    if (current === "clickhouse" && port === 8443) port = 9440
+    return {
+      engine: current,
+      host: host.trim(),
+      port,
+      username,
+      password,
+      dbname,
+      tls: sslMode(p),
+    }
+  }
   return {
     engine: mysql ? "mysql" : "mssql",
     host: host.trim(),
     port: Number(portText) || undefined,
-    username: p.get("user id") ?? p.get("uid") ?? p.get("user"),
-    password: p.get("password") ?? p.get("pwd"),
-    dbname: p.get("database") ?? p.get("initial catalog"),
+    username,
+    password,
+    dbname,
     tls: mysql ? sslMode(p) : sqlServerTls(p),
   }
 }

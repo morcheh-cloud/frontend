@@ -296,7 +296,7 @@ export function DatabaseForm({
   // A connection string pasted into Host fills every field, then the text is
   // gone: it usually holds the password.
   function fill(raw: string) {
-    const p = parseConnectionString(raw)
+    const p = parseConnectionString(raw, values.engine)
     if (!p) return false
     setValues((v) => ({
       ...v,
@@ -529,7 +529,16 @@ export function DatabaseForm({
             />
           )}
         </Field>
-        <Field label="Port" error={errors.port}>
+        <Field
+          label="Port"
+          error={errors.port}
+          hint={
+            values.engine === "clickhouse" &&
+            ["8123", "8443"].includes(values.port)
+              ? `${values.port} is ClickHouse's HTTP port; Morche uses the native one (9000, or 9440 with TLS).`
+              : undefined
+          }
+        >
           {(f) => (
             <Input
               {...f}
@@ -840,6 +849,22 @@ export function DatabaseForm({
   const fixes: { label: string; patch: Partial<Values> }[] = []
   if (tested?.status === "tls_error" && values.tls !== "disable") {
     fixes.push({ label: "Try without encryption", patch: { tls: "disable" } })
+  }
+  // ClickHouse: the HTTP port (8123) given for the native one, or TLS that
+  // doesn't match the port.
+  const said = tested?.message ?? ""
+  if (values.engine === "clickhouse" && said.includes("HTTP interface")) {
+    const port = values.tls === "disable" ? "9000" : "9440"
+    fixes.push({ label: `Use port ${port}`, patch: { port } })
+  }
+  if (values.engine === "clickhouse" && said.includes("doesn't use TLS")) {
+    fixes.push({
+      label: "Use port 9000 without encryption",
+      patch: { port: "9000", tls: "disable" },
+    })
+  }
+  if (values.engine === "clickhouse" && said.includes("expects TLS")) {
+    fixes.push({ label: "Turn encryption on", patch: { tls: "require" } })
   }
   if (
     tested?.status === "blocked" &&
