@@ -2,6 +2,8 @@
 
 import { queryOptions, useQuery } from "@tanstack/react-query"
 
+import { registriesQuery } from "@/app/(panel)/registries/api"
+import { registryBroken } from "@/app/(panel)/registries/components/meta"
 import { api } from "@/lib/api"
 import type {
   AlertRule,
@@ -29,6 +31,7 @@ import {
   monitoringItem,
   type NavItem,
   proxyItem,
+  registriesItem,
   serversItem,
   storageItem,
   vmsItem,
@@ -289,6 +292,15 @@ export function useCloudProblems() {
   return data ?? 0
 }
 
+export function useRegistryProblems() {
+  const { workspace } = useWorkspace()
+  const { data } = useQuery({
+    ...registriesQuery(workspace?.id),
+    select: (list) => list.items.filter(registryBroken).length,
+  })
+  return data ?? 0
+}
+
 export function usePVEProblems() {
   const { data } = useQuery({
     ...pveClustersQuery,
@@ -375,7 +387,14 @@ export function useNavAlerts() {
   const software = useSoftwareProblems()
   const uptime = useUptimeProblems()
   const firing = useAlertProblems()
+  const registries = useRegistryProblems()
   const alerts = new Map<string, NavAlert>()
+  if (registries > 0) {
+    alerts.set(registriesItem.href, {
+      count: registries,
+      label: `${plural(registries, "registry", "registries")} down or failed`,
+    })
+  }
   if (servers > 0) {
     alerts.set(serversItem.href, {
       count: servers,

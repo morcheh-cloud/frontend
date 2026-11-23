@@ -182,6 +182,8 @@ export function MonitorEditor({ id }: { id?: string }) {
     }
     const host = params.get("host")
     if (host) d.c = { ...d.c, host }
+    const url = params.get("url")
+    if (url) d.c = { ...d.c, url }
     const port = params.get("port")
     if (port && /^\d+$/.test(port)) d.port = port
     return d

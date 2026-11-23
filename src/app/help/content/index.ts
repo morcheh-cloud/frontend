@@ -20,14 +20,15 @@ import { gettingStarted } from "./getting-started"
 import { logRetention } from "./log-retention"
 import { monitoring } from "./monitoring"
 import { networkMap } from "./network-map"
+import { packageRegistries } from "./package-registries"
 import { packages } from "./packages"
 import { ports } from "./ports"
 import { power } from "./power"
 import { processes } from "./processes"
 import { reverseProxy } from "./reverse-proxy"
 import { scripts } from "./scripts"
-import { serverMetrics } from "./server-metrics"
 import { serverConfig } from "./server-config"
+import { serverMetrics } from "./server-metrics"
 import { serverNotes } from "./server-notes"
 import { serverOverview } from "./server-overview"
 import { servers } from "./servers"
@@ -69,6 +70,7 @@ export const content: Record<string, GuideSection[]> = {
   "virtual-machines": virtualMachines,
   databases,
   cloud,
+  "package-registries": packageRegistries,
   dns,
   "reverse-proxy": reverseProxy,
   "service-launcher": serviceLauncher,

@@ -1001,7 +1001,7 @@ const memMb = (m: Memory) =>
   (memories.find((x) => x.value === m) as { mb?: number } | undefined)?.mb ??
   Number.POSITIVE_INFINITY
 
-function ServerPicks({
+export function ServerPicks({
   loading,
   servers,
   allowed,

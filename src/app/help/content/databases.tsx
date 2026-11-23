@@ -1867,7 +1867,7 @@ pg_restore -j 4 --no-owner -d shop dump`}</Code>
     title: "On a server's page",
     body: (
       <P>
-        A server's <UI>Databases</UI> tab (in the Monitoring group) lists only
+        A server's <UI>Databases</UI> tab (in the Workloads group) lists only
         the databases Morche reaches through that server, and{" "}
         <UI>Add database</UI> there picks that server for you.
       </P>

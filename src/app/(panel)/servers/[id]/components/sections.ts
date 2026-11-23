@@ -48,7 +48,8 @@ export type Section = {
 
 export type SectionGroup = { label?: string; sections: Section[] }
 
-// Everything a server page can manage, in nav order. To add a feature: add
+// Everything a server page can manage, in nav order: the everyday tools
+// first, then what runs on it, then the rarer admin work. To add a feature: add
 // (or flip `ready` on) its entry here and create servers/[id]/<slug>/page.tsx.
 // The desktop tabs, the phone overview list and the breadcrumbs follow.
 export const sectionGroups: SectionGroup[] = [
@@ -62,17 +63,33 @@ export const sectionGroups: SectionGroup[] = [
         ready: true,
       },
       {
-        slug: "notes",
-        label: "Notes",
-        icon: NotebookPen,
-        summary: "What the team wrote down about this server, in Markdown.",
+        slug: "terminal",
+        label: "Terminal",
+        icon: SquareTerminal,
+        summary: "Shells on this server, in the browser.",
         ready: true,
+        bleed: true,
+      },
+      {
+        slug: "files",
+        label: "Files",
+        icon: FolderOpen,
+        summary: "Browse, edit, upload and download over SFTP.",
+        ready: true,
+        bleed: true,
       },
     ],
   },
   {
-    label: "System",
+    label: "Workloads",
     sections: [
+      {
+        slug: "containers",
+        label: "Containers",
+        icon: Container,
+        summary: "Docker or Podman: containers, images, volumes and networks.",
+        ready: true,
+      },
       {
         slug: "services",
         label: "Services",
@@ -84,6 +101,13 @@ export const sectionGroups: SectionGroup[] = [
           "Start, stop, restart and enable a service",
           "Read a unit's recent journal without leaving the page",
         ],
+      },
+      {
+        slug: "databases",
+        label: "Databases",
+        icon: Database,
+        summary: "Health and live activity of the databases on this server.",
+        ready: true,
       },
       {
         slug: "applications",
@@ -100,42 +124,33 @@ export const sectionGroups: SectionGroup[] = [
         summary: "What is using CPU and memory right now.",
         ready: true,
       },
+    ],
+  },
+  {
+    label: "Monitoring",
+    sections: [
       {
-        slug: "containers",
-        label: "Containers",
-        icon: Container,
-        summary: "Docker or Podman: containers, images, volumes and networks.",
+        slug: "metrics",
+        label: "Metrics",
+        icon: ChartLine,
+        summary: "CPU, memory, disk and network over time, and alerts.",
         ready: true,
       },
       {
-        slug: "system",
-        label: "System settings",
-        icon: Settings2,
-        ready: true,
-        summary: "Hostname, time zone, time sync and where packages come from.",
-      },
-      {
-        slug: "packages",
-        label: "Packages",
-        icon: Package,
-        summary: "Installed packages and pending updates.",
+        slug: "monitors",
+        label: "Monitors",
+        icon: HeartPulse,
+        summary: "Monitors that watch this server and what runs on it.",
         ready: true,
       },
       {
-        slug: "users",
-        label: "Users & groups",
-        icon: Users,
-        summary: "Local accounts, groups and sudo rights.",
-        ready: true,
-      },
-      {
-        slug: "storage",
-        label: "Storage",
-        icon: HardDrive,
-        summary: "Disks, mounts and what fills them.",
+        slug: "logs",
+        label: "Logs",
+        icon: ScrollText,
+        summary: "The journal and log files, searchable and live.",
         planned: [
-          "Usage per mount, with warnings before a disk fills",
-          "Find the largest directories",
+          "Tail the journal or any log file",
+          "Filter by unit, level and time",
         ],
       },
     ],
@@ -144,12 +159,12 @@ export const sectionGroups: SectionGroup[] = [
     label: "Network",
     sections: [
       {
-        slug: "network",
-        label: "Network",
-        icon: Network,
-        ready: true,
+        slug: "ports",
+        label: "Open ports",
+        icon: EthernetPort,
         summary:
-          "Interfaces and their addresses, DNS and the hosts file. A change that could cut the server off undoes itself.",
+          "What listens on which port, and which service or container owns it.",
+        ready: true,
       },
       {
         slug: "firewall",
@@ -160,12 +175,12 @@ export const sectionGroups: SectionGroup[] = [
           "Open or close ports and block addresses, with ufw or firewalld. A change that could lock you out undoes itself.",
       },
       {
-        slug: "ports",
-        label: "Open ports",
-        icon: EthernetPort,
-        summary:
-          "What listens on which port, and which service or container owns it.",
+        slug: "network",
+        label: "Network",
+        icon: Network,
         ready: true,
+        summary:
+          "Interfaces and their addresses, DNS and the hosts file. A change that could cut the server off undoes itself.",
       },
     ],
   },
@@ -187,6 +202,16 @@ export const sectionGroups: SectionGroup[] = [
         planned: [
           "Audit sshd_config: root login, passwords, ciphers",
           "Fix a finding in one click, with a test login before it applies",
+        ],
+      },
+      {
+        slug: "keys",
+        label: "Authorized keys",
+        icon: KeyRound,
+        summary: "Who can log in to this server with an SSH key.",
+        planned: [
+          "List and remove keys in authorized_keys",
+          "Add a key from your SSH Keys library",
         ],
       },
       {
@@ -230,64 +255,50 @@ export const sectionGroups: SectionGroup[] = [
     ],
   },
   {
-    label: "Files & logs",
+    label: "System",
     sections: [
       {
-        slug: "files",
-        label: "Files",
-        icon: FolderOpen,
-        summary: "Browse, edit, upload and download over SFTP.",
+        slug: "packages",
+        label: "Packages",
+        icon: Package,
+        summary: "Installed packages and pending updates.",
         ready: true,
-        bleed: true,
       },
       {
-        slug: "logs",
-        label: "Logs",
-        icon: ScrollText,
-        summary: "The journal and log files, searchable and live.",
+        slug: "users",
+        label: "Users & groups",
+        icon: Users,
+        summary: "Local accounts, groups and sudo rights.",
+        ready: true,
+      },
+      {
+        slug: "system",
+        label: "System settings",
+        icon: Settings2,
+        ready: true,
+        summary: "Hostname, time zone, time sync and where packages come from.",
+      },
+      {
+        slug: "storage",
+        label: "Storage",
+        icon: HardDrive,
+        summary: "Disks, mounts and what fills them.",
         planned: [
-          "Tail the journal or any log file",
-          "Filter by unit, level and time",
+          "Usage per mount, with warnings before a disk fills",
+          "Find the largest directories",
         ],
       },
     ],
   },
   {
-    label: "Monitoring",
+    label: "Team",
     sections: [
       {
-        slug: "monitors",
-        label: "Monitors",
-        icon: HeartPulse,
-        summary: "Monitors that watch this server and what runs on it.",
+        slug: "notes",
+        label: "Notes",
+        icon: NotebookPen,
+        summary: "What the team wrote down about this server, in Markdown.",
         ready: true,
-      },
-      {
-        slug: "databases",
-        label: "Databases",
-        icon: Database,
-        summary: "Health and live activity of the databases on this server.",
-        ready: true,
-      },
-      {
-        slug: "metrics",
-        label: "Metrics",
-        icon: ChartLine,
-        summary: "CPU, memory, disk and network over time, and alerts.",
-        ready: true,
-      },
-    ],
-  },
-  {
-    label: "Access",
-    sections: [
-      {
-        slug: "terminal",
-        label: "Terminal",
-        icon: SquareTerminal,
-        summary: "Shells on this server, in the browser.",
-        ready: true,
-        bleed: true,
       },
       {
         slug: "recordings",
@@ -302,16 +313,6 @@ export const sectionGroups: SectionGroup[] = [
         icon: UsersRound,
         summary: "Who can use this server in Morche, and how far.",
         ready: true,
-      },
-      {
-        slug: "keys",
-        label: "Authorized keys",
-        icon: KeyRound,
-        summary: "Who can log in to this server with an SSH key.",
-        planned: [
-          "List and remove keys in authorized_keys",
-          "Add a key from your SSH Keys library",
-        ],
       },
     ],
   },

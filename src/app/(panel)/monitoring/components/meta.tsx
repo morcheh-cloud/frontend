@@ -458,6 +458,7 @@ export const newMonitorHref = createSerializer({
   kind: parseAsString,
   host: parseAsString,
   port: parseAsString,
+  url: parseAsString,
 })
 
 export const matchesShow = (m: UptimeMonitor, show: Show) =>

@@ -25,6 +25,7 @@ import {
   type LucideIcon,
   MonitorCog,
   Network,
+  Package,
   PackageSearch,
   RefreshCcwDot,
   ScrollText,
@@ -187,6 +188,12 @@ export function dockerPageFor(pathname: string) {
   return dockerPages.find((p) => p.href === href)
 }
 
+// Harbor and Verdaccio deployed and managed by Morche.
+export const registriesItem: NavItem = {
+  href: "/registries",
+  label: "Package registries",
+  icon: Package,
+}
 export const storageItem: NavItem = {
   href: "/storage",
   label: "Storage",
@@ -350,6 +357,7 @@ export const navGroups: NavGroup[] = [
       vmsItem,
       cloudItem,
       containersItem,
+      registriesItem,
       databasesItem,
       storageItem,
     ],

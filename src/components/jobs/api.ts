@@ -102,6 +102,13 @@ export function refreshAfterJob(qc: QueryClient, job: Job) {
       qc.invalidateQueries({ queryKey: ["servers"] })
     return
   }
+  // A registry's deploy also adds a proxy site and a Containers login.
+  if (job.kind.startsWith("registry-")) {
+    qc.invalidateQueries({ queryKey: ["package-registries"] })
+    qc.invalidateQueries({ queryKey: ["proxies"] })
+    qc.invalidateQueries({ queryKey: ["docker"] })
+    return
+  }
   if (job.kind === "ansible-run") {
     qc.invalidateQueries({ queryKey: ["ansible"] })
     return

@@ -39,6 +39,7 @@ import {
   type NavGroup,
 } from "./nav"
 import { NavEntry } from "./nav-entry"
+import { scrollActiveIntoView } from "./scroll-active"
 
 // The Containers menu that takes the sidebar's place under /containers:
 // a way back to the main menu, the environment (server) every page works
@@ -57,9 +58,7 @@ export function DockerSidebarContent({
   const box = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!current) return
-    box.current
-      ?.querySelector("[data-sidebar=menu-button][data-active]")
-      ?.scrollIntoView({ block: "nearest" })
+    scrollActiveIntoView(box.current)
   }, [current])
 
   return (

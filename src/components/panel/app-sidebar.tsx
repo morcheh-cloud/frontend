@@ -35,10 +35,12 @@ import {
   helpItem,
   isActive,
   navGroups,
+  serversItem,
   settingsFor,
 } from "./nav"
 import { NavEntry } from "./nav-entry"
 import { sectionAlert, useNavAlerts } from "./problems"
+import { ServerSidebarContent, serverPageOf } from "./server-sidebar"
 import { WithPathname } from "./with-pathname"
 import { useWorkspace, WorkspaceAvatar } from "./workspace"
 
@@ -63,8 +65,9 @@ export function AppSidebar() {
 }
 
 // Under /containers the sidebar shows the Containers menu instead (like
-// Arcane). "Main menu" goes back without leaving the page; the main menu's
-// Containers entry drills in again.
+// Arcane), and on a server's page that server's sections. "Main menu" goes
+// back without leaving the page; the main menu's Containers / Servers entry
+// drills in again.
 function SidebarBody({
   pathname,
   search,
@@ -78,6 +81,15 @@ function SidebarBody({
   // page changes.
   const [mainAt, setMainAt] = useState<string | null>(null)
   const drill = () => setMainAt(null)
+
+  if (serverPageOf(pathname) && mainAt !== pathname) {
+    return (
+      <ServerSidebarContent
+        pathname={pathname}
+        onBack={() => setMainAt(pathname)}
+      />
+    )
+  }
 
   if (isActive(pathname, containersItem.href) && mainAt !== pathname) {
     return (
@@ -105,7 +117,11 @@ function SidebarBody({
                 pathname={pathname}
                 search={search}
                 alert={sectionAlert(item, alerts)}
-                onClick={item === containersItem ? drill : undefined}
+                onClick={
+                  item === containersItem || item === serversItem
+                    ? drill
+                    : undefined
+                }
               />
             ))}
           </SidebarMenu>

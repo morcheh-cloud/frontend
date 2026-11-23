@@ -1106,6 +1106,30 @@ export const guides: GuideMeta[] = [
     ],
   },
   {
+    slug: "package-registries",
+    title: "Package registries",
+    summary:
+      "Deploy Harbor or Verdaccio on a server in one go, with HTTPS, a Docker Hub or npmjs mirror and logins, then browse and clean up what they hold.",
+    icon: Package,
+    group: "Infrastructure",
+    keywords: [
+      "registry",
+      "harbor",
+      "verdaccio",
+      "docker registry",
+      "npm",
+      "private npm",
+      "helm",
+      "oci",
+      "mirror",
+      "pull-through cache",
+      "docker hub",
+      "robot account",
+      "npmrc",
+    ],
+    routes: ["/registries", "/registries/new#deploy", "/registries/*"],
+  },
+  {
     slug: "cloud",
     title: "Cloud",
     summary:

@@ -414,9 +414,12 @@ ssh -i ~/Downloads/web-01.key -p 22 deploy@10.0.0.12
           </li>
           <li>
             <UI>Cards</UI> and <UI>Table</UI> switch how the list looks; your
-            browser remembers the choice. Cards show the essentials and open the
-            server on a click. Table adds more columns, and you sort by clicking
-            their headings. Phones always use their own list.
+            browser remembers the choice. Each card shows the server's CPU
+            cores, memory and disk with a meter of how much is in use (free disk
+            space too), and a strip of the last 24 hours of checks with its
+            uptime; a meter turns orange at 80% and red at 90%. A click opens
+            the server. Table adds more columns, and you sort by clicking their
+            headings. Phones always use their own list.
           </li>
           <li>
             <UI>Tags</UI> cut across folders: a server can have many. Click a

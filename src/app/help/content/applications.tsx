@@ -305,7 +305,7 @@ export const applications: GuideSection[] = [
     body: (
       <>
         <P>
-          A server's <UI>Applications</UI> tab (System group) shows only that
+          A server's <UI>Applications</UI> tab (Workloads group) shows only that
           server: <UI>Installed</UI>, <UI>Updates</UI> (its applications and its
           packages) and <UI>Activity</UI> (runs that touched it). The line above
           the list says its package manager, how many packages wait, Docker's

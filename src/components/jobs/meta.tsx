@@ -45,6 +45,7 @@ import {
   Shrink,
   Split,
   Truck,
+  Warehouse,
   Zap,
 } from "lucide-react"
 import { envHref, volumeHref } from "@/app/(panel)/containers/components/meta"
@@ -117,6 +118,9 @@ const icons: Record<string, LucideIcon> = {
   "pve-task": MonitorCog,
   "pve-create": MonitorUp,
   "automation-run": Zap,
+  "registry-deploy": Warehouse,
+  "registry-https": FileKey,
+  "registry-remove": Warehouse,
 }
 
 // Which Containers page a Docker job's results are on.
@@ -253,6 +257,11 @@ export function tookText(job: Job) {
 // Ansible or cron job run it belongs to.
 export function placeHref(job: Job) {
   const t = job.target
+  if (job.kind.startsWith("registry-")) {
+    if (job.kind === "registry-remove" && job.state === "succeeded")
+      return "/registries"
+    return t?.package_registry ? `/registries/${t.package_registry}` : null
+  }
   if (job.kind === "automation-run" && t?.automation_id) {
     return `/automations/${t.automation_id}${t.run_id ? `?run=${t.run_id}` : ""}`
   }
@@ -319,6 +328,10 @@ export function placeHref(job: Job) {
 }
 
 export function placeLabel(job: Job) {
+  if (job.kind.startsWith("registry-"))
+    return job.kind === "registry-remove" && job.state === "succeeded"
+      ? "Open registries"
+      : "Open registry"
   if (job.kind === "storage-scan") return "Open Insights"
   if (job.target?.sync_id)
     return job.kind === "storage-migrate" ? "Open migration" : "Open sync"

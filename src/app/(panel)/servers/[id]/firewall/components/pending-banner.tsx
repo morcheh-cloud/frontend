@@ -42,7 +42,7 @@ function Banner({ pending }: { pending: FirewallPending }) {
   return (
     <div
       role="status"
-      className="z-10 flex gap-3 border-warning bg-card p-4 text-body-sm max-md:mt-4 max-md:flex-col max-md:border-y md:sticky md:top-[calc(3rem+1px+44px+8px)] md:items-center md:rounded-2xl md:border md:px-5 md:py-3 md:shadow-sm"
+      className="z-10 flex gap-3 border-warning bg-card p-4 text-body-sm max-md:mt-4 max-md:flex-col max-md:border-y md:sticky md:top-[calc(3rem+1px+8px)] md:items-center md:rounded-2xl md:border md:px-5 md:py-3 md:shadow-sm"
     >
       <div className="flex min-w-0 flex-1 gap-3">
         <TimerReset className="mt-0.5 size-4 shrink-0 text-warning" />
