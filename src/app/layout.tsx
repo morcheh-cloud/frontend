@@ -16,11 +16,27 @@ const spaceGrotesk = Space_Grotesk({
   weight: "500",
 })
 
+const description =
+  "Manage and monitor your servers and the services running on them."
+
 export const metadata: Metadata = {
   title: { default: "Morche", template: "%s | Morche" },
-  description:
-    "Manage and monitor your servers and the services running on them.",
-  appleWebApp: { title: "Morche", statusBarStyle: "default" },
+  description,
+  applicationName: "Morche",
+  generator: null,
+  referrer: "same-origin",
+  formatDetection: { telephone: false, email: false, address: false },
+  // A private admin panel: keep every page out of search engines.
+  robots: { index: false, follow: false, nocache: true },
+  openGraph: {
+    type: "website",
+    siteName: "Morche",
+    title: "Morche",
+    description,
+  },
+  twitter: { card: "summary", title: "Morche", description },
+  appleWebApp: { capable: true, title: "Morche", statusBarStyle: "default" },
+  other: { "mobile-web-app-capable": "yes" },
 }
 
 // Native-app shell on phones: draw under the notch (pages pad with
@@ -29,6 +45,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   // Light is the default theme; `apply()` in theme.ts updates it on change.
   themeColor: themeColors.light,
+  colorScheme: "light dark",
   viewportFit: "cover",
   interactiveWidget: "resizes-content",
 }
