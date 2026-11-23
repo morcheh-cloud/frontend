@@ -63,6 +63,7 @@ import type {
 } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { useExplorer, useObjectInfo, useRows } from "../../../api"
+import { engineName, objectNoun, searchEngine } from "../../../components/meta"
 import { Blank, useDashboard } from "../parts"
 import { useRowEditing } from "./edit"
 import {
@@ -197,7 +198,10 @@ export function DatabasePicker({
         )}
       >
         <DatabaseIcon className="size-4 shrink-0 text-ash" />
-        <span className="truncate">{state.current || "—"}</span>
+        <span className="truncate">
+          {state.current ||
+            (searchEngine(d.engine) ? `All of ${engineName(d)}` : "—")}
+        </span>
       </div>
     )
   }
@@ -253,7 +257,7 @@ function ObjectRail({ state }: { state: DbState }) {
   const [q, setQ] = useState("")
   const objects = state.overview?.objects ?? []
   const groups = groupObjects(objects, q)
-  const noun = d.engine === "mongodb" ? "collections" : "tables"
+  const noun = objectNoun(d.engine, true)
 
   return (
     <aside className="flex min-h-0 flex-col border-e border-border bg-subtle/60">
@@ -382,7 +386,7 @@ function PickHint({
   const biggest = [...objects]
     .sort((a, b) => (b.rows ?? 0) - (a.rows ?? 0))
     .slice(0, 6)
-  const noun = d.engine === "mongodb" ? "collection" : "table"
+  const noun = objectNoun(d.engine)
   return (
     <div className="flex min-h-0 flex-col items-center justify-center gap-5 overflow-y-auto p-8 text-center">
       <span className="flex size-14 items-center justify-center rounded-2xl bg-brand-soft text-brand-strong">
@@ -442,7 +446,7 @@ function PhoneObjects({ state }: { state: DbState }) {
   const [, setParams] = useExplorerParams()
   const [q, setQ] = useState("")
   const groups = groupObjects(state.overview?.objects ?? [], q)
-  const noun = d.engine === "mongodb" ? "collections" : "tables"
+  const noun = objectNoun(d.engine, true)
   return (
     <div className="flex flex-col gap-3 pt-3">
       <div className="flex flex-col gap-2 px-4">
@@ -551,7 +555,11 @@ function ObjectPanel() {
           <p className="truncate text-caption text-muted-foreground">
             {kindLabel[info.data.kind] ?? info.data.kind} ·{" "}
             {info.data.columns.length}{" "}
-            {d.engine === "mongodb" ? "fields seen" : "columns"}
+            {d.engine === "mongodb"
+              ? "fields seen"
+              : searchEngine(d.engine)
+                ? "fields"
+                : "columns"}
             {info.data.key.length > 0 && ` · key ${info.data.key.join(", ")}`}
           </p>
         )}
@@ -709,7 +717,11 @@ function RowsView({ info }: { info?: ObjectInfo }) {
         value={search}
         onChange={reset(setSearch)}
         placeholder={
-          d.engine === "mongodb" ? "Search text fields" : "Search every column"
+          d.engine === "mongodb"
+            ? "Search text fields"
+            : searchEngine(d.engine)
+              ? "Search the documents"
+              : "Search every column"
         }
         label="Search the rows"
         className="max-md:w-full md:w-64"
@@ -1123,7 +1135,11 @@ function FilterForm({
   const whereLabel =
     d.engine === "mongodb"
       ? "Your own filter (JSON)"
-      : "Your own condition (SQL after WHERE)"
+      : d.engine === "elasticsearch"
+        ? "Your own query (Query DSL JSON or Lucene text)"
+        : d.engine === "meilisearch"
+          ? "Your own filter (Meilisearch filter expression)"
+          : "Your own condition (SQL after WHERE)"
 
   return (
     <form
@@ -1267,7 +1283,11 @@ function FilterForm({
             placeholder={
               d.engine === "mongodb"
                 ? '{ "total": { "$gt": 100 } }'
-                : "total > 100 AND status <> 'done'"
+                : d.engine === "elasticsearch"
+                  ? "status:open AND total:>100"
+                  : d.engine === "meilisearch"
+                    ? 'genres = "Drama" AND year > 2000'
+                    : "total > 100 AND status <> 'done'"
             }
             autoCapitalize="none"
             autoCorrect="off"

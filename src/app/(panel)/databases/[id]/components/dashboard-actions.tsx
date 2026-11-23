@@ -50,6 +50,15 @@ export function killKinds(engine: Database["engine"]) {
         effect: "The operation stops; the client stays connected.",
         done: "Operation stopped",
       }
+    case "elasticsearch":
+    case "meilisearch":
+      return {
+        statement: false,
+        connection: "Cancel task",
+        effect:
+          "The task is asked to stop. What it already did stays (documents already indexed aren't taken back).",
+        done: "Task canceled",
+      }
     default:
       return { statement: false, ...closeConnection }
   }

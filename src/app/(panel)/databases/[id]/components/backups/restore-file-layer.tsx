@@ -50,6 +50,7 @@ import {
   useRestoreFile,
   useRestoreFileInfo,
 } from "../../../api"
+import { searchEngine } from "../../../components/meta"
 import { useDashboard } from "../parts"
 import { LOCAL_RUNNER } from "./meta"
 import { RestoreJobs } from "./restore-layer"
@@ -919,7 +920,7 @@ function RestoreFileForm({
         />
       )}
 
-      {direct && (
+      {direct && !searchEngine(d.engine) && (
         <Field
           label="Run it from"
           error={errors.runner}

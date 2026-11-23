@@ -55,7 +55,14 @@ export const modeMeta: Record<
     short: "Wipe the target and load a fresh dump of the source.",
     long: "A dump of the source is streamed into the target, which is dropped and recreated first. Simple and exact, but the target is empty for a moment and everything on it is lost.",
     destructive: true,
-    engines: ["postgres", "mysql", "mongodb", "clickhouse"],
+    engines: [
+      "postgres",
+      "mysql",
+      "mongodb",
+      "clickhouse",
+      "elasticsearch",
+      "meilisearch",
+    ],
   },
 }
 

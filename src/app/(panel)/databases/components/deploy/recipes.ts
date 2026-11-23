@@ -11,6 +11,8 @@ export type Kind =
   | "mongodb"
   | "redis"
   | "clickhouse"
+  | "elasticsearch"
+  | "meilisearch"
 
 export type Recipe = {
   kind: Kind
@@ -144,6 +146,38 @@ export const recipes: Recipe[] = [
     minMemory: 1024,
     blurb: "Analytics on billions of rows",
   },
+  {
+    kind: "elasticsearch",
+    label: "Elasticsearch",
+    engine: "elasticsearch",
+    versions: [
+      { tag: "8.19.7", label: "8.19" },
+      { tag: "9.2.1", label: "9.2" },
+    ],
+    port: 9200,
+    user: "elastic",
+    userFixed: true,
+    firstDatabase: false,
+    dbname: "",
+    minMemory: 2048,
+    blurb: "Full-text search and logs, one node",
+  },
+  {
+    kind: "meilisearch",
+    label: "Meilisearch",
+    engine: "meilisearch",
+    versions: [
+      { tag: "v1.24", label: "1.24" },
+      { tag: "v1.22", label: "1.22" },
+    ],
+    port: 7700,
+    user: "",
+    userFixed: true,
+    firstDatabase: false,
+    dbname: "",
+    minMemory: 512,
+    blurb: "Instant search for apps, light",
+  },
 ]
 
 export const recipeOf = Object.fromEntries(
@@ -190,6 +224,10 @@ export function imageOf(s: Pick<DeploySpec, "kind" | "version">) {
       return `mongo:${s.version}`
     case "clickhouse":
       return `clickhouse/clickhouse-server:${s.version}`
+    case "elasticsearch":
+      return `docker.elastic.co/elasticsearch/elasticsearch:${s.version}`
+    case "meilisearch":
+      return `getmeili/meilisearch:${s.version}`
     default:
       return `${s.kind}:${s.version}`
   }
@@ -246,7 +284,32 @@ function environment(s: DeploySpec): [string, string][] {
           ? ([["CLICKHOUSE_DB", s.dbname]] as [string, string][])
           : []),
       ]
+    case "elasticsearch":
+      return [
+        // One node: no cluster to form, and the bootstrap checks (meant for
+        // clusters) don't stop it.
+        ["discovery.type", "single-node"],
+        ["ELASTIC_PASSWORD", "${DB_PASSWORD}"],
+        ["xpack.security.enabled", "true"],
+        // Morche reaches it over SSH, which already encrypts.
+        ["xpack.security.http.ssl.enabled", "false"],
+        ["ES_JAVA_OPTS", `-Xms${heapOf(s)} -Xmx${heapOf(s)}`],
+      ]
+    case "meilisearch":
+      return [
+        ["MEILI_MASTER_KEY", "${DB_PASSWORD}"],
+        ["MEILI_ENV", "production"],
+        ["MEILI_NO_ANALYTICS", "true"],
+      ]
   }
+}
+
+// Half the container's memory goes to the JVM heap (Elastic's advice); 1 GB
+// when there's no limit.
+function heapOf(s: DeploySpec) {
+  const m = memories.find((x) => x.value === s.memory)
+  const total = m && "mb" in m ? m.mb : 2048
+  return `${Math.max(256, Math.floor(total / 2))}m`
 }
 
 function dataPath(s: DeploySpec) {
@@ -267,6 +330,10 @@ function dataPath(s: DeploySpec) {
       return "/data"
     case "clickhouse":
       return "/var/lib/clickhouse"
+    case "elasticsearch":
+      return "/usr/share/elasticsearch/data"
+    case "meilisearch":
+      return "/meili_data"
   }
 }
 
@@ -303,6 +370,13 @@ function healthcheck(s: DeploySpec): string[] {
         "CMD-SHELL",
         'clickhouse-client -u "$${CLICKHOUSE_USER}" --password "$${CLICKHOUSE_PASSWORD}" -q "SELECT 1"',
       ]
+    case "elasticsearch":
+      return [
+        "CMD-SHELL",
+        'curl -fsu "elastic:$${ELASTIC_PASSWORD}" "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s" >/dev/null',
+      ]
+    case "meilisearch":
+      return ["CMD-SHELL", "curl -fs http://localhost:7700/health >/dev/null"]
   }
 }
 
@@ -326,6 +400,14 @@ export function composeOf(s: DeploySpec) {
         "--appendonly",
         "yes",
       ].map((a) => `      - ${q(a)}`),
+    )
+  }
+  if (s.kind === "elasticsearch") {
+    lines.push(
+      "    ulimits:",
+      "      nofile:",
+      "        soft: 65536",
+      "        hard: 65536",
     )
   }
   if (s.kind === "clickhouse") {
@@ -353,7 +435,7 @@ export function composeOf(s: DeploySpec) {
     "      interval: 10s",
     "      timeout: 5s",
     "      retries: 5",
-    `      start_period: ${s.kind === "mssql" ? "60s" : "30s"}`,
+    `      start_period: ${s.kind === "mssql" || s.kind === "elasticsearch" ? "90s" : "30s"}`,
   )
   if (s.memory) lines.push(`    mem_limit: ${s.memory}`)
   lines.push(
@@ -398,6 +480,8 @@ export const passwordProblem = (pw: string, kind: Kind) => {
   if (pw.length < 12) return "Use at least 12 characters."
   if (/[\s"'`\\$#]/.test(pw))
     return "Spaces, quotes, backslashes, $ and # aren't allowed here."
+  if (kind === "meilisearch" && new TextEncoder().encode(pw).length < 16)
+    return "Meilisearch needs a master key of at least 16 bytes."
   if (kind === "mssql") {
     const kinds = [/[A-Z]/, /[a-z]/, /\d/, /[^A-Za-z0-9]/].filter((r) =>
       r.test(pw),

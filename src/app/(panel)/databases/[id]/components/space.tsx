@@ -29,6 +29,8 @@ const nouns: Record<DatabaseSnapshot["engine"], [string, string]> = {
   mongodb: ["Collection", "Collections"],
   redis: ["Key", "Keys"],
   clickhouse: ["Table", "Tables"],
+  elasticsearch: ["Index", "Indexes"],
+  meilisearch: ["Index", "Indexes"],
 }
 
 const size = (n: number | null | undefined) => (n == null ? "—" : formatSize(n))
@@ -52,7 +54,9 @@ export function SpaceTab() {
         areas={["tables", "details"]}
         className="max-md:mt-3"
       />
-      {s.engine !== "redis" && <Databases s={s} />}
+      {s.engine !== "redis" &&
+        s.engine !== "elasticsearch" &&
+        s.engine !== "meilisearch" && <Databases s={s} />}
       <Tables s={s} />
       <IdColumns rows={s.id_columns} />
       <UnusedIndexes rows={s.indexes} />
@@ -203,7 +207,9 @@ function Tables({ s }: { s: DatabaseSnapshot }) {
   } else {
     cols.push({
       key: "rows",
-      label: s.engine === "mongodb" ? "Documents" : "Rows",
+      label: ["mongodb", "elasticsearch", "meilisearch"].includes(s.engine)
+        ? "Documents"
+        : "Rows",
       end: true,
       cell: (t) => count(t.rows),
     })

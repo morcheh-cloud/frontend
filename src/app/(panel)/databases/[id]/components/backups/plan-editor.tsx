@@ -83,6 +83,7 @@ import {
   useRunPlan,
   useSavePlan,
 } from "../../../api"
+import { searchEngine } from "../../../components/meta"
 import { useDatabaseCan } from "../../../components/permissions"
 import {
   backupsHref,
@@ -106,6 +107,8 @@ import {
   schedulePresets,
   selectionText,
   slug,
+  unitOf,
+  unitsOf,
   workersText,
 } from "./meta"
 import { TempDirField, tempDirProblem } from "./temp-dir-field"
@@ -455,7 +458,7 @@ function Editor({
     if (!draft.name.trim()) e.name = "Give it a name"
     if (db.engine !== "redis") {
       if (draft.selection === "selected" && draft.targets.length === 0) {
-        e.targets = "Pick at least one database"
+        e.targets = `Pick at least one ${unitOf(db.engine)}`
       }
       if (draft.selection === "pattern") {
         const p = patternProblem(draft.pattern)
@@ -579,7 +582,7 @@ function Editor({
     db.engine === "redis"
       ? "Everything"
       : draft.selection === "selected"
-        ? `${draft.targets.length} database${draft.targets.length === 1 ? "" : "s"}`
+        ? `${draft.targets.length} ${draft.targets.length === 1 ? unitOf(db.engine) : unitsOf(db.engine)}`
         : selectionText({ ...draft, targets: draft.targets }, db.engine),
     draft.method === "incremental" ? "Incremental" : "",
     compressionText(`${draft.compression}:${draft.level}`),
@@ -683,13 +686,13 @@ function Editor({
       {db.engine !== "redis" && (
         <Section
           title="What to back up"
-          hint="Each database is dumped to its own file."
+          hint={`Each ${unitOf(db.engine)} is dumped to its own file.`}
           phone={phone}
         >
           <div className="grid gap-2 md:grid-cols-3">
             <OptionCard
               icon={<DatabaseIcon />}
-              title="All databases"
+              title={`All ${unitsOf(db.engine)}`}
               hint="Every one there is at run time, new ones included."
               selected={draft.selection === "all"}
               disabled={!selections.includes("all")}
@@ -835,7 +838,7 @@ function Editor({
           onChange={(ids) => set({ storages: ids }, "storages")}
           error={errors.storages}
         />
-        {!db.server_id && (
+        {!db.server_id && !searchEngine(db.engine) && (
           <Field
             label="Run it from"
             error={errors.runner}

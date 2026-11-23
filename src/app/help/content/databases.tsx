@@ -57,6 +57,14 @@ export const databases: GuideSection[] = [
               "ClickHouse",
               "system tables: running queries, query_log, parts and table sizes, merges, mutations, replicas, disks",
             ],
+            [
+              "Elasticsearch / OpenSearch",
+              "Cluster health, shards, node stats (heap, disk, watermarks), running tasks, index sizes, users",
+            ],
+            [
+              "Meilisearch",
+              "Health, stats, the task queue (waiting, running, failed), index sizes, API keys",
+            ],
           ]}
         />
         <P>
@@ -1889,6 +1897,169 @@ pg_restore -j 4 --no-owner -d shop dump`}</Code>
           Levels come from the workspace or a direct grant, see{" "}
           <See guide="access" />.
         </P>
+      </>
+    ),
+  },
+  {
+    id: "search-engines",
+    title: "Elasticsearch, OpenSearch and Meilisearch",
+    body: (
+      <>
+        <P>
+          Search engines are added like any other database and get the same
+          pages: health checks, a <UI>Data</UI> tab, a <UI>Console</UI>,
+          backups, restores, syncs and alerts. A few things work differently,
+          because they speak HTTP and hold indexes of JSON documents instead of
+          tables.
+        </P>
+        <Table
+          head={["Here", "Is"]}
+          rows={[
+            ["Database", "Not used: one connection is the whole cluster"],
+            [
+              "Table",
+              "An index (Elasticsearch also lists aliases and data streams)",
+            ],
+            ["Row", "A document, shown and edited as JSON"],
+            [
+              "Sessions",
+              "Tasks: running searches and bulk loads, or Meilisearch's task queue",
+            ],
+            ["Query tab", "A console of HTTP requests"],
+          ]}
+        />
+        <Steps>
+          <li>
+            Open <UI>Databases</UI>, press <UI>Add database</UI> and pick{" "}
+            <UI>Elasticsearch</UI> or <UI>Meilisearch</UI>. OpenSearch is added
+            as Elasticsearch; Morche tells them apart by itself.
+          </li>
+          <li>
+            Enter the address and port (9200 and 7700 by default). Pasting an
+            address like <C>https://elastic:secret@search.example.com:9200</C>{" "}
+            fills the fields.
+          </li>
+          <li>
+            Sign in. Elasticsearch takes a username and password, or leave the
+            username empty and paste an <UI>API key</UI> (the base64 one
+            Elasticsearch shows when the key is made). Meilisearch takes a{" "}
+            <UI>Key</UI> only.
+          </li>
+          <li>
+            Press <UI>Test connection</UI>, then <UI>Add</UI>.
+          </li>
+        </Steps>
+        <Tip>
+          For Meilisearch, use an API key with the actions{" "}
+          <C>search, documents.get, indexes.get, stats.get, tasks.get</C> on all
+          indexes for watching. Backups and restores also need{" "}
+          <C>
+            documents.add, documents.delete, indexes.create, indexes.delete,
+            settings.get, settings.update
+          </C>
+          ; the master key has all of them. For Elasticsearch, a user with the{" "}
+          <C>monitor</C> cluster privilege and <C>read, view_index_metadata</C>{" "}
+          on the indices is enough to watch; backups and restores also need{" "}
+          <C>create_index, write, delete_index</C>.
+        </Tip>
+        <P>
+          <strong>Health checks.</strong> On top of the usual ones (reachable,
+          response time, encryption, sign-in), Elasticsearch gets{" "}
+          <UI>Cluster health</UI> (green, yellow, red),{" "}
+          <UI>Unassigned shards</UI>, <UI>JVM heap</UI> and{" "}
+          <UI>Disk watermarks</UI> (a node past the flood stage turns its
+          indices read-only). Meilisearch gets <UI>Indexing queue</UI> (how long
+          the oldest waiting task has waited) and <UI>Failed tasks</UI> in the
+          last 24 hours. The overview shows a <UI>Cluster</UI> or{" "}
+          <UI>Indexing</UI> card with the details.
+        </P>
+        <P>
+          <strong>The console.</strong> Write one request per block: the method
+          and path on the first line, a JSON body under it, like Kibana's Dev
+          Tools. Several blocks run one after another. Read only, only reading
+          requests go (searches, counts, GET); turn on{" "}
+          <A href="#query-changes">Allow changes</A> to write.
+        </P>
+        <Example title="Elasticsearch">
+          <Code>{`GET /_cat/indices?v
+
+GET /orders/_search
+{
+  "query": { "match": { "status": "open" } },
+  "size": 20
+}`}</Code>
+        </Example>
+        <Example title="Meilisearch">
+          <Code>{`POST /indexes/movies/search
+{
+  "q": "batman",
+  "filter": "year > 2000",
+  "limit": 20
+}`}</Code>
+        </Example>
+        <P>
+          In the <UI>Data</UI> tab, filters become a query: Elasticsearch writes
+          Query DSL (<UI>Your own query</UI> takes Query DSL JSON or Lucene text
+          like <C>status:open AND total:&gt;100</C>); Meilisearch writes a
+          filter expression, which only works on attributes listed in the
+          index's <C>filterableAttributes</C> (and sorting on{" "}
+          <C>sortableAttributes</C>).
+        </P>
+        <P>
+          <strong>Backups.</strong> There's no dump tool to run: Morche reads
+          every document and the index's settings and mappings over the API
+          itself (through the server's SSH connection when the database is
+          reached through one) and stores one compressed NDJSON file per index.
+          Nothing is installed or run on a server, so there's no{" "}
+          <UI>Run it from</UI> choice. A restore creates the index again with
+          its settings and loads the documents; it can go back over the same
+          index or into a new one. Backups are always full.
+        </P>
+        <Tip>
+          A big index takes a while: Morche reads 1,000 documents a page. For
+          clusters of many gigabytes, Elasticsearch's own snapshots to a
+          snapshot repository are faster; Morche's backups suit small and medium
+          indexes and moving data between clusters.
+        </Tip>
+        <P>
+          <strong>Syncs.</strong> Only <UI>Replace</UI>: the source index is
+          copied over the target index (between two connections of the same
+          engine, or into another index of the same one).
+        </P>
+        <P>
+          <strong>Start one in a container.</strong> <UI>Add database</UI> ›{" "}
+          <UI>Start in a container</UI> offers both. Elasticsearch runs as one
+          node with security on (user <C>elastic</C>) and needs about 2 GB of
+          memory; Meilisearch starts with a master key Morche makes for you.
+        </P>
+        <P>
+          <strong>Common problems</strong>
+        </P>
+        <Table
+          head={["What you see", "What to do"]}
+          rows={[
+            [
+              "Cluster health is yellow on a single node",
+              "Replicas can't be placed on the node that holds the primary. Set number_of_replicas to 0 on those indices, or add a node.",
+            ],
+            [
+              "Indices turned read-only",
+              "A node passed the flood stage. Free disk space; newer versions lift the block by themselves once below the high watermark.",
+            ],
+            [
+              "Meilisearch: The key was refused",
+              "The key is wrong or expired, or it's a search-only key. Use one with the actions listed above.",
+            ],
+            [
+              "Meilisearch: AI search stopped working after a restore",
+              "Meilisearch hides embedders' API keys in its settings, so the backup can't hold them. Enter the key again in the index's embedders settings.",
+            ],
+            [
+              "A filter or sort on Meilisearch is refused",
+              "Add the attribute to filterableAttributes or sortableAttributes in the index settings.",
+            ],
+          ]}
+        />
       </>
     ),
   },

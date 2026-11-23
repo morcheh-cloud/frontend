@@ -80,7 +80,41 @@ export const engines: {
     dbHint:
       "The one to sign in to. Every database on the server is watched. Morche speaks the native protocol (9000, or 9440 with TLS), not HTTP (8123).",
   },
+  {
+    value: "elasticsearch",
+    label: "Elasticsearch",
+    port: 9200,
+    user: "elastic",
+    dbLabel: "",
+    dbPlaceholder: "",
+    dbHint: "Also OpenSearch. Every index in the cluster is watched.",
+  },
+  {
+    value: "meilisearch",
+    label: "Meilisearch",
+    port: 7700,
+    user: "",
+    dbLabel: "",
+    dbPlaceholder: "",
+    dbHint: "Every index is watched.",
+  },
 ]
+
+// Search engines: no database to sign in to, documents instead of rows,
+// indexes instead of tables, backups made by Morche over the API.
+export const searchEngine = (e: Engine) =>
+  e === "elasticsearch" || e === "meilisearch"
+
+// Engines whose rows are JSON documents (shown and edited whole).
+export const documentEngine = (e: Engine) => e === "mongodb" || searchEngine(e)
+
+// What one "table" is called.
+export function objectNoun(e: Engine, plural = false) {
+  const one =
+    e === "mongodb" ? "collection" : searchEngine(e) ? "index" : "table"
+  if (!plural) return one
+  return one === "index" ? "indexes" : `${one}s`
+}
 
 export const engineMeta = Object.fromEntries(
   engines.map((e) => [e.value, e]),
@@ -97,6 +131,7 @@ export function defaultPort(engine: Engine, tls?: Database["tls"]) {
 // the engine picked in the form.
 export function engineName(d: Pick<Database, "engine" | "flavor">) {
   if (d.flavor === "mariadb") return "MariaDB"
+  if (d.flavor.toLowerCase() === "opensearch") return "OpenSearch"
   if (d.engine === "mysql") return "MySQL"
   return engineMeta[d.engine].label
 }
@@ -108,6 +143,9 @@ const logos: Record<string, string> = {
   redis: "redis",
   mongodb: "mongodb",
   clickhouse: "clickhouse",
+  elasticsearch: "elasticsearch",
+  opensearch: "opensearch",
+  meilisearch: "meilisearch",
 }
 
 // Brand logo from Simple Icons (public/db), or a monogram where there is none.
@@ -120,7 +158,10 @@ export function EngineTile({
   flavor?: string
   className?: string
 }) {
-  const logo = (flavor === "mariadb" && logos.mariadb) || logos[engine]
+  const logo =
+    (flavor === "mariadb" && logos.mariadb) ||
+    (flavor?.toLowerCase() === "opensearch" && logos.opensearch) ||
+    logos[engine]
   const label = engineName({ engine, flavor: flavor ?? "" })
   if (logo) {
     return (
@@ -343,6 +384,9 @@ const schemes: Record<string, Engine> = {
   clickhouse: "clickhouse",
   clickhouses: "clickhouse",
   tcp: "clickhouse",
+  elasticsearch: "elasticsearch",
+  opensearch: "elasticsearch",
+  meilisearch: "meilisearch",
 }
 
 const decode = (s: string) => {
@@ -355,7 +399,9 @@ const decode = (s: string) => {
 
 // Reads the connection strings apps and providers hand out:
 // postgres://user:pass@host:5432/db?sslmode=require, mysql://…, mongodb://…,
-// redis:// and rediss://, clickhouse:// (tcp://), sqlserver://host:1433;database=x, jdbc: prefixes,
+// redis:// and rediss://, clickhouse:// (tcp://), http(s)://user:pass@host:9200
+// (Elasticsearch when the picked engine is a search engine or the port says
+// so), elasticsearch://, meilisearch://, sqlserver://host:1433;database=x, jdbc: prefixes,
 // and ADO.NET "Server=…;User Id=…;Password=…". Null when it isn't one.
 export function parseConnectionString(
   raw: string,
@@ -368,7 +414,9 @@ export function parseConnectionString(
     /^([a-z][a-z0-9+.-]*):\/\/(?:([^:@/]*)(?::([^@/]*))?@)?([^/?#;]*)([^?#;]*)([?;][^#]*)?/i,
   )
   if (url) {
-    const engine = schemes[url[1].toLowerCase()]
+    const scheme = url[1].toLowerCase()
+    const engine =
+      schemes[scheme] ?? httpEngine(scheme, url[4].split(",")[0], current)
     if (!engine) return null
     // Several hosts (replica sets): the first one.
     const first = url[4].split(",")[0]
@@ -413,6 +461,16 @@ export function parseConnectionString(
       // An HTTP port pasted by habit: the native one is what Morche speaks.
       if (port === 8123) out.port = 9000
       if (port === 8443) out.port = 9440
+    } else if (engine === "elasticsearch" || engine === "meilisearch") {
+      // A path or query means nothing here; https = TLS.
+      if (scheme === "https") out.tls = "require"
+      if (scheme === "http") out.tls = "disable"
+      if (!port) out.port = scheme === "https" ? 443 : 80
+      if (engine === "meilisearch") {
+        // A key pasted as the "password" of a URL (or the user part).
+        out.password = out.password ?? out.username
+        out.username = undefined
+      }
     } else if (engine === "redis") {
       out.dbname = path || undefined
       if (url[1].toLowerCase() === "rediss") out.tls = "require"
@@ -423,6 +481,22 @@ export function parseConnectionString(
     return out
   }
   return parseAdo(text, current)
+}
+
+// An http(s):// address is a search engine's: the picked one, else told by
+// the usual port.
+function httpEngine(
+  scheme: string,
+  hostPort: string,
+  current?: Engine,
+): Engine | undefined {
+  if (scheme !== "http" && scheme !== "https") return undefined
+  if (current && searchEngine(current)) return current
+  if (/:7700$/.test(hostPort)) return "meilisearch"
+  if (/:9200$/.test(hostPort) || /elastic|opensearch|\.es\./i.test(hostPort))
+    return "elasticsearch"
+  if (/meili/i.test(hostPort)) return "meilisearch"
+  return undefined
 }
 
 function sslMode(p: Map<string, string>): Database["tls"] | undefined {
@@ -517,6 +591,10 @@ export function imageEngine(
     return { engine: "mssql" }
   if (last === "mongo" || name.includes("mongodb")) return { engine: "mongodb" }
   if (name.includes("clickhouse")) return { engine: "clickhouse" }
+  if (name.includes("elasticsearch")) return { engine: "elasticsearch" }
+  if (name.includes("opensearch") && !name.includes("dashboards"))
+    return { engine: "elasticsearch", flavor: "opensearch" }
+  if (name.includes("meilisearch")) return { engine: "meilisearch" }
   if (/^(redis|valkey|keydb|redis-stack(-server)?)$/.test(last))
     return { engine: "redis" }
   return null

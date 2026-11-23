@@ -2228,7 +2228,7 @@ export interface BackupPlanBody {
    */
   targets?: string[];
   /**
-   * PostgreSQL with workers > 1: the folder on the machine that runs the dump where it's written before it's sent (room for the whole dump); empty = its temporary folder
+   * PostgreSQL with workers > 1: the folder on the machine that runs the dump where it's written before it's sent (room for the whole dump); ClickHouse: where each table is written before it's sent (room for the biggest table); empty = its temporary folder
    * @maxLength 512
    */
   temp_dir?: string;
@@ -5460,7 +5460,15 @@ export interface Database {
   /** Database it signs in to */
   dbname: string;
   description: string;
-  engine: "postgres" | "mysql" | "mssql" | "redis" | "mongodb" | "clickhouse";
+  engine:
+    | "postgres"
+    | "mysql"
+    | "mssql"
+    | "redis"
+    | "mongodb"
+    | "clickhouse"
+    | "elasticsearch"
+    | "meilisearch";
   favorite: boolean;
   flavor: string;
   has_password: boolean;
@@ -5570,7 +5578,15 @@ export interface DatabaseBody {
   dbname?: string;
   /** @maxLength 500 */
   description?: string;
-  engine: "postgres" | "mysql" | "mssql" | "redis" | "mongodb" | "clickhouse";
+  engine:
+    | "postgres"
+    | "mysql"
+    | "mssql"
+    | "redis"
+    | "mongodb"
+    | "clickhouse"
+    | "elasticsearch"
+    | "meilisearch";
   favorite?: boolean;
   /**
    * mode server: as that server sees it (empty = 127.0.0.1, or the container's own address when a container is set). direct: public IP or domain
@@ -5592,7 +5608,7 @@ export interface DatabaseBody {
    */
   name: string;
   /**
-   * On update, leave out to keep the stored one
+   * On update, leave out to keep the stored one. Meilisearch: the master key or an API key
    * @maxLength 1024
    */
   password?: string;
@@ -5610,7 +5626,10 @@ export interface DatabaseBody {
   server_id?: string;
   /** require: encrypted, the certificate isn't checked; verify: also checks it (against ca_cert, or the system's CAs). Default: require when direct, disable through a server (SSH already encrypts) */
   tls?: "disable" | "require" | "verify";
-  /** @maxLength 128 */
+  /**
+   * Elasticsearch: empty = password is an API key (Authorization: ApiKey). Meilisearch: unused
+   * @maxLength 128
+   */
   username?: string;
 }
 
@@ -5753,7 +5772,15 @@ export interface DatabaseCredentials {
    */
   $schema?: string;
   dbname: string;
-  engine: "postgres" | "mysql" | "mssql" | "redis" | "mongodb" | "clickhouse";
+  engine:
+    | "postgres"
+    | "mysql"
+    | "mssql"
+    | "redis"
+    | "mongodb"
+    | "clickhouse"
+    | "elasticsearch"
+    | "meilisearch";
   /** As the server it goes through sees it, when mode is server */
   host: string;
   password: string;
@@ -6180,7 +6207,10 @@ export interface DatabaseObject {
     | "foreign_table"
     | "collection"
     | "timeseries"
-    | "dictionary";
+    | "dictionary"
+    | "index"
+    | "alias"
+    | "data_stream";
   name: string;
   /**
    * The engine's estimate
@@ -6525,6 +6555,76 @@ export interface DatabaseSavedViewBody {
   title: string;
 }
 
+export interface DatabaseSearch {
+  /** @format int32 */
+  active_shards: number;
+  /** Cluster name */
+  cluster?: string;
+  /** @format int32 */
+  data_nodes: number;
+  /** @format double */
+  disk_ratio: number | null;
+  /** @format int64 */
+  documents: number | null;
+  /**
+   * Tasks waiting
+   * @format int32
+   */
+  enqueued: number;
+  /**
+   * Tasks that failed in the last 24 hours
+   * @format int32
+   */
+  failed: number;
+  /**
+   * Share of the disk where indices turn read-only
+   * @format double
+   */
+  flood_stage: number | null;
+  /** @format double */
+  heap_ratio: number | null;
+  /**
+   * Share of the disk where shards stop being placed on a node
+   * @format double
+   */
+  high_watermark: number | null;
+  /** @format int32 */
+  indexes: number;
+  /** Meilisearch: an index is being updated right now */
+  indexing: boolean;
+  /** @format int32 */
+  initializing_shards: number;
+  /** The newest failed task's error */
+  last_failure?: string;
+  /** @format int32 */
+  nodes: number;
+  /**
+   * How long the oldest waiting task has waited
+   * @format double
+   */
+  oldest_wait_seconds: number | null;
+  /**
+   * Cluster-state changes waiting for the master
+   * @format int32
+   */
+  pending_tasks: number;
+  /** @format int32 */
+  primary_shards: number;
+  /**
+   * Tasks running
+   * @format int32
+   */
+  processing: number;
+  /** Indices blocked for writes (flood stage or set by hand) */
+  read_only_indices: string[];
+  /** @format int32 */
+  relocating_shards: number;
+  /** Cluster health; Meilisearch: available = green */
+  status?: "green" | "yellow" | "red" | "";
+  /** @format int32 */
+  unassigned_shards: number;
+}
+
 export interface DatabaseSecurity {
   /** @format int32 */
   admins: number | null;
@@ -6588,10 +6688,18 @@ export interface DatabaseSnapshot {
   disk?: DatabaseDisk;
   /** SQL Server edition, managed-service hints */
   edition?: string;
-  engine: "postgres" | "mysql" | "mssql" | "redis" | "mongodb" | "clickhouse";
+  engine:
+    | "postgres"
+    | "mysql"
+    | "mssql"
+    | "redis"
+    | "mongodb"
+    | "clickhouse"
+    | "elasticsearch"
+    | "meilisearch";
   /** Engine-specific numbers */
   facts: DatabaseFact[];
-  /** What it really is: PostgreSQL, MySQL, MariaDB, SQL Server, Redis, Valkey, MongoDB, ClickHouse */
+  /** What it really is: PostgreSQL, MySQL, MariaDB, SQL Server, Redis, Valkey, MongoDB, ClickHouse, Elasticsearch, OpenSearch, Meilisearch */
   flavor: string;
   /** Auto-increment columns, fullest first */
   id_columns: DatabaseIDColumn[];
@@ -6622,6 +6730,8 @@ export interface DatabaseSnapshot {
   read_only: boolean;
   replication: DatabaseReplication;
   role: "primary" | "replica" | "standalone";
+  /** Elasticsearch, OpenSearch and Meilisearch: cluster, shards and indexing */
+  search?: DatabaseSearch;
   security: DatabaseSecurity;
   /** Connections that are doing something, holding a transaction or blocked; longest first */
   sessions: DatabaseActivity[];
@@ -6999,7 +7109,15 @@ export interface DatabaseTestBody {
    * @maxLength 128
    */
   dbname?: string;
-  engine: "postgres" | "mysql" | "mssql" | "redis" | "mongodb" | "clickhouse";
+  engine:
+    | "postgres"
+    | "mysql"
+    | "mssql"
+    | "redis"
+    | "mongodb"
+    | "clickhouse"
+    | "elasticsearch"
+    | "meilisearch";
   /**
    * mode server: as that server sees it (empty = 127.0.0.1, or the container's own address when a container is set). direct: public IP or domain
    * @maxLength 255
@@ -7008,7 +7126,7 @@ export interface DatabaseTestBody {
   /** server: through one of your servers over SSH (the database may run on it, in Docker on it, or behind it); direct: Morche connects to a public address itself */
   mode: "server" | "direct";
   /**
-   * On update, leave out to keep the stored one
+   * On update, leave out to keep the stored one. Meilisearch: the master key or an API key
    * @maxLength 1024
    */
   password?: string;
@@ -7026,7 +7144,10 @@ export interface DatabaseTestBody {
   server_id?: string;
   /** require: encrypted, the certificate isn't checked; verify: also checks it (against ca_cert, or the system's CAs). Default: require when direct, disable through a server (SSH already encrypts) */
   tls?: "disable" | "require" | "verify";
-  /** @maxLength 128 */
+  /**
+   * Elasticsearch: empty = password is an API key (Authorization: ApiKey). Meilisearch: unused
+   * @maxLength 128
+   */
   username?: string;
 }
 
@@ -13404,6 +13525,8 @@ export interface MonitorConfig {
     | "redis"
     | "mongodb"
     | "clickhouse"
+    | "elasticsearch"
+    | "meilisearch"
     | "";
   /**
    * tcp/udp/websocket: what the answer must contain
@@ -18222,7 +18345,7 @@ export interface RestoreBody {
    */
   target_name: string;
   /**
-   * For a parallel PostgreSQL backup (format pg_dir): where it's unpacked first, on the machine the restore runs on; empty = the plan's when it runs on the plan's runner, else its temporary folder
+   * For a parallel PostgreSQL backup (format pg_dir), or a ClickHouse one (ch_tar) when the runner's tar can't stream it: where it's unpacked first, on the machine the restore runs on; empty = the plan's when it runs on the plan's runner, else its temporary folder
    * @maxLength 512
    */
   temp_dir?: string;
@@ -18285,7 +18408,7 @@ export interface RestoreFileBody {
    */
   target_name: string;
   /**
-   * For a parallel PostgreSQL archive (format pg_dir): where it's unpacked first, on the machine the restore runs on; empty = its temporary folder
+   * For a parallel PostgreSQL archive (format pg_dir), or a ClickHouse dump (ch_tar) when the runner's tar can't stream it: where it's unpacked first, on the machine the restore runs on; empty = its temporary folder
    * @maxLength 512
    */
   temp_dir?: string;
@@ -27318,7 +27441,7 @@ export class Api<
       }),
 
     /**
-     * @description Loads a dump Morche didn't take (pg_dump plain or custom, mysqldump, mongodump --archive, SQL Server .bak; gzip or not) from a storage or a server into a database that exists (replace, with its name typed again, optionally backed up first) or a new one. The whole file is read and checked before the database is touched.
+     * @description Loads a dump Morche didn't take (pg_dump plain or custom, mysqldump, mongodump --archive, SQL Server .bak, a ClickHouse dump Morche made; gzip/zstd or not) from a storage or a server into a database that exists (replace, with its name typed again, optionally backed up first) or a new one. The whole file is read and checked before the database is touched.
      *
      * @tags Database backups
      * @name RestoreDatabaseFile

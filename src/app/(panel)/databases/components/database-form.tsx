@@ -63,6 +63,7 @@ import {
   engines,
   imageEngine,
   parseConnectionString,
+  searchEngine,
   statusMeta,
 } from "./meta"
 import { useCanAddDatabase } from "./permissions"
@@ -277,7 +278,10 @@ export function DatabaseForm({
         !v.username || v.username === engineMeta[v.engine].user
           ? engineMeta[engine].user
           : v.username,
-      dbname: engine === "redis" && !/^\d*$/.test(v.dbname) ? "" : v.dbname,
+      dbname:
+        (engine === "redis" && !/^\d*$/.test(v.dbname)) || searchEngine(engine)
+          ? ""
+          : v.dbname,
     }))
     setErrors({})
     setTested(null)
@@ -308,7 +312,7 @@ export function DatabaseForm({
           : "",
       username: p.username ?? (v.engine === p.engine ? v.username : ""),
       password: p.password ?? v.password,
-      dbname: p.dbname ?? v.dbname,
+      dbname: searchEngine(p.engine) ? "" : (p.dbname ?? v.dbname),
       tls: p.tls ?? v.tls,
     }))
     setFlavor(undefined)
@@ -494,7 +498,9 @@ export function DatabaseForm({
             direct
               ? database
                 ? undefined
-                : "Or paste a connection string (postgres://…) to fill everything."
+                : searchEngine(values.engine)
+                  ? `Or paste its address (https://…:${defaultPort(values.engine)}) to fill everything.`
+                  : "Or paste a connection string (postgres://…) to fill everything."
               : values.container
                 ? `Empty = the container ${values.container}.`
                 : "Empty = 127.0.0.1, the server itself."
@@ -563,37 +569,58 @@ export function DatabaseForm({
       hint="The login Morche uses. Stored encrypted."
       phone={phone}
     >
-      <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
+      <div
+        className={cn(
+          "grid gap-4 sm:gap-3",
+          values.engine !== "meilisearch" && "sm:grid-cols-2",
+        )}
+      >
+        {values.engine !== "meilisearch" && (
+          <Field
+            label="Username"
+            error={errors.username}
+            hint={
+              values.engine === "redis"
+                ? "Only with ACL users. Empty = default."
+                : values.engine === "mongodb"
+                  ? "Empty when sign-in is off."
+                  : values.engine === "elasticsearch"
+                    ? "Empty = the password is an API key (base64 id:key)."
+                    : undefined
+            }
+          >
+            {(f) => (
+              <Input
+                {...f}
+                value={values.username}
+                onChange={(e) => set("username", e.target.value)}
+                placeholder={meta.user || "default"}
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                autoComplete="off"
+                enterKeyHint="next"
+                className="font-mono"
+              />
+            )}
+          </Field>
+        )}
         <Field
-          label="Username"
-          error={errors.username}
+          label={
+            values.engine === "meilisearch"
+              ? "Key"
+              : values.engine === "elasticsearch" && !values.username.trim()
+                ? "API key"
+                : "Password"
+          }
+          error={errors.password}
           hint={
-            values.engine === "redis"
-              ? "Only with ACL users. Empty = default."
-              : values.engine === "mongodb"
-                ? "Empty when sign-in is off."
+            saved
+              ? "Leave blank to keep the saved one."
+              : values.engine === "meilisearch"
+                ? "The master key, or an API key with read access (search, documents, indexes, stats, tasks). Empty when no master key is set."
                 : undefined
           }
-        >
-          {(f) => (
-            <Input
-              {...f}
-              value={values.username}
-              onChange={(e) => set("username", e.target.value)}
-              placeholder={meta.user || "default"}
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              autoComplete="off"
-              enterKeyHint="next"
-              className="font-mono"
-            />
-          )}
-        </Field>
-        <Field
-          label="Password"
-          error={errors.password}
-          hint={saved ? "Leave blank to keep the saved one." : undefined}
         >
           {(f) => (
             <SecretInput
@@ -621,34 +648,36 @@ export function DatabaseForm({
           label="Forget the saved password"
         />
       )}
-      <Field
-        label={`${meta.dbLabel} (optional)`}
-        error={errors.dbname}
-        hint={meta.dbHint}
-      >
-        {(f) => (
-          <Input
-            {...f}
-            value={values.dbname}
-            onChange={(e) =>
-              set(
-                "dbname",
-                values.engine === "redis"
-                  ? e.target.value.replace(/\D/g, "")
-                  : e.target.value,
-              )
-            }
-            placeholder={meta.dbPlaceholder}
-            inputMode={values.engine === "redis" ? "numeric" : undefined}
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            autoComplete="off"
-            enterKeyHint="done"
-            className="font-mono"
-          />
-        )}
-      </Field>
+      {!searchEngine(values.engine) && (
+        <Field
+          label={`${meta.dbLabel} (optional)`}
+          error={errors.dbname}
+          hint={meta.dbHint}
+        >
+          {(f) => (
+            <Input
+              {...f}
+              value={values.dbname}
+              onChange={(e) =>
+                set(
+                  "dbname",
+                  values.engine === "redis"
+                    ? e.target.value.replace(/\D/g, "")
+                    : e.target.value,
+                )
+              }
+              placeholder={meta.dbPlaceholder}
+              inputMode={values.engine === "redis" ? "numeric" : undefined}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              autoComplete="off"
+              enterKeyHint="done"
+              className="font-mono"
+            />
+          )}
+        </Field>
+      )}
     </Section>
   )
 

@@ -193,7 +193,13 @@ function useSessionMenu() {
   return (x: DatabaseActivity): Item[][] => {
     const first: Item[] = []
     if (x.query) {
-      if (engineer && d.engine !== "redis") {
+      // A search engine's task is a description, not a statement.
+      if (
+        engineer &&
+        d.engine !== "redis" &&
+        d.engine !== "elasticsearch" &&
+        d.engine !== "meilisearch"
+      ) {
         first.push({
           key: "explain",
           label: "Explain…",

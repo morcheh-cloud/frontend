@@ -31,6 +31,7 @@ import type {
 } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { useEditRows } from "../../../api"
+import { documentEngine } from "../../../components/meta"
 import { useDashboard } from "../parts"
 import { pretty } from "./meta"
 import { CodeBlock } from "./structure"
@@ -50,7 +51,8 @@ export function useCanEditRows(info?: ObjectInfo) {
   if (info.read_only)
     return { insert: false, change: false, why: info.read_only }
   const mongo = d.engine === "mongodb"
-  const table = info.kind === "table" || info.kind === "collection"
+  const table =
+    info.kind === "table" || info.kind === "collection" || info.kind === "index"
   const keyed = mongo || info.key.length > 0
   return {
     insert: table,
@@ -273,7 +275,8 @@ function RowEditor({
   onSubmit: (change: RowChange) => void
 }) {
   const { database: d, phone } = useDashboard()
-  const mongo = d.engine === "mongodb"
+  // Documents are edited whole, as JSON.
+  const mongo = documentEngine(d.engine)
   const inserting = index == null
   const row = index != null ? result?.rows[index] : undefined
   const cellOf = (name: string) => {
@@ -354,7 +357,11 @@ function RowEditor({
   const title = inserting ? "Add a row" : "Edit the row"
   const description = inserting
     ? mongo
-      ? "Write the new document as JSON. An _id is made for it when it has none."
+      ? d.engine === "meilisearch"
+        ? `Write the new document as JSON, with its ${info.key[0] ?? "primary key"} field.`
+        : d.engine === "elasticsearch"
+          ? "Write the new document as JSON. Elasticsearch gives it an _id."
+          : "Write the new document as JSON. An _id is made for it when it has none."
       : "Fill in what you want; fields left on Default get the table's default value."
     : mongo
       ? "Change the document as JSON; it replaces the stored one."

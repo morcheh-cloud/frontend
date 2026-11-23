@@ -32,10 +32,11 @@ import {
   useDatabaseEvents,
   useDatabaseHistory,
 } from "../../api"
-import { byLevel, levelMeta } from "../../components/meta"
+import { byLevel, levelMeta, searchEngine } from "../../components/meta"
 import { useDashboardActions } from "./dashboard-actions"
 import { checkValue, ms, num, pct, perSecond } from "./format"
 import { NotesFor, Pairs, Panel, type Stat, Stats, useDashboard } from "./parts"
+import { SearchPanel } from "./search-panel"
 
 export function OverviewTab() {
   const { phone } = useDashboard()
@@ -50,6 +51,7 @@ export function OverviewTab() {
       >
         <Checks />
         <div className="flex min-w-0 flex-col md:gap-4">
+          <SearchPanel />
           <Compared />
           <Capacity />
           <Changes />
@@ -114,7 +116,12 @@ function Headline() {
   if (s?.rates?.queries != null) {
     items.push({
       key: "qps",
-      label: d.engine === "redis" ? "Commands" : "Queries",
+      label:
+        d.engine === "redis"
+          ? "Commands"
+          : searchEngine(d.engine)
+            ? "Searches"
+            : "Queries",
       value: perSecond(s.rates.queries),
       sub:
         s.rates.transactions != null
@@ -143,7 +150,7 @@ function Headline() {
         growth != null && Math.abs(growth) >= 1
           ? `${growth > 0 ? "+" : "−"}${formatSize(Math.abs(growth))} a day`
           : s
-            ? `${s.databases.length} ${d.engine === "redis" ? "keyspaces" : "databases"}`
+            ? `${s.databases.length} ${d.engine === "redis" ? "keyspaces" : searchEngine(d.engine) ? (s.databases.length === 1 ? "index" : "indexes") : "databases"}`
             : undefined,
     })
   }
@@ -396,7 +403,12 @@ function Compared() {
   }[] = [
     {
       key: "qps",
-      label: d.engine === "redis" ? "Commands/s" : "Queries/s",
+      label:
+        d.engine === "redis"
+          ? "Commands/s"
+          : searchEngine(d.engine)
+            ? "Searches/s"
+            : "Queries/s",
       now: s?.rates?.queries,
       fmt: num,
     },

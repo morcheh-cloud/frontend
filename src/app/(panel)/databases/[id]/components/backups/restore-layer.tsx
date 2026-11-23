@@ -20,6 +20,7 @@ import { useIsPhone } from "@/hooks/useIsPhone"
 import { fieldErrors } from "@/lib/api"
 import type { Backup, LocalTools, RestoreBody } from "@/lib/services"
 import { useBackupOptions, useRestoreBackup } from "../../../api"
+import { searchEngine } from "../../../components/meta"
 import { useDashboard } from "../parts"
 import { useBackupCan } from "./backup-actions"
 import { LOCAL_RUNNER, when } from "./meta"
@@ -328,7 +329,7 @@ function RestoreForm({
         />
       )}
 
-      {direct && (
+      {direct && !searchEngine(d.engine) && (
         <Field
           label="Run it from"
           error={errors.runner}

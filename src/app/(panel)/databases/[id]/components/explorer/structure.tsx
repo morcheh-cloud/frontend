@@ -21,6 +21,9 @@ const langs = {
   mongodb: [...read, javascript()],
   redis: read,
   clickhouse: [...read, sql({ dialect: ClickHouseSQL })],
+  // Settings and mappings as JSON.
+  elasticsearch: [...read, javascript()],
+  meilisearch: [...read, javascript()],
 }
 
 // A read-only, highlighted piece of code (a CREATE statement, a view).

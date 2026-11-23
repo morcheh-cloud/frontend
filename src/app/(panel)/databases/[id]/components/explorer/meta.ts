@@ -13,7 +13,13 @@ export const systemDatabases: Record<string, string[]> = {
   mongodb: ["admin", "local", "config"],
   redis: [],
   clickhouse: ["system", "information_schema"],
+  elasticsearch: [],
+  meilisearch: [],
 }
+
+// Search engines take a console of HTTP requests instead of a query language.
+export const consoleEngine = (e: Engine) =>
+  e === "elasticsearch" || e === "meilisearch"
 
 export const isSystemDb = (e: Engine, name: string) =>
   (systemDatabases[e] ?? []).includes(name.toLowerCase())
@@ -65,6 +71,10 @@ export function selectFor(engine: Engine, schema: string, name: string) {
   if (engine === "mongodb")
     return `db.getCollection("${name}").find({}).limit(100)`
   if (engine === "redis") return "SCAN 0 MATCH * COUNT 100"
+  if (engine === "elasticsearch")
+    return `GET /${encodeURIComponent(name)}/_search\n{\n  "query": { "match_all": {} },\n  "size": 100\n}`
+  if (engine === "meilisearch")
+    return `POST /indexes/${encodeURIComponent(name)}/search\n{\n  "q": "",\n  "limit": 100\n}`
   const table =
     schema && !(engine === "postgres" && schema === "public")
       ? `${quoteName(engine, schema)}.${quoteName(engine, name)}`
@@ -81,6 +91,10 @@ export const placeholders: Record<Engine, string> = {
   redis: "SCAN 0 MATCH user:* COUNT 100\nGET some:key",
   clickhouse:
     "SELECT database, name, total_rows\nFROM system.tables\nWHERE database = currentDatabase();",
+  elasticsearch:
+    'GET /_cat/indices?v\n\nGET /my-index/_search\n{\n  "query": { "match": { "title": "hello" } }\n}',
+  meilisearch:
+    'GET /indexes\n\nPOST /indexes/movies/search\n{\n  "q": "batman",\n  "limit": 20\n}',
 }
 
 export const kindLabel: Record<string, string> = {
@@ -91,6 +105,9 @@ export const kindLabel: Record<string, string> = {
   collection: "Collection",
   timeseries: "Time series",
   dictionary: "Dictionary",
+  index: "Index",
+  alias: "Alias",
+  data_stream: "Data stream",
 }
 
 // ---- export ----

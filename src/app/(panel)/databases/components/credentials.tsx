@@ -8,7 +8,7 @@ import {
 } from "@/components/credentials"
 import type { Database, DatabaseCredentials } from "@/lib/services"
 import { useDatabaseCredentials } from "../api"
-import { engineMeta, engineName } from "./meta"
+import { engineMeta, engineName, searchEngine } from "./meta"
 
 export function DatabaseCredentialsLayer({
   open,
@@ -71,26 +71,32 @@ function Fields({
         <CredentialRow label="Host" value={c.host} />
         <CredentialRow label="Port" value={String(port)} />
       </div>
-      {c.username ? (
+      {c.engine === "meilisearch" ? null : c.username ? (
         <CredentialRow label="Username" value={c.username} />
       ) : (
-        <CredentialNote label="Username">The default user</CredentialNote>
+        <CredentialNote label="Username">
+          {c.engine === "elasticsearch"
+            ? "None: the key below is an API key"
+            : "The default user"}
+        </CredentialNote>
       )}
       {c.password ? (
-        <CredentialRow label="Password" value={c.password} secret />
+        <CredentialRow label={secretLabel(c)} value={c.password} secret />
       ) : (
-        <CredentialNote label="Password">No password is stored</CredentialNote>
+        <CredentialNote label={secretLabel(c)}>
+          No {secretLabel(c).toLowerCase()} is stored
+        </CredentialNote>
       )}
-      {c.dbname ? (
+      {searchEngine(c.engine) ? null : c.dbname ? (
         <CredentialRow label={meta.dbLabel} value={c.dbname} />
       ) : (
         <CredentialNote label={meta.dbLabel}>Not set</CredentialNote>
       )}
       <CredentialNote label="TLS">{tlsLabels[c.tls]}</CredentialNote>
       <CredentialRow
-        label="Connection string"
+        label={searchEngine(c.engine) ? "Address" : "Connection string"}
         value={connectionUrl(c, port)}
-        secret={!!c.password}
+        secret={!!c.password && !searchEngine(c.engine)}
         wrap
       />
       <CredentialRow label="Command line" value={command(c, port)} wrap />
@@ -98,10 +104,20 @@ function Fields({
   )
 }
 
+function secretLabel(c: DatabaseCredentials) {
+  if (c.engine === "meilisearch") return "Key"
+  if (c.engine === "elasticsearch" && !c.username) return "API key"
+  return "Password"
+}
+
 const enc = encodeURIComponent
 const bracket = (host: string) => (host.includes(":") ? `[${host}]` : host)
 
 function connectionUrl(c: DatabaseCredentials, port: number) {
+  if (searchEngine(c.engine)) {
+    // The key goes in a header, never in the address.
+    return `${c.tls === "disable" ? "http" : "https"}://${bracket(c.host)}:${port}`
+  }
   const auth = c.username
     ? `${enc(c.username)}${c.password ? `:${enc(c.password)}` : ""}@`
     : c.password
@@ -136,7 +152,15 @@ function connectionUrl(c: DatabaseCredentials, port: number) {
 
 function command(c: DatabaseCredentials, port: number) {
   const h = c.host
+  const base = `${c.tls === "disable" ? "http" : "https"}://${bracket(h)}:${port}`
+  const insecure = c.tls === "require" ? " -k" : ""
   switch (c.engine) {
+    case "elasticsearch":
+      return c.username
+        ? `curl${insecure} -u ${c.username} ${base}/_cluster/health?pretty`
+        : `curl${insecure} -H "Authorization: ApiKey $ES_API_KEY" ${base}/_cluster/health?pretty`
+    case "meilisearch":
+      return `curl${insecure}${c.password ? ' -H "Authorization: Bearer $MEILI_KEY"' : ""} ${base}/stats`
     case "postgres":
       return `psql "host=${h} port=${port} user=${c.username} dbname=${c.dbname || "postgres"}${
         c.tls === "disable"

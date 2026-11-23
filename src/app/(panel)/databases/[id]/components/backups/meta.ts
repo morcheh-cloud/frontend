@@ -58,12 +58,21 @@ export const formatLabels: Record<string, string> = {
   mysql_binlog: "Binary log changes",
   mongo_arch: "mongodump archive",
   redis_rdb: "Redis snapshot (RDB)",
+  es_ndjson: "Elasticsearch export (NDJSON)",
+  meili_ndjson: "Meilisearch export (NDJSON)",
   mssql_bak: "SQL Server backup (.bak)",
   mssql_diff: "SQL Server differential backup",
 }
 
+// Search engines back up indexes where the others back up databases.
+const searchEngines: Database["engine"][] = ["elasticsearch", "meilisearch"]
+export const unitOf = (engine: Database["engine"]) =>
+  searchEngines.includes(engine) ? "index" : "database"
+export const unitsOf = (engine: Database["engine"]) =>
+  searchEngines.includes(engine) ? "indexes" : "databases"
+
 export const whatText = (target: string, engine: Database["engine"]) =>
-  target || (engine === "redis" ? "Everything" : "All databases")
+  target || (engine === "redis" ? "Everything" : `All ${unitsOf(engine)}`)
 
 // The folder a backup's file sits in.
 export const folderOf = (b: Pick<Backup, "path">) =>
@@ -159,11 +168,11 @@ export function selectionText(
     case "selected":
       return p.targets.length === 1
         ? p.targets[0]
-        : plural(p.targets.length, "database")
+        : plural(p.targets.length, unitOf(engine), unitsOf(engine))
     case "pattern":
       return `Matching ${p.pattern}`
     default:
-      return "All databases"
+      return `All ${unitsOf(engine)}`
   }
 }
 

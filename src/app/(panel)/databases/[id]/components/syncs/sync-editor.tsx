@@ -66,6 +66,7 @@ import {
   useSaveSync,
   useSyncTables,
 } from "../../../api"
+import { searchEngine } from "../../../components/meta"
 import { useDatabaseCan } from "../../../components/permissions"
 import { LOCAL_RUNNER } from "../backups/meta"
 import {
@@ -178,7 +179,9 @@ const fromSaved = (s: DatabaseSync): Draft => {
 
 const fresh = (db: Database): Draft => ({
   name: "",
-  mode: db.engine === "mongodb" ? "replace" : "tables",
+  mode: ["mongodb", "elasticsearch", "meilisearch"].includes(db.engine)
+    ? "replace"
+    : "tables",
   source: db.id,
   sourceName: db.dbname,
   target: "",
@@ -402,7 +405,14 @@ function Editor({
     (x) =>
       x.id === draft.source ||
       (x.workspace_id === db.workspace_id &&
-        ["postgres", "mysql", "mongodb", "clickhouse"].includes(x.engine) &&
+        [
+          "postgres",
+          "mysql",
+          "mongodb",
+          "clickhouse",
+          "elasticsearch",
+          "meilisearch",
+        ].includes(x.engine) &&
         can(x, "operator")),
   )
   const rows = draft.mode !== "replace"
@@ -439,9 +449,11 @@ function Editor({
   function check(): Errors {
     const e: Errors = {}
     if (!draft.name.trim()) e.name = "Give it a name"
-    if (!draft.sourceName.trim()) e.source = "Pick the database to copy from"
+    if (!draft.sourceName.trim())
+      e.source = `Pick the ${searchEngine(engineOf) ? "index" : "database"} to copy from`
     if (!draft.target) e.target = "Pick where it goes"
-    else if (!draft.targetName.trim()) e.target = "Name the target database"
+    else if (!draft.targetName.trim())
+      e.target = `Name the target ${searchEngine(engineOf) ? "index" : "database"}`
     else if (
       draft.target === draft.source &&
       draft.targetName.trim() === draft.sourceName.trim()
@@ -676,7 +688,7 @@ function Editor({
               )}
             </Field>
             <NameField
-              label="Database on it"
+              label={searchEngine(engineOf) ? "Index on it" : "Database on it"}
               value={draft.sourceName}
               names={sourceList.data?.databases ?? []}
               loading={sourceList.isFetching}
@@ -733,7 +745,7 @@ function Editor({
               }
             </Field>
             <NameField
-              label="Database on it"
+              label={searchEngine(engineOf) ? "Index on it" : "Database on it"}
               value={draft.targetName}
               names={targetList.data?.databases ?? []}
               loading={targetList.isFetching}
@@ -948,6 +960,7 @@ function Editor({
       )}
 
       {draft.mode === "replace" &&
+        !searchEngine(engineOf) &&
         (!source.server_id || !target?.server_id) && (
           <Section
             title="Where it runs"

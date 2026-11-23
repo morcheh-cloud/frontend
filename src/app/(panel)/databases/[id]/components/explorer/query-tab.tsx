@@ -478,6 +478,12 @@ export function QueryTab() {
               failing one stay done.
             </p>
           )}
+          {(d.engine === "elasticsearch" || d.engine === "meilisearch") && (
+            <p className="text-caption text-muted-foreground">
+              Requests run one after another and there are no transactions:
+              requests that ran before a failing one stay done.
+            </p>
+          )}
         </div>
       </ResponsiveDialog>
     </>
@@ -817,11 +823,23 @@ function StartHint() {
         ]
       : d.engine === "redis"
         ? ["INFO memory", "SCAN 0 MATCH session:* COUNT 100", "HGETALL user:42"]
-        : [
-            "Run only part: select it, then Run",
-            "Several statements: separate them with ;",
-            "Saved queries can be shared with the team",
-          ]
+        : d.engine === "elasticsearch"
+          ? [
+              "GET /_cat/indices?v",
+              'GET /orders/_search { "query": { "match": { "status": "open" } } }',
+              "One request per block: method and path, then a JSON body",
+            ]
+          : d.engine === "meilisearch"
+            ? [
+                "GET /indexes",
+                'POST /indexes/movies/search { "q": "batman" }',
+                "One request per block: method and path, then a JSON body",
+              ]
+            : [
+                "Run only part: select it, then Run",
+                "Several statements: separate them with ;",
+                "Saved queries can be shared with the team",
+              ]
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 overflow-y-auto p-8 text-center">
       <span className="flex size-12 items-center justify-center rounded-2xl bg-brand-soft text-brand-strong">

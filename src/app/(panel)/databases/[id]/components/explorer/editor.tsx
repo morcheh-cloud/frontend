@@ -24,7 +24,13 @@ const dialects = {
 }
 
 function language(engine: Engine, schema: SQLNamespace) {
-  if (engine === "mongodb") return [javascript()]
+  // A search engine's console: method + path lines and JSON bodies.
+  if (
+    engine === "mongodb" ||
+    engine === "elasticsearch" ||
+    engine === "meilisearch"
+  )
+    return [javascript()]
   if (engine === "redis") return []
   return [
     sql({

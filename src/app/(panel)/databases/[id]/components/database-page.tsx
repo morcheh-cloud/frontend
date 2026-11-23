@@ -46,6 +46,7 @@ import {
   endpointLabel,
   engineName,
   HealthDot,
+  searchEngine,
   stateOf,
   statusMeta,
 } from "../../components/meta"
@@ -85,10 +86,17 @@ type Tab = (typeof tabs)[number]
 const tabLabels = (d: Database): Record<Tab, string> => ({
   overview: "Overview",
   data: "Data",
-  query: d.engine === "redis" ? "Console" : "Query",
-  sessions: "Sessions",
+  query: ["redis", "elasticsearch", "meilisearch"].includes(d.engine)
+    ? "Console"
+    : "Query",
+  sessions: searchEngine(d.engine) ? "Tasks" : "Sessions",
   queries: d.engine === "redis" ? "Slow log" : "Queries",
-  space: d.engine === "redis" ? "Keys" : "Tables & space",
+  space:
+    d.engine === "redis"
+      ? "Keys"
+      : searchEngine(d.engine)
+        ? "Indexes & space"
+        : "Tables & space",
   clients: "Clients",
   replication: "Replication",
   backups: "Backups",
@@ -184,9 +192,15 @@ function useDeleted() {
 
 // The data explorer is an Engineer's (the data itself); others don't see it.
 const explorerTabs: readonly Tab[] = ["data", "query"]
+// Search engines keep no statement statistics or client list.
+const searchHidden: readonly Tab[] = ["queries", "clients"]
 const useTabsFor = () => {
-  const { engineer } = useDashboard()
-  return engineer ? tabs : tabs.filter((t) => !explorerTabs.includes(t))
+  const { engineer, database: d } = useDashboard()
+  return tabs.filter(
+    (t) =>
+      (engineer || !explorerTabs.includes(t)) &&
+      !(searchEngine(d.engine) && searchHidden.includes(t)),
+  )
 }
 
 function DesktopPage() {

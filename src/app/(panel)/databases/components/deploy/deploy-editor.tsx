@@ -145,7 +145,7 @@ function startForm(kind: Kind, server: string): Form {
     publish: "none",
     hostPort: String(r.port),
     network: "",
-    memory: kind === "mssql" ? "2g" : "1g",
+    memory: kind === "mssql" || kind === "elasticsearch" ? "2g" : "1g",
     interval: 60,
     description: "",
   }
@@ -622,7 +622,7 @@ export function DeployEditor({
                 />
               )}
             </Field>
-          ) : (
+          ) : form.kind === "meilisearch" ? null : (
             <Field label="Admin user" hint="Redis has a password only.">
               {(p) => (
                 <Input
@@ -635,9 +635,13 @@ export function DeployEditor({
             </Field>
           )}
           <Field
-            label="Password"
+            label={form.kind === "meilisearch" ? "Master key" : "Password"}
             error={errors.password}
-            hint="Made up for you. Copy it if your app needs it, or see it later under Credentials."
+            hint={
+              form.kind === "meilisearch"
+                ? "Made up for you. Your app should use a search or admin API key made from it, not the master key itself. See it later under Credentials."
+                : "Made up for you. Copy it if your app needs it, or see it later under Credentials."
+            }
           >
             {(p) => (
               <div className="flex gap-2">
