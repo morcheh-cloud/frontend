@@ -180,6 +180,8 @@ function statusWord(s: string) {
       return "Login failed"
     case "host_key_mismatch":
       return "Key mismatch"
+    case "needs_login":
+      return "Needs sign-in"
     default:
       return s
   }

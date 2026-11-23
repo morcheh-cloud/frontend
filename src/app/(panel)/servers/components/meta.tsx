@@ -13,6 +13,7 @@ export const statusMeta: Record<Status, { label: string; dot: string }> = {
   host_key_mismatch: { label: "Host key changed", dot: "bg-destructive" },
   error: { label: "Error", dot: "bg-destructive" },
   unknown: { label: "Not checked", dot: "bg-mist" },
+  needs_login: { label: "Waiting for sign-in", dot: "bg-brand" },
 }
 
 export function StatusDot({

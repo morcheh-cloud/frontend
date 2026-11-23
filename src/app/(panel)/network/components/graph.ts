@@ -272,6 +272,7 @@ const statusTone = {
   unreachable: "destructive",
   host_key_mismatch: "destructive",
   error: "destructive",
+  needs_login: "muted",
 } as const
 
 // Morche in the middle: how it, not the servers, gets to each one.

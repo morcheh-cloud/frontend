@@ -60,6 +60,17 @@ export function newProjectHref(
   })
 }
 
+const actionLabel: Record<ProjectAction, string> = {
+  up: "Apply changes to",
+  down: "Take down",
+  start: "Start",
+  stop: "Stop",
+  restart: "Restart",
+  pull: "Pull images of",
+  redeploy: "Redeploy",
+  destroy: "Destroy",
+}
+
 const doneText: Record<ProjectAction, string> = {
   up: "Deploying",
   down: "Taking down",
@@ -72,8 +83,30 @@ const doneText: Record<ProjectAction, string> = {
 }
 
 type Ask = {
-  p: Pick<DockerProject, "name" | "managed" | "dir">
-  action: "down" | "destroy" | "forget"
+  p: Pick<DockerProject, "name" | "managed" | "dir" | "itself">
+  action: ProjectAction | "forget"
+}
+
+// What stops (or replaces) the containers Morche itself runs in.
+const selfStopping: readonly ProjectAction[] = [
+  "stop",
+  "restart",
+  "up",
+  "redeploy",
+  "down",
+  "destroy",
+]
+
+const selfText: Partial<Record<ProjectAction, string>> = {
+  stop: "Stopping it stops Morche's panel and backend. Nothing in Morche works until someone starts them again on the server (docker compose start).",
+  restart:
+    "Restarting it stops Morche's panel and backend for a moment: this page loses its connection until they are back.",
+  up: "Applying changes may recreate Morche's own containers: the panel goes away for a moment, and for good if the new compose file is broken.",
+  redeploy:
+    "Redeploying pulls new images and recreates Morche's own containers: the panel goes away until they are back.",
+  down: "Taking it down removes Morche's panel and backend. Nothing in Morche works until someone runs docker compose up -d on the server.",
+  destroy:
+    "Destroying it removes Morche itself, with its database volume: every server, setting and history in Morche is lost.",
 }
 
 // Where Morche knows a project from, for a tag on its card.
@@ -126,6 +159,18 @@ export function useProjectActions(
     setOpen(true)
   }
 
+  // Runs an action, asking first when it removes something or would stop
+  // Morche itself.
+  const go = (p: Ask["p"], action: ProjectAction) => {
+    if (
+      action === "down" ||
+      action === "destroy" ||
+      (p.itself && selfStopping.includes(action))
+    )
+      confirm(p, action)
+    else run(p.name, action)
+  }
+
   const menu = (
     p: DockerProject,
     opts: { open?: () => void } = {},
@@ -153,7 +198,7 @@ export function useProjectActions(
                     label: "Start",
                     icon: <Play />,
                     disabled: busy,
-                    onSelect: () => run(p.name, "start"),
+                    onSelect: () => go(p, "start"),
                   },
                 ]
               : []),
@@ -164,14 +209,14 @@ export function useProjectActions(
                     label: "Stop",
                     icon: <Square />,
                     disabled: busy,
-                    onSelect: () => run(p.name, "stop"),
+                    onSelect: () => go(p, "stop"),
                   },
                   {
                     key: "restart",
                     label: "Restart",
                     icon: <RotateCw />,
                     disabled: busy,
-                    onSelect: () => run(p.name, "restart"),
+                    onSelect: () => go(p, "restart"),
                   },
                 ]
               : []),
@@ -184,21 +229,21 @@ export function useProjectActions(
               label: deployed ? "Apply changes (up)" : "Deploy",
               icon: <Rocket />,
               disabled: busy,
-              onSelect: () => run(p.name, "up"),
+              onSelect: () => go(p, "up"),
             },
             {
               key: "pull",
               label: "Pull images",
               icon: <CloudDownload />,
               disabled: busy,
-              onSelect: () => run(p.name, "pull"),
+              onSelect: () => go(p, "pull"),
             },
             {
               key: "redeploy",
               label: "Redeploy (pull + up)",
               icon: <RefreshCcw />,
               disabled: busy,
-              onSelect: () => run(p.name, "redeploy"),
+              onSelect: () => go(p, "redeploy"),
             },
           ]
         : [],
@@ -210,7 +255,7 @@ export function useProjectActions(
                     key: "down",
                     label: "Take down",
                     icon: <SquareArrowDown />,
-                    onSelect: () => confirm(p, "down"),
+                    onSelect: () => go(p, "down"),
                   },
                 ]
               : []),
@@ -219,7 +264,7 @@ export function useProjectActions(
               label: "Destroy…",
               icon: <Trash2 />,
               destructive: true,
-              onSelect: () => confirm(p, "destroy"),
+              onSelect: () => go(p, "destroy"),
             },
             ...(!p.managed && p.total === 0
               ? [
@@ -237,7 +282,23 @@ export function useProjectActions(
   }
 
   const forgetting = ask?.action === "forget"
-  const dialog = (
+  const self = ask?.p.itself && ask.action !== "forget" ? ask.action : null
+  const dialog = self ? (
+    <ConfirmDialog
+      open={open}
+      onOpenChange={setOpen}
+      title={`${actionLabel[self]} Morche itself?`}
+      description={
+        <>
+          Morche runs in <strong>{ask?.p.name}</strong> on this server.{" "}
+          {selfText[self]}
+        </>
+      }
+      confirmLabel={actionLabel[self]}
+      pending={act.isPending}
+      onConfirm={() => ask && run(ask.p.name, self, () => setOpen(false))}
+    />
+  ) : (
     <ConfirmDialog
       open={open}
       onOpenChange={setOpen}
@@ -305,5 +366,5 @@ export function useProjectActions(
     />
   )
 
-  return { can, run, confirm, menu, dialog, pending: act.isPending }
+  return { can, run, go, confirm, menu, dialog, pending: act.isPending }
 }

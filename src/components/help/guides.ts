@@ -93,6 +93,10 @@ export const guides: GuideMeta[] = [
     keywords: [
       "add",
       "ssh",
+      "morche host",
+      "this server",
+      "manage_host",
+      "sign in",
       "password",
       "private key",
       "credentials",

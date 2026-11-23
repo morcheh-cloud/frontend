@@ -12,10 +12,13 @@ import { cn } from "@/lib/utils"
 export function CodeBlock({
   code,
   label = "code",
+  wrap = false,
   className,
 }: {
   code: string
   label?: string
+  // Wrap long lines (a one-line command to copy) instead of scrolling.
+  wrap?: boolean
   className?: string
 }) {
   return (
@@ -25,7 +28,12 @@ export function CodeBlock({
         className,
       )}
     >
-      <pre className="max-h-96 overflow-auto py-3 ps-4 pe-12 font-mono text-caption leading-relaxed whitespace-pre max-md:pe-14">
+      <pre
+        className={cn(
+          "max-h-96 overflow-auto py-3 ps-4 pe-12 font-mono text-caption leading-relaxed max-md:pe-14",
+          wrap ? "break-all whitespace-pre-wrap" : "whitespace-pre",
+        )}
+      >
         <code>{code}</code>
       </pre>
       <CopyCode

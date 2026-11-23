@@ -70,6 +70,16 @@ export interface AddCronJobRequest {
   table: string;
 }
 
+export interface AddMorcheHostBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @format uuid */
+  workspace_id: string;
+}
+
 export interface Address {
   ip: string;
   mac?: string;
@@ -8923,6 +8933,8 @@ export interface DockerProject {
   /** Its compose files (full paths) */
   files: string[];
   images: string[];
+  /** Morche itself runs in this project: stopping it stops the panel */
+  itself: boolean;
   /** In the workspace's projects folder */
   managed: boolean;
   name: string;
@@ -9151,6 +9163,8 @@ export interface DockerProjectDetails {
   files: string[];
   has_env: boolean;
   images: string[];
+  /** Morche itself runs in this project: stopping it stops the panel */
+  itself: boolean;
   /** In the workspace's projects folder */
   managed: boolean;
   /** The compose file isn't on the server (any more) */
@@ -13826,6 +13840,29 @@ export interface MonitorTestBody {
    * @default 10
    */
   timeout_seconds?: number;
+}
+
+export interface MorcheHostState {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Where the backend reaches the machine it runs on */
+  address: string;
+  /** MANAGE_HOST is set: the backend adds it by itself */
+  enabled: boolean;
+  /** The backend runs in a container */
+  in_container: boolean;
+  /** @format int32 */
+  port: number;
+  /**
+   * The server, when it is added
+   * @format uuid
+   */
+  server_id: string | null;
+  /** The login it starts with */
+  username: string;
 }
 
 export interface MovePveGuestFirewallRuleRequest {
@@ -19972,18 +20009,23 @@ export interface Server {
    * @format int32
    */
   latency_ms: number | null;
+  /** The machine Morche itself runs on */
+  morche_host: boolean;
   name: string;
   os: ServerOS;
   /** @format int32 */
   port: number;
-  /** Result of the last connection check */
+  /** The public key Morche made for this server (authorized_keys line); empty when it has none */
+  setup_public_key: string;
+  /** Result of the last connection check; needs_login = waiting for someone to sign in once (the machine Morche runs on) */
   status:
     | "unknown"
     | "online"
     | "unreachable"
     | "auth_failed"
     | "host_key_mismatch"
-    | "error";
+    | "error"
+    | "needs_login";
   /** Human-readable detail for the status */
   status_message: string;
   tags: string[];
@@ -20400,6 +20442,30 @@ export interface ServerScriptRun {
   /** How it went on this server */
   state: string;
   timed_out: boolean;
+}
+
+export interface ServerSignInBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Put Morche's key on root (through sudo) and work as root from then on */
+  as_root?: boolean;
+  auth_method: "password" | "private_key";
+  /** Store this login as given, instead of putting Morche's own key on the server and forgetting it */
+  keep_login?: boolean;
+  /** @maxLength 1024 */
+  passphrase?: string;
+  /** @maxLength 1024 */
+  password?: string;
+  /** @maxLength 16384 */
+  private_key?: string;
+  /**
+   * @minLength 1
+   * @maxLength 64
+   */
+  username: string;
 }
 
 export interface ServerStatusEvent {
@@ -33891,6 +33957,487 @@ export class Api<
         ...params,
       }),
   };
+  servers = {
+    /**
+     * @description Adds it as a server waiting for a sign-in, with a key Morche made for it. System admins only.
+     *
+     * @tags Servers
+     * @name AddMorcheHost
+     * @summary Add the machine Morche runs on
+     * @request POST:/morche-host
+     */
+    addMorcheHost: (data: AddMorcheHostBody, params: RequestParams = {}) =>
+      this.request<Server, ErrorModel>({
+        path: `/morche-host`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Runs connection checks in parallel and returns the updated servers.
+     *
+     * @tags Servers
+     * @name BulkCheckServers
+     * @summary Check several servers
+     * @request POST:/servers/bulk/check
+     */
+    bulkCheckServers: (data: IDsBody, params: RequestParams = {}) =>
+      this.request<ServerItemsOutputBody, ErrorModel>({
+        path: `/servers/bulk/check`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Servers
+     * @name BulkDeleteServers
+     * @summary Delete several servers
+     * @request POST:/servers/bulk/delete
+     */
+    bulkDeleteServers: (data: IDsBody, params: RequestParams = {}) =>
+      this.request<AffectedOutputBody, ErrorModel>({
+        path: `/servers/bulk/delete`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Servers
+     * @name BulkMoveServers
+     * @summary Move servers to a folder
+     * @request POST:/servers/bulk/move
+     */
+    bulkMoveServers: (
+      data: BulkMoveServersRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<AffectedOutputBody, ErrorModel>({
+        path: `/servers/bulk/move`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Servers
+     * @name BulkTagServers
+     * @summary Add or remove tags on servers
+     * @request POST:/servers/bulk/tags
+     */
+    bulkTagServers: (data: BulkTagServersRequest, params: RequestParams = {}) =>
+      this.request<AffectedOutputBody, ErrorModel>({
+        path: `/servers/bulk/tags`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Connects over SSH, records the status and detects the OS. The first successful check trusts the host key; pass trust_new_host_key after a legitimate key change.
+     *
+     * @tags Servers
+     * @name CheckServer
+     * @summary Check a server's connection
+     * @request POST:/servers/{id}/check
+     */
+    checkServer: (
+      id: string,
+      query?: {
+        /** Forget the trusted host key and trust the one the server presents now */
+        trust_new_host_key?: boolean;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<Server, ErrorModel>({
+        path: `/servers/${id}/check`,
+        method: "POST",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Servers
+     * @name CreateServer
+     * @summary Add a server
+     * @request POST:/servers
+     */
+    createServer: (data: ServerBody, params: RequestParams = {}) =>
+      this.request<Server, ErrorModel>({
+        path: `/servers`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Servers
+     * @name DeleteServer
+     * @summary Delete a server
+     * @request DELETE:/servers/{id}
+     */
+    deleteServer: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/servers/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * @description Copies the server's settings and credentials under a new name ("web-01 copy"). Status, OS and host key start fresh.
+     *
+     * @tags Servers
+     * @name DuplicateServer
+     * @summary Duplicate a server
+     * @request POST:/servers/{id}/duplicate
+     */
+    duplicateServer: (id: string, params: RequestParams = {}) =>
+      this.request<Server, ErrorModel>({
+        path: `/servers/${id}/duplicate`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Whether it is added as a server, and where the backend reaches it.
+     *
+     * @tags Servers
+     * @name GetMorcheHost
+     * @summary The machine Morche runs on
+     * @request GET:/morche-host
+     */
+    getMorcheHost: (params: RequestParams = {}) =>
+      this.request<MorcheHostState, ErrorModel>({
+        path: `/morche-host`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Servers
+     * @name GetServer
+     * @summary Get a server
+     * @request GET:/servers/{id}
+     */
+    getServer: (id: string, params: RequestParams = {}) =>
+      this.request<Server, ErrorModel>({
+        path: `/servers/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Totals and per-value counts (OS, status, tags) over all servers, for filter menus.
+     *
+     * @tags Servers
+     * @name GetServerFacets
+     * @summary Counts for the server filters
+     * @request GET:/servers/facets
+     */
+    getServerFacets: (params: RequestParams = {}) =>
+      this.request<FacetsOutputBody, ErrorModel>({
+        path: `/servers/facets`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description CPU, load, memory, swap, disks and network from the samples taken every SERVER_SAMPLE_INTERVAL. Buckets: 1 min for 1h, 5 min for 6h, 15 min for 24h, 1 h for 7d, 6 h for 30d (never finer than the sampling).
+     *
+     * @tags Servers
+     * @name GetServerMetrics
+     * @summary Resource history of a server
+     * @request GET:/servers/{id}/metrics
+     */
+    getServerMetrics: (
+      id: string,
+      query?: {
+        /** @default "24h" */
+        range?: "1h" | "6h" | "24h" | "7d" | "30d";
+        /** IANA time zone the buckets line up with, e.g. Asia/Tehran */
+        tz?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ServerMetrics, ErrorModel>({
+        path: `/servers/${id}/metrics`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Uptime, CPU, memory, disks and network, read from /proc and df over SSH. CPU and network are sampled over one second, so the request takes about that long. Linux only (422 elsewhere). For a live view use the stream.
+     *
+     * @tags Servers
+     * @name GetServerStats
+     * @summary Live resource usage
+     * @request GET:/servers/{id}/stats
+     */
+    getServerStats: (id: string, params: RequestParams = {}) =>
+      this.request<Stats, ErrorModel>({
+        path: `/servers/${id}/stats`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Search, filter, sort and page servers. Filters combine with AND; several values of one filter combine with OR.
+     *
+     * @tags Servers
+     * @name ListServers
+     * @summary List servers
+     * @request GET:/servers
+     */
+    listServers: (
+      query?: {
+        auth?: ("password" | "private_key")[];
+        /** With a folder id: only the folder's own servers, not its subfolders' */
+        direct?: boolean;
+        /** Only favourites */
+        favorites?: boolean;
+        /** A folder id (subfolders included), or 'none' for servers outside every folder */
+        folder?: string;
+        /**
+         * @format int32
+         * @min 1
+         * @max 500
+         * @default 50
+         */
+        limit?: number;
+        /**
+         * @format int32
+         * @min 0
+         * @default 0
+         */
+        offset?: number;
+        /** @default "asc" */
+        order?: "asc" | "desc";
+        /** OS ids from the facets (ubuntu, debian…, 'unknown' for undetected) */
+        os?: string[];
+        /**
+         * Case-insensitive match on name, host, hostname or description, or an exact tag
+         * @maxLength 200
+         */
+        q?: string;
+        /** @default "name" */
+        sort?: "name" | "host" | "os" | "status" | "last_checked" | "created";
+        status?: (
+          | "unknown"
+          | "online"
+          | "unreachable"
+          | "auth_failed"
+          | "host_key_mismatch"
+          | "error"
+          | "needs_login"
+        )[];
+        /** Servers with any of these tags */
+        tag?: string[];
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ServerListOutputBody, ErrorModel>({
+        path: `/servers`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Opens the stored secrets of the chosen auth method. POST and `Cache-Control: no-store` so nothing caches them.
+     *
+     * @tags Servers
+     * @name RevealServerCredentials
+     * @summary Reveal a server's SSH credentials
+     * @request POST:/servers/{id}/credentials
+     */
+    revealServerCredentials: (id: string, params: RequestParams = {}) =>
+      this.request<ServerCredentials, ErrorModel>({
+        path: `/servers/${id}/credentials`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description For the servers this person can see (in the selected workspace). Series come bucketed: 30 min for 24h, 4 h for 7d, a day for 30d. Resources are read from online Linux servers every SERVER_SAMPLE_INTERVAL.
+     *
+     * @tags Servers
+     * @name ServerInsights
+     * @summary Uptime, response time and resources of the servers
+     * @request GET:/servers/insights
+     */
+    serverInsights: (
+      query?: {
+        /** @default "7d" */
+        range?: "24h" | "7d" | "30d";
+        /** IANA time zone the buckets line up with (days start at its midnight) */
+        tz?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ServerInsights, ErrorModel>({
+        path: `/servers/insights`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Servers
+     * @name SetServerFavorite
+     * @summary Star or unstar a server
+     * @request PUT:/servers/{id}/favorite
+     */
+    setServerFavorite: (
+      id: string,
+      data: SetServerFavoriteRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<Server, ErrorModel>({
+        path: `/servers/${id}/favorite`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Signs in with the given login. Unless keep_login is set and the server has a key Morche made for it, that key is put in the user's (or with as_root, root's) authorized_keys, tried, and stored in place of the login.
+     *
+     * @tags Servers
+     * @name SignInServer
+     * @summary Sign in to a server once
+     * @request POST:/servers/{id}/sign-in
+     */
+    signInServer: (
+      id: string,
+      data: ServerSignInBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<Server, ErrorModel>({
+        path: `/servers/${id}/sign-in`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Server-sent events: `stats` every second, `problem` while they can't be read. One script runs on the server however many clients watch; a new client gets the latest event at once.
+     *
+     * @tags Servers
+     * @name StreamServerStats
+     * @summary Stream live resource usage
+     * @request GET:/servers/{id}/stats/stream
+     */
+    streamServerStats: (id: string, params: RequestParams = {}) =>
+      this.request<
+        (
+          | {
+              data: StatsProblem;
+              /** The event name. */
+              event: "problem";
+              /** The event ID. */
+              id?: number | string;
+              /** The retry time in milliseconds. */
+              retry?: number;
+            }
+          | {
+              data: Stats;
+              /** The event name. */
+              event: "stats";
+              /** The event ID. */
+              id?: number | string;
+              /** The retry time in milliseconds. */
+              retry?: number;
+            }
+        )[],
+        ErrorModel
+      >({
+        path: `/servers/${id}/stats/stream`,
+        method: "GET",
+        ...params,
+      }),
+
+    /**
+     * @description Connects with the given settings without saving anything, and reports what it found.
+     *
+     * @tags Servers
+     * @name TestServerConnection
+     * @summary Test SSH connection settings
+     * @request POST:/servers/test-connection
+     */
+    testServerConnection: (
+      data: ConnectionTestBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<ConnectionTestOutputBody, ErrorModel>({
+        path: `/servers/test-connection`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Replaces the editable fields. Secrets left out keep their stored values. Changing host or port forgets the trusted host key.
+     *
+     * @tags Servers
+     * @name UpdateServer
+     * @summary Update a server
+     * @request PUT:/servers/{id}
+     */
+    updateServer: (id: string, data: ServerBody, params: RequestParams = {}) =>
+      this.request<Server, ErrorModel>({
+        path: `/servers/${id}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
   network = {
     /**
      * @description Each server's interfaces, addresses and default routes (ip over SSH), the subnets they share, and whether each server reaches every other one: a TCP connect to its SSH port and a ping, on their shared LAN/VPN addresses and on the address Morche uses. Returns the last scan unless `refresh` is set or there is none; a scan takes a few seconds.
@@ -36526,430 +37073,6 @@ export class Api<
       this.request<Script, ErrorModel>({
         path: `/scripts/${id}`,
         method: "PATCH",
-        body: data,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-  };
-  servers = {
-    /**
-     * @description Runs connection checks in parallel and returns the updated servers.
-     *
-     * @tags Servers
-     * @name BulkCheckServers
-     * @summary Check several servers
-     * @request POST:/servers/bulk/check
-     */
-    bulkCheckServers: (data: IDsBody, params: RequestParams = {}) =>
-      this.request<ServerItemsOutputBody, ErrorModel>({
-        path: `/servers/bulk/check`,
-        method: "POST",
-        body: data,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Servers
-     * @name BulkDeleteServers
-     * @summary Delete several servers
-     * @request POST:/servers/bulk/delete
-     */
-    bulkDeleteServers: (data: IDsBody, params: RequestParams = {}) =>
-      this.request<AffectedOutputBody, ErrorModel>({
-        path: `/servers/bulk/delete`,
-        method: "POST",
-        body: data,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Servers
-     * @name BulkMoveServers
-     * @summary Move servers to a folder
-     * @request POST:/servers/bulk/move
-     */
-    bulkMoveServers: (
-      data: BulkMoveServersRequest,
-      params: RequestParams = {},
-    ) =>
-      this.request<AffectedOutputBody, ErrorModel>({
-        path: `/servers/bulk/move`,
-        method: "POST",
-        body: data,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Servers
-     * @name BulkTagServers
-     * @summary Add or remove tags on servers
-     * @request POST:/servers/bulk/tags
-     */
-    bulkTagServers: (data: BulkTagServersRequest, params: RequestParams = {}) =>
-      this.request<AffectedOutputBody, ErrorModel>({
-        path: `/servers/bulk/tags`,
-        method: "POST",
-        body: data,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * @description Connects over SSH, records the status and detects the OS. The first successful check trusts the host key; pass trust_new_host_key after a legitimate key change.
-     *
-     * @tags Servers
-     * @name CheckServer
-     * @summary Check a server's connection
-     * @request POST:/servers/{id}/check
-     */
-    checkServer: (
-      id: string,
-      query?: {
-        /** Forget the trusted host key and trust the one the server presents now */
-        trust_new_host_key?: boolean;
-      },
-      params: RequestParams = {},
-    ) =>
-      this.request<Server, ErrorModel>({
-        path: `/servers/${id}/check`,
-        method: "POST",
-        query: query,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Servers
-     * @name CreateServer
-     * @summary Add a server
-     * @request POST:/servers
-     */
-    createServer: (data: ServerBody, params: RequestParams = {}) =>
-      this.request<Server, ErrorModel>({
-        path: `/servers`,
-        method: "POST",
-        body: data,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Servers
-     * @name DeleteServer
-     * @summary Delete a server
-     * @request DELETE:/servers/{id}
-     */
-    deleteServer: (id: string, params: RequestParams = {}) =>
-      this.request<void, ErrorModel>({
-        path: `/servers/${id}`,
-        method: "DELETE",
-        ...params,
-      }),
-
-    /**
-     * @description Copies the server's settings and credentials under a new name ("web-01 copy"). Status, OS and host key start fresh.
-     *
-     * @tags Servers
-     * @name DuplicateServer
-     * @summary Duplicate a server
-     * @request POST:/servers/{id}/duplicate
-     */
-    duplicateServer: (id: string, params: RequestParams = {}) =>
-      this.request<Server, ErrorModel>({
-        path: `/servers/${id}/duplicate`,
-        method: "POST",
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Servers
-     * @name GetServer
-     * @summary Get a server
-     * @request GET:/servers/{id}
-     */
-    getServer: (id: string, params: RequestParams = {}) =>
-      this.request<Server, ErrorModel>({
-        path: `/servers/${id}`,
-        method: "GET",
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * @description Totals and per-value counts (OS, status, tags) over all servers, for filter menus.
-     *
-     * @tags Servers
-     * @name GetServerFacets
-     * @summary Counts for the server filters
-     * @request GET:/servers/facets
-     */
-    getServerFacets: (params: RequestParams = {}) =>
-      this.request<FacetsOutputBody, ErrorModel>({
-        path: `/servers/facets`,
-        method: "GET",
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * @description CPU, load, memory, swap, disks and network from the samples taken every SERVER_SAMPLE_INTERVAL. Buckets: 1 min for 1h, 5 min for 6h, 15 min for 24h, 1 h for 7d, 6 h for 30d (never finer than the sampling).
-     *
-     * @tags Servers
-     * @name GetServerMetrics
-     * @summary Resource history of a server
-     * @request GET:/servers/{id}/metrics
-     */
-    getServerMetrics: (
-      id: string,
-      query?: {
-        /** @default "24h" */
-        range?: "1h" | "6h" | "24h" | "7d" | "30d";
-        /** IANA time zone the buckets line up with, e.g. Asia/Tehran */
-        tz?: string;
-      },
-      params: RequestParams = {},
-    ) =>
-      this.request<ServerMetrics, ErrorModel>({
-        path: `/servers/${id}/metrics`,
-        method: "GET",
-        query: query,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * @description Uptime, CPU, memory, disks and network, read from /proc and df over SSH. CPU and network are sampled over one second, so the request takes about that long. Linux only (422 elsewhere). For a live view use the stream.
-     *
-     * @tags Servers
-     * @name GetServerStats
-     * @summary Live resource usage
-     * @request GET:/servers/{id}/stats
-     */
-    getServerStats: (id: string, params: RequestParams = {}) =>
-      this.request<Stats, ErrorModel>({
-        path: `/servers/${id}/stats`,
-        method: "GET",
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * @description Search, filter, sort and page servers. Filters combine with AND; several values of one filter combine with OR.
-     *
-     * @tags Servers
-     * @name ListServers
-     * @summary List servers
-     * @request GET:/servers
-     */
-    listServers: (
-      query?: {
-        auth?: ("password" | "private_key")[];
-        /** With a folder id: only the folder's own servers, not its subfolders' */
-        direct?: boolean;
-        /** Only favourites */
-        favorites?: boolean;
-        /** A folder id (subfolders included), or 'none' for servers outside every folder */
-        folder?: string;
-        /**
-         * @format int32
-         * @min 1
-         * @max 500
-         * @default 50
-         */
-        limit?: number;
-        /**
-         * @format int32
-         * @min 0
-         * @default 0
-         */
-        offset?: number;
-        /** @default "asc" */
-        order?: "asc" | "desc";
-        /** OS ids from the facets (ubuntu, debian…, 'unknown' for undetected) */
-        os?: string[];
-        /**
-         * Case-insensitive match on name, host, hostname or description, or an exact tag
-         * @maxLength 200
-         */
-        q?: string;
-        /** @default "name" */
-        sort?: "name" | "host" | "os" | "status" | "last_checked" | "created";
-        status?: (
-          | "unknown"
-          | "online"
-          | "unreachable"
-          | "auth_failed"
-          | "host_key_mismatch"
-          | "error"
-        )[];
-        /** Servers with any of these tags */
-        tag?: string[];
-      },
-      params: RequestParams = {},
-    ) =>
-      this.request<ServerListOutputBody, ErrorModel>({
-        path: `/servers`,
-        method: "GET",
-        query: query,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * @description Opens the stored secrets of the chosen auth method. POST and `Cache-Control: no-store` so nothing caches them.
-     *
-     * @tags Servers
-     * @name RevealServerCredentials
-     * @summary Reveal a server's SSH credentials
-     * @request POST:/servers/{id}/credentials
-     */
-    revealServerCredentials: (id: string, params: RequestParams = {}) =>
-      this.request<ServerCredentials, ErrorModel>({
-        path: `/servers/${id}/credentials`,
-        method: "POST",
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * @description For the servers this person can see (in the selected workspace). Series come bucketed: 30 min for 24h, 4 h for 7d, a day for 30d. Resources are read from online Linux servers every SERVER_SAMPLE_INTERVAL.
-     *
-     * @tags Servers
-     * @name ServerInsights
-     * @summary Uptime, response time and resources of the servers
-     * @request GET:/servers/insights
-     */
-    serverInsights: (
-      query?: {
-        /** @default "7d" */
-        range?: "24h" | "7d" | "30d";
-        /** IANA time zone the buckets line up with (days start at its midnight) */
-        tz?: string;
-      },
-      params: RequestParams = {},
-    ) =>
-      this.request<ServerInsights, ErrorModel>({
-        path: `/servers/insights`,
-        method: "GET",
-        query: query,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Servers
-     * @name SetServerFavorite
-     * @summary Star or unstar a server
-     * @request PUT:/servers/{id}/favorite
-     */
-    setServerFavorite: (
-      id: string,
-      data: SetServerFavoriteRequest,
-      params: RequestParams = {},
-    ) =>
-      this.request<Server, ErrorModel>({
-        path: `/servers/${id}/favorite`,
-        method: "PUT",
-        body: data,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * @description Server-sent events: `stats` every second, `problem` while they can't be read. One script runs on the server however many clients watch; a new client gets the latest event at once.
-     *
-     * @tags Servers
-     * @name StreamServerStats
-     * @summary Stream live resource usage
-     * @request GET:/servers/{id}/stats/stream
-     */
-    streamServerStats: (id: string, params: RequestParams = {}) =>
-      this.request<
-        (
-          | {
-              data: StatsProblem;
-              /** The event name. */
-              event: "problem";
-              /** The event ID. */
-              id?: number | string;
-              /** The retry time in milliseconds. */
-              retry?: number;
-            }
-          | {
-              data: Stats;
-              /** The event name. */
-              event: "stats";
-              /** The event ID. */
-              id?: number | string;
-              /** The retry time in milliseconds. */
-              retry?: number;
-            }
-        )[],
-        ErrorModel
-      >({
-        path: `/servers/${id}/stats/stream`,
-        method: "GET",
-        ...params,
-      }),
-
-    /**
-     * @description Connects with the given settings without saving anything, and reports what it found.
-     *
-     * @tags Servers
-     * @name TestServerConnection
-     * @summary Test SSH connection settings
-     * @request POST:/servers/test-connection
-     */
-    testServerConnection: (
-      data: ConnectionTestBody,
-      params: RequestParams = {},
-    ) =>
-      this.request<ConnectionTestOutputBody, ErrorModel>({
-        path: `/servers/test-connection`,
-        method: "POST",
-        body: data,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * @description Replaces the editable fields. Secrets left out keep their stored values. Changing host or port forgets the trusted host key.
-     *
-     * @tags Servers
-     * @name UpdateServer
-     * @summary Update a server
-     * @request PUT:/servers/{id}
-     */
-    updateServer: (id: string, data: ServerBody, params: RequestParams = {}) =>
-      this.request<Server, ErrorModel>({
-        path: `/servers/${id}`,
-        method: "PUT",
         body: data,
         type: ContentType.Json,
         format: "json",

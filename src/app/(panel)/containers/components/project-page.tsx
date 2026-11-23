@@ -181,13 +181,13 @@ function Project({
       tab: t === "overview" ? null : t,
       svc: t === "logs" && service ? service : null,
     })
-  const apply = () => actions.run(p.name, "up")
+  const apply = () => actions.go(p, "up")
   const menu = actions.menu(p)
   const deployed = p.state !== "not-deployed"
   const primary = actions.can.manage && !p.missing && (
     <Button
       disabled={actions.pending || !!deploy?.active}
-      onClick={() => actions.run(p.name, deployed ? "redeploy" : "up")}
+      onClick={() => actions.go(p, deployed ? "redeploy" : "up")}
       className={cn(phone && "h-11 flex-1")}
     >
       {actions.pending ? (
@@ -407,6 +407,11 @@ function Project({
                   </span>
                 )}
                 <span>on {env.name}</span>
+                {p.itself && (
+                  <span className="rounded-full bg-brand-soft px-2 py-0.5 font-label text-[10px] tracking-label text-brand-strong uppercase">
+                    Morche itself
+                  </span>
+                )}
                 {!p.managed && (
                   <span title={projectSourceMeta[p.source].hint}>
                     {projectSourceMeta[p.source].label.toLowerCase()}
@@ -428,7 +433,7 @@ function Project({
           d={deploy}
           phone={phone}
           canRun={actions.can.manage && !p.missing}
-          onRun={(a) => a !== "git" && actions.run(p.name, a)}
+          onRun={(a) => a !== "git" && actions.go(p, a)}
           onTab={(t) => setTab(t)}
           tabs={shown}
         />

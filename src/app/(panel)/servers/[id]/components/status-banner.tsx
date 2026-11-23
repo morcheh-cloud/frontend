@@ -1,6 +1,6 @@
 "use client"
 
-import { KeyRound, TriangleAlert } from "lucide-react"
+import { KeyRound, LogIn, TriangleAlert } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -17,49 +17,72 @@ export function StatusBanner({ className }: { className?: string }) {
   if (status === "online" || status === "unknown") return null
 
   const fix =
-    status === "host_key_mismatch"
+    status === "needs_login"
       ? {
-          title: "The host key changed since it was trusted",
-          label: "Review key…",
+          title: server.morche_host
+            ? "Sign in once to manage the machine Morche runs on"
+            : "Waiting for you to sign in",
+          label: "Sign in…",
           min: "owner" as const,
-          run: () => actions.trustHostKey(server),
+          run: () => actions.signIn(server),
         }
-      : status === "auth_failed"
+      : status === "host_key_mismatch"
         ? {
-            title: "Morche couldn't log in with the saved credentials",
-            label: "Edit credentials",
+            title: "The host key changed since it was trusted",
+            label: "Review key…",
             min: "owner" as const,
-            run: () => actions.editServer(server),
+            run: () => actions.trustHostKey(server),
           }
+        : status === "auth_failed"
+          ? {
+              title: "Morche couldn't log in with the saved credentials",
+              label: "Edit credentials",
+              min: "owner" as const,
+              run: () => actions.editServer(server),
+            }
+          : {
+              title: `${statusMeta[status].label} on the last check`,
+              label: checking ? "Checking…" : "Check again",
+              min: "operator" as const,
+              run: () => actions.check(server),
+            }
+  const Icon =
+    status === "host_key_mismatch"
+      ? KeyRound
+      : status === "needs_login"
+        ? LogIn
+        : TriangleAlert
+  const tone =
+    status === "needs_login"
+      ? { box: "border-brand/25 bg-brand-soft", icon: "text-brand" }
+      : status === "auth_failed"
+        ? { box: "border-warning/25 bg-warning/5", icon: "text-warning" }
         : {
-            title: `${statusMeta[status].label} on the last check`,
-            label: checking ? "Checking…" : "Check again",
-            min: "operator" as const,
-            run: () => actions.check(server),
+            box: "border-destructive/20 bg-destructive/5",
+            icon: "text-destructive",
           }
-  const Icon = status === "host_key_mismatch" ? KeyRound : TriangleAlert
 
   return (
     <div
       role="status"
       className={cn(
         "flex items-start gap-3 border-y p-4 md:items-center md:rounded-2xl md:border md:px-5 md:py-3",
-        status === "auth_failed"
-          ? "border-warning/25 bg-warning/5"
-          : "border-destructive/20 bg-destructive/5",
+        tone.box,
         className,
       )}
     >
-      <Icon
-        className={cn(
-          "mt-0.5 size-4 shrink-0 md:mt-0",
-          status === "auth_failed" ? "text-warning" : "text-destructive",
-        )}
-      />
+      <Icon className={cn("mt-0.5 size-4 shrink-0 md:mt-0", tone.icon)} />
       <div className="min-w-0 flex-1 text-body-sm">
         <p className="font-medium">{fix.title}</p>
-        {server.status_message && (
-          <p className="text-muted-foreground">{server.status_message}</p>
+        {status === "needs_login" ? (
+          <p className="text-muted-foreground">
+            Sign in with a password or key, or run one command on it. Then every
+            section works here.
+          </p>
+        ) : (
+          server.status_message && (
+            <p className="text-muted-foreground">{server.status_message}</p>
+          )
         )}
       </div>
       {can(fix.min) && (

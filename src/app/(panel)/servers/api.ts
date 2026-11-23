@@ -19,6 +19,7 @@ import type {
   FolderBody,
   Server,
   ServerBody,
+  ServerSignInBody,
 } from "@/lib/services"
 
 export type ListQuery = NonNullable<
@@ -204,6 +205,39 @@ export function useCheckServer() {
     mutationFn: ({ id, trust }: { id: string; trust?: boolean }) =>
       api.servers.checkServer(id, trust ? { trust_new_host_key: true } : {}),
     onSuccess: (server) => putServer(queryClient, server),
+    onSettled: invalidate,
+  })
+}
+
+// Signs in to a server once (the machine Morche runs on): the answer is the
+// server after its first check with the stored login.
+export function useSignInServer() {
+  const queryClient = useQueryClient()
+  const invalidate = useInvalidate()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: ServerSignInBody }) =>
+      api.servers.signInServer(id, body),
+    onSuccess: (server) => putServer(queryClient, server),
+    onSettled: invalidate,
+  })
+}
+
+// The machine Morche runs on: whether it's added, where it's reached.
+export const morcheHostKey = ["servers", "morche-host"] as const
+
+export function useMorcheHost(enabled = true) {
+  return useQuery({
+    queryKey: morcheHostKey,
+    queryFn: () => api.servers.getMorcheHost(),
+    enabled,
+  })
+}
+
+export function useAddMorcheHost() {
+  const invalidate = useInvalidate()
+  return useMutation({
+    mutationFn: (workspaceId: string) =>
+      api.servers.addMorcheHost({ workspace_id: workspaceId }),
     onSettled: invalidate,
   })
 }

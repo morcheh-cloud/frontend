@@ -153,6 +153,10 @@ ssh-copy-id -i ~/.ssh/morche.pub morche@203.0.113.10
               <UI key="6">Not checked</UI>,
               "Added but not checked yet. The background check picks it up within seconds, or press Check.",
             ],
+            [
+              <UI key="7">Waiting for sign-in</UI>,
+              "The machine Morche runs on, added without a login yet. Press Sign in… on its page (see Managing the machine Morche runs on). It isn't counted as a problem.",
+            ],
           ]}
         />
         <P>
@@ -295,6 +299,93 @@ ssh -i ~/Downloads/web-01.key -p 22 deploy@10.0.0.12
           decrypted, the backend's <C>SECRETS_KEY</C> changed since they were
           saved: enter them again with <UI>Edit credentials</UI>.
         </Tip>
+      </>
+    ),
+  },
+  {
+    id: "morche-host",
+    title: "Managing the machine Morche runs on",
+    body: (
+      <>
+        <P>
+          When Morche runs with Docker Compose, the machine it runs on can be a
+          server in Morche like any other: its containers, files, packages,
+          firewall and terminal. The backend reaches it over SSH from inside its
+          container, at <C>host.docker.internal</C>.
+        </P>
+        <Steps>
+          {[
+            <P key="1">
+              In the compose file next to Morche, set{" "}
+              <C>MANAGE_HOST: &quot;true&quot;</C> under the backend (or{" "}
+              <C>MANAGE_HOST=true</C> in <C>.env</C>), then run{" "}
+              <C>docker compose up -d</C>. The bundled compose file already has
+              the <C>extra_hosts</C> line it needs.
+            </P>,
+            <P key="2">
+              A server called <UI>This server</UI> appears in the first
+              workspace, with the status <UI>Waiting for sign-in</UI>. (Without
+              the setting, a system admin finds{" "}
+              <UI>The machine Morche runs on</UI> → <UI>Add it</UI> at the top
+              of <UI>Add server</UI>.)
+            </P>,
+            <P key="3">
+              Open it and press <UI>Sign in…</UI>. Type a user of that machine
+              and its password (or private key). Morche signs in once, puts a
+              key it made for itself on the machine, checks the key works and
+              forgets what you typed.
+            </P>,
+          ]}
+        </Steps>
+        <List>
+          <li>
+            <UI>Work as root</UI> (on by default) puts the key on root through
+            sudo, so every section works. The user you sign in with needs sudo.
+            Root signs in with a key even where it can't with a password (the
+            usual default, <C>PermitRootLogin prohibit-password</C>).
+          </li>
+          <li>
+            <UI>Keep this login instead of Morche&apos;s key</UI> stores what
+            you typed, encrypted, like any other server.
+          </li>
+          <li>
+            <UI>Run a command instead</UI> shows one command that puts the key
+            on the machine by hand. Run it there, then press <UI>Check now</UI>.
+            Morche also tries by itself every 3 minutes.
+          </li>
+        </List>
+        <P>
+          In <UI>Containers</UI>, Morche&apos;s own compose project carries a{" "}
+          <UI>Morche itself</UI> tag. Stopping, restarting, redeploying or
+          taking it down asks first: it stops the panel you are using.
+        </P>
+        <Recommended
+          rows={[
+            {
+              setting: <C>MANAGE_HOST</C>,
+              value: "true",
+              why: "Adds the machine once. A deleted one doesn't come back; Add server offers it again.",
+            },
+            {
+              setting: <C>MANAGE_HOST_ADDRESS</C>,
+              value: "host.docker.internal (the default)",
+              why: "Where the backend reaches the machine. Change it only when Morche runs elsewhere (another network mode, Podman: host.containers.internal).",
+            },
+            {
+              setting: <C>MANAGE_HOST_USER</C>,
+              value: "root (the default)",
+              why: "The user the hand-run command puts the key on. Signing in with a password can pick another.",
+            },
+          ]}
+        />
+        <Warn>
+          The machine&apos;s SSH server must listen where the container reaches
+          it (usually all addresses, the default) and its firewall must let the
+          Docker network in on port 22. If sign-in says the machine is
+          unreachable, allow the Docker subnet (often 172.16.0.0/12) on port 22,
+          and keep it allowed: a rule that blocks it cuts Morche off from this
+          server.
+        </Warn>
       </>
     ),
   },

@@ -47,6 +47,7 @@ import {
   type ServerFormDefaults,
   type ServerFormSubmit,
 } from "./server-form"
+import { MorcheHostOffer, SignInLayer } from "./sign-in-layer"
 
 type FolderDraft = { folder?: Folder; parentId: string | null }
 
@@ -60,6 +61,7 @@ type Actions = {
   trustHostKey: (server: Server) => void
   copySsh: (server: Server) => void
   showCredentials: (server: Server) => void
+  signIn: (server: Server) => void
   duplicate: (server: Server) => void
   toggleFavorite: (server: Server) => void
   deleteServers: (
@@ -129,6 +131,9 @@ export function ServerActionsProvider({ children }: { children: ReactNode }) {
   })
   const [credsOpen, setCredsOpen] = useOpen("server-credentials")
   const [credsServer, setCredsServer] = useState<Server | null>(null)
+  const [signInOpen, setSignInOpen] = useOpen("server-sign-in")
+  const [signInServer, setSignInServer] = useState<Server | null>(null)
+  const [signInKey, setSignInKey] = useState(0)
   const [tagsOpen, setTagsOpen] = useOpen("servers-tags")
   const [toTag, setToTag] = useState<{ servers: Server[]; done?: () => void }>({
     servers: [],
@@ -180,6 +185,11 @@ export function ServerActionsProvider({ children }: { children: ReactNode }) {
     showCredentials: (server) => {
       setCredsServer(server)
       setCredsOpen(true)
+    },
+    signIn: (server) => {
+      setSignInServer(server)
+      setSignInKey((k) => k + 1)
+      setSignInOpen(true)
     },
     duplicate: (server) =>
       duplicateMutation.mutate(server.id, {
@@ -239,6 +249,13 @@ export function ServerActionsProvider({ children }: { children: ReactNode }) {
           if (!keepOpen) setFormOpen(false)
           if (recheck) check(saved)
         }}
+        onMorcheHost={(added) => {
+          // Close first so the sign-in gets its own Back entry.
+          window.addEventListener("popstate", () => actions.signIn(added), {
+            once: true,
+          })
+          setFormOpen(false)
+        }}
       />
 
       <FolderFormLayer
@@ -282,6 +299,13 @@ export function ServerActionsProvider({ children }: { children: ReactNode }) {
           )
           setCredsOpen(false)
         }}
+      />
+
+      <SignInLayer
+        key={`sign-in-${signInKey}`}
+        open={signInOpen}
+        onOpenChange={setSignInOpen}
+        server={signInServer}
       />
 
       <ConfirmDialog
@@ -393,12 +417,14 @@ function ServerFormLayer({
   server,
   start,
   onSaved,
+  onMorcheHost,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   server?: Server
   start: Partial<ServerFormDefaults>
   onSaved: (server: Server, recheck: boolean, keepOpen: boolean) => void
+  onMorcheHost: (server: Server) => void
 }) {
   const isMobile = useIsMobile()
   const create = useCreateServer()
@@ -487,6 +513,7 @@ function ServerFormLayer({
         >
           {(f) => (
             <>
+              {!server && <MorcheHostOffer onAdded={onMorcheHost} />}
               {f.connection}
               <div className="flex flex-col gap-4">
                 {f.auth}
@@ -522,6 +549,7 @@ function ServerFormLayer({
           {(f) => (
             <>
               <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto p-6">
+                {!server && <MorcheHostOffer onAdded={onMorcheHost} />}
                 {f.connection}
                 <Separator />
                 {f.auth}

@@ -486,6 +486,11 @@ function ProjectCard({
             {p.title && (
               <span className="truncate font-mono text-ash">· {p.name}</span>
             )}
+            {p.itself && (
+              <span title="Morche itself runs in this project">
+                <Tag tone="brand">Morche itself</Tag>
+              </span>
+            )}
             {!p.managed && (
               <span title={projectSourceMeta[p.source].hint}>
                 <Tag>

@@ -32,6 +32,7 @@ export const statuses = [
   "host_key_mismatch",
   "error",
   "unknown",
+  "needs_login",
 ] as const satisfies Server["status"][]
 
 export const authMethods = ["password", "private_key"] as const
