@@ -11,6 +11,7 @@
 
 ## Working style (from the user)
 
+- "بفرست بالا" (push it) = commit + push **both** this repo and `../backend` (user rule 2026-11-23).
 - On every task, think beyond the literal request: propose related options and features the user didn't mention (as suggestions, not silently built).
 - **Always aim for better UI/UX** (standing user rule): don't stop at "it works"; give every page/form a considered layout, good defaults, inline validation, previews and helpful empty states, and improve weak UI you touch.
 - **Designs must be beautiful, not just tidy** (standing user rule, 2026-11-14): plain tables/lists count as unfinished; give overviews a visual identity (rich cards, glanceable visuals like state strips and capacity bars, a hero for detail pages), within the design system's tokens. Check every new page in a browser (desktop + phone, light + dark) before calling it done.
