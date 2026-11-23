@@ -25,9 +25,16 @@ import { Field, Segmented } from "./fields"
 
 type Mode = "sign-in" | "command"
 
+// Only names and keys that can't break out of the quoting below: the
+// username is whatever an Owner typed, and someone else runs this as root.
+const safeUser = /^[a-z_][a-z0-9_.-]{0,31}$/
+const safeKey = /^[A-Za-z0-9+/=@. -]+$/
+
 // The one-liner that puts Morche's key on `user` (run as root or with sudo),
-// the same steps the backend runs after a sign-in.
-export function keyCommand(user: string, key: string) {
+// the same steps the backend runs after a sign-in. null when either value
+// could change what the command does.
+export function keyCommand(user: string, key: string): string | null {
+  if (!safeUser.test(user) || !safeKey.test(key)) return null
   const home = user === "root" ? "~root" : `~${user}`
   const own = user === "root" ? "" : ` && chown -R ${user}: .ssh`
   return (
@@ -375,7 +382,15 @@ function CommandPanel({
         <span className="font-mono">authorized_keys</span>. Morche also checks
         by itself every 3 minutes.
       </p>
-      <CodeBlock code={command} label="command" wrap />
+      {command ? (
+        <CodeBlock code={command} label="command" wrap />
+      ) : (
+        <p className="rounded-xl border border-warning/25 bg-warning/5 p-3 text-body-sm">
+          The username <span className="font-mono">{server.username}</span> has
+          characters a safe command can't hold. Change it under Edit, or sign in
+          with a password instead.
+        </p>
+      )}
       <p className="text-caption text-muted-foreground">
         To work as another user, sign in with its password instead, or change
         the username under Edit.
