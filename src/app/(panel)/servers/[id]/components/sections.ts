@@ -13,12 +13,14 @@ import {
   LayoutDashboard,
   LayoutGrid,
   type LucideIcon,
+  Network,
   NotebookPen,
   Package,
   PackageCheck,
   ScrollText,
   ServerCog,
   Settings,
+  Settings2,
   Shield,
   ShieldBan,
   ShieldCheck,
@@ -106,6 +108,13 @@ export const sectionGroups: SectionGroup[] = [
         ready: true,
       },
       {
+        slug: "system",
+        label: "System settings",
+        icon: Settings2,
+        ready: true,
+        summary: "Hostname, time zone, time sync and where packages come from.",
+      },
+      {
         slug: "packages",
         label: "Packages",
         icon: Package,
@@ -134,6 +143,14 @@ export const sectionGroups: SectionGroup[] = [
   {
     label: "Network",
     sections: [
+      {
+        slug: "network",
+        label: "Network",
+        icon: Network,
+        ready: true,
+        summary:
+          "Interfaces and their addresses, DNS and the hosts file. A change that could cut the server off undoes itself.",
+      },
       {
         slug: "firewall",
         label: "Firewall",

@@ -27,6 +27,7 @@ import { processes } from "./processes"
 import { reverseProxy } from "./reverse-proxy"
 import { scripts } from "./scripts"
 import { serverMetrics } from "./server-metrics"
+import { serverConfig } from "./server-config"
 import { serverNotes } from "./server-notes"
 import { serverOverview } from "./server-overview"
 import { servers } from "./servers"
@@ -47,6 +48,7 @@ export const content: Record<string, GuideSection[]> = {
   "server-overview": serverOverview,
   "server-metrics": serverMetrics,
   "server-notes": serverNotes,
+  "server-config": serverConfig,
   assets,
   "command-log": commandLog,
   "terminal-recordings": terminalRecordings,

@@ -10,6 +10,15 @@
  * ---------------------------------------------------------------
  */
 
+export interface AccountsOutBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: RegistryAccount[];
+}
+
 export interface AcknowledgeMonitorIncidentRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -4011,6 +4020,56 @@ export interface ClearJobsResponse {
   deleted: number;
 }
 
+export interface ClockBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  ntp?: boolean;
+  revision: string;
+  /**
+   * Leave out to keep them
+   * @maxItems 10
+   */
+  servers?: string[];
+  timezone?: string;
+}
+
+export interface ClockOverview {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** timedatectl can turn time sync on or off */
+  can_ntp: boolean;
+  can_set_servers: boolean;
+  hostname: string;
+  /** The server's clock when it was read, with its offset */
+  local_time: string;
+  /** Time sync is turned on */
+  ntp: boolean;
+  /**
+   * How far the clock is from its time servers (positive = ahead)
+   * @format double
+   */
+  offset_ms: number | null;
+  /** The free-text name some tools show */
+  pretty_hostname: string;
+  /** Covers the time-sync files */
+  revision: string;
+  /** The time servers it asks */
+  servers: string[];
+  /** What keeps the clock right */
+  service: "chrony" | "timesyncd" | "ntpd" | "none";
+  /** The clock is in step with its time servers */
+  synced: boolean;
+  timezone: string;
+  /** Morche has root or sudo here */
+  writable: boolean;
+}
+
 export interface ClonePveGuestRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -4494,6 +4553,67 @@ export interface CompressFilesRequest {
    * @minItems 1
    */
   paths: string[];
+}
+
+export interface ConfigChange {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  area: "hosts" | "dns" | "clock" | "network" | "repos";
+  /** @format date-time */
+  created_at: string;
+  /** The files it changed */
+  files: string[];
+  /** @format uuid */
+  id: string;
+  /** pending = waiting for Keep it; undone = taken back by the timer or Undo now */
+  status: "applied" | "pending" | "undone";
+  summary: string;
+  /** Who made it */
+  user: string;
+}
+
+export interface ConfigChangeDetail {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  change: ConfigChange;
+  files: ConfigChangeFile[];
+}
+
+export interface ConfigChangeFile {
+  after: string;
+  before: string;
+  /** Too big to keep (over 256 KiB), or it holds secrets (shown as <hidden>): it can't be put back */
+  cut: boolean;
+  /** The file was there before the change */
+  existed: boolean;
+  /** The file was there after the change */
+  exists: boolean;
+  path: string;
+}
+
+export interface ConfigChanges {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Newest first; each area keeps its last 50 */
+  items: ConfigChange[];
+}
+
+export interface ConfigPending {
+  /**
+   * When the server undoes it by itself
+   * @format date-time
+   */
+  expires_at: string;
+  summary: string;
 }
 
 export interface ConnectionTestBody {
@@ -7226,6 +7346,24 @@ export interface DeleteCronJobsRequest {
   table: string;
 }
 
+export interface DeletePackageRegistryItemRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * @minLength 1
+   * @maxLength 300
+   */
+  name: string;
+  /**
+   * Harbor: one artifact's digest
+   * @maxLength 200
+   */
+  ref?: string;
+}
+
 export interface DemoState {
   /** @format int64 */
   interval_seconds: number;
@@ -7351,6 +7489,58 @@ export interface DiskUsage {
    * @format int64
    */
   unreadable: number;
+}
+
+export interface DnsBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Static only
+   * @maxItems 10
+   */
+  options?: string[];
+  revision: string;
+  /** @maxItems 6 */
+  search: string[];
+  /** @maxItems 8 */
+  servers: string[];
+}
+
+export interface DnsLink {
+  /** Global, or the interface */
+  name: string;
+  search: string[];
+  servers: string[];
+}
+
+export interface DnsOverview {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  editable: boolean;
+  /** The file a save writes */
+  file: string;
+  /** The servers /etc/resolv.conf points programs at right now */
+  in_use: string[];
+  /** Per interface, from resolvectl (resolved only) */
+  links: DnsLink[];
+  /** Who writes /etc/resolv.conf */
+  manager: "resolved" | "networkmanager" | "resolvconf" | "static";
+  /** Why it can't be edited here, or where the values come from */
+  note: string;
+  /** resolv.conf options (static only) */
+  options: string[];
+  revision: string;
+  search: string[];
+  /** The DNS servers Morche set (resolved) or the ones in /etc/resolv.conf (static) */
+  servers: string[];
+  /** Morche has root or sudo here */
+  writable: boolean;
 }
 
 export interface DockerActionBody {
@@ -12042,6 +12232,22 @@ export interface HostConfig {
   websockets?: boolean;
 }
 
+export interface HostEntry {
+  address: string;
+  /** The text after # on the same line */
+  comment: string;
+  /** false = the line is commented out */
+  enabled: boolean;
+  /**
+   * Its line in the file (1-based); 0 = a new entry
+   * @format int64
+   */
+  line: number;
+  names: string[];
+  /** A line the system needs (localhost, the IPv6 boilerplate, this machine's own name) */
+  system: boolean;
+}
+
 export interface HostNet {
   hostname: string;
   interfaces: NetInterface[];
@@ -12109,6 +12315,48 @@ export interface HostTLS {
   verify_client?: "" | "on" | "optional";
 }
 
+export interface HostnameBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Point 127.0.1.1 in /etc/hosts at the new name too (recommended: sudo slows down otherwise) */
+  fix_hosts: boolean;
+  /** @maxLength 253 */
+  hostname: string;
+  /** @maxLength 64 */
+  pretty_hostname?: string;
+}
+
+export interface HostsBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxItems 5000 */
+  entries: HostEntry[];
+  revision: string;
+}
+
+export interface HostsOverview {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  entries: HostEntry[];
+  /** This machine's own name */
+  hostname: string;
+  /** Names on two addresses, bad addresses or names */
+  problems: string[];
+  /** Send it back with a change; it moves when the file changes */
+  revision: string;
+  /** Morche has root or sudo here */
+  writable: boolean;
+}
+
 export interface IDsBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -12121,6 +12369,35 @@ export interface IDsBody {
    * @minItems 1
    */
   ids: string[];
+}
+
+export interface IfaceConfig {
+  dhcp4: boolean;
+  dhcp6: boolean;
+  /** Default gateway for IPv4; empty = none */
+  gateway4: string;
+  /** Default gateway for IPv6; empty = none */
+  gateway6: string;
+  /** Fixed addresses with their prefix, IPv4 and IPv6 */
+  addresses: string[];
+  /** DNS servers set on this interface */
+  dns: string[];
+  /** ethernet, wifi, bond, bridge or vlan (read only) */
+  kind?: string;
+  /**
+   * 0 = the default
+   * @format int64
+   */
+  mtu: number;
+  name: string;
+  /** Search domains set on this interface */
+  search: string[];
+}
+
+export interface IfaceRoute {
+  dev: string;
+  to: string;
+  via: string;
 }
 
 export interface Images {
@@ -12353,6 +12630,11 @@ export interface JobPlace {
   dataset?: string;
   /** The server's or storage's name when the job started */
   name?: string;
+  /**
+   * The package registry it deploys, secures or removes
+   * @format uuid
+   */
+  package_registry?: string;
   path: string;
   /**
    * The container registry login it signs in or out
@@ -12620,6 +12902,24 @@ export interface ListOutBody3 {
    */
   $schema?: string;
   items: AlertMute[];
+}
+
+export interface ListPackageRegistriesResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: PackageRegistry[];
+}
+
+export interface ListPackageRegistryKindsResponse {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: RegistryKind[];
 }
 
 export interface ListPlaybooksResponse {
@@ -13326,6 +13626,39 @@ export interface Mirror {
   to?: string;
 }
 
+export interface MirrorBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  revision: string;
+  url: string;
+}
+
+export interface MirrorTestBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  url: string;
+}
+
+export interface MirrorTestResult {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  error: string;
+  ok: boolean;
+  /** @format int64 */
+  took_ms: number;
+  /** The address it fetched */
+  tried: string;
+}
+
 export interface Module {
   /** packages, files, commands, system, users, network, security, source, containers, databases, cloud, flow or other */
   category: string;
@@ -13965,6 +14298,20 @@ export interface Network {
   tx_bytes_total: number;
 }
 
+export interface NetworkBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Go ahead although Morche's address may change */
+  confirm_address_change?: boolean;
+  /** Stop cloud-init writing the network config at boot (needed when it wrote the file) */
+  disable_cloud_init?: boolean;
+  iface: IfaceConfig;
+  revision: string;
+}
+
 export interface NetworkMap {
   /**
    * A URL to the JSON Schema for this object.
@@ -13979,6 +14326,50 @@ export interface NetworkMap {
   /** @format date-time */
   scanned_at: string;
   servers: NetworkServer[];
+}
+
+export interface NetworkOverview {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  backend: "netplan" | "networkmanager" | "ifupdown" | "networkd" | "unknown";
+  /** cloud-init writes the netplan config at boot (saving will ask to stop that) */
+  cloud_init: boolean;
+  editable: boolean;
+  interfaces: ServerIface[];
+  /** The address Morche connects to */
+  morche_at: string;
+  note: string;
+  /** A change waiting for Keep it */
+  pending: ConfigPending;
+  /** netplan's renderer (networkd or NetworkManager) */
+  renderer: string;
+  revision: string;
+  routes: IfaceRoute[];
+  writable: boolean;
+}
+
+export interface NetworkPreview {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  commands: string[];
+  files: NetworkPreviewFile[];
+  /** What the body must also say for it to go */
+  needs: "" | "confirm_address_change" | "disable_cloud_init";
+  /** Why it would be refused; empty when it can go */
+  problem: string;
+  warnings: string[];
+}
+
+export interface NetworkPreviewFile {
+  after: string;
+  before: string;
+  path: string;
 }
 
 export interface NetworkServer {
@@ -15336,6 +15727,91 @@ export interface PackagePreview {
   kept_back: string[];
   /** Why it can't be done as asked, in the package manager's words */
   problems: string[];
+}
+
+export interface PackageRegistry {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** What image names and npm settings spell: registry.example.com or host:port */
+  address: string;
+  admin_user: string;
+  /** @format date-time */
+  checked_at: string | null;
+  /** @format date-time */
+  created_at: string;
+  created_by_name: string;
+  dir: string;
+  /**
+   * The Containers registry login made for it
+   * @format uuid
+   */
+  docker_registry_id?: string;
+  /** The name clients use; empty = the server's address and the port */
+  domain: string;
+  health: "unknown" | "online" | "degraded" | "down";
+  https: boolean;
+  /** @format uuid */
+  id: string;
+  /**
+   * Repositories (Harbor) or packages (Verdaccio)
+   * @format int64
+   */
+  items: number;
+  /**
+   * The last deploy, HTTPS or remove job
+   * @format uuid
+   */
+  job_id?: string;
+  kind: "harbor" | "verdaccio";
+  label: string;
+  name: string;
+  note: string;
+  /** @format int64 */
+  port: number;
+  problem: string;
+  /** The compose project it runs as (Containers lists it) */
+  project: string;
+  /** @format uuid */
+  proxy_host_id?: string;
+  /** @format uuid */
+  proxy_id?: string;
+  /** @format uuid */
+  server_id: string;
+  server_name: string;
+  server_status: string;
+  settings: RegistrySettings;
+  state: "deploying" | "ready" | "failed" | "removing";
+  /** @format date-time */
+  updated_at: string;
+  /** Its web address */
+  url: string;
+  /** @format int64 */
+  usage_bytes: number;
+  version: string;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface PackageRegistryPreflightRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 253 */
+  domain?: string;
+  kind: "harbor" | "verdaccio";
+  /** @maxLength 100 */
+  name?: string;
+  /**
+   * @format int64
+   * @min 0
+   * @max 65535
+   */
+  port?: number;
 }
 
 export interface PackageSearchResult {
@@ -17957,6 +18433,16 @@ export interface RecordingSettingsBody {
   keep_days: number;
 }
 
+export interface RedeployPackageRegistryRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Harbor: turn the Trivy scanner on or off with it */
+  scanner?: boolean;
+}
+
 export interface RedirectHit {
   /** @format int64 */
   count: number;
@@ -18121,6 +18607,294 @@ export interface RegionProblem {
   status: string;
 }
 
+export interface RegistryAccount {
+  /** @format date-time */
+  created_at: string | null;
+  disabled: boolean;
+  /** @format date-time */
+  expires_at: string | null;
+  /** Harbor: the robot's id; Verdaccio: the user name */
+  id: string;
+  kind: "robot" | "user";
+  /** Made by Morche for its own use (Containers login, its admin) */
+  morche: boolean;
+  name: string;
+  note: string;
+  /** May push or publish */
+  push: boolean;
+}
+
+export interface RegistryAccountBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Harbor: valid for this many days, 0 = never expires
+   * @format int64
+   * @min 0
+   * @max 3650
+   */
+  days?: number;
+  /**
+   * @minLength 1
+   * @maxLength 64
+   */
+  name: string;
+  /** @maxLength 200 */
+  note?: string;
+  /** Harbor: may push and delete; Verdaccio users may always publish */
+  push?: boolean;
+}
+
+export interface RegistryAccountSecret {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  account: RegistryAccount;
+  /** Shown only now */
+  secret: string;
+}
+
+export interface RegistryCreateBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * Publish it under this name through the server's reverse proxy; empty = open the port instead (plain http)
+   * @maxLength 253
+   */
+  domain?: string;
+  /**
+   * Where Let's Encrypt sends expiry warnings
+   * @maxLength 200
+   */
+  email?: string;
+  /** Get a Let's Encrypt certificate for the domain */
+  https?: boolean;
+  kind: "harbor" | "verdaccio";
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  /** @maxLength 1000 */
+  note?: string;
+  /**
+   * 0 = the kind's default
+   * @format int64
+   * @min 0
+   * @max 65535
+   */
+  port?: number;
+  /** @format uuid */
+  server_id: string;
+  settings: RegistrySettings;
+}
+
+export interface RegistryCreated {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  job: Job;
+  registry: PackageRegistry;
+}
+
+export interface RegistryCredentials {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  password: string;
+  url: string;
+  user: string;
+}
+
+export interface RegistryItem {
+  description?: string;
+  latest?: string;
+  /** Kept from the mirror */
+  mirror: boolean;
+  /** Harbor: project/repository; Verdaccio: the package name */
+  name: string;
+  /** Verdaccio: published here, not a copy from the mirror */
+  private: boolean;
+  project?: string;
+  /** @format int64 */
+  pulls: number;
+  /** @format int64 */
+  size: number;
+  /** @format date-time */
+  updated: string;
+  /**
+   * Artifacts (Harbor) or versions (Verdaccio)
+   * @format int64
+   */
+  versions: number;
+}
+
+export interface RegistryItemDetail {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  description?: string;
+  dist_tags: Record<string, string>;
+  homepage?: string;
+  license?: string;
+  name: string;
+  private: boolean;
+  versions: RegistryVersion[];
+}
+
+export interface RegistryItems {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: RegistryItem[];
+  projects: RegistryProject[];
+  /** @format int64 */
+  total: number;
+}
+
+export interface RegistryKind {
+  /** @format int64 */
+  default_port: number;
+  /** @format int64 */
+  disk_gb: number;
+  /** What it holds: docker, helm, npm */
+  formats: string[];
+  kind: "harbor" | "verdaccio";
+  label: string;
+  license: string;
+  /** @format int64 */
+  memory_mb: number;
+  /** @format int64 */
+  min_memory_mb: number;
+  version: string;
+}
+
+export interface RegistryPreflight {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  compose: string;
+  /** Where it would go */
+  dir: string;
+  /** Docker's version; empty when it isn't installed or running */
+  docker: string;
+  /** Its folder already exists */
+  exists: boolean;
+  /** curl or wget is installed */
+  fetch: boolean;
+  /**
+   * Free disk space where it would go
+   * @format int64
+   */
+  free_gb: number;
+  /** @format int64 */
+  memory_mb: number;
+  /**
+   * The port it would use (a free one when the asked port is taken)
+   * @format int64
+   */
+  port: number;
+  port_free: boolean;
+  /** What stops it from being deployed */
+  problems: string[];
+  project: string;
+  /** Reverse proxies on this server */
+  proxies: RegistryProxyChoice[];
+  warnings: string[];
+}
+
+export interface RegistryProject {
+  /** A proxy cache of another registry */
+  mirror: boolean;
+  name: string;
+  public: boolean;
+  /** @format int64 */
+  repos: number;
+}
+
+export interface RegistryProxyChoice {
+  /** @format uuid */
+  id: string;
+  label: string;
+  status: string;
+  /** Set up and not read only */
+  usable: boolean;
+}
+
+export interface RegistrySettings {
+  /** Harbor: free the space of deleted images every week */
+  cleanup?: boolean;
+  /** Harbor: a Docker Hub cache project; Verdaccio: fetch and keep packages from npmjs */
+  mirror: boolean;
+  /** Harbor: the cache project's name (default dockerhub) */
+  mirror_project?: string;
+  /** Anyone who reaches it can pull or install without signing in */
+  public: boolean;
+  /** Harbor: install the Trivy vulnerability scanner */
+  scanner?: boolean;
+  /**
+   * Verdaccio: private scopes like @company, never fetched from npmjs
+   * @maxItems 20
+   */
+  scopes?: string[];
+  /** Verdaccio: where the mirror fetches from (default https://registry.npmjs.org/) */
+  upstream?: string;
+}
+
+export interface RegistryUpdateBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  /** @maxLength 1000 */
+  note: string;
+  settings: RegistrySettings;
+}
+
+export interface RegistryVersion {
+  author?: string;
+  deprecated?: string;
+  /** Harbor's artifact type: IMAGE, CHART… */
+  kind?: string;
+  platforms: string[];
+  /** @format date-time */
+  pulled: string | null;
+  /** @format date-time */
+  pushed: string | null;
+  /** Harbor: the digest; Verdaccio: the version */
+  ref: string;
+  /**
+   * -1 = not kept here
+   * @format int64
+   */
+  size: number;
+  tags: string[];
+}
+
 export interface RenameCloudServerRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -18248,6 +19022,96 @@ export interface ReplicationState {
   uptime_seconds?: number;
 }
 
+export interface Repo {
+  components: string[];
+  enabled: boolean;
+  file: string;
+  format: "line" | "deb822" | "repo";
+  /** file#n: the line (one-line apt), the stanza (deb822) or the section (.repo) it is in */
+  id: string;
+  /** The distribution's own repositories (the ones a mirror replaces) */
+  main: boolean;
+  /** Added by Morche */
+  morche: boolean;
+  /** The repo id of a .repo section; empty for apt */
+  name: string;
+  /** Everything else: signed-by, arch, gpgcheck, name… */
+  options: Record<string, string>;
+  suites: string[];
+  /** deb and/or deb-src (apt) */
+  types: string[];
+  /** apt URIs; for .repo the baseurl, mirrorlist or metalink */
+  uris: string[];
+}
+
+export interface RepoAddBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /**
+   * apt only
+   * @maxItems 10
+   */
+  components?: string[];
+  /** .repo only */
+  gpgcheck?: boolean;
+  /** .repo only: URL or file of the signing key */
+  gpgkey?: string;
+  /** Short name: the file is morche-<name>.sources or .repo */
+  name: string;
+  revision: string;
+  /** apt only: the key file that signs it */
+  signed_by?: string;
+  /** apt only: also source packages (deb-src) */
+  source?: boolean;
+  /**
+   * apt only
+   * @maxItems 6
+   */
+  suites?: string[];
+  /** .repo only: the name shown by dnf */
+  title?: string;
+  /**
+   * @maxItems 4
+   * @minItems 1
+   */
+  uris: string[];
+}
+
+export interface RepoMirror {
+  /** Morche can switch the mirror here (apt on Ubuntu or Debian) */
+  can_set: boolean;
+  codename: string;
+  /** Where the distribution's own packages come from now */
+  current: string;
+  /** os-release ID */
+  distro: string;
+}
+
+export interface RepoRemoveBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  id: string;
+  revision: string;
+}
+
+export interface RepoToggleBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  enabled: boolean;
+  /** The repo's id from the list */
+  id: string;
+  revision: string;
+}
+
 export interface ReportBucket {
   /** @format double */
   latency_p95?: number;
@@ -18317,6 +19181,21 @@ export interface ReportWindow {
   uptime?: number;
 }
 
+export interface ReposOverview {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  editable: boolean;
+  manager: "apt" | "dnf" | "yum" | "other";
+  mirror: RepoMirror;
+  note: string;
+  repos: Repo[];
+  revision: string;
+  writable: boolean;
+}
+
 export interface ResetupDatabasePitrRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -18340,6 +19219,34 @@ export interface ResizePveGuestDiskRequest {
    * @pattern ^\+?[0-9]+(\.[0-9]+)?[KMGT]?$
    */
   size: string;
+}
+
+export interface ResolveNameBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 253 */
+  name: string;
+  /** Ask this DNS server instead of the server's own lookup (DNS tab's test) */
+  server?: string;
+}
+
+export interface ResolveNameResult {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** The addresses it got */
+  answers: string[];
+  error: string;
+  ok: boolean;
+  /** hosts = /etc/hosts answered it */
+  source: "hosts" | "dns" | "none";
+  /** @format int64 */
+  took_ms: number;
 }
 
 export interface ResourceAccess {
@@ -19914,6 +20821,16 @@ export interface SearchStorageFilesResponse {
   truncated: boolean;
 }
 
+export interface SecurePackageRegistryRequest {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** @maxLength 200 */
+  email?: string;
+}
+
 export interface SecurityChannel {
   enabled: boolean;
   /** @format uuid */
@@ -20137,6 +21054,30 @@ export interface ServerCredentials {
   public_key: string;
   public_key_fingerprint: string;
   username: string;
+}
+
+export interface ServerIface {
+  /** What it has right now, with prefixes */
+  addresses: string[];
+  /** Morche reaches the server through this interface */
+  carries_morche: boolean;
+  /** How it is set up; null = no config for it (it can't be edited) */
+  config: IfaceConfig;
+  /** NetworkManager connection name */
+  connection: string;
+  /** The netplan file, or the NetworkManager connection file */
+  file: string;
+  /** The default route through it right now */
+  gateway: string;
+  /** ethernet, wifi, bond, bridge, vlan or virtual */
+  kind: string;
+  mac: string;
+  /** @format int64 */
+  mtu: number;
+  name: string;
+  state: "up" | "down" | "unknown";
+  /** Made by Docker, a bridge for VMs or similar: shown, not edited */
+  virtual: boolean;
 }
 
 export interface ServerInsight {
@@ -34635,6 +35576,402 @@ export class Api<
         ...params,
       }),
   };
+  packageRegistries = {
+    /**
+     * No description
+     *
+     * @tags Package registries
+     * @name CheckPackageRegistry
+     * @summary Check a registry now
+     * @request POST:/package-registries/{id}/check
+     */
+    checkPackageRegistry: (id: string, params: RequestParams = {}) =>
+      this.request<PackageRegistry, ErrorModel>({
+        path: `/package-registries/${id}/check`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Checks the server, then deploys it as a background job (kind `registry-deploy`): the compose project, a first admin with a random password, its settings (mirror, cleanup), a site on the server's reverse proxy with a Let's Encrypt certificate when a domain is given, and for Harbor a robot login in Containers › Registries. Needs Engineer on the server.
+     *
+     * @tags Package registries
+     * @name CreatePackageRegistry
+     * @summary Deploy a package registry on a server
+     * @request POST:/package-registries
+     */
+    createPackageRegistry: (
+      data: RegistryCreateBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<RegistryCreated, ErrorModel>({
+        path: `/package-registries`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Answers its password or secret once; Morche doesn't keep it.
+     *
+     * @tags Package registries
+     * @name CreatePackageRegistryAccount
+     * @summary Add a robot account (Harbor) or a user (Verdaccio)
+     * @request POST:/package-registries/{id}/accounts
+     */
+    createPackageRegistryAccount: (
+      id: string,
+      data: RegistryAccountBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<RegistryAccountSecret, ErrorModel>({
+        path: `/package-registries/${id}/accounts`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description A background job (kind `registry-remove`): takes the compose project down, removes its folder with every image or package (unless `keep_data`), its reverse proxy site and its Containers registry login. Needs Owner on the server.
+     *
+     * @tags Package registries
+     * @name DeletePackageRegistry
+     * @summary Remove a registry
+     * @request DELETE:/package-registries/{id}
+     */
+    deletePackageRegistry: (
+      id: string,
+      query?: {
+        /** Leave its folder (images, packages, database) on the server */
+        keep_data?: boolean;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/package-registries/${id}`,
+        method: "DELETE",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Package registries
+     * @name DeletePackageRegistryAccount
+     * @summary Remove a robot account or a user
+     * @request DELETE:/package-registries/{id}/accounts/{account}
+     */
+    deletePackageRegistryAccount: (
+      id: string,
+      account: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, ErrorModel>({
+        path: `/package-registries/${id}/accounts/${account}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * @description Harbor: the whole repository, or one artifact (`ref` = its digest) with its tags; the space comes back at the next cleanup. Verdaccio: the whole package with every version.
+     *
+     * @tags Package registries
+     * @name DeletePackageRegistryItem
+     * @summary Delete a repository, an artifact or a package
+     * @request POST:/package-registries/{id}/items/delete
+     */
+    deletePackageRegistryItem: (
+      id: string,
+      data: DeletePackageRegistryItemRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, ErrorModel>({
+        path: `/package-registries/${id}/items/delete`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Package registries
+     * @name GetPackageRegistry
+     * @summary A package registry
+     * @request GET:/package-registries/{id}
+     */
+    getPackageRegistry: (id: string, params: RequestParams = {}) =>
+      this.request<PackageRegistry, ErrorModel>({
+        path: `/package-registries/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Needs Owner on the server.
+     *
+     * @tags Package registries
+     * @name GetPackageRegistryCredentials
+     * @summary The registry's admin login
+     * @request GET:/package-registries/{id}/credentials
+     */
+    getPackageRegistryCredentials: (id: string, params: RequestParams = {}) =>
+      this.request<RegistryCredentials, ErrorModel>({
+        path: `/package-registries/${id}/credentials`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Package registries
+     * @name GetPackageRegistryItem
+     * @summary A repository's artifacts or a package's versions
+     * @request GET:/package-registries/{id}/items/detail
+     */
+    getPackageRegistryItem: (
+      id: string,
+      query?: {
+        /**
+         * @minLength 1
+         * @maxLength 300
+         */
+        name?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<RegistryItemDetail, ErrorModel>({
+        path: `/package-registries/${id}/items/detail`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Package registries
+     * @name ListPackageRegistries
+     * @summary Package registries you can see
+     * @request GET:/package-registries
+     */
+    listPackageRegistries: (
+      query?: {
+        /**
+         * Only this server's
+         * @format uuid
+         */
+        server_id?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ListPackageRegistriesResponse, ErrorModel>({
+        path: `/package-registries`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Harbor: robot accounts; Verdaccio: users.
+     *
+     * @tags Package registries
+     * @name ListPackageRegistryAccounts
+     * @summary Who can sign in to a registry
+     * @request GET:/package-registries/{id}/accounts
+     */
+    listPackageRegistryAccounts: (id: string, params: RequestParams = {}) =>
+      this.request<AccountsOutBody, ErrorModel>({
+        path: `/package-registries/${id}/accounts`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Harbor: repositories (newest first) and projects; Verdaccio: packages, its own first.
+     *
+     * @tags Package registries
+     * @name ListPackageRegistryItems
+     * @summary What a registry holds
+     * @request GET:/package-registries/{id}/items
+     */
+    listPackageRegistryItems: (
+      id: string,
+      query?: {
+        /**
+         * Only names with this in them
+         * @maxLength 200
+         */
+        q?: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<RegistryItems, ErrorModel>({
+        path: `/package-registries/${id}/items`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Package registries
+     * @name ListPackageRegistryKinds
+     * @summary Kinds of registry Morche can deploy
+     * @request GET:/package-registry-kinds
+     */
+    listPackageRegistryKinds: (params: RequestParams = {}) =>
+      this.request<ListPackageRegistryKindsResponse, ErrorModel>({
+        path: `/package-registry-kinds`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Its compose project's start, stop or restart. `cleanup` (Harbor) runs garbage collection now, freeing the space of deleted images.
+     *
+     * @tags Package registries
+     * @name PackageRegistryAction
+     * @summary Start, stop or restart a registry
+     * @request POST:/package-registries/{id}/actions/{action}
+     */
+    packageRegistryAction: (
+      id: string,
+      action: "start" | "stop" | "restart" | "cleanup",
+      params: RequestParams = {},
+    ) =>
+      this.request<PackageRegistry, ErrorModel>({
+        path: `/package-registries/${id}/actions/${action}`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Docker, Compose, memory, disk, a free port, the folder, and the server's reverse proxy for a domain.
+     *
+     * @tags Package registries
+     * @name PackageRegistryPreflight
+     * @summary What deploying a registry on this server needs
+     * @request POST:/servers/{id}/package-registry-preflight
+     */
+    packageRegistryPreflight: (
+      id: string,
+      data: PackageRegistryPreflightRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<RegistryPreflight, ErrorModel>({
+        path: `/servers/${id}/package-registry-preflight`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Writes its files and starts it again with the same admin, data and settings (after a failed deploy, or to apply Harbor's scanner setting). A job of kind `registry-deploy`.
+     *
+     * @tags Package registries
+     * @name RedeployPackageRegistry
+     * @summary Deploy a registry again
+     * @request POST:/package-registries/{id}/redeploy
+     */
+    redeployPackageRegistry: (
+      id: string,
+      data: RedeployPackageRegistryRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/package-registries/${id}/redeploy`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Answers it once.
+     *
+     * @tags Package registries
+     * @name ResetPackageRegistryAccount
+     * @summary Give a Verdaccio user a new password
+     * @request POST:/package-registries/{id}/accounts/{account}/password
+     */
+    resetPackageRegistryAccount: (
+      id: string,
+      account: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<RegistryAccountSecret, ErrorModel>({
+        path: `/package-registries/${id}/accounts/${account}/password`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Makes its reverse proxy site when it has none, gets a Let's Encrypt certificate and turns https on. A job of kind `registry-https`.
+     *
+     * @tags Package registries
+     * @name SecurePackageRegistry
+     * @summary Get HTTPS for a registry's domain
+     * @request POST:/package-registries/{id}/https
+     */
+    securePackageRegistry: (
+      id: string,
+      data: SecurePackageRegistryRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<Job, ErrorModel>({
+        path: `/package-registries/${id}/https`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Settings are applied at once: Harbor through its API (mirror project, who can pull, weekly cleanup; the scanner only changes on a new deploy), Verdaccio by rewriting its config and restarting it (a few seconds).
+     *
+     * @tags Package registries
+     * @name UpdatePackageRegistry
+     * @summary Change a registry's name, note and settings
+     * @request PUT:/package-registries/{id}
+     */
+    updatePackageRegistry: (
+      id: string,
+      data: RegistryUpdateBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<PackageRegistry, ErrorModel>({
+        path: `/package-registries/${id}`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
   reverseProxy = {
     /**
      * @description One GET per address from the proxy's server (curl, 8 s each, 10 at a time, redirects not followed). Nothing is saved.
@@ -37073,6 +38410,460 @@ export class Api<
       this.request<Script, ErrorModel>({
         path: `/scripts/${id}`,
         method: "PATCH",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  serverConfig = {
+    /**
+     * @description Writes /etc/apt/sources.list.d/morche-<name>.sources (deb822) or /etc/yum.repos.d/morche-<name>.repo. Refresh the package lists afterwards to use it.
+     *
+     * @tags Server config
+     * @name AddServerRepository
+     * @summary Add a repository
+     * @request POST:/servers/{id}/repositories
+     */
+    addServerRepository: (
+      id: string,
+      data: RepoAddBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<ReposOverview, ErrorModel>({
+        path: `/servers/${id}/repositories`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Takes the entry out of its file (the file goes when nothing is left). The distribution's own repositories can only be turned off.
+     *
+     * @tags Server config
+     * @name DeleteServerRepository
+     * @summary Remove a repository
+     * @request POST:/servers/{id}/repositories/delete
+     */
+    deleteServerRepository: (
+      id: string,
+      data: RepoRemoveBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<ReposOverview, ErrorModel>({
+        path: `/servers/${id}/repositories/delete`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Server config
+     * @name GetConfigChange
+     * @summary One config change with the files before and after
+     * @request GET:/servers/{id}/config-changes/{change}
+     */
+    getConfigChange: (id: string, change: string, params: RequestParams = {}) =>
+      this.request<ConfigChangeDetail, ErrorModel>({
+        path: `/servers/${id}/config-changes/${change}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Server config
+     * @name GetServerClock
+     * @summary The server's name, time zone and time sync
+     * @request GET:/servers/{id}/clock
+     */
+    getServerClock: (id: string, params: RequestParams = {}) =>
+      this.request<ClockOverview, ErrorModel>({
+        path: `/servers/${id}/clock`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Who manages /etc/resolv.conf, the servers and search domains set, and (with systemd-resolved) what each interface brings.
+     *
+     * @tags Server config
+     * @name GetServerDns
+     * @summary The server's DNS resolver
+     * @request GET:/servers/{id}/dns
+     */
+    getServerDns: (id: string, params: RequestParams = {}) =>
+      this.request<DnsOverview, ErrorModel>({
+        path: `/servers/${id}/dns`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Server config
+     * @name GetServerHosts
+     * @summary The server's /etc/hosts
+     * @request GET:/servers/{id}/hosts
+     */
+    getServerHosts: (id: string, params: RequestParams = {}) =>
+      this.request<HostsOverview, ErrorModel>({
+        path: `/servers/${id}/hosts`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Each interface with its live addresses and how it is set up (netplan or NetworkManager), the routes, and a change waiting for Keep it.
+     *
+     * @tags Server config
+     * @name GetServerNetwork
+     * @summary The server's network interfaces
+     * @request GET:/servers/{id}/network
+     */
+    getServerNetwork: (id: string, params: RequestParams = {}) =>
+      this.request<NetworkOverview, ErrorModel>({
+        path: `/servers/${id}/network`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Every apt source (one-line and deb822) or yum/dnf .repo section, and the mirror the distribution's own repositories use.
+     *
+     * @tags Server config
+     * @name GetServerRepositories
+     * @summary Where the server gets its packages
+     * @request GET:/servers/{id}/repositories
+     */
+    getServerRepositories: (id: string, params: RequestParams = {}) =>
+      this.request<ReposOverview, ErrorModel>({
+        path: `/servers/${id}/repositories`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Server config
+     * @name KeepConfigChange
+     * @summary Keep the change that's waiting
+     * @request POST:/servers/{id}/config/{area}/keep
+     */
+    keepConfigChange: (
+      id: string,
+      area: "hosts" | "dns" | "clock" | "network" | "repos",
+      params: RequestParams = {},
+    ) =>
+      this.request<void, ErrorModel>({
+        path: `/servers/${id}/config/${area}/keep`,
+        method: "POST",
+        ...params,
+      }),
+
+    /**
+     * @description Changes to hosts, DNS, clock, network and package sources, newest first.
+     *
+     * @tags Server config
+     * @name ListConfigChanges
+     * @summary Config changes made through Morche
+     * @request GET:/servers/{id}/config-changes
+     */
+    listConfigChanges: (
+      id: string,
+      query?: {
+        area?: "hosts" | "dns" | "clock" | "network" | "repos";
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<ConfigChanges, ErrorModel>({
+        path: `/servers/${id}/config-changes`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The files before and after, the commands, warnings, and what the body must also confirm. Changes nothing.
+     *
+     * @tags Server config
+     * @name PreviewServerNetwork
+     * @summary What a change to an interface would write
+     * @request POST:/servers/{id}/network/preview
+     */
+    previewServerNetwork: (
+      id: string,
+      data: NetworkBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<NetworkPreview, ErrorModel>({
+        path: `/servers/${id}/network/preview`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description What the server gets for a name, the way its programs would (/etc/hosts first, then DNS), or from one DNS server.
+     *
+     * @tags Server config
+     * @name ResolveServerName
+     * @summary Look a name up from the server
+     * @request POST:/servers/{id}/resolve
+     */
+    resolveServerName: (
+      id: string,
+      data: ResolveNameBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<ResolveNameResult, ErrorModel>({
+        path: `/servers/${id}/resolve`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Writes the files back through the same checks as any change. A network change waits for Keep it like any other.
+     *
+     * @tags Server config
+     * @name RestoreConfigChange
+     * @summary Put the files back as they were before a change
+     * @request POST:/servers/{id}/config-changes/{change}/restore
+     */
+    restoreConfigChange: (
+      id: string,
+      change: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<ConfigChange, ErrorModel>({
+        path: `/servers/${id}/config-changes/${change}/restore`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Points every main Ubuntu or Debian repository (security too) at the mirror: give its base, ending in /ubuntu or /debian. Test it first.
+     *
+     * @tags Server config
+     * @name SetServerMirror
+     * @summary Get the distribution's packages from another mirror
+     * @request PUT:/servers/{id}/repositories/mirror
+     */
+    setServerMirror: (
+      id: string,
+      data: MirrorBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<ReposOverview, ErrorModel>({
+        path: `/servers/${id}/repositories/mirror`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description chrony: makestep; systemd-timesyncd: restart it so it asks again.
+     *
+     * @tags Server config
+     * @name SyncServerClock
+     * @summary Bring the clock in step now
+     * @request POST:/servers/{id}/clock/sync
+     */
+    syncServerClock: (id: string, params: RequestParams = {}) =>
+      this.request<ClockOverview, ErrorModel>({
+        path: `/servers/${id}/clock/sync`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Fetches the release file of this server's release from the mirror, from the server itself.
+     *
+     * @tags Server config
+     * @name TestServerMirror
+     * @summary Try a mirror from the server
+     * @request POST:/servers/{id}/repositories/mirror/test
+     */
+    testServerMirror: (
+      id: string,
+      data: MirrorTestBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<MirrorTestResult, ErrorModel>({
+        path: `/servers/${id}/repositories/mirror/test`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Server config
+     * @name UndoConfigChange
+     * @summary Undo the change that's waiting
+     * @request POST:/servers/{id}/config/{area}/undo
+     */
+    undoConfigChange: (
+      id: string,
+      area: "hosts" | "dns" | "clock" | "network" | "repos",
+      params: RequestParams = {},
+    ) =>
+      this.request<void, ErrorModel>({
+        path: `/servers/${id}/config/${area}/undo`,
+        method: "POST",
+        ...params,
+      }),
+
+    /**
+     * @description Each field left out stays as it is. Time servers go into chrony's config or Morche's timesyncd drop-in, then the service restarts.
+     *
+     * @tags Server config
+     * @name UpdateServerClock
+     * @summary Set the time zone and time sync
+     * @request PUT:/servers/{id}/clock
+     */
+    updateServerClock: (
+      id: string,
+      data: ClockBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<ClockOverview, ErrorModel>({
+        path: `/servers/${id}/clock`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description With systemd-resolved: Morche's drop-in /etc/systemd/resolved.conf.d/90-morche.conf (empty = removed), then resolved restarts. With a plain /etc/resolv.conf: that file, other lines kept. 422 when NetworkManager or resolvconf writes the file.
+     *
+     * @tags Server config
+     * @name UpdateServerDns
+     * @summary Set the DNS servers
+     * @request PUT:/servers/{id}/dns
+     */
+    updateServerDns: (id: string, data: DnsBody, params: RequestParams = {}) =>
+      this.request<DnsOverview, ErrorModel>({
+        path: `/servers/${id}/dns`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Writes /etc/hostname, sets the running name and (with fix_hosts) points 127.0.1.1 in /etc/hosts at it. Morche's own name for the server stays as it is.
+     *
+     * @tags Server config
+     * @name UpdateServerHostname
+     * @summary Rename the server
+     * @request PUT:/servers/{id}/hostname
+     */
+    updateServerHostname: (
+      id: string,
+      data: HostnameBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<ClockOverview, ErrorModel>({
+        path: `/servers/${id}/hostname`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Every entry, as the list should be. Lines that didn't change, comments and blank lines stay as they were. 409 when the file changed since `revision`.
+     *
+     * @tags Server config
+     * @name UpdateServerHosts
+     * @summary Save /etc/hosts
+     * @request PUT:/servers/{id}/hosts
+     */
+    updateServerHosts: (
+      id: string,
+      data: HostsBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<HostsOverview, ErrorModel>({
+        path: `/servers/${id}/hosts`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Writes the config, checks it and applies it. The server undoes it by itself after 90 seconds unless it is kept (POST /servers/{id}/config/network/keep), and at once when Morche can't reach the server after it.
+     *
+     * @tags Server config
+     * @name UpdateServerNetwork
+     * @summary Change one interface
+     * @request POST:/servers/{id}/network
+     */
+    updateServerNetwork: (
+      id: string,
+      data: NetworkBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<NetworkOverview, ErrorModel>({
+        path: `/servers/${id}/network`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Server config
+     * @name UpdateServerRepository
+     * @summary Turn a repository on or off
+     * @request PUT:/servers/{id}/repositories
+     */
+    updateServerRepository: (
+      id: string,
+      data: RepoToggleBody,
+      params: RequestParams = {},
+    ) =>
+      this.request<ReposOverview, ErrorModel>({
+        path: `/servers/${id}/repositories`,
+        method: "PUT",
         body: data,
         type: ContentType.Json,
         format: "json",

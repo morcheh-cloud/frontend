@@ -207,6 +207,31 @@ export const guides: GuideMeta[] = [
     routes: ["/servers/*/notes"],
   },
   {
+    slug: "server-config",
+    title: "Network & system settings",
+    summary:
+      "Interfaces, DNS, the hosts file, hostname, time and package sources, edited with checks and a timer that undoes a change that cuts the server off.",
+    icon: Network,
+    group: "On a server",
+    keywords: [
+      "network",
+      "netplan",
+      "networkmanager",
+      "ip address",
+      "dns",
+      "resolv.conf",
+      "hosts",
+      "hostname",
+      "timezone",
+      "ntp",
+      "chrony",
+      "apt sources",
+      "repository",
+      "mirror",
+    ],
+    routes: ["/servers/*/network", "/servers/*/system"],
+  },
+  {
     slug: "server-metrics",
     title: "Server metrics",
     summary:
