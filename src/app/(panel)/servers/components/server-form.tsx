@@ -30,6 +30,7 @@ import {
 import { Field, FolderSelect, Segmented, TagInput } from "./fields"
 import { buildTree } from "./folder-tree"
 import { osLabel, StatusDot, statusMeta } from "./meta"
+import { ReachThrough } from "./reach-through"
 
 type AuthMethod = ServerBody["auth_method"]
 
@@ -45,6 +46,7 @@ type Values = {
   folder_id: string | null
   tags: string[]
   description: string
+  tunnel_id: string | null
 }
 
 // A new server can start with some fields filled (folder and tags for "Add
@@ -70,6 +72,7 @@ function initialValues(
     folder_id: server ? server.folder_id : (defaults?.folder_id ?? null),
     tags: server?.tags ?? defaults?.tags ?? [],
     description: server?.description ?? defaults?.description ?? "",
+    tunnel_id: server?.tunnel_id ?? null,
   }
 }
 
@@ -90,6 +93,7 @@ export function toBody(v: Values, favorite?: boolean): ServerBody {
     tags: v.tags,
     description: v.description.trim(),
     favorite,
+    tunnel_id: v.tunnel_id,
   }
 }
 
@@ -100,6 +104,7 @@ export function connectionChanged(server: Server, v: Values) {
     server.port !== (Number(v.port) || 22) ||
     server.username !== v.username.trim() ||
     server.auth_method !== v.auth_method ||
+    (server.tunnel_id ?? null) !== v.tunnel_id ||
     Boolean(v.password || v.private_key.trim() || v.passphrase)
   )
 }
@@ -251,6 +256,7 @@ export function ServerForm({
         password: b.password,
         private_key: b.private_key,
         passphrase: b.passphrase,
+        tunnel_id: b.tunnel_id,
         server_id: server?.id,
       },
       {
@@ -349,6 +355,11 @@ export function ServerForm({
           />
         )}
       </Field>
+      <ReachThrough
+        value={values.tunnel_id}
+        onChange={(v) => set("tunnel_id", v)}
+        error={errors.tunnel_id}
+      />
     </Section>
   )
 

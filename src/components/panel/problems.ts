@@ -18,6 +18,7 @@ import type {
   SoftwareInstall,
   Storage,
   StorageSync,
+  Tunnel,
   UptimeMonitor,
 } from "@/lib/services"
 import {
@@ -34,6 +35,7 @@ import {
   registriesItem,
   serversItem,
   storageItem,
+  tunnelsItem,
   vmsItem,
 } from "./nav"
 import { useWorkspace } from "./workspace"
@@ -106,6 +108,25 @@ export const cloudAccountsQuery = queryOptions({
 // A cloud account whose key was refused or whose API can't be reached.
 export const cloudAccountBroken = (c: Pick<CloudAccount, "status">) =>
   c.status !== "online" && c.status !== "unknown"
+
+// VPNs, proxies and jump hosts (/tunnels).
+export const tunnelsQuery = queryOptions({
+  queryKey: ["tunnels", "list"] as const,
+  queryFn: () => api.tunnels.listTunnels(),
+  refetchInterval: STATUS_POLL,
+})
+
+// A tunnel servers go through whose last try failed.
+export const tunnelBroken = (t: Pick<Tunnel, "status" | "server_count">) =>
+  t.status === "failed" && t.server_count > 0
+
+export function useTunnelProblems() {
+  const { data } = useQuery({
+    ...tunnelsQuery,
+    select: (list) => list.items.filter(tunnelBroken).length,
+  })
+  return data ?? 0
+}
 
 // Shared with /proxy. The backend re-checks them (PROXY_CHECK_INTERVAL).
 export const proxiesQuery = queryOptions({
@@ -384,6 +405,7 @@ export function useNavAlerts() {
   const proxies = useProxyProblems()
   const pve = usePVEProblems()
   const cloud = useCloudProblems()
+  const tunnels = useTunnelProblems()
   const software = useSoftwareProblems()
   const uptime = useUptimeProblems()
   const firing = useAlertProblems()
@@ -405,6 +427,12 @@ export function useNavAlerts() {
     alerts.set(vmsItem.href, {
       count: pve,
       label: `${plural(pve, "cluster", "clusters")} not connected or with a node down`,
+    })
+  }
+  if (tunnels > 0) {
+    alerts.set(tunnelsItem.href, {
+      count: tunnels,
+      label: `${plural(tunnels, "tunnel", "tunnels")} failing`,
     })
   }
   if (cloud > 0) {

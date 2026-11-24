@@ -4657,6 +4657,11 @@ export interface ConnectionTestBody {
    */
   server_id?: string;
   /**
+   * Reach it through this tunnel (VPN, proxy or jump host); leave out or null for directly
+   * @format uuid
+   */
+  tunnel_id?: string | null;
+  /**
    * @minLength 1
    * @maxLength 64
    */
@@ -13271,6 +13276,12 @@ export interface LogExportBody {
   to: string;
 }
 
+export interface LogLine {
+  /** @format date-time */
+  at: string;
+  text: string;
+}
+
 export interface LogOutBody {
   /**
    * A URL to the JSON Schema for this object.
@@ -20946,6 +20957,11 @@ export interface Server {
   /** Human-readable detail for the status */
   status_message: string;
   tags: string[];
+  /**
+   * The tunnel it's reached through; null = directly
+   * @format uuid
+   */
+  tunnel_id: string | null;
   /** @format date-time */
   updated_at: string;
   username: string;
@@ -21006,6 +21022,11 @@ export interface ServerBody {
    * @maxItems 20
    */
   tags?: string[];
+  /**
+   * Reach it through this tunnel (VPN, proxy or jump host); leave out or null for directly
+   * @format uuid
+   */
+  tunnel_id?: string | null;
   /**
    * @minLength 1
    * @maxLength 64
@@ -23826,6 +23847,24 @@ export interface TestProxyUpstreamRequest {
   upstream_tls?: UpstreamTLS;
 }
 
+export interface TestResult {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  address?: string;
+  dns?: string[];
+  log: LogLine[];
+  message: string;
+  /** @format int64 */
+  ms: number;
+  ok: boolean;
+  pin?: string;
+  reached: boolean;
+  target?: string;
+}
+
 export interface TrackAssetDiscoveryRequest {
   /**
    * A URL to the JSON Schema for this object.
@@ -23849,6 +23888,258 @@ export interface TransferFilesBody {
    * @minItems 1
    */
   paths: string[];
+}
+
+export interface Tunnel {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** The address the VPN gave Morche */
+  address: string;
+  config: TunnelConfig;
+  /**
+   * Connections open through it now
+   * @format int64
+   */
+  conns: number;
+  /** @format date-time */
+  created_at: string;
+  description: string;
+  /** Name servers in use inside the VPN */
+  dns: string[];
+  has_config_file: boolean;
+  has_passphrase: boolean;
+  has_password: boolean;
+  has_preshared_key: boolean;
+  has_private_key: boolean;
+  /** @format uuid */
+  id: string;
+  kind:
+    | "jump"
+    | "socks5"
+    | "http"
+    | "wireguard"
+    | "openvpn"
+    | "openconnect"
+    | "sstp";
+  kind_label: string;
+  /** @format date-time */
+  last_connected_at?: string;
+  name: string;
+  remotes: string[];
+  /**
+   * Servers reached through it
+   * @format int64
+   */
+  server_count: number;
+  status: "idle" | "connecting" | "connected" | "failed";
+  /** @format date-time */
+  status_at?: string;
+  status_message: string;
+  /** @format date-time */
+  updated_at: string;
+  /** @format uuid */
+  workspace_id: string;
+}
+
+export interface TunnelBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Saved secrets to drop */
+  clear?: ("password" | "preshared_key" | "passphrase")[];
+  config: TunnelConfig;
+  /**
+   * openvpn: the .ovpn file
+   * @maxLength 262144
+   */
+  config_file?: string;
+  /** @maxLength 500 */
+  description?: string;
+  kind:
+    | "jump"
+    | "socks5"
+    | "http"
+    | "wireguard"
+    | "openvpn"
+    | "openconnect"
+    | "sstp";
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  /** @maxLength 1024 */
+  passphrase?: string;
+  /** @maxLength 1024 */
+  password?: string;
+  /** @maxLength 100 */
+  preshared_key?: string;
+  /** @maxLength 100 */
+  private_key?: string;
+}
+
+export interface TunnelConfig {
+  /**
+   * wireguard: this side's addresses (Interface › Address)
+   * @maxItems 8
+   */
+  addresses?: string[];
+  /** @maxItems 64 */
+  allowed_ips?: string[];
+  /**
+   * VPNs: name servers inside it; empty = what the VPN hands out
+   * @maxItems 4
+   */
+  dns?: string[];
+  /**
+   * wireguard: host:port
+   * @maxLength 260
+   */
+  endpoint?: string;
+  /**
+   * openconnect: login group (authgroup)
+   * @maxLength 200
+   */
+  group?: string;
+  /**
+   * socks5/http: the proxy; openconnect/sstp: the VPN server
+   * @maxLength 253
+   */
+  host?: string;
+  /** sstp: accept a certificate the system doesn't trust */
+  ignore_cert?: boolean;
+  /**
+   * @format int64
+   * @min 0
+   * @max 3600
+   */
+  keepalive?: number;
+  /**
+   * @format int64
+   * @min 0
+   * @max 9000
+   */
+  mtu?: number;
+  /** @maxLength 60 */
+  peer_public_key?: string;
+  /**
+   * @format int64
+   * @min 0
+   * @max 65535
+   */
+  port?: number;
+  protocol?:
+    | "anyconnect"
+    | "fortinet"
+    | "gp"
+    | "pulse"
+    | "nc"
+    | "f5"
+    | "array"
+    | "";
+  /**
+   * openconnect: the trusted certificate, pin-sha256:…; empty = the system's CAs
+   * @maxLength 120
+   */
+  server_cert?: string;
+  /** jump: the Morche server to hop through */
+  server_id?: string;
+  /** http: talk to the proxy over TLS */
+  tls?: boolean;
+  /** @maxLength 200 */
+  username?: string;
+}
+
+export interface TunnelLogOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  lines: LogLine[];
+}
+
+export interface TunnelServer {
+  host: string;
+  /** @format uuid */
+  id: string;
+  name: string;
+  /** @format int32 */
+  port: number;
+  status: string;
+}
+
+export interface TunnelServersOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: TunnelServer[];
+}
+
+export interface TunnelTestBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  /** Saved secrets to drop */
+  clear?: ("password" | "preshared_key" | "passphrase")[];
+  config: TunnelConfig;
+  /**
+   * openvpn: the .ovpn file
+   * @maxLength 262144
+   */
+  config_file?: string;
+  /** @maxLength 500 */
+  description?: string;
+  kind:
+    | "jump"
+    | "socks5"
+    | "http"
+    | "wireguard"
+    | "openvpn"
+    | "openconnect"
+    | "sstp";
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+  /** @maxLength 1024 */
+  passphrase?: string;
+  /** @maxLength 1024 */
+  password?: string;
+  /** @maxLength 100 */
+  preshared_key?: string;
+  /** @maxLength 100 */
+  private_key?: string;
+  /**
+   * host:port to reach through it, like 10.0.0.5:22
+   * @maxLength 260
+   */
+  target?: string;
+  /**
+   * When editing: the saved tunnel, whose secrets blank ones stand for
+   * @format uuid
+   */
+  tunnel_id?: string;
+}
+
+export interface TunnelsOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: Tunnel[];
+  tools: Record<string, boolean>;
 }
 
 export interface UnitFile {
@@ -42778,6 +43069,172 @@ export class Api<
     ) =>
       this.request<BucketDetails, ErrorModel>({
         path: `/storages/${id}/buckets/${bucket}/versioning`,
+        method: "PUT",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  tunnels = {
+    /**
+     * @description Opens it and waits; it would otherwise open on first use.
+     *
+     * @tags Tunnels
+     * @name ConnectTunnel
+     * @summary Connect a tunnel now
+     * @request POST:/tunnels/{id}/connect
+     */
+    connectTunnel: (id: string, params: RequestParams = {}) =>
+      this.request<Tunnel, ErrorModel>({
+        path: `/tunnels/${id}/connect`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Tunnels
+     * @name CreateTunnel
+     * @summary Set up a tunnel
+     * @request POST:/tunnels
+     */
+    createTunnel: (data: TunnelBody, params: RequestParams = {}) =>
+      this.request<Tunnel, ErrorModel>({
+        path: `/tunnels`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Refused (409) while servers go through it.
+     *
+     * @tags Tunnels
+     * @name DeleteTunnel
+     * @summary Remove a tunnel
+     * @request DELETE:/tunnels/{id}
+     */
+    deleteTunnel: (id: string, params: RequestParams = {}) =>
+      this.request<void, ErrorModel>({
+        path: `/tunnels/${id}`,
+        method: "DELETE",
+        ...params,
+      }),
+
+    /**
+     * @description Its servers' connections drop; it opens again on next use.
+     *
+     * @tags Tunnels
+     * @name DisconnectTunnel
+     * @summary Disconnect a tunnel
+     * @request POST:/tunnels/{id}/disconnect
+     */
+    disconnectTunnel: (id: string, params: RequestParams = {}) =>
+      this.request<Tunnel, ErrorModel>({
+        path: `/tunnels/${id}/disconnect`,
+        method: "POST",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Tunnels
+     * @name GetTunnel
+     * @summary Get a tunnel
+     * @request GET:/tunnels/{id}
+     */
+    getTunnel: (id: string, params: RequestParams = {}) =>
+      this.request<Tunnel, ErrorModel>({
+        path: `/tunnels/${id}`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description What it wrote since Morche started (the last 400 lines).
+     *
+     * @tags Tunnels
+     * @name GetTunnelLog
+     * @summary Read a tunnel's log
+     * @request GET:/tunnels/{id}/log
+     */
+    getTunnelLog: (id: string, params: RequestParams = {}) =>
+      this.request<TunnelLogOutputBody, ErrorModel>({
+        path: `/tunnels/${id}/log`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description VPNs, proxies and jump hosts servers can be reached through.
+     *
+     * @tags Tunnels
+     * @name ListTunnels
+     * @summary List tunnels
+     * @request GET:/tunnels
+     */
+    listTunnels: (params: RequestParams = {}) =>
+      this.request<TunnelsOutputBody, ErrorModel>({
+        path: `/tunnels`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Tunnels
+     * @name ListTunnelServers
+     * @summary Servers reached through a tunnel
+     * @request GET:/tunnels/{id}/servers
+     */
+    listTunnelServers: (id: string, params: RequestParams = {}) =>
+      this.request<TunnelServersOutputBody, ErrorModel>({
+        path: `/tunnels/${id}/servers`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Opens a throwaway copy of the tunnel (nothing is saved) and, with a target, connects to it through the tunnel.
+     *
+     * @tags Tunnels
+     * @name TestTunnel
+     * @summary Test tunnel settings
+     * @request POST:/tunnels/test
+     */
+    testTunnel: (data: TunnelTestBody, params: RequestParams = {}) =>
+      this.request<TestResult, ErrorModel>({
+        path: `/tunnels/test`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Blank secrets keep the saved ones. It reconnects on next use.
+     *
+     * @tags Tunnels
+     * @name UpdateTunnel
+     * @summary Change a tunnel
+     * @request PUT:/tunnels/{id}
+     */
+    updateTunnel: (id: string, data: TunnelBody, params: RequestParams = {}) =>
+      this.request<Tunnel, ErrorModel>({
+        path: `/tunnels/${id}`,
         method: "PUT",
         body: data,
         type: ContentType.Json,

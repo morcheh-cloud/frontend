@@ -169,6 +169,15 @@ export const addCommands: Command[] = [
     keywords: "create migrate move copy transfer storage bucket s3 ftp webdav",
   },
   {
+    key: "action:add-tunnel",
+    label: "Set up a VPN or tunnel",
+    icon: Plus,
+    tile: "brand",
+    href: "/tunnels/new",
+    keywords:
+      "vpn wireguard openvpn anyconnect cisco fortinet globalprotect pulse sstp socks proxy http jump host bastion tunnel",
+  },
+  {
     key: "action:add-dns-server",
     label: "Add DNS server",
     icon: Plus,

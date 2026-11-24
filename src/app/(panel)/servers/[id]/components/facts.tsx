@@ -5,6 +5,12 @@ import Link from "next/link"
 import { type ReactNode, useState } from "react"
 import { toast } from "sonner"
 
+import { useTunnel } from "@/app/(panel)/tunnels/api"
+import {
+  toneDot,
+  tunnelHref,
+  statusMeta as tunnelStatus,
+} from "@/app/(panel)/tunnels/components/meta"
 import type { Server } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { useFolders } from "../../api"
@@ -37,6 +43,25 @@ function When({ iso }: { iso: string | null }) {
 
 // What the overview knows about a server, grouped. The desktop renders the
 // groups as cards and the phone as lists.
+// The tunnel a server is reached through, linked to its page.
+function TunnelLink({ id }: { id: string }) {
+  const { tunnel } = useTunnel(id)
+  if (!tunnel) return <span className="text-muted-foreground">A tunnel</span>
+  const m = tunnelStatus[tunnel.status]
+  return (
+    <Link
+      href={tunnelHref(id)}
+      className="inline-flex min-w-0 items-center gap-1.5 hover:underline"
+    >
+      <span
+        aria-hidden
+        className={cn("size-2 shrink-0 rounded-full", toneDot[m.tone])}
+      />
+      <span className="truncate">{tunnel.name}</span>
+    </Link>
+  )
+}
+
 export function useFacts(server: Server, checking: boolean) {
   const folders = useFolders()
   const { nodes } = buildTree(folders.data ?? [])
@@ -88,6 +113,9 @@ export function useFacts(server: Server, checking: boolean) {
     { label: "Port", value: <Mono>{server.port}</Mono> },
     { label: "User", value: <Mono>{server.username}</Mono> },
     { label: "Authentication", value: authText(server) },
+    ...(server.tunnel_id
+      ? [{ label: "Through", value: <TunnelLink id={server.tunnel_id} /> }]
+      : []),
     {
       label: "Host key",
       ...(server.host_key_fingerprint

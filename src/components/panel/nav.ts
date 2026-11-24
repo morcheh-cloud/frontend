@@ -2,6 +2,7 @@ import {
   Bell,
   BellRing,
   Boxes,
+  Cable,
   CalendarClock,
   CircleArrowUp,
   CircleHelp,
@@ -214,6 +215,11 @@ export const dnsItem: NavItem = {
     { href: "/dns/servers", label: "Servers", also: ["/dns/*"] },
   ],
 }
+export const tunnelsItem: NavItem = {
+  href: "/tunnels",
+  label: "VPN & tunnels",
+  icon: Cable,
+}
 export const proxyItem: NavItem = {
   href: "/proxy",
   label: "Reverse proxy",
@@ -362,7 +368,10 @@ export const navGroups: NavGroup[] = [
       storageItem,
     ],
   },
-  { label: "Network", items: [networkMapItem, dnsItem, proxyItem] },
+  {
+    label: "Network",
+    items: [networkMapItem, dnsItem, proxyItem, tunnelsItem],
+  },
   {
     label: "Automation",
     items: [

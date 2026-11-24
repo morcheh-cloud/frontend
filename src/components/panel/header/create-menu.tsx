@@ -30,6 +30,7 @@ import {
   serversItem,
   servicesItem,
   storageItem,
+  tunnelsItem,
   vmsItem,
 } from "../nav"
 import { HeaderIcon, headerIconClass } from "./header-icon"
@@ -60,6 +61,7 @@ const groups: { label: string; items: Entry[] }[] = [
     items: [
       { key: "add-proxy", label: "Reverse proxy", icon: proxyItem.icon },
       { key: "add-dns-server", label: "DNS server", icon: dnsItem.icon },
+      { key: "add-tunnel", label: "VPN or tunnel", icon: tunnelsItem.icon },
     ],
   },
   {

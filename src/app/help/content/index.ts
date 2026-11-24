@@ -38,6 +38,7 @@ import { storage } from "./storage"
 import { tasks } from "./tasks"
 import { terminal } from "./terminal"
 import { terminalRecordings } from "./terminal-recordings"
+import { tunnels } from "./tunnels"
 import { users } from "./users"
 import { virtualMachines } from "./virtual-machines"
 
@@ -70,6 +71,7 @@ export const content: Record<string, GuideSection[]> = {
   "virtual-machines": virtualMachines,
   databases,
   cloud,
+  tunnels,
   "package-registries": packageRegistries,
   dns,
   "reverse-proxy": reverseProxy,

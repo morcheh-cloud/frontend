@@ -34,6 +34,7 @@ import {
   servicesItem,
   storageItem,
   tasksItem,
+  tunnelsItem,
   vmsItem,
 } from "./nav"
 import { type NavAlert, useNavAlerts } from "./problems"
@@ -52,6 +53,7 @@ const moreItems = [
   networkMapItem,
   dnsItem,
   proxyItem,
+  tunnelsItem,
   applicationsItem,
   ansibleItem,
   scriptsItem,
