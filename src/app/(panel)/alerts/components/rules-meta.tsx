@@ -2,6 +2,7 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Box,
+  Cable,
   Cog,
   Container,
   Cpu,
@@ -38,7 +39,7 @@ export type Metric = AlertRuleBody["metric"]
 export type Op = "above" | "below"
 export type Severity = "warning" | "critical"
 export type Scope = "all" | "servers" | "tags" | "databases" | "clusters"
-export type Target = "server" | "database" | "cluster"
+export type Target = "server" | "database" | "cluster" | "tunnel"
 
 type MetricMeta = {
   label: string
@@ -165,6 +166,17 @@ export const metrics: Record<Metric, MetricMeta> = {
     forMinutes: 2,
     step: 1,
     target: "server",
+    state: true,
+  },
+  tunnel_down: {
+    label: "Tunnel down",
+    icon: Cable,
+    unit: "",
+    hint: "A VPN, proxy or jump host that something goes through can't connect.",
+    threshold: 0,
+    forMinutes: 2,
+    step: 1,
+    target: "tunnel",
     state: true,
   },
   pve_node_down: {
@@ -392,6 +404,10 @@ export const metricOrder: Metric[] = [
   "service",
 ]
 
+// Tunnel metrics, listed apart in the editor.
+export const tunnelMetricOrder: Metric[] = ["tunnel_down"]
+export const isTunnelMetric = (m: string) => targetOf(m) === "tunnel"
+
 // Proxmox metrics, listed apart in the editor.
 export const pveMetricOrder: Metric[] = [
   "pve_node_down",
@@ -480,6 +496,7 @@ export function conditionText(
   if (r.metric === "offline" || r.metric === "db_down") return "unreachable"
   if (r.metric === "db_health") return "critical"
   if (r.metric === "pve_node_down") return "has a node offline"
+  if (r.metric === "tunnel_down") return "can't connect"
   if (r.metric === "pve_vm_stopped") return "stopped on its own"
   if (r.metric === "service") return r.unit ? "stopped or failed" : "failed"
   if (r.metric === "container_down") return "down"
@@ -546,15 +563,17 @@ export function ruleSentence(
             : "A service"
           : isDatabaseMetric(r.metric)
             ? (dbSentenceLabel[r.metric] ?? "Database")
-            : r.metric === "pve_node_down"
-              ? "Cluster"
-              : r.metric === "pve_vm_stopped"
-                ? "A machine"
-                : r.metric === "pve_storage_full"
-                  ? "Cluster storage"
-                  : r.metric === "load"
-                    ? "Load"
-                    : metricOf(r.metric).label
+            : r.metric === "tunnel_down"
+              ? "A tunnel"
+              : r.metric === "pve_node_down"
+                ? "Cluster"
+                : r.metric === "pve_vm_stopped"
+                  ? "A machine"
+                  : r.metric === "pve_storage_full"
+                    ? "Cluster storage"
+                    : r.metric === "load"
+                      ? "Load"
+                      : metricOf(r.metric).label
   const minutes = r.for_minutes
   return `${label} ${conditionText(r)}${minutes > 0 ? ` ${forText(minutes)}` : ""}`
 }
@@ -648,6 +667,7 @@ export function targetHref(
   project?: string,
 ) {
   if (s.target_kind === "database") return `/databases/${s.target_id}`
+  if (s.target_kind === "tunnel") return `/tunnels/${s.target_id}`
   if (s.target_kind === "pve") {
     const tab =
       metric === "pve_node_down"
@@ -985,5 +1005,17 @@ export const pvePresets: Preset[] = [
     threshold: 85,
     forMinutes: 10,
     severity: "warning",
+  },
+]
+
+export const tunnelPresets: Preset[] = [
+  {
+    key: "tunnel-down",
+    name: "Tunnel down",
+    metric: "tunnel_down",
+    op: "above",
+    threshold: 0,
+    forMinutes: 2,
+    severity: "critical",
   },
 ]

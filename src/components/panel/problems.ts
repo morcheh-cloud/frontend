@@ -116,9 +116,10 @@ export const tunnelsQuery = queryOptions({
   refetchInterval: STATUS_POLL,
 })
 
-// A tunnel servers go through whose last try failed.
-export const tunnelBroken = (t: Pick<Tunnel, "status" | "server_count">) =>
-  t.status === "failed" && t.server_count > 0
+// A tunnel something goes through whose last try failed.
+export const tunnelBroken = (
+  t: Pick<Tunnel, "status" | "server_count" | "other_count">,
+) => t.status === "failed" && t.server_count + t.other_count > 0
 
 export function useTunnelProblems() {
   const { data } = useQuery({

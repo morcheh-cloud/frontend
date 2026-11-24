@@ -5,6 +5,7 @@ import {
   type Preset,
   presets,
   pvePresets,
+  tunnelPresets,
 } from "./rules-meta"
 
 // Where a new rule starts: a preset, a server (the Metrics tab), a mount, a
@@ -23,7 +24,12 @@ export type RuleStart = {
   cluster?: string
 }
 
-export const allPresets = [...presets, ...containerPresets, ...pvePresets]
+export const allPresets = [
+  ...presets,
+  ...containerPresets,
+  ...pvePresets,
+  ...tunnelPresets,
+]
 
 const textKeys = [
   "mount",

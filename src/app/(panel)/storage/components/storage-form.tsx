@@ -8,10 +8,10 @@ import {
   useRef,
   useState,
 } from "react"
-
 import { Field, Segmented } from "@/app/(panel)/servers/components/fields"
 import { StatusDot, statusMeta } from "@/app/(panel)/servers/components/meta"
 import { PrivateKeyInput, SecretInput } from "@/components/secret-input"
+import { ReachThrough } from "@/components/tunnels/reach-through"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -53,6 +53,7 @@ type Values = {
   root_path: string
   read_only: boolean
   description: string
+  tunnel_id: string | null
 }
 
 function initialValues(s?: Storage): Values {
@@ -77,6 +78,7 @@ function initialValues(s?: Storage): Values {
     root_path: s?.root_path ?? "",
     read_only: s?.read_only ?? false,
     description: s?.description ?? "",
+    tunnel_id: s?.tunnel_id ?? null,
   }
 }
 
@@ -104,6 +106,7 @@ function connection(v: Values): StorageTestBody {
     tls: v.protocol === "ftp" ? v.tls : "none",
     insecure_tls: usesTls(v) ? v.insecure_tls : false,
     root_path: v.root_path.trim(),
+    tunnel_id: v.tunnel_id,
   }
 }
 
@@ -137,6 +140,7 @@ export function connectionChanged(s: Storage, v: Values) {
     s.insecure_tls !== c.insecure_tls ||
     s.root_path !== c.root_path ||
     s.auth_method !== c.auth_method ||
+    (s.tunnel_id ?? null) !== (c.tunnel_id ?? null) ||
     Boolean(c.secret || c.clear_secret || c.private_key || c.passphrase)
   )
 }
@@ -376,6 +380,12 @@ export function StorageForm({
           </Field>
         )}
       </div>
+      <ReachThrough
+        value={values.tunnel_id}
+        onChange={(id) => set("tunnel_id", id)}
+        error={errors.tunnel_id}
+        addressHint="The address is as seen from inside it."
+      />
       {p === "s3" && (
         <div className="grid grid-cols-2 gap-3">
           <Field

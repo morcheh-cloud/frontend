@@ -22,7 +22,7 @@ import { targetOf } from "./rules-meta"
 // sent; one still firing when the mute ends is sent then.
 
 export type MuteTarget = {
-  kind: "server" | "database"
+  kind: "server" | "database" | "pve" | "tunnel"
   id: string
   name: string
 }
@@ -89,7 +89,7 @@ function targetsFor(
     if (ruleId && r.id !== ruleId) continue
     for (const s of r.states) {
       const t: MuteTarget = {
-        kind: s.target_kind === "database" ? "database" : "server",
+        kind: s.target_kind,
         id: s.target_id,
         name: s.target_name,
       }

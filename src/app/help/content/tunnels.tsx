@@ -28,11 +28,35 @@ export const tunnels: GuideSection[] = [
           <UI>VPN &amp; tunnels</UI> sets that up once, for Morche.
         </P>
         <P>
-          A tunnel is used by picking it in a server's connection settings under{" "}
-          <UI>Reach it through</UI>. From then on everything Morche does on that
-          server goes through it: checks, the terminal, files, containers,
-          monitoring, scripts and Ansible runs.
+          A tunnel is used by picking it under <UI>Reach it through</UI> in the
+          settings of what's behind it. From then on everything Morche does with
+          it goes through the tunnel.
         </P>
+        <Table
+          head={["Where", "What goes through it"]}
+          rows={[
+            [
+              <UI key="s">Servers</UI>,
+              "Checks, the terminal, files, containers, monitoring, scripts and Ansible runs.",
+            ],
+            [
+              <UI key="d">Databases (by address)</UI>,
+              "Monitoring, the data explorer, queries and syncs. Backups then run on a server inside that network (pick it as the runner), not on Morche's own machine.",
+            ],
+            [
+              <UI key="p">Proxmox clusters</UI>,
+              "Everything: machines, the console, backups, snapshots.",
+            ],
+            [
+              <UI key="st">Storages</UI>,
+              "S3, FTP, SFTP and WebDAV: browsing, transfers, syncs and backups to it.",
+            ],
+            [
+              <UI key="m">Monitors</UI>,
+              "Checks made from Morche (From Morche, through). Ping and UDP can't go through a tunnel: use a TCP check, or check from a server behind it.",
+            ],
+          ]}
+        />
         <Tip>
           A tunnel is private to Morche. Nothing changes on the network of the
           machine Morche runs on: no routes, no DNS, no new interfaces. Two VPNs
@@ -141,6 +165,26 @@ export const tunnels: GuideSection[] = [
         <P>
           Changing a tunnel's settings reconnects it on next use; the servers'
           connections through it are dropped so they pick up the new settings.
+        </P>
+      </>
+    ),
+  },
+  {
+    id: "alerts",
+    title: "Get told when a tunnel fails",
+    body: (
+      <>
+        <P>
+          An alert rule <UI>Tunnel down</UI> (Alerts › New rule › Tunnels, or{" "}
+          <UI>Alert me when it fails</UI> on a tunnel's page) watches every
+          tunnel in the workspace that something goes through. It fires when one
+          can't connect, on the channels you pick (Telegram, email…), and says
+          so again when it connects.
+        </P>
+        <P>
+          A tunnel nothing uses never fails: it only opens when needed. The
+          servers, databases and monitors behind it keep it busy, since each is
+          checked on its own.
         </P>
       </>
     ),

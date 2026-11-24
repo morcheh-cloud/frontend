@@ -20,7 +20,6 @@ import {
   useState,
 } from "react"
 import { toast } from "sonner"
-
 import {
   useDockerContainers,
   useDockerFleet,
@@ -29,6 +28,7 @@ import { Section } from "@/app/(panel)/cronjobs/components/editor-parts"
 import { useServers } from "@/app/(panel)/servers/api"
 import { Field, Segmented } from "@/app/(panel)/servers/components/fields"
 import { SecretInput } from "@/components/secret-input"
+import { ReachThrough } from "@/components/tunnels/reach-through"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -86,6 +86,7 @@ type Values = {
   tls: Tls
   ca_cert: string
   allow_internal: boolean
+  tunnel_id: string | null
   interval: number
   description: string
 }
@@ -118,6 +119,7 @@ function initialValues(
     tls: d?.tls ?? defaultTls(mode),
     ca_cert: d?.ca_cert ?? "",
     allow_internal: d?.allow_internal ?? false,
+    tunnel_id: d?.tunnel_id ?? null,
     interval: d?.interval_seconds ?? 60,
     description: d?.description ?? "",
   }
@@ -141,6 +143,7 @@ function connection(v: Values, allowInternal: boolean): DatabaseTestBody {
     tls: v.tls,
     ca_cert: v.tls === "verify" ? v.ca_cert.trim() : "",
     allow_internal: allowInternal && !server ? v.allow_internal : undefined,
+    tunnel_id: server ? null : v.tunnel_id,
   }
 }
 
@@ -452,6 +455,15 @@ export function DatabaseForm({
               : "Over SSH to one of your servers, so the port stays closed to the internet."}
           </p>
         </div>
+      )}
+      {direct && (
+        <ReachThrough
+          value={values.tunnel_id}
+          onChange={(id) => set("tunnel_id", id)}
+          error={errors.tunnel_id}
+          directHint="Straight from the machine Morche runs on."
+          addressHint="Host is its address as seen from inside it; backups then run on a server in that network."
+        />
       )}
       {!direct && (
         <>

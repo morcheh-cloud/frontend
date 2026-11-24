@@ -3,6 +3,7 @@
 import {
   ArrowRight,
   BellRing,
+  Cable,
   Check,
   ChevronRight,
   Container,
@@ -40,6 +41,7 @@ import {
   pvePresets,
   ruleSentence,
   ruleState,
+  tunnelPresets,
 } from "./rules-meta"
 
 // "Get alerted": one click starts a ready-made alert rule (or a monitor, for
@@ -63,6 +65,7 @@ const groups = [
   "websites",
   "containers",
   "machines",
+  "tunnels",
 ] as const
 type Group = (typeof groups)[number]
 
@@ -72,6 +75,7 @@ const groupMeta: Record<Group, { label: string; icon: typeof Server }> = {
   websites: { label: "Websites", icon: Globe },
   containers: { label: "Containers", icon: Container },
   machines: { label: "Virtual machines", icon: MonitorCog },
+  tunnels: { label: "Tunnels", icon: Cable },
 }
 
 const ofPreset = (p: Preset): Choice => ({
@@ -141,6 +145,7 @@ const picks: Record<Group, Choice[]> = {
   websites: monitorPicks,
   containers: containerPresets.map(ofPreset),
   machines: pvePresets.map(ofPreset),
+  tunnels: tunnelPresets.map(ofPreset),
 }
 
 type Status = { count: number; firing: number }

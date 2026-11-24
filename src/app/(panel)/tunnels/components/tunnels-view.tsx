@@ -107,6 +107,14 @@ function stateLine(t: Tunnel) {
   }
 }
 
+// "3 servers · 2 more", or "Not used yet".
+export function usedText(t: Tunnel) {
+  const n = t.server_count + t.other_count
+  if (n === 0) return "Not used yet"
+  if (t.other_count === 0) return `${n} ${n === 1 ? "server" : "servers"}`
+  return `${n} in use`
+}
+
 const missingTool = (t: Tunnel, tools: Record<string, boolean>) => {
   const c = choiceOf(t)
   return c.tool && tools[t.kind] === false ? c.tool : null
@@ -229,7 +237,7 @@ function Flow({ t, d }: { t: Tunnel; d: Data }) {
       <span className={line} />
       <span className="flex shrink-0 items-center gap-1 rounded-lg bg-card px-2 py-1 text-caption shadow-sm">
         <Server className="size-3.5 text-muted-foreground" />
-        <span className="tabular-nums">{t.server_count}</span>
+        <span className="tabular-nums">{t.server_count + t.other_count}</span>
       </span>
     </div>
   )
@@ -511,8 +519,7 @@ function TunnelsMobile() {
                               : "text-muted-foreground",
                           )}
                         >
-                          {m.label} · {t.kind_label} · {t.server_count}{" "}
-                          {t.server_count === 1 ? "server" : "servers"}
+                          {m.label} · {t.kind_label} · {usedText(t)}
                         </span>
                       </span>
                     </Link>

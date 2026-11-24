@@ -41,6 +41,7 @@ import {
 import { Field } from "@/components/field"
 import { usePageCrumbs } from "@/components/panel/breadcrumbs"
 import { useWorkspace } from "@/components/panel/workspace"
+import { ReachThrough } from "@/components/tunnels/reach-through"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -69,6 +70,7 @@ import {
   sameDraft,
   serverLocations,
   toBody,
+  tunnelKind,
   uses,
 } from "./draft"
 import { LocationResults } from "./location-report"
@@ -594,7 +596,17 @@ function Editor({
               {locCount > 1 && (
                 <RuleFields d={draft} set={set} errors={errors} />
               )}
-              {fromMorche(draft) && can.admin && (
+              {fromMorche(draft) && tunnelKind(k) && (
+                <ReachThrough
+                  label="From Morche, through"
+                  value={draft.tunnel || null}
+                  onChange={(id) => set({ tunnel: id ?? "" })}
+                  error={errors.tunnel_id}
+                  directHint="Morche checks it straight from its own machine."
+                  addressHint="Morche's checks go through it; the address is as seen from inside it."
+                />
+              )}
+              {fromMorche(draft) && can.admin && !draft.tunnel && (
                 <ToggleRow
                   id="monitor-internal"
                   label="Allow a private address"

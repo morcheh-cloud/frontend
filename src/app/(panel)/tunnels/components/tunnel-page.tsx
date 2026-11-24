@@ -1,11 +1,16 @@
 "use client"
 
 import {
+  BellRing,
   Cable,
   ChevronLeft,
   CircleAlert,
+  Database,
   Ellipsis,
+  HardDrive,
+  HeartPulse,
   Loader2,
+  MonitorCog,
   Pencil,
   Plug,
   Server,
@@ -15,7 +20,9 @@ import {
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
-
+import { useAlertRules } from "@/app/(panel)/alerts/api"
+import { newRuleHref } from "@/app/(panel)/alerts/components/rule-links"
+import { tunnelPresets } from "@/app/(panel)/alerts/components/rules-meta"
 import {
   Empty,
   type Item,
@@ -23,6 +30,7 @@ import {
   SheetItems,
 } from "@/app/(panel)/servers/[id]/components/parts"
 import { timeAgo } from "@/app/(panel)/servers/components/meta"
+import { vmsHref } from "@/app/(panel)/vms/components/meta"
 import { BottomSheet } from "@/components/bottom-sheet"
 import { usePageCrumbs } from "@/components/panel/breadcrumbs"
 import { useFollowWorkspace } from "@/components/panel/workspace"
@@ -33,12 +41,7 @@ import { useIsPhone } from "@/hooks/useIsPhone"
 import { useOpen } from "@/hooks/useOpen"
 import type { Tunnel } from "@/lib/services"
 import { cn } from "@/lib/utils"
-import {
-  useServerPicks,
-  useTunnel,
-  useTunnelLog,
-  useTunnelServers,
-} from "../api"
+import { useServerPicks, useTunnel, useTunnelLog, useTunnelUsers } from "../api"
 import {
   choiceOf,
   editTunnelHref,
@@ -236,8 +239,12 @@ function Page({
             </span>
           )}
         </Tile>
-        <Tile label="Servers through it">
-          <span className="tabular-nums">{t.server_count}</span>
+        <Tile label="Goes through it">
+          <span className="tabular-nums">{t.server_count + t.other_count}</span>
+          <span className="block text-caption text-ash">
+            {t.server_count} {t.server_count === 1 ? "server" : "servers"}
+            {t.other_count > 0 && ` · ${t.other_count} more`}
+          </span>
         </Tile>
         <Tile label="Last connected">
           {t.last_connected_at ? timeAgo(t.last_connected_at) : "Never"}
@@ -321,9 +328,10 @@ function Page({
             !phone && "gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]",
           )}
         >
-          <ServersCard t={t} phone={phone} />
+          <UsersCard t={t} phone={phone} />
           <SettingsCard t={t} jumpName={jumpName} phone={phone} />
         </div>
+        <AlertCard t={t} phone={phone} />
         {can(t, "operator") && <LogCard t={t} phone={phone} />}
       </div>
       {phone && (
@@ -386,50 +394,156 @@ function Card({
   )
 }
 
-function ServersCard({ t, phone }: { t: Tunnel; phone: boolean }) {
-  const q = useTunnelServers(t.id)
+const userKinds = {
+  server: {
+    icon: Server,
+    label: "Server",
+    href: (id: string) => `/servers/${id}`,
+  },
+  database: {
+    icon: Database,
+    label: "Database",
+    href: (id: string) => `/databases/${id}`,
+  },
+  cluster: {
+    icon: MonitorCog,
+    label: "Proxmox cluster",
+    href: (id: string) => vmsHref("machines", { cluster: id }),
+  },
+  monitor: {
+    icon: HeartPulse,
+    label: "Monitor",
+    href: (id: string) => `/monitoring/${id}`,
+  },
+  storage: {
+    icon: HardDrive,
+    label: "Storage",
+    href: (id: string) => `/storage/${id}`,
+  },
+} as const
+
+const goodStatus = ["online", "up", "connected"]
+const quietStatus = ["unknown", "pending", ""]
+
+function UsersCard({ t, phone }: { t: Tunnel; phone: boolean }) {
+  const q = useTunnelUsers(t.id)
   const items = q.data?.items ?? []
   return (
-    <Card title="Servers through it" phone={phone}>
+    <Card
+      title="What goes through it"
+      phone={phone}
+      action={
+        items.length > 0 && (
+          <span className="text-caption text-ash">{items.length}</span>
+        )
+      }
+    >
       {q.isPending ? (
         <Skeleton className="h-24 w-full" />
       ) : items.length === 0 ? (
         <p className="text-body-sm text-muted-foreground">
-          None yet. In a server&apos;s connection settings, pick{" "}
+          Nothing yet. Pick{" "}
           <span className="font-medium text-foreground">{t.name}</span> under
-          “Reach it through”.
+          “Reach it through” when you add or edit a server, a database (by
+          address), a Proxmox cluster, a storage, or a monitor checked from
+          Morche.
         </p>
       ) : (
         <ul className="-mx-2 flex flex-col">
-          {items.map((s) => (
-            <li key={s.id}>
-              <Link
-                href={`/servers/${s.id}`}
-                className="flex min-h-11 items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-subtle"
-              >
-                <Server className="size-4 shrink-0 text-muted-foreground" />
-                <span className="min-w-0 flex-1 truncate text-body-sm font-medium">
-                  {s.name}
-                </span>
-                <span className="truncate font-mono text-caption text-muted-foreground">
-                  {s.host}:{s.port}
-                </span>
-                <span
-                  role="img"
-                  aria-label={s.status}
-                  className={cn(
-                    "size-2 shrink-0 rounded-full",
-                    s.status === "online"
-                      ? "bg-success"
-                      : s.status === "unknown"
-                        ? "bg-mist"
-                        : "bg-destructive",
-                  )}
-                />
-              </Link>
-            </li>
-          ))}
+          {items.map((u) => {
+            const k = userKinds[u.kind]
+            return (
+              <li key={`${u.kind}:${u.id}`}>
+                <Link
+                  href={k.href(u.id)}
+                  className="flex min-h-11 items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-subtle"
+                >
+                  <k.icon className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 flex-1 truncate text-body-sm font-medium">
+                    {u.name}
+                  </span>
+                  <span className="truncate text-caption text-muted-foreground">
+                    {k.label}
+                  </span>
+                  <span
+                    role="img"
+                    aria-label={u.status}
+                    className={cn(
+                      "size-2 shrink-0 rounded-full",
+                      goodStatus.includes(u.status)
+                        ? "bg-success"
+                        : quietStatus.includes(u.status)
+                          ? "bg-mist"
+                          : "bg-destructive",
+                    )}
+                  />
+                </Link>
+              </li>
+            )
+          })}
         </ul>
+      )}
+    </Card>
+  )
+}
+
+// Whether a "Tunnel down" rule watches this workspace's tunnels, and the
+// way to add one.
+function AlertCard({ t, phone }: { t: Tunnel; phone: boolean }) {
+  const rules = useAlertRules()
+  const can = useTunnelCan()
+  const watching = (rules.data ?? []).filter(
+    (r) => r.metric === "tunnel_down" && r.enabled,
+  )
+  const state = watching
+    .flatMap((r) => r.states)
+    .find((s) => s.target_id === t.id)
+  return (
+    <Card title="Alerts" phone={phone}>
+      {watching.length > 0 ? (
+        <div className="flex items-start gap-3">
+          <BellRing
+            className={cn(
+              "mt-0.5 size-4 shrink-0",
+              state?.state === "firing" ? "text-destructive" : "text-success",
+            )}
+          />
+          <p className="min-w-0 flex-1 text-body-sm text-muted-foreground">
+            {state?.state === "firing"
+              ? "Firing: it can't connect, and the rule's channels were told."
+              : `Watched by ${watching.map((r) => r.name).join(", ")}: you're told when it can't connect${
+                  t.server_count + t.other_count === 0
+                    ? " (once something goes through it)"
+                    : ""
+                }.`}
+          </p>
+          <Button
+            variant="ghost"
+            className={phone ? "h-11" : "h-8"}
+            render={<Link href={`/alerts?rule=${watching[0].id}`} />}
+            nativeButton={false}
+          >
+            Open
+          </Button>
+        </div>
+      ) : (
+        <div className={cn("flex gap-3", phone ? "flex-col" : "items-center")}>
+          <p className="min-w-0 flex-1 text-body-sm text-muted-foreground">
+            Get told on Telegram, email or any channel when a tunnel something
+            goes through can&apos;t connect.
+          </p>
+          {can(t, "engineer") && (
+            <Button
+              variant="outline"
+              className={phone ? "h-11" : "h-9"}
+              render={<Link href={newRuleHref({ preset: tunnelPresets[0] })} />}
+              nativeButton={false}
+            >
+              <BellRing />
+              Alert me when it fails
+            </Button>
+          )}
+        </div>
       )}
     </Card>
   )

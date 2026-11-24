@@ -10,25 +10,37 @@ import {
   statusMeta,
 } from "@/app/(panel)/tunnels/components/meta"
 import { useCanAddTunnel } from "@/app/(panel)/tunnels/components/permissions"
+import { Field } from "@/components/field"
 import { useIsPhone } from "@/hooks/useIsPhone"
-import { Field } from "./fields"
 
 // "Reach it through": directly, or through one of the workspace's tunnels
 // (VPN, proxy or jump host). Shown once there are tunnels; before that, an
-// Owner gets a link to set one up.
+// Owner gets a link to set one up. Used by servers, direct databases,
+// Proxmox clusters, monitors and storages.
 export function ReachThrough({
   value,
   onChange,
   error,
+  label = "Reach it through",
+  directHint = "Directly from the machine Morche runs on.",
+  addressHint = "Its address is as seen from inside it.",
+  kinds,
 }: {
   value: string | null
   onChange: (id: string | null) => void
   error?: string
+  label?: string
+  directHint?: string
+  addressHint?: string
+  // Only tunnels of these kinds can be picked (e.g. no UDP through proxies).
+  kinds?: string[]
 }) {
   const phone = useIsPhone() ?? false
   const tunnels = useTunnels()
   const canAdd = useCanAddTunnel()
-  const items = tunnels.data?.items ?? []
+  const items = (tunnels.data?.items ?? []).filter(
+    (t) => !kinds || kinds.includes(t.kind) || t.id === value,
+  )
   if (items.length === 0 && !value) {
     if (!canAdd || tunnels.isPending) return null
     return (
@@ -48,12 +60,12 @@ export function ReachThrough({
   const picked = items.find((t) => t.id === value)
   return (
     <Field
-      label="Reach it through"
+      label={label}
       error={error}
       hint={
         picked
-          ? `${picked.kind_label} · ${statusMeta[picked.status].label}. Host is the address as seen from inside it.`
-          : "Directly from the machine Morche runs on."
+          ? `${picked.kind_label} · ${statusMeta[picked.status].label}. ${addressHint}`
+          : directHint
       }
     >
       {(p) => (

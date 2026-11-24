@@ -11,6 +11,7 @@ import {
 } from "react"
 
 import { PrivateKeyInput, SecretInput } from "@/components/secret-input"
+import { ReachThrough } from "@/components/tunnels/reach-through"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -30,7 +31,6 @@ import {
 import { Field, FolderSelect, Segmented, TagInput } from "./fields"
 import { buildTree } from "./folder-tree"
 import { osLabel, StatusDot, statusMeta } from "./meta"
-import { ReachThrough } from "./reach-through"
 
 type AuthMethod = ServerBody["auth_method"]
 
@@ -356,6 +356,7 @@ export function ServerForm({
         )}
       </Field>
       <ReachThrough
+        addressHint="Host is the address as seen from inside it."
         value={values.tunnel_id}
         onChange={(v) => set("tunnel_id", v)}
         error={errors.tunnel_id}

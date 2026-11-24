@@ -42,6 +42,8 @@ export type Draft = {
   count: string
   notifyDegraded: boolean
   allowInternal: boolean
+  // The Morche location goes through this tunnel ("" = directly).
+  tunnel: string
   // null = the workspace's default channels (only on create).
   channels: string[] | null
   resetPush: boolean
@@ -54,6 +56,10 @@ export const MORCHE = "morche"
 // The servers among a draft's locations.
 export const serverLocations = (d: Pick<Draft, "locations">) =>
   d.locations.filter((l) => l !== MORCHE)
+// Kinds whose check can go through a tunnel (TCP only).
+export const tunnelKind = (k: string) =>
+  !["ping", "udp", "push", "docker", "systemd", "command"].includes(k)
+
 export const fromMorche = (d: Pick<Draft, "locations" | "kind">) =>
   !onServer(d.kind) && d.locations.includes(MORCHE)
 // Locations the kind actually uses.
@@ -109,6 +115,7 @@ export function freshDraft(kind: Kind = "http"): Draft {
     count: "",
     notifyDegraded: false,
     allowInternal: false,
+    tunnel: "",
     channels: null,
     resetPush: false,
     paused: false,
@@ -151,6 +158,7 @@ export function draftFrom(m: UptimeMonitor, copy = false): Draft {
     count: numText(c.count),
     notifyDegraded: m.notify_degraded,
     allowInternal: copy ? false : m.allow_internal,
+    tunnel: m.tunnel_id ?? "",
     channels: m.channel_ids ?? [],
     resetPush: false,
     paused: m.paused,
@@ -372,6 +380,8 @@ export function toBody(d: Draft, creating: boolean): MonitorBody {
     resend_every: int(d.resend, 0),
     notify_degraded: d.notifyDegraded,
     allow_internal: d.allowInternal,
+    tunnel_id:
+      fromMorche(d) && tunnelKind(d.kind) && d.tunnel ? d.tunnel : null,
     channel_ids: d.channels ?? undefined,
     paused: creating ? d.paused : undefined,
     reset_push_token:
@@ -532,7 +542,7 @@ export const errorKeysOf: Partial<Record<keyof Draft, string[]>> = {
   count: ["config.count"],
   statuses: ["config.statuses"],
   expected: ["config.expected"],
-  locations: ["locations", "config.resolver", "allow_internal"],
+  locations: ["locations", "config.resolver", "allow_internal", "tunnel_id"],
   ruleDownCount: ["rule.down_count"],
   ruleDegradedCount: ["rule.degraded_count"],
   server: ["server_id"],

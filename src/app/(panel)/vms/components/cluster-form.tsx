@@ -3,11 +3,11 @@
 import { Loader2, PlugZap, ShieldCheck, TriangleAlert } from "lucide-react"
 import { type FormEvent, type ReactNode, useCallback, useState } from "react"
 import { toast } from "sonner"
-
 import { useAccess } from "@/components/auth/auth"
 import { BottomSheet } from "@/components/bottom-sheet"
 import { Field } from "@/components/field"
 import { SecretInput } from "@/components/secret-input"
+import { ReachThrough } from "@/components/tunnels/reach-through"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -44,6 +44,7 @@ type Values = {
   description: string
   tls_skip_verify: boolean
   allow_internal: boolean
+  tunnel_id: string | null
 }
 
 // "root@pam!morche=xxxxxxxx-…" pasted whole: split it into its two fields.
@@ -96,6 +97,7 @@ export function ClusterFormLayer({
     description: cluster?.description ?? "",
     tls_skip_verify: cluster?.tls_skip_verify ?? false,
     allow_internal: cluster?.allow_internal ?? false,
+    tunnel_id: cluster?.tunnel_id ?? null,
   }))
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [tested, setTested] = useState<PVETestOutputBody | null>(null)
@@ -133,6 +135,7 @@ export function ClusterFormLayer({
       fingerprint: v.fingerprint.trim(),
       tls_skip_verify: v.tls_skip_verify,
       allow_internal: v.allow_internal,
+      tunnel_id: v.tunnel_id,
     }
     if (v.secret.trim()) b.secret = v.secret.trim()
     return b
@@ -156,6 +159,7 @@ export function ClusterFormLayer({
         fingerprint: b.fingerprint,
         tls_skip_verify: b.tls_skip_verify,
         allow_internal: b.allow_internal,
+        tunnel_id: b.tunnel_id,
         // Editing with the secret left blank: test with the saved one.
         cluster_id: cluster?.id,
       },
@@ -227,6 +231,12 @@ export function ClusterFormLayer({
           />
         )}
       </Field>
+      <ReachThrough
+        value={values.tunnel_id}
+        onChange={(id) => set("tunnel_id", id)}
+        error={errors.tunnel_id}
+        addressHint="The address is the node's as seen from inside it."
+      />
       <Field
         label="API token ID"
         error={errors.token_id}

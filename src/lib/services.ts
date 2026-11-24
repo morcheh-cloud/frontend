@@ -146,6 +146,11 @@ export interface AlertEvent {
   severity: string;
   /** @format double */
   threshold: number;
+  /**
+   * A tunnel's event
+   * @format uuid
+   */
+  tunnel_id?: string;
   /** @format double */
   value: number;
 }
@@ -175,7 +180,7 @@ export interface AlertMute {
   /** @format uuid */
   target_id?: string;
   /** Empty = everywhere */
-  target_kind: "" | "server" | "database" | "pve";
+  target_kind: "" | "server" | "database" | "pve" | "tunnel";
   target_name: string;
   /** @format date-time */
   until: string;
@@ -206,8 +211,8 @@ export interface AlertMuteBody {
    */
   starts_at?: string;
   target_id?: string;
-  /** With target_id: one server or database; empty = everywhere */
-  target_kind?: "server" | "database" | "pve";
+  /** With target_id: one server, database, cluster or tunnel; empty = everywhere */
+  target_kind?: "server" | "database" | "pve" | "tunnel";
   /** @format date-time */
   until?: string;
 }
@@ -224,7 +229,7 @@ export interface AlertPreviewItem {
   status: string;
   /** @format uuid */
   target_id: string;
-  target_kind: "server" | "database" | "pve";
+  target_kind: "server" | "database" | "pve" | "tunnel";
   target_name: string;
   /** @format double */
   value?: number;
@@ -337,7 +342,8 @@ export interface AlertRuleBody {
     | "container_vulns_high"
     | "pve_node_down"
     | "pve_storage_full"
-    | "pve_vm_stopped";
+    | "pve_vm_stopped"
+    | "tunnel_down";
   /**
    * disk only: one mount point; empty = the fullest
    * @maxLength 255
@@ -376,7 +382,7 @@ export interface AlertRuleBody {
   /** scope tags: servers with any of them */
   tags?: string[];
   /**
-   * Percent for cpu, iowait, memory, swap, disk and container_memory (of its limit); load per core; bytes per second for net_rx/net_tx; percent of one core for container_cpu; stops in 10 minutes for container_restarts; findings in the image's last scan for container_vulns_critical (critical) and container_vulns_high (high or critical); percent used for pve_storage_full; percent used for db_disk, db_connections (of the limit) and db_memory (Redis maxmemory, ClickHouse max_server_memory_usage); milliseconds for db_latency; seconds behind for db_replication_lag; hours since the last good backup for db_backup_age; ignored for offline, service, db_down, db_health, container_down, container_unhealthy, docker_engine, pve_node_down and pve_vm_stopped
+   * Percent for cpu, iowait, memory, swap, disk and container_memory (of its limit); load per core; bytes per second for net_rx/net_tx; percent of one core for container_cpu; stops in 10 minutes for container_restarts; findings in the image's last scan for container_vulns_critical (critical) and container_vulns_high (high or critical); percent used for pve_storage_full; percent used for db_disk, db_connections (of the limit) and db_memory (Redis maxmemory, ClickHouse max_server_memory_usage); milliseconds for db_latency; seconds behind for db_replication_lag; hours since the last good backup for db_backup_age; ignored for offline, service, db_down, db_health, container_down, container_unhealthy, docker_engine, pve_node_down, pve_vm_stopped and tunnel_down
    * @format double
    */
   threshold: number;
@@ -403,7 +409,7 @@ export interface AlertRuleState {
    * @format uuid
    */
   target_id: string;
-  target_kind: "server" | "database" | "pve";
+  target_kind: "server" | "database" | "pve" | "tunnel";
   target_name: string;
   /** @format date-time */
   updated_at: string;
@@ -5652,6 +5658,11 @@ export interface Database {
   /** Limits changed from the defaults, by check id */
   thresholds: Record<string, DatabaseLimit>;
   tls: "disable" | "require" | "verify";
+  /**
+   * direct: the tunnel it's reached through; null = straight from Morche
+   * @format uuid
+   */
+  tunnel_id: string | null;
   /** @format date-time */
   updated_at: string;
   username: string;
@@ -5761,6 +5772,11 @@ export interface DatabaseBody {
   server_id?: string;
   /** require: encrypted, the certificate isn't checked; verify: also checks it (against ca_cert, or the system's CAs). Default: require when direct, disable through a server (SSH already encrypts) */
   tls?: "disable" | "require" | "verify";
+  /**
+   * direct only: reach it through this tunnel (VPN, proxy or jump host)
+   * @format uuid
+   */
+  tunnel_id?: string | null;
   /**
    * Elasticsearch: empty = password is an API key (Authorization: ApiKey). Meilisearch: unused
    * @maxLength 128
@@ -7279,6 +7295,11 @@ export interface DatabaseTestBody {
   server_id?: string;
   /** require: encrypted, the certificate isn't checked; verify: also checks it (against ca_cert, or the system's CAs). Default: require when direct, disable through a server (SSH already encrypts) */
   tls?: "disable" | "require" | "verify";
+  /**
+   * direct only: reach it through this tunnel (VPN, proxy or jump host)
+   * @format uuid
+   */
+  tunnel_id?: string | null;
   /**
    * Elasticsearch: empty = password is an API key (Authorization: ApiKey). Meilisearch: unused
    * @maxLength 128
@@ -13828,6 +13849,11 @@ export interface MonitorBody {
    * @default 10
    */
   timeout_seconds?: number;
+  /**
+   * Check from Morche through this tunnel (VPN, proxy or jump host)
+   * @format uuid
+   */
+  tunnel_id?: string | null;
 }
 
 export interface MonitorCheck {
@@ -14184,6 +14210,11 @@ export interface MonitorTestBody {
    * @default 10
    */
   timeout_seconds?: number;
+  /**
+   * Check from Morche through this tunnel (VPN, proxy or jump host)
+   * @format uuid
+   */
+  tunnel_id?: string | null;
 }
 
 export interface MorcheHostState {
@@ -14769,6 +14800,11 @@ export interface PVECluster {
   tls_skip_verify: boolean;
   /** user@realm!tokenname */
   token_id: string;
+  /**
+   * The tunnel it's reached through; null = straight from Morche
+   * @format uuid
+   */
+  tunnel_id: string | null;
   /** @format date-time */
   updated_at: string;
   url: string;
@@ -14809,6 +14845,11 @@ export interface PVEClusterBody {
    * @maxLength 300
    */
   token_id: string;
+  /**
+   * Reach it through this tunnel (VPN, proxy or jump host)
+   * @format uuid
+   */
+  tunnel_id?: string | null;
   /**
    * Any node's address, like https://pve1.example.com:8006
    * @minLength 1
@@ -15470,6 +15511,8 @@ export interface PVETestBody {
    * @maxLength 300
    */
   token_id: string;
+  /** @format uuid */
+  tunnel_id?: string | null;
   /**
    * @minLength 1
    * @maxLength 500
@@ -22602,6 +22645,11 @@ export interface Storage {
     | "error";
   status_message: string;
   tls: "none" | "explicit" | "implicit";
+  /**
+   * The tunnel it's reached through; null = straight from Morche
+   * @format uuid
+   */
+  tunnel_id: string | null;
   /** @format date-time */
   updated_at: string;
   /** Access key for S3 */
@@ -22715,6 +22763,11 @@ export interface StorageBody {
    * @default "none"
    */
   tls?: "none" | "explicit" | "implicit";
+  /**
+   * Reach it through this tunnel (VPN, proxy or jump host)
+   * @format uuid
+   */
+  tunnel_id?: string | null;
   /**
    * S3: access key id. Empty FTP user logs in anonymously
    * @maxLength 256
@@ -23517,6 +23570,11 @@ export interface StorageTestBody {
    */
   tls?: "none" | "explicit" | "implicit";
   /**
+   * Reach it through this tunnel (VPN, proxy or jump host)
+   * @format uuid
+   */
+  tunnel_id?: string | null;
+  /**
    * S3: access key id. Empty FTP user logs in anonymously
    * @maxLength 256
    */
@@ -23928,6 +23986,11 @@ export interface Tunnel {
   /** @format date-time */
   last_connected_at?: string;
   name: string;
+  /**
+   * Databases, clusters, monitors and storages reached through it
+   * @format int64
+   */
+  other_count: number;
   remotes: string[];
   /**
    * Servers reached through it
@@ -24130,6 +24193,23 @@ export interface TunnelTestBody {
    * @format uuid
    */
   tunnel_id?: string;
+}
+
+export interface TunnelUser {
+  /** @format uuid */
+  id: string;
+  kind: "server" | "database" | "cluster" | "monitor" | "storage";
+  name: string;
+  status: string;
+}
+
+export interface TunnelUsersOutputBody {
+  /**
+   * A URL to the JSON Schema for this object.
+   * @format uri
+   */
+  $schema?: string;
+  items: TunnelUser[];
 }
 
 export interface TunnelsOutputBody {
@@ -24360,6 +24440,11 @@ export interface UptimeMonitor {
   tags: string[];
   /** @format int32 */
   timeout_seconds: number;
+  /**
+   * Checks from Morche go through this tunnel; null = directly
+   * @format uuid
+   */
+  tunnel_id: string | null;
   /** @format date-time */
   updated_at: string;
   updated_by_name: string;
@@ -43201,6 +43286,22 @@ export class Api<
     listTunnelServers: (id: string, params: RequestParams = {}) =>
       this.request<TunnelServersOutputBody, ErrorModel>({
         path: `/tunnels/${id}/servers`,
+        method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Servers, databases, Proxmox clusters, monitors and storages, those the caller can see.
+     *
+     * @tags Tunnels
+     * @name ListTunnelUsers
+     * @summary What goes through a tunnel
+     * @request GET:/tunnels/{id}/users
+     */
+    listTunnelUsers: (id: string, params: RequestParams = {}) =>
+      this.request<TunnelUsersOutputBody, ErrorModel>({
+        path: `/tunnels/${id}/users`,
         method: "GET",
         format: "json",
         ...params,

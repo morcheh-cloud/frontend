@@ -59,10 +59,12 @@ export function useTunnelLog(id: string, enabled: boolean, fast: boolean) {
   })
 }
 
-export function useTunnelServers(id: string) {
+// Everything that goes through it: servers, databases, clusters, monitors,
+// storages.
+export function useTunnelUsers(id: string) {
   return useQuery({
     queryKey: tunnelKeys.servers(id),
-    queryFn: () => api.tunnels.listTunnelServers(id),
+    queryFn: () => api.tunnels.listTunnelUsers(id),
     refetchInterval: 15_000,
   })
 }

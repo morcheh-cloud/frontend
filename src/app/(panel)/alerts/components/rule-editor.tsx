@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query"
 import {
   Bell,
+  Cable,
   ChevronLeft,
   CircleAlert,
   CircleCheck,
@@ -83,6 +84,7 @@ import {
   isPercent,
   isPveMetric,
   isStateMetric,
+  isTunnelMetric,
   type Metric,
   metricOf,
   metricOrder,
@@ -99,13 +101,14 @@ import {
   takesContainerFilter,
   targetOf,
   toFieldValue,
+  tunnelMetricOrder,
 } from "./rules-meta"
 
 // The alert rule editor: /alerts/rules/new (where it starts in the query,
 // see rule-links) and /alerts/rules/[id]/edit. A full page on desktop
 // (EditorPage), a native screen with its own app bar on phones.
 
-type Family = "server" | "container" | "database" | "pve"
+type Family = "server" | "container" | "database" | "pve" | "tunnel"
 
 const families: {
   value: Family
@@ -127,16 +130,19 @@ const families: {
     order: databaseMetricOrder,
   },
   { value: "pve", label: "Proxmox", icon: MonitorCog, order: pveMetricOrder },
+  { value: "tunnel", label: "Tunnels", icon: Cable, order: tunnelMetricOrder },
 ]
 
 const familyOf = (m: string): Family =>
-  isPveMetric(m)
-    ? "pve"
-    : isDatabaseMetric(m)
-      ? "database"
-      : isContainerMetric(m)
-        ? "container"
-        : "server"
+  isTunnelMetric(m)
+    ? "tunnel"
+    : isPveMetric(m)
+      ? "pve"
+      : isDatabaseMetric(m)
+        ? "database"
+        : isContainerMetric(m)
+          ? "container"
+          : "server"
 
 // /alerts/rules/[id]/edit reads its id from the route.
 export function RuleEditorFromRoute() {
@@ -352,21 +358,23 @@ function Editor({
       ? "no channel"
       : `${pickedChannels.length} ${pickedChannels.length === 1 ? "channel" : "channels"}`
   const coversText =
-    family === "pve"
-      ? d.scope === "all"
-        ? "Every cluster"
-        : `${d.clusters.size} ${d.clusters.size === 1 ? "cluster" : "clusters"}`
-      : family === "database"
+    family === "tunnel"
+      ? "Every tunnel in use"
+      : family === "pve"
         ? d.scope === "all"
-          ? "Every database"
-          : `${d.databases.size} ${d.databases.size === 1 ? "database" : "databases"}`
-        : d.scope === "all"
-          ? "Every server"
-          : d.scope === "tags"
-            ? d.tags.length
-              ? `Tagged ${d.tags.join(", ")}`
-              : "No tag yet"
-            : `${d.servers.size} ${d.servers.size === 1 ? "server" : "servers"}`
+          ? "Every cluster"
+          : `${d.clusters.size} ${d.clusters.size === 1 ? "cluster" : "clusters"}`
+        : family === "database"
+          ? d.scope === "all"
+            ? "Every database"
+            : `${d.databases.size} ${d.databases.size === 1 ? "database" : "databases"}`
+          : d.scope === "all"
+            ? "Every server"
+            : d.scope === "tags"
+              ? d.tags.length
+                ? `Tagged ${d.tags.join(", ")}`
+                : "No tag yet"
+              : `${d.servers.size} ${d.servers.size === 1 ? "server" : "servers"}`
 
   if (!can) {
     return (
@@ -610,15 +618,23 @@ function Editor({
       <Section
         title="Covers"
         hint={
-          family === "pve"
-            ? "Which Proxmox clusters it watches."
-            : family === "database"
-              ? "Which databases it watches."
-              : "Which servers it watches. Every server and By tag take in ones added later."
+          family === "tunnel"
+            ? "Which tunnels it watches."
+            : family === "pve"
+              ? "Which Proxmox clusters it watches."
+              : family === "database"
+                ? "Which databases it watches."
+                : "Which servers it watches. Every server and By tag take in ones added later."
         }
         phone={phone}
       >
-        {family === "pve" ? (
+        {family === "tunnel" ? (
+          <p className="text-body-sm text-muted-foreground">
+            Every tunnel in this workspace that servers, databases, clusters,
+            monitors or storages go through, including ones set up later. An
+            unused tunnel can&apos;t fail: it only opens when needed.
+          </p>
+        ) : family === "pve" ? (
           <DatabaseScope
             kind="cluster"
             ws={ws}
